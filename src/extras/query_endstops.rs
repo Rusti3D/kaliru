@@ -49,6 +49,10 @@ impl QueryEndstops {
         Ok(q)
     }
 
+    pub fn endstops(&self) -> Vec<(EndstopRef, String)> {
+        self.endstops.borrow().clone()
+    }
+
     pub fn register_endstop(&self, mcu_endstop: EndstopRef, name: &str) {
         self.endstops.borrow_mut().push((mcu_endstop, name.to_string()));
     }

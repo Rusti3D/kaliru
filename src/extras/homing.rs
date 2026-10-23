@@ -388,6 +388,13 @@ fn dict_eq(a: &IndexMap<String, i64>, b: &IndexMap<String, i64>) -> bool {
     a.len() == b.len() && a.iter().all(|(k, v)| b.get(k) == Some(v))
 }
 
+/// the (homing_state, rails) arguments of the homing:home_rails_* events
+pub fn rails_arg(args: &[&dyn std::any::Any]) -> (Rc<Homing>, Vec<RailRef>) {
+    let homing_state = args[0].downcast_ref::<Rc<Homing>>().expect("homing state").clone();
+    let rails = args[1].downcast_ref::<Vec<RailRef>>().expect("rails").clone();
+    (homing_state, rails)
+}
+
 // State tracking of homing requests
 pub struct Homing {
     printer: Rc<Printer>,

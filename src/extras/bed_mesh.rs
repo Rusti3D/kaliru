@@ -273,6 +273,11 @@ impl BedMesh {
         self.bmc.borrow().clone().expect("bmc")
     }
 
+    /// bmc.zero_ref_pos
+    pub fn zero_ref_pos(&self) -> Option<(f64, f64)> {
+        self.bmc().zero_ref_pos
+    }
+
     fn toolhead(&self) -> KResult<Rc<ToolHead>> {
         self.toolhead.borrow().clone().ok_or_else(|| KError::Other("'NoneType' object has no attribute 'get_position'".into()))
     }

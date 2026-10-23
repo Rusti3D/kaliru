@@ -422,7 +422,7 @@ impl GCodeMove {
         Ok(())
     }
 
-    fn cmd_set_gcode_offset(&self, gcmd: &GCodeCommand) -> KResult<()> {
+    pub fn cmd_set_gcode_offset(&self, gcmd: &GCodeCommand) -> KResult<()> {
         let mut move_delta = [0.0; 4];
         for (pos, axis) in ["X", "Y", "Z", "E"].iter().enumerate() {
             let offset = match gcmd.get_float_opt(axis, Lim::new())? {

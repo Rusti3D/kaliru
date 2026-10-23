@@ -558,6 +558,10 @@ pub trait Endstop {
     fn get_position_endstop(&self) -> Option<f64> {
         None
     }
+    /// isinstance(endstop, mcu.MCU_endstop)
+    fn is_mcu_endstop(&self) -> bool {
+        false
+    }
 }
 
 pub type EndstopRef = Rc<dyn Endstop>;
@@ -572,6 +576,9 @@ pub fn any_to_endstop(obj: Rc<dyn Any>) -> Option<EndstopRef> {
 }
 
 impl Endstop for McuEndstop {
+    fn is_mcu_endstop(&self) -> bool {
+        true
+    }
     fn get_mcu(&self) -> Rc<Mcu> {
         McuEndstop::get_mcu(self)
     }

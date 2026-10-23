@@ -114,6 +114,7 @@ pub mod trad_rack;
 pub mod tuning_tower;
 pub mod verify_heater;
 pub mod virtual_sdcard;
+pub mod z_calibration;
 pub mod z_tilt;
 pub mod z_tilt_ng;
 
@@ -261,7 +262,7 @@ pub static MODULES: &[PrinterModule] = &[
     PrinterModule { name: "tuning_tower", ported: true, load_config: Some(tuning_tower::load_config), load_config_prefix: None, register_components: None },
     PrinterModule { name: "verify_heater", ported: true, load_config: None, load_config_prefix: Some(verify_heater::load_config_prefix), register_components: None },
     PrinterModule { name: "virtual_sdcard", ported: true, load_config: Some(virtual_sdcard::load_config), load_config_prefix: None, register_components: None },
-    todo("z_calibration"),
+    PrinterModule { name: "z_calibration", ported: true, load_config: Some(z_calibration::load_config), load_config_prefix: None, register_components: None },
     todo("z_thermal_adjust"),
     PrinterModule { name: "z_tilt", ported: true, load_config: Some(z_tilt::load_config), load_config_prefix: None, register_components: None },
     PrinterModule { name: "z_tilt_ng", ported: true, load_config: Some(z_tilt_ng::load_config), load_config_prefix: None, register_components: None },

@@ -15,8 +15,8 @@ use std::rc::Rc;
 
 pub struct SafeZHoming {
     printer: Rc<Printer>,
-    home_x_pos: f64,
-    home_y_pos: f64,
+    pub home_x_pos: f64,
+    pub home_y_pos: f64,
     z_hop: f64,
     z_hop_speed: f64,
     speed: f64,

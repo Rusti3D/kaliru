@@ -514,6 +514,8 @@ pub struct HomingInfo {
 /// dual carriage rails)
 pub trait Rail {
     fn get_name(&self, short: bool) -> String;
+    /// (position_min, position_max)
+    fn get_range(&self) -> (f64, f64);
     fn get_steppers(&self) -> Vec<Rc<McuStepper>>;
     fn get_endstops(&self) -> Vec<(crate::mcu::EndstopRef, String)>;
     fn get_homing_info(&self) -> HomingInfo;
@@ -762,6 +764,10 @@ impl PrinterRail {
 impl Rail for PrinterRail {
     fn get_name(&self, short: bool) -> String {
         self.steppers.borrow()[0].get_name(short)
+    }
+
+    fn get_range(&self) -> (f64, f64) {
+        PrinterRail::get_range(self)
     }
 
     fn get_steppers(&self) -> Vec<Rc<McuStepper>> {

@@ -6,7 +6,7 @@
 // This file may be distributed under the terms of the GNU GPLv3 license.
 use crate::configfile::{ConfigWrapper, Dflt, Lim};
 use crate::error::{KError, KResult};
-use crate::extras::homing::Homing;
+use crate::extras::homing::{rails_arg, Homing};
 use crate::extras::tmc::TmcDriver;
 use crate::gcode::{GCodeCommand, GCodeDispatch};
 use crate::logging;
@@ -92,12 +92,6 @@ impl PhaseCalc {
         self.last_mcu_position.set(Some(trig_mcu_pos));
         Ok(phase)
     }
-}
-
-fn rails_arg(args: &[&dyn Any]) -> (Rc<Homing>, Vec<RailRef>) {
-    let homing_state = args[0].downcast_ref::<Rc<Homing>>().expect("homing state").clone();
-    let rails = args[1].downcast_ref::<Vec<RailRef>>().expect("rails").clone();
-    (homing_state, rails)
 }
 
 // Adjusted endstop trigger positions
