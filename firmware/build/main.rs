@@ -73,45 +73,93 @@ fn sources(config: &kconfig::Config) -> Vec<&'static str> {
         out.extend(linux);
     } else if on("CONFIG_MACH_STM32") {
         // src/stm32/Makefile
-        if !(on("CONFIG_MACH_STM32F1") || on("CONFIG_MACH_STM32F2") || on("CONFIG_MACH_STM32F4")) {
-            panic!("only the stm32f1 / f2 / f4 boards are ported");
-        }
-        if on("CONFIG_USBCANBUS") || on("CONFIG_HAVE_STM32_FDCANBUS") {
-            panic!("stm32 usb-to-canbus / fdcan are not ported yet");
-        }
+        let fam = |f: &str| on(&format!("CONFIG_MACH_STM32{}", f));
         // (internal.h: no requests, its GPIO() is used in theirs)
         out.push("stm32/internal.rs");
         out.extend(["stm32/watchdog.rs", "stm32/clockline.rs", "stm32/dfu_reboot.rs"]);
         out.push("generic/crc16_ccitt.rs");
         out.extend(["generic/armcm_boot.rs", "generic/armcm_irq.rs", "generic/armcm_reset.rs"]);
-        if on("CONFIG_MACH_STM32F1") {
-            out.extend(["stm32/stm32f1.rs", "stm32/system_stm32f1xx.rs"]);
-        } else if on("CONFIG_MACH_STM32F2") {
-            out.extend(["stm32/stm32f4.rs", "stm32/system_stm32f2xx.rs"]);
+        let chip: &[&'static str] = if fam("F0") {
+            &["stm32/stm32f0.rs", "stm32/system_stm32f0xx.rs"]
+        } else if fam("F1") {
+            &["stm32/stm32f1.rs", "stm32/system_stm32f1xx.rs"]
+        } else if fam("F2") {
+            &["stm32/stm32f4.rs", "stm32/system_stm32f2xx.rs"]
+        } else if fam("F4") {
+            &["stm32/stm32f4.rs", "stm32/system_stm32f4xx.rs"]
+        } else if fam("F7") {
+            &["stm32/stm32f7.rs", "stm32/system_stm32f7xx.rs"]
+        } else if fam("G0") {
+            &["stm32/stm32g0.rs"]
+        } else if fam("G4") {
+            &["stm32/stm32g4.rs", "stm32/system_stm32g4xx.rs"]
+        } else if fam("H7") {
+            &["stm32/stm32h7.rs", "stm32/system_stm32h7xx.rs"]
+        } else if fam("L4") {
+            &["stm32/stm32l4.rs", "stm32/system_stm32l4xx.rs"]
         } else {
-            out.extend(["stm32/stm32f4.rs", "stm32/system_stm32f4xx.rs"]);
+            panic!("stm32 family not ported (n32g45x, at32f403)")
+        };
+        out.extend(chip);
+        // timer-src-y, gpio-src-y
+        if fam("F0") || fam("G0") {
+            out.extend(["generic/timer_irq.rs", "stm32/stm32f0_timer.rs"]);
+        } else {
+            out.push("generic/armcm_timer.rs");
         }
-        out.push("generic/armcm_timer.rs");
-        if on("CONFIG_MACH_STM32F1") {
+        if fam("F1") {
             out.push("stm32/gpio.rs");
+        } else if fam("H7") {
+            out.extend(["stm32/stm32h7_gpio.rs", "stm32/gpioperiph.rs"]);
         } else {
             out.extend(["stm32/gpio.rs", "stm32/gpioperiph.rs"]);
         }
-        let opt: &[(&str, &[&'static str])] = &[
-            ("CONFIG_WANT_ADC", &["stm32/adc.rs"]),
-            ("CONFIG_WANT_GPIO_SPI", &["stm32/spi.rs"]),
-            ("CONFIG_WANT_GPIO_I2C", &["stm32/i2c.rs"]),
-            ("CONFIG_SERIAL", &["stm32/serial.rs", "generic/serial_irq.rs"]),
-            ("CONFIG_USBSERIAL", if on("CONFIG_HAVE_STM32_USBFS") { &["stm32/usbfs.rs"] } else { &["stm32/usbotg.rs"] }),
-            ("CONFIG_USBSERIAL", &["stm32/chipid.rs", "generic/usb_cdc.rs"]),
-            ("CONFIG_CANSERIAL", &["generic/canserial.rs", "generic/fasthash.rs", "stm32/can.rs"]),
-            ("CONFIG_CANSERIAL", &["generic/canbus.rs", "stm32/chipid.rs"]),
-            ("CONFIG_WANT_HARD_PWM", &["stm32/hard_pwm.rs"]),
-            ("CONFIG_HAVE_GPIO_SDIO", &["stm32/sdio.rs"]),
+        let adc: &'static str = if fam("F0") || fam("G0") {
+            "stm32/stm32f0_adc.rs"
+        } else if fam("G4") || fam("H7") || fam("L4") {
+            "stm32/stm32h7_adc.rs"
+        } else {
+            "stm32/adc.rs"
+        };
+        let spi: &'static str = if fam("H7") { "stm32/stm32h7_spi.rs" } else { "stm32/spi.rs" };
+        let i2c: &'static str = if fam("F1") || fam("F2") || fam("F4") { "stm32/i2c.rs" } else { "stm32/stm32f0_i2c.rs" };
+        let serial: &'static str =
+            if fam("F0") || fam("G0") || fam("G4") || fam("H7") { "stm32/stm32f0_serial.rs" } else { "stm32/serial.rs" };
+        let usb: &[&'static str] = if on("CONFIG_HAVE_STM32_USBFS") {
+            &["stm32/usbfs.rs"]
+        } else if on("CONFIG_HAVE_STM32_USBOTG") {
+            &["stm32/usbotg.rs"]
+        } else {
+            &[]
+        };
+        let can: &[&'static str] = if on("CONFIG_HAVE_STM32_CANBUS") {
+            &["generic/canserial.rs", "generic/fasthash.rs", "stm32/can.rs"]
+        } else if on("CONFIG_HAVE_STM32_FDCANBUS") {
+            &["generic/canserial.rs", "generic/fasthash.rs", "stm32/fdcan.rs"]
+        } else {
+            &["generic/canserial.rs", "generic/fasthash.rs"]
+        };
+        let mut opt: Vec<(&str, Vec<&'static str>)> = vec![
+            ("CONFIG_WANT_ADC", vec![adc]),
+            ("CONFIG_WANT_GPIO_SPI", vec![spi]),
+            ("CONFIG_WANT_GPIO_I2C", vec![i2c]),
+            ("CONFIG_SERIAL", vec![serial, "generic/serial_irq.rs"]),
         ];
+        let mut usbser = usb.to_vec();
+        usbser.extend(["stm32/chipid.rs", "generic/usb_cdc.rs"]);
+        opt.push(("CONFIG_USBSERIAL", usbser));
+        let mut canser = can.to_vec();
+        canser.extend(["generic/canbus.rs", "stm32/chipid.rs"]);
+        opt.push(("CONFIG_CANSERIAL", canser));
+        let mut usbcan = usb.to_vec();
+        usbcan.extend(can);
+        usbcan.extend(["stm32/chipid.rs", "generic/usb_canbus.rs"]);
+        opt.push(("CONFIG_USBCANBUS", usbcan));
+        opt.push(("CONFIG_WANT_HARD_PWM", vec!["stm32/hard_pwm.rs"]));
+        opt.push(("CONFIG_HAVE_GPIO_SDIO", vec!["stm32/sdio.rs"]));
         for (c, files) in opt {
             if on(c) {
-                out.extend(*files);
+                out.extend(files);
             }
         }
     } else {
@@ -362,9 +410,6 @@ fn read(path: &Path) -> String {
     match std::fs::read_to_string(path) {
         Ok(t) => t,
         // a source not ported yet
-        Err(_) => {
-            println!("cargo:warning=firmware source {} missing", path.display());
-            String::new()
-        }
+        Err(_) => panic!("firmware source {} missing (not ported yet)", path.display()),
     }
 }

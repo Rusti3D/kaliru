@@ -5,10 +5,8 @@
 // This file may be distributed under the terms of the GNU GPLv3 license.
 #![allow(non_upper_case_globals, non_snake_case)]
 use super::internal::*;
-use crate::board::{gpio_in_setup, gpio_out_setup};
-use crate::config::{CONFIG_MACH_AT32F403, CONFIG_MACH_STM32F1, CONFIG_STM32_USB_DOUBLE_BUFFER_TX};
+use crate::config::{CONFIG_MACH_AT32F403, CONFIG_STM32_USB_DOUBLE_BUFFER_TX};
 use crate::ctr::Global;
-use crate::generic::armcm_timer::udelay;
 use crate::generic::usb_cdc::{usb_notify_bulk_in, usb_notify_bulk_out, usb_notify_ep0};
 use crate::generic::usb_cdc_ep::{USB_CDC_EP0_SIZE, USB_CDC_EP_ACM, USB_CDC_EP_BULK_IN, USB_CDC_EP_BULK_OUT, USB_CDC_EP_BULK_OUT_SIZE};
 use crate::sched::R;
@@ -446,7 +444,11 @@ decl_constant_str!("RESERVE_PINS_USB", "PA11,PA12");
 
 // Initialize the usb controller
 pub fn usb_init() -> R {
-    if CONFIG_MACH_STM32F1 {
+    // (C: if (CONFIG_MACH_STM32F1); udelay() is only there)
+    #[cfg(CONFIG_MACH_STM32F1)]
+    {
+        use crate::board::{gpio_in_setup, gpio_out_setup};
+        use crate::generic::armcm_timer::udelay;
         // Pull the D+ pin low briefly to signal a new connection
         gpio_out_setup(GPIO('A', 12), 0)?;
         udelay(5000);

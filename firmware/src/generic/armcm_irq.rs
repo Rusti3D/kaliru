@@ -80,11 +80,12 @@ decl_shutdown!(clear_active_irq);
 // continues in the sched_main() loop.
 pub fn armcm_irq_shutdown(s: Shutdown) -> ! {
     unsafe {
+        // (a bx: a thumb-1 b only reaches 2KB)
         asm!(
             "mov sp, {stack}",
-            "b {entry}",
+            "bx {entry}",
             stack = in(reg) core::ptr::addr_of!(_stack_end),
-            entry = sym armcm_irq_shutdown_entry,
+            entry = in(reg) armcm_irq_shutdown_entry as extern "C" fn(u32) -> !,
             in("r0") s.0 as u32,
             options(noreturn),
         )

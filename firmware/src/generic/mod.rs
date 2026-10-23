@@ -7,7 +7,7 @@ pub mod armcm_boot;
 pub mod armcm_irq;
 #[cfg(CONFIG_MACH_STM32)]
 pub mod armcm_reset;
-#[cfg(CONFIG_MACH_STM32)]
+#[cfg(all(CONFIG_MACH_STM32, not(any(CONFIG_MACH_STM32F0, CONFIG_MACH_STM32G0))))]
 pub mod armcm_timer;
 #[cfg(CONFIG_MACH_STM32)]
 pub mod cmsis;
@@ -20,6 +20,8 @@ pub mod crc16_ccitt;
 pub mod fasthash;
 #[cfg(CONFIG_SERIAL)]
 pub mod serial_irq;
+#[cfg(any(CONFIG_MACH_STM32F0, CONFIG_MACH_STM32G0))]
+pub mod timer_irq;
 #[cfg(CONFIG_USBSERIAL)]
 pub mod usb_cdc;
 #[cfg(CONFIG_USBSERIAL)]

@@ -2,7 +2,255 @@
 use crate::stm32::reg::Reg;
 
 pub type IRQn_Type = i32;
+// the -DSTM32F207xx of the build (the headers test it)
+pub const STM32F207xx: u32 = 1;
 
+#[repr(C)]
+pub struct NVIC_Type {
+    pub ISER: [Reg<u32>; 8],
+    pub RESERVED0: [Reg<u32>; 24],
+    pub ICER: [Reg<u32>; 8],
+    pub RESERVED1: [Reg<u32>; 24],
+    pub ISPR: [Reg<u32>; 8],
+    pub RESERVED2: [Reg<u32>; 24],
+    pub ICPR: [Reg<u32>; 8],
+    pub RESERVED3: [Reg<u32>; 24],
+    pub IABR: [Reg<u32>; 8],
+    pub RESERVED4: [Reg<u32>; 56],
+    pub IP: [Reg<u8>; 240],
+    pub RESERVED5: [Reg<u32>; 644],
+    pub STIR: Reg<u32>,
+}
+const _: () = assert!(core::mem::size_of::<NVIC_Type>() == 3588);
+const _: () = assert!(core::mem::offset_of!(NVIC_Type, ISER) == 0);
+const _: () = assert!(core::mem::offset_of!(NVIC_Type, RESERVED0) == 32);
+const _: () = assert!(core::mem::offset_of!(NVIC_Type, ICER) == 128);
+const _: () = assert!(core::mem::offset_of!(NVIC_Type, RESERVED1) == 160);
+const _: () = assert!(core::mem::offset_of!(NVIC_Type, ISPR) == 256);
+const _: () = assert!(core::mem::offset_of!(NVIC_Type, RESERVED2) == 288);
+const _: () = assert!(core::mem::offset_of!(NVIC_Type, ICPR) == 384);
+const _: () = assert!(core::mem::offset_of!(NVIC_Type, RESERVED3) == 416);
+const _: () = assert!(core::mem::offset_of!(NVIC_Type, IABR) == 512);
+const _: () = assert!(core::mem::offset_of!(NVIC_Type, RESERVED4) == 544);
+const _: () = assert!(core::mem::offset_of!(NVIC_Type, IP) == 768);
+const _: () = assert!(core::mem::offset_of!(NVIC_Type, RESERVED5) == 1008);
+const _: () = assert!(core::mem::offset_of!(NVIC_Type, STIR) == 3584);
+#[repr(C)]
+pub struct SCB_Type {
+    pub CPUID: Reg<u32>,
+    pub ICSR: Reg<u32>,
+    pub VTOR: Reg<u32>,
+    pub AIRCR: Reg<u32>,
+    pub SCR: Reg<u32>,
+    pub CCR: Reg<u32>,
+    pub SHP: [Reg<u8>; 12],
+    pub SHCSR: Reg<u32>,
+    pub CFSR: Reg<u32>,
+    pub HFSR: Reg<u32>,
+    pub DFSR: Reg<u32>,
+    pub MMFAR: Reg<u32>,
+    pub BFAR: Reg<u32>,
+    pub AFSR: Reg<u32>,
+    pub PFR: [Reg<u32>; 2],
+    pub DFR: Reg<u32>,
+    pub ADR: Reg<u32>,
+    pub MMFR: [Reg<u32>; 4],
+    pub ISAR: [Reg<u32>; 5],
+    pub RESERVED0: [Reg<u32>; 5],
+    pub CPACR: Reg<u32>,
+}
+const _: () = assert!(core::mem::size_of::<SCB_Type>() == 140);
+const _: () = assert!(core::mem::offset_of!(SCB_Type, CPUID) == 0);
+const _: () = assert!(core::mem::offset_of!(SCB_Type, ICSR) == 4);
+const _: () = assert!(core::mem::offset_of!(SCB_Type, VTOR) == 8);
+const _: () = assert!(core::mem::offset_of!(SCB_Type, AIRCR) == 12);
+const _: () = assert!(core::mem::offset_of!(SCB_Type, SCR) == 16);
+const _: () = assert!(core::mem::offset_of!(SCB_Type, CCR) == 20);
+const _: () = assert!(core::mem::offset_of!(SCB_Type, SHP) == 24);
+const _: () = assert!(core::mem::offset_of!(SCB_Type, SHCSR) == 36);
+const _: () = assert!(core::mem::offset_of!(SCB_Type, CFSR) == 40);
+const _: () = assert!(core::mem::offset_of!(SCB_Type, HFSR) == 44);
+const _: () = assert!(core::mem::offset_of!(SCB_Type, DFSR) == 48);
+const _: () = assert!(core::mem::offset_of!(SCB_Type, MMFAR) == 52);
+const _: () = assert!(core::mem::offset_of!(SCB_Type, BFAR) == 56);
+const _: () = assert!(core::mem::offset_of!(SCB_Type, AFSR) == 60);
+const _: () = assert!(core::mem::offset_of!(SCB_Type, PFR) == 64);
+const _: () = assert!(core::mem::offset_of!(SCB_Type, DFR) == 72);
+const _: () = assert!(core::mem::offset_of!(SCB_Type, ADR) == 76);
+const _: () = assert!(core::mem::offset_of!(SCB_Type, MMFR) == 80);
+const _: () = assert!(core::mem::offset_of!(SCB_Type, ISAR) == 96);
+const _: () = assert!(core::mem::offset_of!(SCB_Type, RESERVED0) == 116);
+const _: () = assert!(core::mem::offset_of!(SCB_Type, CPACR) == 136);
+#[repr(C)]
+pub struct SCnSCB_Type {
+    pub RESERVED0: [Reg<u32>; 1],
+    pub ICTR: Reg<u32>,
+    pub ACTLR: Reg<u32>,
+}
+const _: () = assert!(core::mem::size_of::<SCnSCB_Type>() == 12);
+const _: () = assert!(core::mem::offset_of!(SCnSCB_Type, RESERVED0) == 0);
+const _: () = assert!(core::mem::offset_of!(SCnSCB_Type, ICTR) == 4);
+const _: () = assert!(core::mem::offset_of!(SCnSCB_Type, ACTLR) == 8);
+#[repr(C)]
+pub struct SysTick_Type {
+    pub CTRL: Reg<u32>,
+    pub LOAD: Reg<u32>,
+    pub VAL: Reg<u32>,
+    pub CALIB: Reg<u32>,
+}
+const _: () = assert!(core::mem::size_of::<SysTick_Type>() == 16);
+const _: () = assert!(core::mem::offset_of!(SysTick_Type, CTRL) == 0);
+const _: () = assert!(core::mem::offset_of!(SysTick_Type, LOAD) == 4);
+const _: () = assert!(core::mem::offset_of!(SysTick_Type, VAL) == 8);
+const _: () = assert!(core::mem::offset_of!(SysTick_Type, CALIB) == 12);
+#[repr(C)]
+pub struct DWT_Type {
+    pub CTRL: Reg<u32>,
+    pub CYCCNT: Reg<u32>,
+    pub CPICNT: Reg<u32>,
+    pub EXCCNT: Reg<u32>,
+    pub SLEEPCNT: Reg<u32>,
+    pub LSUCNT: Reg<u32>,
+    pub FOLDCNT: Reg<u32>,
+    pub PCSR: Reg<u32>,
+    pub COMP0: Reg<u32>,
+    pub MASK0: Reg<u32>,
+    pub FUNCTION0: Reg<u32>,
+    pub RESERVED0: [Reg<u32>; 1],
+    pub COMP1: Reg<u32>,
+    pub MASK1: Reg<u32>,
+    pub FUNCTION1: Reg<u32>,
+    pub RESERVED1: [Reg<u32>; 1],
+    pub COMP2: Reg<u32>,
+    pub MASK2: Reg<u32>,
+    pub FUNCTION2: Reg<u32>,
+    pub RESERVED2: [Reg<u32>; 1],
+    pub COMP3: Reg<u32>,
+    pub MASK3: Reg<u32>,
+    pub FUNCTION3: Reg<u32>,
+}
+const _: () = assert!(core::mem::size_of::<DWT_Type>() == 92);
+const _: () = assert!(core::mem::offset_of!(DWT_Type, CTRL) == 0);
+const _: () = assert!(core::mem::offset_of!(DWT_Type, CYCCNT) == 4);
+const _: () = assert!(core::mem::offset_of!(DWT_Type, CPICNT) == 8);
+const _: () = assert!(core::mem::offset_of!(DWT_Type, EXCCNT) == 12);
+const _: () = assert!(core::mem::offset_of!(DWT_Type, SLEEPCNT) == 16);
+const _: () = assert!(core::mem::offset_of!(DWT_Type, LSUCNT) == 20);
+const _: () = assert!(core::mem::offset_of!(DWT_Type, FOLDCNT) == 24);
+const _: () = assert!(core::mem::offset_of!(DWT_Type, PCSR) == 28);
+const _: () = assert!(core::mem::offset_of!(DWT_Type, COMP0) == 32);
+const _: () = assert!(core::mem::offset_of!(DWT_Type, MASK0) == 36);
+const _: () = assert!(core::mem::offset_of!(DWT_Type, FUNCTION0) == 40);
+const _: () = assert!(core::mem::offset_of!(DWT_Type, RESERVED0) == 44);
+const _: () = assert!(core::mem::offset_of!(DWT_Type, COMP1) == 48);
+const _: () = assert!(core::mem::offset_of!(DWT_Type, MASK1) == 52);
+const _: () = assert!(core::mem::offset_of!(DWT_Type, FUNCTION1) == 56);
+const _: () = assert!(core::mem::offset_of!(DWT_Type, RESERVED1) == 60);
+const _: () = assert!(core::mem::offset_of!(DWT_Type, COMP2) == 64);
+const _: () = assert!(core::mem::offset_of!(DWT_Type, MASK2) == 68);
+const _: () = assert!(core::mem::offset_of!(DWT_Type, FUNCTION2) == 72);
+const _: () = assert!(core::mem::offset_of!(DWT_Type, RESERVED2) == 76);
+const _: () = assert!(core::mem::offset_of!(DWT_Type, COMP3) == 80);
+const _: () = assert!(core::mem::offset_of!(DWT_Type, MASK3) == 84);
+const _: () = assert!(core::mem::offset_of!(DWT_Type, FUNCTION3) == 88);
+#[repr(C)]
+pub struct TPI_Type {
+    pub SSPSR: Reg<u32>,
+    pub CSPSR: Reg<u32>,
+    pub RESERVED0: [Reg<u32>; 2],
+    pub ACPR: Reg<u32>,
+    pub RESERVED1: [Reg<u32>; 55],
+    pub SPPR: Reg<u32>,
+    pub RESERVED2: [Reg<u32>; 131],
+    pub FFSR: Reg<u32>,
+    pub FFCR: Reg<u32>,
+    pub FSCR: Reg<u32>,
+    pub RESERVED3: [Reg<u32>; 759],
+    pub TRIGGER: Reg<u32>,
+    pub FIFO0: Reg<u32>,
+    pub ITATBCTR2: Reg<u32>,
+    pub RESERVED4: [Reg<u32>; 1],
+    pub ITATBCTR0: Reg<u32>,
+    pub FIFO1: Reg<u32>,
+    pub ITCTRL: Reg<u32>,
+    pub RESERVED5: [Reg<u32>; 39],
+    pub CLAIMSET: Reg<u32>,
+    pub CLAIMCLR: Reg<u32>,
+    pub RESERVED7: [Reg<u32>; 8],
+    pub DEVID: Reg<u32>,
+    pub DEVTYPE: Reg<u32>,
+}
+const _: () = assert!(core::mem::size_of::<TPI_Type>() == 4048);
+const _: () = assert!(core::mem::offset_of!(TPI_Type, SSPSR) == 0);
+const _: () = assert!(core::mem::offset_of!(TPI_Type, CSPSR) == 4);
+const _: () = assert!(core::mem::offset_of!(TPI_Type, RESERVED0) == 8);
+const _: () = assert!(core::mem::offset_of!(TPI_Type, ACPR) == 16);
+const _: () = assert!(core::mem::offset_of!(TPI_Type, RESERVED1) == 20);
+const _: () = assert!(core::mem::offset_of!(TPI_Type, SPPR) == 240);
+const _: () = assert!(core::mem::offset_of!(TPI_Type, RESERVED2) == 244);
+const _: () = assert!(core::mem::offset_of!(TPI_Type, FFSR) == 768);
+const _: () = assert!(core::mem::offset_of!(TPI_Type, FFCR) == 772);
+const _: () = assert!(core::mem::offset_of!(TPI_Type, FSCR) == 776);
+const _: () = assert!(core::mem::offset_of!(TPI_Type, RESERVED3) == 780);
+const _: () = assert!(core::mem::offset_of!(TPI_Type, TRIGGER) == 3816);
+const _: () = assert!(core::mem::offset_of!(TPI_Type, FIFO0) == 3820);
+const _: () = assert!(core::mem::offset_of!(TPI_Type, ITATBCTR2) == 3824);
+const _: () = assert!(core::mem::offset_of!(TPI_Type, RESERVED4) == 3828);
+const _: () = assert!(core::mem::offset_of!(TPI_Type, ITATBCTR0) == 3832);
+const _: () = assert!(core::mem::offset_of!(TPI_Type, FIFO1) == 3836);
+const _: () = assert!(core::mem::offset_of!(TPI_Type, ITCTRL) == 3840);
+const _: () = assert!(core::mem::offset_of!(TPI_Type, RESERVED5) == 3844);
+const _: () = assert!(core::mem::offset_of!(TPI_Type, CLAIMSET) == 4000);
+const _: () = assert!(core::mem::offset_of!(TPI_Type, CLAIMCLR) == 4004);
+const _: () = assert!(core::mem::offset_of!(TPI_Type, RESERVED7) == 4008);
+const _: () = assert!(core::mem::offset_of!(TPI_Type, DEVID) == 4040);
+const _: () = assert!(core::mem::offset_of!(TPI_Type, DEVTYPE) == 4044);
+#[repr(C)]
+pub struct MPU_Type {
+    pub TYPE: Reg<u32>,
+    pub CTRL: Reg<u32>,
+    pub RNR: Reg<u32>,
+    pub RBAR: Reg<u32>,
+    pub RASR: Reg<u32>,
+    pub RBAR_A1: Reg<u32>,
+    pub RASR_A1: Reg<u32>,
+    pub RBAR_A2: Reg<u32>,
+    pub RASR_A2: Reg<u32>,
+    pub RBAR_A3: Reg<u32>,
+    pub RASR_A3: Reg<u32>,
+}
+const _: () = assert!(core::mem::size_of::<MPU_Type>() == 44);
+const _: () = assert!(core::mem::offset_of!(MPU_Type, TYPE) == 0);
+const _: () = assert!(core::mem::offset_of!(MPU_Type, CTRL) == 4);
+const _: () = assert!(core::mem::offset_of!(MPU_Type, RNR) == 8);
+const _: () = assert!(core::mem::offset_of!(MPU_Type, RBAR) == 12);
+const _: () = assert!(core::mem::offset_of!(MPU_Type, RASR) == 16);
+const _: () = assert!(core::mem::offset_of!(MPU_Type, RBAR_A1) == 20);
+const _: () = assert!(core::mem::offset_of!(MPU_Type, RASR_A1) == 24);
+const _: () = assert!(core::mem::offset_of!(MPU_Type, RBAR_A2) == 28);
+const _: () = assert!(core::mem::offset_of!(MPU_Type, RASR_A2) == 32);
+const _: () = assert!(core::mem::offset_of!(MPU_Type, RBAR_A3) == 36);
+const _: () = assert!(core::mem::offset_of!(MPU_Type, RASR_A3) == 40);
+#[repr(C)]
+pub struct CoreDebug_Type {
+    pub DHCSR: Reg<u32>,
+    pub DCRSR: Reg<u32>,
+    pub DCRDR: Reg<u32>,
+    pub DEMCR: Reg<u32>,
+}
+const _: () = assert!(core::mem::size_of::<CoreDebug_Type>() == 16);
+const _: () = assert!(core::mem::offset_of!(CoreDebug_Type, DHCSR) == 0);
+const _: () = assert!(core::mem::offset_of!(CoreDebug_Type, DCRSR) == 4);
+const _: () = assert!(core::mem::offset_of!(CoreDebug_Type, DCRDR) == 8);
+const _: () = assert!(core::mem::offset_of!(CoreDebug_Type, DEMCR) == 12);
+#[repr(C)]
+pub struct ARM_MPU_Region_t {
+    pub RBAR: Reg<u32>,
+    pub RASR: Reg<u32>,
+}
+const _: () = assert!(core::mem::size_of::<ARM_MPU_Region_t>() == 8);
+const _: () = assert!(core::mem::offset_of!(ARM_MPU_Region_t, RBAR) == 0);
+const _: () = assert!(core::mem::offset_of!(ARM_MPU_Region_t, RASR) == 4);
 #[repr(C)]
 pub struct ADC_TypeDef {
     pub SR: Reg<u32>,
@@ -1011,242 +1259,6 @@ const _: () = assert!(core::mem::offset_of!(USB_OTG_HostChannelTypeDef, HCINTMSK
 const _: () = assert!(core::mem::offset_of!(USB_OTG_HostChannelTypeDef, HCTSIZ) == 16);
 const _: () = assert!(core::mem::offset_of!(USB_OTG_HostChannelTypeDef, HCDMA) == 20);
 const _: () = assert!(core::mem::offset_of!(USB_OTG_HostChannelTypeDef, Reserved) == 24);
-#[repr(C)]
-pub struct NVIC_Type {
-    pub ISER: [Reg<u32>; 8],
-    pub RESERVED0: [Reg<u32>; 24],
-    pub ICER: [Reg<u32>; 8],
-    pub RESERVED1: [Reg<u32>; 24],
-    pub ISPR: [Reg<u32>; 8],
-    pub RESERVED2: [Reg<u32>; 24],
-    pub ICPR: [Reg<u32>; 8],
-    pub RESERVED3: [Reg<u32>; 24],
-    pub IABR: [Reg<u32>; 8],
-    pub RESERVED4: [Reg<u32>; 56],
-    pub IP: [Reg<u8>; 240],
-    pub RESERVED5: [Reg<u32>; 644],
-    pub STIR: Reg<u32>,
-}
-const _: () = assert!(core::mem::size_of::<NVIC_Type>() == 3588);
-const _: () = assert!(core::mem::offset_of!(NVIC_Type, ISER) == 0);
-const _: () = assert!(core::mem::offset_of!(NVIC_Type, RESERVED0) == 32);
-const _: () = assert!(core::mem::offset_of!(NVIC_Type, ICER) == 128);
-const _: () = assert!(core::mem::offset_of!(NVIC_Type, RESERVED1) == 160);
-const _: () = assert!(core::mem::offset_of!(NVIC_Type, ISPR) == 256);
-const _: () = assert!(core::mem::offset_of!(NVIC_Type, RESERVED2) == 288);
-const _: () = assert!(core::mem::offset_of!(NVIC_Type, ICPR) == 384);
-const _: () = assert!(core::mem::offset_of!(NVIC_Type, RESERVED3) == 416);
-const _: () = assert!(core::mem::offset_of!(NVIC_Type, IABR) == 512);
-const _: () = assert!(core::mem::offset_of!(NVIC_Type, RESERVED4) == 544);
-const _: () = assert!(core::mem::offset_of!(NVIC_Type, IP) == 768);
-const _: () = assert!(core::mem::offset_of!(NVIC_Type, RESERVED5) == 1008);
-const _: () = assert!(core::mem::offset_of!(NVIC_Type, STIR) == 3584);
-#[repr(C)]
-pub struct SCB_Type {
-    pub CPUID: Reg<u32>,
-    pub ICSR: Reg<u32>,
-    pub VTOR: Reg<u32>,
-    pub AIRCR: Reg<u32>,
-    pub SCR: Reg<u32>,
-    pub CCR: Reg<u32>,
-    pub SHP: [Reg<u8>; 12],
-    pub SHCSR: Reg<u32>,
-    pub CFSR: Reg<u32>,
-    pub HFSR: Reg<u32>,
-    pub DFSR: Reg<u32>,
-    pub MMFAR: Reg<u32>,
-    pub BFAR: Reg<u32>,
-    pub AFSR: Reg<u32>,
-    pub PFR: [Reg<u32>; 2],
-    pub DFR: Reg<u32>,
-    pub ADR: Reg<u32>,
-    pub MMFR: [Reg<u32>; 4],
-    pub ISAR: [Reg<u32>; 5],
-    pub RESERVED0: [Reg<u32>; 5],
-    pub CPACR: Reg<u32>,
-}
-const _: () = assert!(core::mem::size_of::<SCB_Type>() == 140);
-const _: () = assert!(core::mem::offset_of!(SCB_Type, CPUID) == 0);
-const _: () = assert!(core::mem::offset_of!(SCB_Type, ICSR) == 4);
-const _: () = assert!(core::mem::offset_of!(SCB_Type, VTOR) == 8);
-const _: () = assert!(core::mem::offset_of!(SCB_Type, AIRCR) == 12);
-const _: () = assert!(core::mem::offset_of!(SCB_Type, SCR) == 16);
-const _: () = assert!(core::mem::offset_of!(SCB_Type, CCR) == 20);
-const _: () = assert!(core::mem::offset_of!(SCB_Type, SHP) == 24);
-const _: () = assert!(core::mem::offset_of!(SCB_Type, SHCSR) == 36);
-const _: () = assert!(core::mem::offset_of!(SCB_Type, CFSR) == 40);
-const _: () = assert!(core::mem::offset_of!(SCB_Type, HFSR) == 44);
-const _: () = assert!(core::mem::offset_of!(SCB_Type, DFSR) == 48);
-const _: () = assert!(core::mem::offset_of!(SCB_Type, MMFAR) == 52);
-const _: () = assert!(core::mem::offset_of!(SCB_Type, BFAR) == 56);
-const _: () = assert!(core::mem::offset_of!(SCB_Type, AFSR) == 60);
-const _: () = assert!(core::mem::offset_of!(SCB_Type, PFR) == 64);
-const _: () = assert!(core::mem::offset_of!(SCB_Type, DFR) == 72);
-const _: () = assert!(core::mem::offset_of!(SCB_Type, ADR) == 76);
-const _: () = assert!(core::mem::offset_of!(SCB_Type, MMFR) == 80);
-const _: () = assert!(core::mem::offset_of!(SCB_Type, ISAR) == 96);
-const _: () = assert!(core::mem::offset_of!(SCB_Type, RESERVED0) == 116);
-const _: () = assert!(core::mem::offset_of!(SCB_Type, CPACR) == 136);
-#[repr(C)]
-pub struct SysTick_Type {
-    pub CTRL: Reg<u32>,
-    pub LOAD: Reg<u32>,
-    pub VAL: Reg<u32>,
-    pub CALIB: Reg<u32>,
-}
-const _: () = assert!(core::mem::size_of::<SysTick_Type>() == 16);
-const _: () = assert!(core::mem::offset_of!(SysTick_Type, CTRL) == 0);
-const _: () = assert!(core::mem::offset_of!(SysTick_Type, LOAD) == 4);
-const _: () = assert!(core::mem::offset_of!(SysTick_Type, VAL) == 8);
-const _: () = assert!(core::mem::offset_of!(SysTick_Type, CALIB) == 12);
-#[repr(C)]
-pub struct DWT_Type {
-    pub CTRL: Reg<u32>,
-    pub CYCCNT: Reg<u32>,
-    pub CPICNT: Reg<u32>,
-    pub EXCCNT: Reg<u32>,
-    pub SLEEPCNT: Reg<u32>,
-    pub LSUCNT: Reg<u32>,
-    pub FOLDCNT: Reg<u32>,
-    pub PCSR: Reg<u32>,
-    pub COMP0: Reg<u32>,
-    pub MASK0: Reg<u32>,
-    pub FUNCTION0: Reg<u32>,
-    pub RESERVED0: [Reg<u32>; 1],
-    pub COMP1: Reg<u32>,
-    pub MASK1: Reg<u32>,
-    pub FUNCTION1: Reg<u32>,
-    pub RESERVED1: [Reg<u32>; 1],
-    pub COMP2: Reg<u32>,
-    pub MASK2: Reg<u32>,
-    pub FUNCTION2: Reg<u32>,
-    pub RESERVED2: [Reg<u32>; 1],
-    pub COMP3: Reg<u32>,
-    pub MASK3: Reg<u32>,
-    pub FUNCTION3: Reg<u32>,
-}
-const _: () = assert!(core::mem::size_of::<DWT_Type>() == 92);
-const _: () = assert!(core::mem::offset_of!(DWT_Type, CTRL) == 0);
-const _: () = assert!(core::mem::offset_of!(DWT_Type, CYCCNT) == 4);
-const _: () = assert!(core::mem::offset_of!(DWT_Type, CPICNT) == 8);
-const _: () = assert!(core::mem::offset_of!(DWT_Type, EXCCNT) == 12);
-const _: () = assert!(core::mem::offset_of!(DWT_Type, SLEEPCNT) == 16);
-const _: () = assert!(core::mem::offset_of!(DWT_Type, LSUCNT) == 20);
-const _: () = assert!(core::mem::offset_of!(DWT_Type, FOLDCNT) == 24);
-const _: () = assert!(core::mem::offset_of!(DWT_Type, PCSR) == 28);
-const _: () = assert!(core::mem::offset_of!(DWT_Type, COMP0) == 32);
-const _: () = assert!(core::mem::offset_of!(DWT_Type, MASK0) == 36);
-const _: () = assert!(core::mem::offset_of!(DWT_Type, FUNCTION0) == 40);
-const _: () = assert!(core::mem::offset_of!(DWT_Type, RESERVED0) == 44);
-const _: () = assert!(core::mem::offset_of!(DWT_Type, COMP1) == 48);
-const _: () = assert!(core::mem::offset_of!(DWT_Type, MASK1) == 52);
-const _: () = assert!(core::mem::offset_of!(DWT_Type, FUNCTION1) == 56);
-const _: () = assert!(core::mem::offset_of!(DWT_Type, RESERVED1) == 60);
-const _: () = assert!(core::mem::offset_of!(DWT_Type, COMP2) == 64);
-const _: () = assert!(core::mem::offset_of!(DWT_Type, MASK2) == 68);
-const _: () = assert!(core::mem::offset_of!(DWT_Type, FUNCTION2) == 72);
-const _: () = assert!(core::mem::offset_of!(DWT_Type, RESERVED2) == 76);
-const _: () = assert!(core::mem::offset_of!(DWT_Type, COMP3) == 80);
-const _: () = assert!(core::mem::offset_of!(DWT_Type, MASK3) == 84);
-const _: () = assert!(core::mem::offset_of!(DWT_Type, FUNCTION3) == 88);
-#[repr(C)]
-pub struct TPI_Type {
-    pub SSPSR: Reg<u32>,
-    pub CSPSR: Reg<u32>,
-    pub RESERVED0: [Reg<u32>; 2],
-    pub ACPR: Reg<u32>,
-    pub RESERVED1: [Reg<u32>; 55],
-    pub SPPR: Reg<u32>,
-    pub RESERVED2: [Reg<u32>; 131],
-    pub FFSR: Reg<u32>,
-    pub FFCR: Reg<u32>,
-    pub FSCR: Reg<u32>,
-    pub RESERVED3: [Reg<u32>; 759],
-    pub TRIGGER: Reg<u32>,
-    pub FIFO0: Reg<u32>,
-    pub ITATBCTR2: Reg<u32>,
-    pub RESERVED4: [Reg<u32>; 1],
-    pub ITATBCTR0: Reg<u32>,
-    pub FIFO1: Reg<u32>,
-    pub ITCTRL: Reg<u32>,
-    pub RESERVED5: [Reg<u32>; 39],
-    pub CLAIMSET: Reg<u32>,
-    pub CLAIMCLR: Reg<u32>,
-    pub RESERVED7: [Reg<u32>; 8],
-    pub DEVID: Reg<u32>,
-    pub DEVTYPE: Reg<u32>,
-}
-const _: () = assert!(core::mem::size_of::<TPI_Type>() == 4048);
-const _: () = assert!(core::mem::offset_of!(TPI_Type, SSPSR) == 0);
-const _: () = assert!(core::mem::offset_of!(TPI_Type, CSPSR) == 4);
-const _: () = assert!(core::mem::offset_of!(TPI_Type, RESERVED0) == 8);
-const _: () = assert!(core::mem::offset_of!(TPI_Type, ACPR) == 16);
-const _: () = assert!(core::mem::offset_of!(TPI_Type, RESERVED1) == 20);
-const _: () = assert!(core::mem::offset_of!(TPI_Type, SPPR) == 240);
-const _: () = assert!(core::mem::offset_of!(TPI_Type, RESERVED2) == 244);
-const _: () = assert!(core::mem::offset_of!(TPI_Type, FFSR) == 768);
-const _: () = assert!(core::mem::offset_of!(TPI_Type, FFCR) == 772);
-const _: () = assert!(core::mem::offset_of!(TPI_Type, FSCR) == 776);
-const _: () = assert!(core::mem::offset_of!(TPI_Type, RESERVED3) == 780);
-const _: () = assert!(core::mem::offset_of!(TPI_Type, TRIGGER) == 3816);
-const _: () = assert!(core::mem::offset_of!(TPI_Type, FIFO0) == 3820);
-const _: () = assert!(core::mem::offset_of!(TPI_Type, ITATBCTR2) == 3824);
-const _: () = assert!(core::mem::offset_of!(TPI_Type, RESERVED4) == 3828);
-const _: () = assert!(core::mem::offset_of!(TPI_Type, ITATBCTR0) == 3832);
-const _: () = assert!(core::mem::offset_of!(TPI_Type, FIFO1) == 3836);
-const _: () = assert!(core::mem::offset_of!(TPI_Type, ITCTRL) == 3840);
-const _: () = assert!(core::mem::offset_of!(TPI_Type, RESERVED5) == 3844);
-const _: () = assert!(core::mem::offset_of!(TPI_Type, CLAIMSET) == 4000);
-const _: () = assert!(core::mem::offset_of!(TPI_Type, CLAIMCLR) == 4004);
-const _: () = assert!(core::mem::offset_of!(TPI_Type, RESERVED7) == 4008);
-const _: () = assert!(core::mem::offset_of!(TPI_Type, DEVID) == 4040);
-const _: () = assert!(core::mem::offset_of!(TPI_Type, DEVTYPE) == 4044);
-#[repr(C)]
-pub struct MPU_Type {
-    pub TYPE: Reg<u32>,
-    pub CTRL: Reg<u32>,
-    pub RNR: Reg<u32>,
-    pub RBAR: Reg<u32>,
-    pub RASR: Reg<u32>,
-    pub RBAR_A1: Reg<u32>,
-    pub RASR_A1: Reg<u32>,
-    pub RBAR_A2: Reg<u32>,
-    pub RASR_A2: Reg<u32>,
-    pub RBAR_A3: Reg<u32>,
-    pub RASR_A3: Reg<u32>,
-}
-const _: () = assert!(core::mem::size_of::<MPU_Type>() == 44);
-const _: () = assert!(core::mem::offset_of!(MPU_Type, TYPE) == 0);
-const _: () = assert!(core::mem::offset_of!(MPU_Type, CTRL) == 4);
-const _: () = assert!(core::mem::offset_of!(MPU_Type, RNR) == 8);
-const _: () = assert!(core::mem::offset_of!(MPU_Type, RBAR) == 12);
-const _: () = assert!(core::mem::offset_of!(MPU_Type, RASR) == 16);
-const _: () = assert!(core::mem::offset_of!(MPU_Type, RBAR_A1) == 20);
-const _: () = assert!(core::mem::offset_of!(MPU_Type, RASR_A1) == 24);
-const _: () = assert!(core::mem::offset_of!(MPU_Type, RBAR_A2) == 28);
-const _: () = assert!(core::mem::offset_of!(MPU_Type, RASR_A2) == 32);
-const _: () = assert!(core::mem::offset_of!(MPU_Type, RBAR_A3) == 36);
-const _: () = assert!(core::mem::offset_of!(MPU_Type, RASR_A3) == 40);
-#[repr(C)]
-pub struct CoreDebug_Type {
-    pub DHCSR: Reg<u32>,
-    pub DCRSR: Reg<u32>,
-    pub DCRDR: Reg<u32>,
-    pub DEMCR: Reg<u32>,
-}
-const _: () = assert!(core::mem::size_of::<CoreDebug_Type>() == 16);
-const _: () = assert!(core::mem::offset_of!(CoreDebug_Type, DHCSR) == 0);
-const _: () = assert!(core::mem::offset_of!(CoreDebug_Type, DCRSR) == 4);
-const _: () = assert!(core::mem::offset_of!(CoreDebug_Type, DCRDR) == 8);
-const _: () = assert!(core::mem::offset_of!(CoreDebug_Type, DEMCR) == 12);
-#[repr(C)]
-pub struct ARM_MPU_Region_t {
-    pub RBAR: Reg<u32>,
-    pub RASR: Reg<u32>,
-}
-const _: () = assert!(core::mem::size_of::<ARM_MPU_Region_t>() == 8);
-const _: () = assert!(core::mem::offset_of!(ARM_MPU_Region_t, RBAR) == 0);
-const _: () = assert!(core::mem::offset_of!(ARM_MPU_Region_t, RASR) == 4);
 
 pub const NonMaskableInt_IRQn: i32 = -14;
 pub const HardFault_IRQn: i32 = -13;
@@ -1337,6 +1349,16 @@ pub const OTG_HS_WKUP_IRQn: i32 = 76;
 pub const OTG_HS_IRQn: i32 = 77;
 pub const DCMI_IRQn: i32 = 78;
 pub const RNG_IRQn: i32 = 80;
+pub const ARM_MPU_ARMV7_H: () = ();
+pub const STM32F2: () = ();
+pub const __CMSIS_COMPILER_H: () = ();
+pub const __CMSIS_GCC_H: () = ();
+pub const __CMSIS_VERSION_H: () = ();
+pub const __CORE_CM3_H_DEPENDANT: () = ();
+pub const __CORE_CM3_H_GENERIC: () = ();
+pub const __STM32F207xx_H: () = ();
+pub const __STM32F2xx_H: () = ();
+pub const __SYSTEM_STM32F2XX_H: () = ();
 pub const ADC1: *mut ADC_TypeDef = 0x40012000 as *mut ADC_TypeDef;
 pub const ADC123_COMMON: *mut ADC_Common_TypeDef = 0x40012300 as *mut ADC_Common_TypeDef;
 pub const ADC2: *mut ADC_TypeDef = 0x40012100 as *mut ADC_TypeDef;
@@ -1395,6 +1417,7 @@ pub const RCC: *mut RCC_TypeDef = 0x40023800 as *mut RCC_TypeDef;
 pub const RNG: *mut RNG_TypeDef = 0x50060800 as *mut RNG_TypeDef;
 pub const RTC: *mut RTC_TypeDef = 0x40002800 as *mut RTC_TypeDef;
 pub const SCB: *mut SCB_Type = 0xe000ed00 as *mut SCB_Type;
+pub const SCnSCB: *mut SCnSCB_Type = 0xe000e000 as *mut SCnSCB_Type;
 pub const SDIO: *mut SDIO_TypeDef = 0x40012c00 as *mut SDIO_TypeDef;
 pub const SPI1: *mut SPI_TypeDef = 0x40013000 as *mut SPI_TypeDef;
 pub const SPI2: *mut SPI_TypeDef = 0x40003800 as *mut SPI_TypeDef;
@@ -11427,7 +11450,6 @@ pub const SCB_VTOR_TBLBASE_Pos: u32 = 0x1d;
 pub const SCB_VTOR_TBLOFF_Msk: u32 = 0x1fffff80;
 pub const SCB_VTOR_TBLOFF_Pos: u32 = 0x7;
 pub const SCS_BASE: u32 = 0xe000e000;
-pub const SCnSCB: u32 = 0xe000e000;
 pub const SCnSCB_ACTLR_DISDEFWBUF_Msk: u32 = 0x2;
 pub const SCnSCB_ACTLR_DISDEFWBUF_Pos: u32 = 0x1;
 pub const SCnSCB_ACTLR_DISFOLD_Msk: u32 = 0x4;

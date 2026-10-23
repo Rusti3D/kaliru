@@ -13,6 +13,14 @@ pub mod dfu_reboot;
 pub mod gpio;
 #[cfg(not(CONFIG_MACH_STM32F1))]
 pub mod gpioperiph;
+#[cfg(CONFIG_MACH_STM32F0)]
+pub mod stm32f0;
+#[cfg(any(CONFIG_MACH_STM32F0, CONFIG_MACH_STM32G0))]
+pub mod stm32f0_timer;
+#[cfg(CONFIG_MACH_STM32F0)]
+pub mod system_stm32f0xx;
+#[cfg(CONFIG_MACH_STM32G0)]
+pub mod stm32g0;
 #[cfg(CONFIG_MACH_STM32F1)]
 pub mod stm32f1;
 #[cfg(CONFIG_MACH_STM32F1)]
@@ -24,14 +32,26 @@ pub mod stm32f4;
 #[cfg(CONFIG_MACH_STM32F4)]
 pub mod system_stm32f4xx;
 pub mod watchdog;
-#[cfg(CONFIG_WANT_ADC)]
+#[cfg(all(CONFIG_WANT_ADC, any(CONFIG_MACH_STM32F1, CONFIG_MACH_STM32F2, CONFIG_MACH_STM32F4, CONFIG_MACH_STM32F7)))]
 pub mod adc;
+#[cfg(all(CONFIG_WANT_ADC, any(CONFIG_MACH_STM32F0, CONFIG_MACH_STM32G0)))]
+pub mod stm32f0_adc;
+#[cfg(all(CONFIG_WANT_ADC, any(CONFIG_MACH_STM32F0, CONFIG_MACH_STM32G0)))]
+pub use stm32f0_adc as adc;
 #[cfg(CONFIG_WANT_GPIO_SPI)]
 pub mod spi;
-#[cfg(CONFIG_WANT_GPIO_I2C)]
+#[cfg(all(CONFIG_WANT_GPIO_I2C, any(CONFIG_MACH_STM32F1, CONFIG_MACH_STM32F2, CONFIG_MACH_STM32F4)))]
 pub mod i2c;
-#[cfg(CONFIG_SERIAL)]
+#[cfg(all(CONFIG_WANT_GPIO_I2C, not(any(CONFIG_MACH_STM32F1, CONFIG_MACH_STM32F2, CONFIG_MACH_STM32F4))))]
+pub mod stm32f0_i2c;
+#[cfg(all(CONFIG_WANT_GPIO_I2C, not(any(CONFIG_MACH_STM32F1, CONFIG_MACH_STM32F2, CONFIG_MACH_STM32F4))))]
+pub use stm32f0_i2c as i2c;
+#[cfg(all(CONFIG_SERIAL, not(any(CONFIG_MACH_STM32F0, CONFIG_MACH_STM32G0, CONFIG_MACH_STM32G4, CONFIG_MACH_STM32H7))))]
 pub mod serial;
+#[cfg(all(CONFIG_SERIAL, any(CONFIG_MACH_STM32F0, CONFIG_MACH_STM32G0, CONFIG_MACH_STM32G4, CONFIG_MACH_STM32H7)))]
+pub mod stm32f0_serial;
+#[cfg(all(CONFIG_SERIAL, any(CONFIG_MACH_STM32F0, CONFIG_MACH_STM32G0, CONFIG_MACH_STM32G4, CONFIG_MACH_STM32H7)))]
+pub use stm32f0_serial as serial;
 #[cfg(CONFIG_SERIAL)]
 pub use serial::serial_enable_tx_irq;
 #[cfg(all(CONFIG_USBSERIAL, CONFIG_HAVE_STM32_USBFS))]
@@ -53,7 +73,12 @@ pub mod sdio;
 
 pub use crate::generic::armcm_boot::{dynmem_end, dynmem_start};
 pub use crate::generic::armcm_irq::{irq_disable, irq_enable, irq_poll, irq_restore, irq_save, irq_wait, IrqStatus};
+#[cfg(not(any(CONFIG_MACH_STM32F0, CONFIG_MACH_STM32G0)))]
 pub use crate::generic::armcm_timer::{timer_from_us, timer_is_before, timer_kick, timer_read_time};
+#[cfg(any(CONFIG_MACH_STM32F0, CONFIG_MACH_STM32G0))]
+pub use crate::generic::timer_irq::{timer_from_us, timer_is_before};
+#[cfg(any(CONFIG_MACH_STM32F0, CONFIG_MACH_STM32G0))]
+pub use stm32f0_timer::{timer_kick, timer_read_time};
 pub use crate::generic::crc16_ccitt::crc16_ccitt;
 #[cfg(CONFIG_SERIAL)]
 pub use crate::generic::serial_irq::console_sendf;
@@ -75,6 +100,10 @@ pub use i2c::{i2c_read, i2c_setup, i2c_write};
 pub use sdio::{sdio_prepare_data_transfer, sdio_read_data, sdio_send_command, sdio_set_speed, sdio_setup, sdio_write_data, SdioConfig};
 #[cfg(CONFIG_WANT_GPIO_SPI)]
 pub use spi::{spi_prepare, spi_setup, spi_transfer};
+#[cfg(CONFIG_MACH_STM32F0)]
+pub use stm32f0::{armcm_main, bootloader_request};
+#[cfg(CONFIG_MACH_STM32G0)]
+pub use stm32g0::{armcm_main, bootloader_request};
 #[cfg(CONFIG_MACH_STM32F1)]
 pub use stm32f1::{armcm_main, bootloader_request};
 #[cfg(any(CONFIG_MACH_STM32F2, CONFIG_MACH_STM32F4))]
