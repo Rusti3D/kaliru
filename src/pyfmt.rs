@@ -1,0 +1,509 @@
+// Python compatible string formatting and conversion helpers (from
+// Moonruster/src/pyfmt.rs). klippy embeds str()/repr() output of python
+// objects in messages and logs; these reproduce it.
+
+use serde_json::Value;
+
+/// Python's repr() for a float
+pub fn py_float_repr(f: f64) -> String {
+    if f.is_nan() {
+        return "nan".into();
+    }
+    if f.is_infinite() {
+        return if f > 0.0 { "inf".into() } else { "-inf".into() };
+    }
+    if f == 0.0 {
+        return if f.is_sign_negative() { "-0.0".into() } else { "0.0".into() };
+    }
+    // Rust's {:e} produces the shortest round trip digits
+    let sci = format!("{:e}", f);
+    let (mantissa, exp) = sci.split_once('e').unwrap();
+    let exp: i32 = exp.parse().unwrap();
+    let neg = mantissa.starts_with('-');
+    let digits: String = mantissa.chars().filter(|c| c.is_ascii_digit()).collect();
+    let sign = if neg { "-" } else { "" };
+    if (-4..16).contains(&exp) {
+        // fixed notation
+        let ndigits = digits.len() as i32;
+        let s = if exp >= 0 {
+            let int_len = exp + 1;
+            if ndigits <= int_len {
+                format!("{}{}.0", digits, "0".repeat((int_len - ndigits) as usize))
+            } else {
+                format!("{}.{}", &digits[..int_len as usize], &digits[int_len as usize..])
+            }
+        } else {
+            format!("0.{}{}", "0".repeat((-exp - 1) as usize), digits)
+        };
+        format!("{}{}", sign, s)
+    } else {
+        let m = if digits.len() > 1 { format!("{}.{}", &digits[..1], &digits[1..]) } else { digits.clone() };
+        let esign = if exp < 0 { "-" } else { "+" };
+        format!("{}{}e{}{:02}", sign, m, esign, exp.abs())
+    }
+}
+
+pub fn py_str_repr(s: &str) -> String {
+    // Python prefers single quotes unless the string contains single quotes
+    // and no double quotes
+    let quote = if s.contains('\'') && !s.contains('"') { '"' } else { '\'' };
+    let mut out = String::with_capacity(s.len() + 2);
+    out.push(quote);
+    for c in s.chars() {
+        match c {
+            '\\' => out.push_str("\\\\"),
+            '\n' => out.push_str("\\n"),
+            '\r' => out.push_str("\\r"),
+            '\t' => out.push_str("\\t"),
+            c if c == quote => {
+                out.push('\\');
+                out.push(c);
+            }
+            c if (c as u32) < 0x20 || c as u32 == 0x7f => out.push_str(&format!("\\x{:02x}", c as u32)),
+            c => out.push(c),
+        }
+    }
+    out.push(quote);
+    out
+}
+
+/// Python's repr() for a json value
+pub fn py_repr(v: &Value) -> String {
+    match v {
+        Value::Null => "None".into(),
+        Value::Bool(b) => if *b { "True".into() } else { "False".into() },
+        Value::Number(n) => {
+            if n.is_f64() {
+                py_float_repr(n.as_f64().unwrap())
+            } else {
+                n.to_string()
+            }
+        }
+        Value::String(s) => py_str_repr(s),
+        Value::Array(a) => format!("[{}]", a.iter().map(py_repr).collect::<Vec<_>>().join(", ")),
+        Value::Object(o) => format!(
+            "{{{}}}",
+            o.iter().map(|(k, v)| format!("{}: {}", py_str_repr(k), py_repr(v))).collect::<Vec<_>>().join(", ")
+        ),
+    }
+}
+
+/// Python's str() for a json value
+pub fn py_str(v: &Value) -> String {
+    match v {
+        Value::String(s) => s.clone(),
+        other => py_repr(other),
+    }
+}
+
+pub fn py_bool(b: bool) -> &'static str {
+    if b { "True" } else { "False" }
+}
+
+/// Python type name of a json value
+pub fn py_type_name(v: &Value) -> &'static str {
+    match v {
+        Value::Null => "NoneType",
+        Value::Bool(_) => "bool",
+        Value::Number(n) => if n.is_f64() { "float" } else { "int" },
+        Value::String(_) => "str",
+        Value::Array(_) => "list",
+        Value::Object(_) => "dict",
+    }
+}
+
+/// Python's min(a, b) for floats (a unless b < a: NaN handling included)
+pub fn py_min(a: f64, b: f64) -> f64 {
+    if b < a {
+        b
+    } else {
+        a
+    }
+}
+
+/// Python's max(a, b) for floats (a unless b > a)
+pub fn py_max(a: f64, b: f64) -> f64 {
+    if b > a {
+        b
+    } else {
+        a
+    }
+}
+
+/// Python's round(x, ndigits) (correctly rounded, ties to even)
+pub fn py_round(x: f64, ndigits: usize) -> f64 {
+    if !x.is_finite() {
+        return x;
+    }
+    format!("{:.*}", ndigits, x).parse().unwrap_or(x)
+}
+
+/// Python's str.isspace() for one char (also the `\s` class of `re`):
+/// Rust's char::is_whitespace() plus the \x1c-\x1f separators
+pub fn py_isspace(c: char) -> bool {
+    c.is_whitespace() || ('\x1c'..='\x1f').contains(&c)
+}
+
+/// Python's str.strip() / lstrip() / rstrip() without arguments
+pub fn py_strip(s: &str) -> &str {
+    s.trim_matches(py_isspace)
+}
+pub fn py_lstrip(s: &str) -> &str {
+    s.trim_start_matches(py_isspace)
+}
+pub fn py_rstrip(s: &str) -> &str {
+    s.trim_end_matches(py_isspace)
+}
+
+// underscores in python number literals must sit between two digits
+fn underscores_ok(s: &str) -> bool {
+    let b = s.as_bytes();
+    (0..b.len()).all(|i| b[i] != b'_' || (i > 0 && i + 1 < b.len() && b[i - 1].is_ascii_digit() && b[i + 1].is_ascii_digit()))
+}
+
+/// Python's int(str) conversion
+pub fn py_int(s: &str) -> Option<i64> {
+    let t = py_strip(s);
+    if t.is_empty() {
+        return None;
+    }
+    let (sign, body) = match t.as_bytes()[0] {
+        b'+' => (1, &t[1..]),
+        b'-' => (-1, &t[1..]),
+        _ => (1, t),
+    };
+    if body.is_empty() || body.starts_with('_') || body.ends_with('_') || body.contains("__") {
+        return None;
+    }
+    let clean: String = body.chars().filter(|c| *c != '_').collect();
+    if !clean.chars().all(|c| c.is_ascii_digit()) {
+        return None;
+    }
+    clean.parse::<i64>().ok().map(|v| v * sign)
+}
+
+/// Python's float(str) conversion
+pub fn py_float(s: &str) -> Option<f64> {
+    let t = py_strip(s);
+    if t.is_empty() {
+        return None;
+    }
+    let lower = t.to_lowercase();
+    let (sign, body) = match lower.as_bytes()[0] {
+        b'+' => (1.0, &lower[1..]),
+        b'-' => (-1.0, &lower[1..]),
+        _ => (1.0, lower.as_str()),
+    };
+    match body {
+        "inf" | "infinity" => return Some(sign * f64::INFINITY),
+        "nan" => return Some(f64::NAN),
+        _ => {}
+    }
+    if !underscores_ok(body) {
+        return None;
+    }
+    let clean: String = body.chars().filter(|c| *c != '_').collect();
+    if !clean.chars().all(|c| c.is_ascii_digit() || c == '.' || c == 'e' || c == '+' || c == '-') {
+        return None;
+    }
+    // rust also takes "inf"/"nan" spellings, handled above; signs only
+    // directly after 'e' are valid
+    if clean.starts_with(['+', '-']) {
+        return None;
+    }
+    clean.parse::<f64>().ok().map(|v| v * sign)
+}
+
+/// Python bool(value)
+pub fn py_truthy(v: &Value) -> bool {
+    match v {
+        Value::Null => false,
+        Value::Bool(b) => *b,
+        Value::Number(n) => n.as_f64().map(|f| f != 0.0).unwrap_or(true),
+        Value::String(s) => !s.is_empty(),
+        Value::Array(a) => !a.is_empty(),
+        Value::Object(o) => !o.is_empty(),
+    }
+}
+
+/// list(shlex.shlex(s, posix=True)) with whitespace_split=True and the given
+/// commenters (port of the python 3.13 state machine for that configuration:
+/// no punctuation_chars, no source inclusion). Err is the ValueError text.
+pub fn py_shlex_split(s: &str, commenters: &str) -> Result<Vec<String>, String> {
+    const WHITESPACE: &str = " \t\r\n";
+    const QUOTES: &str = "'\"";
+    const ESCAPE: char = '\\';
+    const ESCAPEDQUOTES: &str = "\"";
+    let chars: Vec<char> = s.chars().collect();
+    let mut pos = 0;
+    let mut out = vec![];
+    // state: ' ' (whitespace), 'a' (word), a quote char, the escape char, None (eof)
+    let mut state: Option<char> = Some(' ');
+    loop {
+        // read_token()
+        let mut quoted = false;
+        let mut escapedstate = ' ';
+        let mut token = String::new();
+        loop {
+            let nextchar = chars.get(pos).copied();
+            if nextchar.is_some() {
+                pos += 1;
+            }
+            let Some(st) = state else {
+                token.clear(); // past end of file
+                break;
+            };
+            if st == ' ' {
+                match nextchar {
+                    None => {
+                        state = None; // end of file
+                        break;
+                    }
+                    Some(c) if WHITESPACE.contains(c) => {
+                        if !token.is_empty() || quoted {
+                            break; // emit current token
+                        }
+                        continue;
+                    }
+                    Some(c) if commenters.contains(c) => {
+                        // instream.readline()
+                        while let Some(&c) = chars.get(pos) {
+                            pos += 1;
+                            if c == '\n' {
+                                break;
+                            }
+                        }
+                    }
+                    Some(c) if c == ESCAPE => {
+                        escapedstate = 'a';
+                        state = Some(c);
+                    }
+                    Some(c) if QUOTES.contains(c) => state = Some(c),
+                    Some(c) => {
+                        // wordchars or whitespace_split
+                        token.push(c);
+                        state = Some('a');
+                    }
+                }
+            } else if QUOTES.contains(st) {
+                quoted = true;
+                match nextchar {
+                    None => return Err("No closing quotation".into()),
+                    Some(c) if c == st => state = Some('a'),
+                    Some(c) if c == ESCAPE && ESCAPEDQUOTES.contains(st) => {
+                        escapedstate = st;
+                        state = Some(c);
+                    }
+                    Some(c) => token.push(c),
+                }
+            } else if st == ESCAPE {
+                let Some(c) = nextchar else {
+                    return Err("No escaped character".into());
+                };
+                // In posix shells, only the quote itself or the escape
+                // character may be escaped within quotes.
+                if QUOTES.contains(escapedstate) && c != st && c != escapedstate {
+                    token.push(st);
+                }
+                token.push(c);
+                state = Some(escapedstate);
+            } else {
+                // state 'a'
+                match nextchar {
+                    None => {
+                        state = None; // end of file
+                        break;
+                    }
+                    Some(c) if WHITESPACE.contains(c) => {
+                        state = Some(' ');
+                        if !token.is_empty() || quoted {
+                            break; // emit current token
+                        }
+                        continue;
+                    }
+                    Some(c) if commenters.contains(c) => {
+                        while let Some(&c) = chars.get(pos) {
+                            pos += 1;
+                            if c == '\n' {
+                                break;
+                            }
+                        }
+                        state = Some(' ');
+                        if !token.is_empty() || quoted {
+                            break; // emit current token
+                        }
+                        continue;
+                    }
+                    Some(c) if QUOTES.contains(c) => state = Some(c),
+                    Some(c) if c == ESCAPE => {
+                        escapedstate = 'a';
+                        state = Some(c);
+                    }
+                    Some(c) => token.push(c),
+                }
+            }
+        }
+        // posix: an unquoted empty token is EOF
+        if !quoted && token.is_empty() {
+            return Ok(out);
+        }
+        out.push(token);
+    }
+}
+
+/// str() of the python OSError an io failure on `path` raises:
+/// "[Errno 2] No such file or directory: 'path'"
+pub fn py_oserror(e: &std::io::Error, path: &str) -> String {
+    let errno = e.raw_os_error().unwrap_or(0);
+    let msg = unsafe { std::ffi::CStr::from_ptr(libc::strerror(errno)) }.to_string_lossy().into_owned();
+    format!("[Errno {}] {}: {}", errno, msg, py_str_repr(path))
+}
+
+/// json.dumps() of a python float
+pub fn py_json_float(f: f64) -> String {
+    if f.is_nan() {
+        "NaN".into()
+    } else if f.is_infinite() {
+        if f > 0. { "Infinity".into() } else { "-Infinity".into() }
+    } else {
+        py_float_repr(f)
+    }
+}
+
+/// Python's repr() for bytes
+pub fn py_bytes_repr(b: &[u8]) -> String {
+    let quote = if b.contains(&b'\'') && !b.contains(&b'"') { b'"' } else { b'\'' };
+    let mut out = String::with_capacity(b.len() + 3);
+    out.push('b');
+    out.push(quote as char);
+    for &c in b {
+        match c {
+            b'\\' => out.push_str("\\\\"),
+            b'\t' => out.push_str("\\t"),
+            b'\n' => out.push_str("\\n"),
+            b'\r' => out.push_str("\\r"),
+            c if c == quote => {
+                out.push('\\');
+                out.push(c as char);
+            }
+            c if c < 0x20 || c >= 0x7f => out.push_str(&format!("\\x{:02x}", c)),
+            c => out.push(c as char),
+        }
+    }
+    out.push(quote as char);
+    out
+}
+
+/// The digits of Python's int(s, base) for base 0 or 16: (negative, base,
+/// digit values most significant first), None where python raises ValueError
+pub fn py_int_digits(s: &str, base: u32) -> Option<(bool, u32, Vec<u8>)> {
+    let t = s.trim();
+    let (neg, mut body) = match t.as_bytes().first() {
+        Some(b'+') => (false, &t[1..]),
+        Some(b'-') => (true, &t[1..]),
+        _ => (false, t),
+    };
+    let lower = body.to_ascii_lowercase();
+    let auto = base == 0;
+    let mut base = base;
+    let mut prefixed = false;
+    for (p, b) in [("0x", 16), ("0o", 8), ("0b", 2)] {
+        if lower.starts_with(p) && (base == 0 || base == b) {
+            base = b;
+            body = &body[2..];
+            prefixed = true;
+            break;
+        }
+    }
+    if base == 0 {
+        base = 10;
+    }
+    // an underscore may follow the prefix, otherwise only sit between digits
+    if prefixed && body.starts_with('_') {
+        body = &body[1..];
+    }
+    if body.is_empty() || body.starts_with('_') || body.ends_with('_') || body.contains("__") {
+        return None;
+    }
+    let digits: Vec<u8> = body
+        .chars()
+        .filter(|c| *c != '_')
+        .map(|c| c.to_digit(base).map(|d| d as u8))
+        .collect::<Option<_>>()?;
+    // base 0 rejects leading zeros on non-zero decimals ("010")
+    if auto && !prefixed && digits.len() > 1 && digits[0] == 0
+        && digits.iter().any(|d| *d != 0)
+    {
+        return None;
+    }
+    Some((neg, base, digits))
+}
+
+/// Python's int(s, base) for base 0 or 16
+// ponytail: limited to i64, python ints are unbounded; None on overflow
+pub fn py_int_base(s: &str, base: u32) -> Option<i64> {
+    let (neg, base, digits) = py_int_digits(s, base)?;
+    let mut v: i128 = 0;
+    for d in digits {
+        v = v.checked_mul(base as i128)?.checked_add(d as i128)?;
+        if v > i64::MAX as i128 + 1 {
+            return None;
+        }
+    }
+    let v = if neg { -v } else { v };
+    i64::try_from(v).ok()
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use serde_json::json;
+
+    #[test]
+    fn bytes_repr_and_int_base() {
+        assert_eq!(py_bytes_repr(b"a'\x00\x7f\xff\"\\\n"), "b'a\\'\\x00\\x7f\\xff\"\\\\\\n'");
+        assert_eq!(py_bytes_repr(b"it's"), "b\"it's\"");
+        assert_eq!(py_int_base("0x1F", 0), Some(31));
+        assert_eq!(py_int_base(" -0b101 ", 0), Some(-5));
+        assert_eq!(py_int_base("0o17", 0), Some(15));
+        assert_eq!(py_int_base("0x_ff", 0), Some(255));
+        assert_eq!(py_int_base("010", 0), None);
+        assert_eq!(py_int_base("000", 0), Some(0));
+        assert_eq!(py_int_base("1_000", 0), Some(1000));
+        assert_eq!(py_int_base("ff", 0), None);
+        assert_eq!(py_int_base("ff", 16), Some(255));
+        assert_eq!(py_int_base("0xff", 16), Some(255));
+        assert_eq!(py_int_base("", 0), None);
+        // python float() / int()
+        assert_eq!(py_float(" 1_0.5 "), Some(10.5));
+        assert_eq!(py_float("1_.5"), None);
+        assert_eq!(py_float("+.5"), Some(0.5));
+        assert_eq!(py_float("5."), Some(5.0));
+        assert_eq!(py_float("1e-3"), Some(0.001));
+        assert_eq!(py_float("--1"), None);
+        assert_eq!(py_float("1e"), None);
+        assert_eq!(py_float("\x1c2\x1f"), Some(2.0));
+        assert_eq!(py_int("_1"), None);
+        assert_eq!(py_int("-0"), Some(0));
+        assert_eq!(py_strip("\x1c a \t\n"), "a");
+    }
+
+    #[test]
+    fn float_repr() {
+        assert_eq!(py_float_repr(1.0), "1.0");
+        assert_eq!(py_float_repr(0.1), "0.1");
+        assert_eq!(py_float_repr(1e-5), "1e-05");
+        assert_eq!(py_float_repr(1e16), "1e+16");
+        assert_eq!(py_float_repr(123456.789), "123456.789");
+        assert_eq!(py_float_repr(-0.0001), "-0.0001");
+        assert_eq!(py_float_repr(1.5e300), "1.5e+300");
+    }
+
+    #[test]
+    fn repr() {
+        assert_eq!(py_repr(&json!({"a": [1, 2.5, null, true], "b": "it's"})), "{'a': [1, 2.5, None, True], 'b': \"it's\"}");
+        assert_eq!(py_int(" 1_000 "), Some(1000));
+        assert_eq!(py_int("1.5"), None);
+        assert_eq!(py_float("1e3"), Some(1000.0));
+    }
+}

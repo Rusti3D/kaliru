@@ -1,0 +1,55 @@
+chip mcu
+chip probe
+chip  spaced
+chip mcu
+chip zboard
+parse 0 0 PA1
+parse 1 1  ^ ! PA1
+parse 1 1 ~!zboard: PB2
+parse 0 0 !PA1
+parse 1 0 ^PA1
+parse 0 1 ^PA1
+parse 1 1 nochip:PA1
+parse 1 1 spaced:PA3
+parse 0 0 PA 1
+parse 0 0 PA1:x:y
+parse 1 1
+parse 1 1 !
+parse 0 0 probe:z_virtual_endstop
+lookup 1 1 - PA1
+lookup 1 1 - PA1
+lookup 1 1 stepper_enable PA2
+lookup 1 1 stepper_enable PA2
+lookup 1 1 stepper_enable !PA2
+lookup 1 1 other PA2
+lookup 0 0 - zboard:PA2
+multi PA5
+lookup 0 0 - PA5
+lookup 1 1 - !PA5
+multi bad:PA5
+reset PA1
+reset PA1
+lookup 1 1 - PA1
+alias mcu FOO PA7
+alias mcu FOO PA7
+alias mcu FOO PA8
+alias mcu BAR FOO
+alias mcu BAZ PA9
+alias mcu PA9 PA10
+alias mcu QUX P A
+alias mcu QUX !PA1
+alias nope X Y
+reserve mcu PB0 heater
+reserve mcu PB0 heater
+reserve mcu PB0 fan
+update mcu config_digital_out oid=1 pin=FOO value=0
+update mcu config_digital_out oid=1 pin=PA7 value=0
+update mcu config_x oid=2 pin=PB0
+update mcu config_y oid=3 step_pin=BAR dir_pin=PA11 spin=FOO
+update mcu config_z oid=4 pin=
+update zboard config_digital_out oid=1 pin=PA7
+update mcu pin=FOO
+new
+lookup 0 0 - PA1
+chip mcu
+lookup 0 0 - PA1

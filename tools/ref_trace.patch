@@ -1,0 +1,53 @@
+Observation-only trace for parity testing (applied to the WSL reference copy,
+never to Originals_Base). When RK_SQ_TRACE names a file, every message handed
+to serialqueue_send_batch() is written there in call order:
+  <serialqueue name> q<command queue #> <min_clock> <req_clock> <msg hex>
+Command queues are numbered in allocation order. Behaviour is unchanged.
+--- a/klippy/chelper/serialqueue.c
++++ b/klippy/chelper/serialqueue.c
+@@ -34,6 +34,7 @@
+ struct command_queue {
+     struct list_head upcoming_queue, ready_queue;
+     struct list_node node;
++    int rk_trace_id;
+ };
+
+ struct serialqueue {
+@@ -745,11 +746,15 @@
+ }
+
+ // Allocate a 'struct command_queue'
++static int rk_trace_next_id;
++static pthread_mutex_t rk_trace_lock = PTHREAD_MUTEX_INITIALIZER;
++static FILE *rk_trace_file;
+ struct command_queue * __visible
+ serialqueue_alloc_commandqueue(void)
+ {
+     struct command_queue *cq = malloc(sizeof(*cq));
+     memset(cq, 0, sizeof(*cq));
++    cq->rk_trace_id = __atomic_fetch_add(&rk_trace_next_id, 1, __ATOMIC_SEQ_CST);
+     list_init(&cq->ready_queue);
+     list_init(&cq->upcoming_queue);
+     return cq;
+@@ -804,6 +809,21 @@
+             qm->min_clock = qm->req_clock - (3LL<<29);
+         len += qm->len;
+     }
++    pthread_mutex_lock(&rk_trace_lock);
++    if (!rk_trace_file && getenv("RK_SQ_TRACE"))
++        rk_trace_file = fopen(getenv("RK_SQ_TRACE"), "w");
++    if (rk_trace_file) {
++        list_for_each_entry(qm, msgs, node) {
++            fprintf(rk_trace_file, "%s q%d %llu %llu ", sq->name
++                    , cq->rk_trace_id, (unsigned long long)qm->min_clock
++                    , (unsigned long long)qm->req_clock);
++            for (int i = 0; i < qm->len; i++)
++                fprintf(rk_trace_file, "%02x", qm->msg[i]);
++            fputc('\n', rk_trace_file);
++        }
++        fflush(rk_trace_file);
++    }
++    pthread_mutex_unlock(&rk_trace_lock);
+     if (! len)
+         return;
+     qm = list_first_entry(msgs, struct queue_message, node);

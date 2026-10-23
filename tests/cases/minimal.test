@@ -1,0 +1,5 @@
+CONFIG minimal.cfg
+DICTIONARY atmega2560.dict
+
+G4 P10
+M115

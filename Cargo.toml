@@ -1,0 +1,55 @@
+[package]
+name = "kaliru"
+version = "0.1.0"
+edition = "2021"
+description = "Kalico (Klipper fork) ported to Rust"
+license = "GPL-3.0-only"
+
+[lib]
+path = "src/lib.rs"
+
+[[bin]]
+name = "kaliru"
+path = "src/main.rs"
+
+[[bin]]
+name = "parsedump"
+path = "src/bin/parsedump.rs"
+
+[[bin]]
+name = "configdump"
+path = "src/bin/configdump.rs"
+
+[[bin]]
+name = "pinsdump"
+path = "src/bin/pinsdump.rs"
+
+[[bin]]
+name = "qltest"
+path = "src/bin/qltest.rs"
+
+[[bin]]
+name = "reactortest"
+path = "src/bin/reactortest.rs"
+
+[[bin]]
+name = "sqtest"
+path = "src/bin/sqtest.rs"
+
+[[bin]]
+name = "tracedump"
+path = "src/bin/tracedump.rs"
+
+[dependencies]
+serde_json = { version = "1", features = ["preserve_order", "float_roundtrip"] }
+indexmap = { version = "2", features = ["serde"] }
+flate2 = "1"
+libc = "0.2"
+corosensei = "0.3"
+minijinja = { version = "2", features = ["custom_syntax", "loop_controls"] }
+
+[profile.release]
+# small binaries for printer hosts with little storage
+strip = true
+lto = true
+codegen-units = 1
