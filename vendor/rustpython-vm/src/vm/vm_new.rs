@@ -161,6 +161,21 @@ impl VirtualMachine {
         op: &str,
     ) -> PyBaseExceptionRef {
         self.new_type_error(format!(
+            "unsupported operand type(s) for {}: '{}' and '{}'",
+            op,
+            a.class().name(),
+            b.class().name()
+        ))
+    }
+
+    /// a rich comparison neither operand implements
+    pub fn new_unsupported_compare_error(
+        &self,
+        a: &PyObject,
+        b: &PyObject,
+        op: &str,
+    ) -> PyBaseExceptionRef {
+        self.new_type_error(format!(
             "'{}' not supported between instances of '{}' and '{}'",
             op,
             a.class().name(),

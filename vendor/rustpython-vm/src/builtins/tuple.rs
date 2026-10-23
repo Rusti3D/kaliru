@@ -258,7 +258,7 @@ impl PyTuple {
 
     fn _getitem(&self, needle: &PyObject, vm: &VirtualMachine) -> PyResult {
         match SequenceIndex::try_from_borrowed_object(vm, needle, "tuple")? {
-            SequenceIndex::Int(i) => self.elements.getitem_by_index(vm, i),
+            SequenceIndex::Int(i) => self.elements.getitem_by_index(vm, i).map_err(|_| vm.new_index_error("tuple index out of range".to_owned())),
             SequenceIndex::Slice(slice) => self
                 .elements
                 .getitem_by_slice(vm, slice)
@@ -342,7 +342,7 @@ impl AsSequence for PyTuple {
                 match PyTuple::add(zelf.to_owned(), other.to_owned(), vm) {
                     PyArithmeticValue::Implemented(tuple) => Ok(tuple.into()),
                     PyArithmeticValue::NotImplemented => Err(vm.new_type_error(format!(
-                        "can only concatenate tuple (not '{}') to tuple",
+                        "can only concatenate tuple (not \"{}\") to tuple",
                         other.class().name()
                     ))),
                 }

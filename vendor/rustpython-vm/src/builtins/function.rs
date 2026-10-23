@@ -113,11 +113,19 @@ impl PyFunction {
         } else {
             // Check the number of positional arguments
             if nargs > nexpected_args {
+                let ndefs = self.defaults_and_kwdefaults.lock().0.as_ref().map_or(0, |d| d.len());
+                let (sig, plural) = if ndefs > 0 {
+                    (format!("from {} to {}", nexpected_args - ndefs, nexpected_args), true)
+                } else {
+                    (nexpected_args.to_string(), nexpected_args != 1)
+                };
                 return Err(vm.new_type_error(format!(
-                    "{}() takes {} positional arguments but {} were given",
+                    "{}() takes {} positional argument{} but {} {} given",
                     self.qualname(),
-                    nexpected_args,
-                    nargs
+                    sig,
+                    if plural { "s" } else { "" },
+                    nargs,
+                    if nargs == 1 { "was" } else { "were" }
                 )));
             }
         }

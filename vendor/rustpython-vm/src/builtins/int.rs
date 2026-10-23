@@ -133,7 +133,7 @@ fn inner_mod(int1: &BigInt, int2: &BigInt, vm: &VirtualMachine) -> PyResult {
 
 fn inner_floordiv(int1: &BigInt, int2: &BigInt, vm: &VirtualMachine) -> PyResult {
     if int2.is_zero() {
-        Err(vm.new_zero_division_error("integer division by zero".to_owned()))
+        Err(vm.new_zero_division_error("integer division or modulo by zero".to_owned()))
     } else {
         Ok(vm.ctx.new_int(int1.div_floor(int2)).into())
     }

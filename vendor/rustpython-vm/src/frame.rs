@@ -468,12 +468,12 @@ impl ExecutingFrame<'_> {
         if let Some(&name) = self.code.cellvars.get(i) {
             vm.new_exception_msg(
                 vm.ctx.exceptions.unbound_local_error.to_owned(),
-                format!("local variable '{name}' referenced before assignment"),
+                format!("cannot access local variable '{name}' where it is not associated with a value"),
             )
         } else {
             let name = self.code.freevars[i - self.code.cellvars.len()];
             vm.new_name_error(
-                format!("free variable '{name}' referenced before assignment in enclosing scope"),
+                format!("cannot access free variable '{name}' where it is not associated with a value in enclosing scope"),
                 name.to_owned(),
             )
         }
@@ -546,7 +546,7 @@ impl ExecutingFrame<'_> {
                 ) -> PyBaseExceptionRef {
                     vm.new_exception_msg(
                         vm.ctx.exceptions.unbound_local_error.to_owned(),
-                        format!("local variable '{varname}' referenced before assignment",),
+                        format!("cannot access local variable '{varname}' where it is not associated with a value",),
                     )
                 }
                 let idx = idx.get(arg) as usize;
@@ -623,7 +623,7 @@ impl ExecutingFrame<'_> {
                     return Err(vm.new_exception_msg(
                         vm.ctx.exceptions.unbound_local_error.to_owned(),
                         format!(
-                            "local variable '{}' referenced before assignment",
+                            "cannot access local variable '{}' where it is not associated with a value",
                             self.code.varnames[idx]
                         ),
                     ));
@@ -1241,7 +1241,25 @@ impl ExecutingFrame<'_> {
     fn import_from(&mut self, vm: &VirtualMachine, idx: bytecode::NameIdx) -> PyResult {
         let module = self.top_value();
         let name = self.code.names[idx as usize];
-        let err = || vm.new_import_error(format!("cannot import name '{name}'"), name.to_owned());
+        // import.c: "cannot import name %R from %R (%S)", the module's file
+        // or "unknown location"
+        let err = || {
+            let attr = |a: &'static str| {
+                module
+                    .get_attr(a, vm)
+                    .ok()
+                    .and_then(|v| v.downcast::<PyStr>().ok())
+                    .map(|s| s.as_str().to_owned())
+            };
+            let msg = match attr("__name__") {
+                Some(m) => {
+                    let loc = attr("__file__").unwrap_or_else(|| "unknown location".to_owned());
+                    format!("cannot import name '{name}' from '{m}' ({loc})")
+                }
+                None => format!("cannot import name '{name}'"),
+            };
+            vm.new_import_error(msg, name.to_owned())
+        };
         // Load attribute, and transform any error into import error.
         if let Some(obj) = vm.get_attribute_opt(module.to_owned(), name)? {
             return Ok(obj);

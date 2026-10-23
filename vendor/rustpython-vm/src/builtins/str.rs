@@ -402,7 +402,14 @@ impl PyStr {
             .to_pyobject(vm))
         } else if let Some(radd) = vm.get_method(other.clone(), identifier!(vm, __radd__)) {
             // hack to get around not distinguishing number add from seq concat
-            radd?.call((zelf,), vm)
+            let r = radd?.call((zelf,), vm)?;
+            if !r.is(&vm.ctx.not_implemented) {
+                return Ok(r);
+            }
+            Err(vm.new_type_error(format!(
+                "can only concatenate str (not \"{}\") to str",
+                other.class().name()
+            )))
         } else {
             Err(vm.new_type_error(format!(
                 "can only concatenate str (not \"{}\") to str",
@@ -429,7 +436,7 @@ impl PyStr {
 
     fn _getitem(&self, needle: &PyObject, vm: &VirtualMachine) -> PyResult {
         match SequenceIndex::try_from_borrowed_object(vm, needle, "str")? {
-            SequenceIndex::Int(i) => self.getitem_by_index(vm, i).map(|x| x.to_string()),
+            SequenceIndex::Int(i) => self.getitem_by_index(vm, i).map(|x| x.to_string()).map_err(|_| vm.new_index_error("string index out of range".to_owned())),
             SequenceIndex::Slice(slice) => self.getitem_by_slice(vm, slice),
         }
         .map(|x| self.new_substr(x).into_ref(&vm.ctx).into())

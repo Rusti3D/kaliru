@@ -533,7 +533,7 @@ mod builtins {
             Some(x) => x,
             None => {
                 return default.ok_or_else(|| {
-                    vm.new_value_error(format!("{func_name}() arg is an empty sequence"))
+                    vm.new_value_error(format!("{func_name}() iterable argument is empty"))
                 })
             }
         };
@@ -735,7 +735,7 @@ mod builtins {
             .get_special_method(&number, identifier!(vm, __round__))?
             .ok_or_else(|| {
                 vm.new_type_error(format!(
-                    "type {} doesn't define __round__",
+                    "type {} doesn't define __round__ method",
                     number.class().name()
                 ))
             })?;

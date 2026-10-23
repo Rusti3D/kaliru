@@ -88,7 +88,7 @@ fn inner_div(v1: f64, v2: f64, vm: &VirtualMachine) -> PyResult<f64> {
 
 fn inner_mod(v1: f64, v2: f64, vm: &VirtualMachine) -> PyResult<f64> {
     float_ops::mod_(v1, v2)
-        .ok_or_else(|| vm.new_zero_division_error("float mod by zero".to_owned()))
+        .ok_or_else(|| vm.new_zero_division_error("float modulo by zero".to_owned()))
 }
 
 pub fn try_to_bigint(value: f64, vm: &VirtualMachine) -> PyResult<BigInt> {
@@ -115,7 +115,7 @@ pub fn try_to_bigint(value: f64, vm: &VirtualMachine) -> PyResult<BigInt> {
 
 fn inner_floordiv(v1: f64, v2: f64, vm: &VirtualMachine) -> PyResult<f64> {
     float_ops::floordiv(v1, v2)
-        .ok_or_else(|| vm.new_zero_division_error("float floordiv by zero".to_owned()))
+        .ok_or_else(|| vm.new_zero_division_error("float floor division by zero".to_owned()))
 }
 
 fn inner_divmod(v1: f64, v2: f64, vm: &VirtualMachine) -> PyResult<(f64, f64)> {
@@ -124,7 +124,7 @@ fn inner_divmod(v1: f64, v2: f64, vm: &VirtualMachine) -> PyResult<(f64, f64)> {
 
 pub fn float_pow(v1: f64, v2: f64, vm: &VirtualMachine) -> PyResult {
     if v1.is_zero() && v2.is_sign_negative() {
-        let msg = format!("{v1} cannot be raised to a negative power");
+        let msg = "0.0 cannot be raised to a negative power".to_owned();
         Err(vm.new_zero_division_error(msg))
     } else if v1.is_sign_negative() && (v2.floor() - v2).abs() > f64::EPSILON {
         let v1 = Complex64::new(v1, 0.);

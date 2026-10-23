@@ -323,7 +323,7 @@ impl PyObject {
         match op {
             PyComparisonOp::Eq => Ok(Either::B(self.is(&other))),
             PyComparisonOp::Ne => Ok(Either::B(!self.is(&other))),
-            _ => Err(vm.new_unsupported_binop_error(self, other, op.operator_token())),
+            _ => Err(vm.new_unsupported_compare_error(self, other, op.operator_token())),
         }
     }
     #[inline(always)]
@@ -492,10 +492,7 @@ impl PyObject {
             }
         } else {
             self.check_cls(cls, vm, || {
-                format!(
-                    "isinstance() arg 2 must be a type or tuple of types, not {}",
-                    cls.class()
-                )
+                "isinstance() arg 2 must be a type, a tuple of types, or a union".to_owned()
             })?;
             let icls: PyObjectRef = self.get_attr(identifier!(vm, __class__), vm)?;
             if vm.is_none(&icls) {
@@ -634,7 +631,7 @@ impl PyObject {
         }
 
         Err(vm.new_type_error(format!(
-            "'{}' does not support item assignment",
+            "'{}' object does not support item assignment",
             self.class()
         )))
     }

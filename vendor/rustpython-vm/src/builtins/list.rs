@@ -132,8 +132,7 @@ impl PyList {
     fn concat(&self, other: &PyObject, vm: &VirtualMachine) -> PyResult<PyRef<Self>> {
         let other = other.payload_if_subclass::<PyList>(vm).ok_or_else(|| {
             vm.new_type_error(format!(
-                "Cannot add {} and {}",
-                Self::class(&vm.ctx).name(),
+                "can only concatenate list (not \"{}\") to list",
                 other.class().name()
             ))
         })?;
@@ -201,7 +200,7 @@ impl PyList {
 
     fn _getitem(&self, needle: &PyObject, vm: &VirtualMachine) -> PyResult {
         match SequenceIndex::try_from_borrowed_object(vm, needle, "list")? {
-            SequenceIndex::Int(i) => self.borrow_vec().getitem_by_index(vm, i),
+            SequenceIndex::Int(i) => self.borrow_vec().getitem_by_index(vm, i).map_err(|_| vm.new_index_error("list index out of range".to_owned())),
             SequenceIndex::Slice(slice) => self
                 .borrow_vec()
                 .getitem_by_slice(vm, slice)
@@ -216,7 +215,7 @@ impl PyList {
 
     fn _setitem(&self, needle: &PyObject, value: PyObjectRef, vm: &VirtualMachine) -> PyResult<()> {
         match SequenceIndex::try_from_borrowed_object(vm, needle, "list")? {
-            SequenceIndex::Int(index) => self.borrow_vec_mut().setitem_by_index(vm, index, value),
+            SequenceIndex::Int(index) => self.borrow_vec_mut().setitem_by_index(vm, index, value).map_err(|_| vm.new_index_error("list assignment index out of range".to_owned())),
             SequenceIndex::Slice(slice) => {
                 let sec = extract_cloned(&value, Ok, vm)?;
                 self.borrow_vec_mut().setitem_by_slice(vm, slice, &sec)
@@ -267,7 +266,7 @@ impl PyList {
         if let Some(index) = index.into() {
             Ok(index)
         } else {
-            Err(vm.new_value_error(format!("'{}' is not in list", needle.str(vm)?)))
+            Err(vm.new_value_error(format!("{} is not in list", needle.repr(vm)?)))
         }
     }
 
@@ -296,14 +295,14 @@ impl PyList {
             let is_inside_range = index < self.borrow_vec().len();
             Ok(is_inside_range.then(|| self.borrow_vec_mut().remove(index)))
         } else {
-            Err(vm.new_value_error(format!("'{}' is not in list", needle.str(vm)?)))
+            Err(vm.new_value_error("list.remove(x): x not in list".to_owned()))
         }
         .map(drop)
     }
 
     fn _delitem(&self, needle: &PyObject, vm: &VirtualMachine) -> PyResult<()> {
         match SequenceIndex::try_from_borrowed_object(vm, needle, "list")? {
-            SequenceIndex::Int(i) => self.borrow_vec_mut().delitem_by_index(vm, i),
+            SequenceIndex::Int(i) => self.borrow_vec_mut().delitem_by_index(vm, i).map_err(|_| vm.new_index_error("list assignment index out of range".to_owned())),
             SequenceIndex::Slice(slice) => self.borrow_vec_mut().delitem_by_slice(vm, slice),
         }
     }

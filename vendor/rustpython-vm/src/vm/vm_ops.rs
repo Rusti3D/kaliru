@@ -400,6 +400,17 @@ impl VirtualMachine {
         Err(self.new_unsupported_binop_error(a, b, "+="))
     }
 
+    /// the repeat count of sequence * n (abstract.c sequence_repeat)
+    fn sequence_count(&self, n: &PyObject) -> PyResult<crate::builtins::PyIntRef> {
+        match n.try_index_opt(self) {
+            Some(r) => r,
+            None => Err(self.new_type_error(format!(
+                "can't multiply sequence by non-int of type '{}'",
+                n.class().name()
+            ))),
+        }
+    }
+
     pub fn _mul(&self, a: &PyObject, b: &PyObject) -> PyResult {
         let result = self.binary_op1(a, b, PyNumberBinaryOp::Multiply)?;
         if !result.is(&self.ctx.not_implemented) {
@@ -407,13 +418,13 @@ impl VirtualMachine {
         }
         if let Ok(seq_a) = PySequence::try_protocol(a, self) {
             let n =
-                b.try_index(self)?.as_bigint().to_isize().ok_or_else(|| {
+                self.sequence_count(b)?.as_bigint().to_isize().ok_or_else(|| {
                     self.new_overflow_error("repeated bytes are too long".to_owned())
                 })?;
             return seq_a.repeat(n, self);
         } else if let Ok(seq_b) = PySequence::try_protocol(b, self) {
             let n =
-                a.try_index(self)?.as_bigint().to_isize().ok_or_else(|| {
+                self.sequence_count(a)?.as_bigint().to_isize().ok_or_else(|| {
                     self.new_overflow_error("repeated bytes are too long".to_owned())
                 })?;
             return seq_b.repeat(n, self);
@@ -433,13 +444,13 @@ impl VirtualMachine {
         }
         if let Ok(seq_a) = PySequence::try_protocol(a, self) {
             let n =
-                b.try_index(self)?.as_bigint().to_isize().ok_or_else(|| {
+                self.sequence_count(b)?.as_bigint().to_isize().ok_or_else(|| {
                     self.new_overflow_error("repeated bytes are too long".to_owned())
                 })?;
             return seq_a.inplace_repeat(n, self);
         } else if let Ok(seq_b) = PySequence::try_protocol(b, self) {
             let n =
-                a.try_index(self)?.as_bigint().to_isize().ok_or_else(|| {
+                self.sequence_count(a)?.as_bigint().to_isize().ok_or_else(|| {
                     self.new_overflow_error("repeated bytes are too long".to_owned())
                 })?;
             /* Note that the right hand operand should not be
