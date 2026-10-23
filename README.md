@@ -1,8 +1,8 @@
 # Kaliru
 
-> **Work in progress.** Kaliru is not usable on a printer yet. Large parts of
-> Kalico are still unported, and the parts that are ported are only verified
-> against the reference test suite. Do not run it on real hardware.
+> **Work in progress.** Kaliru is not ready for a printer yet. It is verified
+> only against Kalico's own test suite and file-output test runs, not on real
+> hardware, and the MCU firmware is not ported. Do not run it on a printer.
 
 Kaliru is a port of [Kalico](https://github.com/KalicoCrew/kalico) (a Klipper
 fork) to Rust, aimed at small printer hosts with little RAM (the first target
@@ -16,21 +16,36 @@ Reference: Kalico `5b59427`.
 
 ## Status
 
-- Ported: the klippy core (reactor, serial and msgproto handling, clock sync,
-  config parsing, pins, gcode, toolhead, stepper/rails, homing, mcu), the
-  chelper C code used so far (serialqueue, stepcompress, steppersync, trapq,
-  itersolve, cartesian and extruder kinematics), a Jinja2 port for g-code
-  macros, and a growing set of `extras` modules (heaters, thermistors, fans,
-  probe, bed_mesh, virtual_sdcard, ...).
-- Not ported yet: most other kinematics, TMC drivers, input shaper, displays,
-  many `extras` modules, python g-code macros, the MCU firmware.
+- **Kalico's stock test suite: 85 of 88 runs identical** to Kalico (MCU
+  command trace, exit code and log). The other three: two need python g-code
+  macros (planned through RustPython), and one differs only by wall-clock
+  timer timing.
+- **Custom parity cases** (`tests/cases/`, 44 runs covering modules the stock
+  suite doesn't reach): all identical to Kalico.
+- Ported: the whole klippy host (reactor, serial and msgproto, clock sync,
+  config, pins, gcode, toolhead, steppers and rails, homing, mcu), the chelper
+  C code, all kinematics, a Jinja2 port for g-code macros, and every Kalico
+  `extras` module except the two below: heaters and all temperature sensors,
+  TMC drivers, input shaper, probes (incl. eddy current, dockable, BLTouch,
+  smart effector), bed mesh and leveling tools, displays and menus,
+  accelerometers, load cells, angle sensors, filament sensors, MMUs
+  (Palette 2, Trad Rack), Replicape, and more.
+- Python exception tracebacks are reproduced too, including chained ones
+  ("During handling of the above exception ...").
+- Not ported yet:
+  - `load_cell_probe` (in progress, including the scipy filter design it uses),
+  - `shaper_calibrate` (needs a numpy-faithful FFT),
+  - python g-code macros,
+  - the MCU firmware.
+
   Loading an unported module fails with
   `Module 'x' is not ported to Kaliru yet`.
-- Kalico's stock test suite (88 runs): 19 identical to Kalico so far; every
-  remaining difference is an unported module or python macros.
+- Known limits: paths that read sensors over i2c/spi can't be exercised in
+  Kalico's file-output test mode. They are ported from source but not yet
+  verified against Kalico.
 
-Per-module status and how each part is checked: [`docs/PARITY.md`](docs/PARITY.md).
-Plan: [`docs/PLAN.md`](docs/PLAN.md).
+Per-module status and how each part is checked: [`docs/PARITY.md`](docs/PARITY.md)
+(being brought up to date). Plan: [`docs/PLAN.md`](docs/PLAN.md).
 
 ## Building
 

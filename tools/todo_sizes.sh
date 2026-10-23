@@ -3,7 +3,7 @@
 # usage: todo_sizes.sh
 cd "$(dirname "$0")/.." || exit 1
 ext=~/rk/kalico/klippy/extras
-for m in $(grep -o 'todo("[a-z_0-9]*")' src/extras/mod.rs | sed 's/todo("//;s/")//'); do
+for m in $(grep -o 'todo("[A-Za-z_0-9]*")' src/extras/mod.rs | sed 's/todo("//;s/")//'); do
     if [ -f "$ext/$m.py" ]; then
         echo "$m $(wc -l < "$ext/$m.py")"
     else
