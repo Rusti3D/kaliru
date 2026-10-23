@@ -21,11 +21,13 @@ pub mod control_mpc;
 pub mod danger_options;
 pub mod delta_calibrate;
 pub mod display_status;
+pub mod display_templates;
 pub mod ds18b20;
 pub mod error_mcu;
 pub mod exclude_object;
 pub mod extruder_stepper;
 pub mod fan;
+pub mod fan_generic;
 pub mod filament_motion_sensor;
 pub mod filament_switch_sensor;
 pub mod force_move;
@@ -40,6 +42,7 @@ pub mod homing;
 pub mod homing_override;
 pub mod htu21d;
 pub mod idle_timeout;
+pub mod led;
 pub mod lm75;
 pub mod manual_probe;
 pub mod motion_queuing;
@@ -56,6 +59,7 @@ pub mod quad_gantry_level;
 pub mod query_adc;
 pub mod query_endstops;
 pub mod respond;
+pub mod safe_z_home;
 pub mod sht3x;
 pub mod spi_temperature;
 pub mod statistics;
@@ -113,7 +117,7 @@ pub static MODULES: &[PrinterModule] = &[
     PrinterModule { name: "exclude_object", ported: true, load_config: Some(exclude_object::load_config), load_config_prefix: None, register_components: None },
     PrinterModule { name: "extruder_stepper", ported: true, load_config: None, load_config_prefix: Some(extruder_stepper::load_config_prefix), register_components: None },
     PrinterModule { name: "fan", ported: true, load_config: Some(fan::load_config), load_config_prefix: None, register_components: None },
-    todo("fan_generic"),
+    PrinterModule { name: "fan_generic", ported: true, load_config: None, load_config_prefix: Some(fan_generic::load_config_prefix), register_components: None },
     PrinterModule { name: "filament_motion_sensor", ported: true, load_config: None, load_config_prefix: Some(filament_motion_sensor::load_config_prefix), register_components: None },
     PrinterModule { name: "filament_switch_sensor", ported: true, load_config: None, load_config_prefix: Some(filament_switch_sensor::load_config_prefix), register_components: None },
     todo("firmware_retraction"),
@@ -139,7 +143,7 @@ pub static MODULES: &[PrinterModule] = &[
     todo("indx"),
     todo("input_shaper"),
     todo("ldc1612"),
-    todo("led"),
+    PrinterModule { name: "led", ported: true, load_config: None, load_config_prefix: Some(led::load_config_prefix), register_components: None },
     todo("lis2dw"),
     todo("lis3dh"),
     PrinterModule { name: "lm75", ported: true, load_config: Some(lm75::load_config), load_config_prefix: None, register_components: None },
@@ -159,7 +163,7 @@ pub static MODULES: &[PrinterModule] = &[
     todo("multi_pin"),
     todo("neopixel"),
     todo("nozzle_cleanup"),
-    todo("output_pin"),
+    PrinterModule { name: "output_pin", ported: true, load_config: None, load_config_prefix: Some(output_pin::load_config_prefix), register_components: None },
     todo("palette2"),
     PrinterModule { name: "pause_resume", ported: true, load_config: Some(pause_resume::load_config), load_config_prefix: None, register_components: None },
     todo("pca9533"),
@@ -177,7 +181,7 @@ pub static MODULES: &[PrinterModule] = &[
     todo("replicape"),
     todo("resonance_tester"),
     PrinterModule { name: "respond", ported: true, load_config: Some(respond::load_config), load_config_prefix: None, register_components: None },
-    todo("safe_z_home"),
+    PrinterModule { name: "safe_z_home", ported: true, load_config: Some(safe_z_home::load_config), load_config_prefix: None, register_components: None },
     todo("samd_sercom"),
     todo("save_variables"),
     todo("screws_tilt_adjust"),
