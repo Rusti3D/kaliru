@@ -20,7 +20,7 @@ use crate::logging;
 use crate::mcu::{Endstop, EndstopRef, McuEndstop, Mcu, StepperRef};
 use crate::pins::{PinChip, PinsObject, SharedPinParams};
 use crate::printer::{downcast_rc, ConfigFileObject, PObj, Printer, PrinterObject};
-use crate::pyfmt::{py_max, py_min, py_round};
+use crate::pyfmt::{py_float_repr, py_max, py_min, py_round, py_sum};
 use crate::pyval::PyVal;
 use crate::reactor::ReactorCompletion;
 use crate::stepper::RailRef;
@@ -518,6 +518,32 @@ pub trait McuProbe: Endstop {
     fn probing_move(&self, pos: &[f64], speed: f64, gcmd: &GCodeCommand) -> KResult<(Vec<f64>, Option<bool>)>;
     fn probe_prepare(&self, hmove: &Rc<HomingMove>) -> KResult<()>;
     fn probe_finish(&self, hmove: &Rc<HomingMove>) -> KResult<()>;
+    /// hasattr(mcu_probe, "begin_collect_distance")
+    fn can_collect_distance(&self) -> bool {
+        false
+    }
+    fn begin_collect_distance(&self) -> KResult<Rc<dyn ProbeDistanceCollector>> {
+        Err(KError::Other("probe has no begin_collect_distance".into()))
+    }
+}
+
+/// a ProbeDistanceResult: (time, distance)
+pub type ProbeDistanceResult = (f64, f64);
+
+// Probes that support distance collection(eddy current sensors e.g.) implement a `begin_collect_distance()`
+// method which returns this object.
+pub trait ProbeDistanceCollector {
+    // Finish collecting samples, and return all collected samples.
+    // Finish can be called multiple times, but only the first call must always
+    // return meaningful data. Any later calls can return any(or no) data, as
+    // long as collection is eventually stopped.
+    fn finish(&self, before_time: f64) -> KResult<Vec<ProbeDistanceResult>>;
+
+    // Minimum expected sample rate during the collection. The rapid scanning
+    // routine will add some slack, but providing samples at a much lower rate
+    // than this will result in missing samples. (the only collector, eddy
+    // current, returns the sensor's int rate)
+    fn sample_rate(&self) -> i64;
 }
 
 /// `a is b` of two endstop objects
@@ -1495,9 +1521,13 @@ impl ProbePointsHelper {
         let probe = probe.map(|p| as_printer_probe(&p).ok_or_else(|| KError::Other("probe has an unexpected type".into()))).transpose()?;
         if let Some(probe) = &probe {
             if method == "rapid_scan" {
-                // no ported probe has begin_collect_distance()
-                gcmd.respond_info(&format!("METHOD=rapid_scan not supported for probe {}, using automatic", probe.name), true);
-                method = "automatic".into();
+                let can_scan = probe.mcu_probe.can_collect_distance();
+                if can_scan {
+                    return self.start_rapid_scan(gcmd, probe);
+                } else {
+                    gcmd.respond_info(&format!("METHOD=rapid_scan not supported for probe {}, using automatic", probe.name), true);
+                    method = "automatic".into();
+                }
             }
         }
 
@@ -1530,6 +1560,187 @@ impl ProbePointsHelper {
         probe.multi_probe_end()?;
         self.retry_session.end();
         Ok(())
+    }
+
+    fn start_rapid_scan(&self, gcmd: &GCodeCommand, probe: &Rc<PrinterProbe>) -> KResult<()> {
+        let toolhead = self.toolhead()?;
+
+        self.probe_offsets.set(probe.get_offsets());
+        if self.horizontal_move_z.get() < self.probe_offsets.get().2 {
+            return Err(gcmd.error("horizontal_move_z can't be less than probe's z_offset"));
+        }
+        let mut scan_height = self.horizontal_move_z.get();
+        self.lift_speed.set(probe.get_lift_speed(Some(gcmd))?);
+        let (max_speed, _) = toolhead.get_max_velocity();
+        let probe_speed = gcmd.get_float("PROBE_SPEED", Some(probe.speed), Lim::new().above(0.0))?;
+        let scan_speed = gcmd.get_float("SCAN_SPEED", Some(py_min(self.speed, max_speed)), Lim::new().above(0.0).max(max_speed))?;
+
+        let window = RAPID_SCAN_WINDOW_SIZE / scan_speed;
+
+        let axis_twist_compensation = self
+            .printer
+            .lookup_object_opt("axis_twist_compensation")
+            .and_then(downcast_rc::<crate::extras::axis_twist_compensation::AxisTwistCompensation>);
+
+        probe.multi_probe_begin(false)?;
+
+        let all = |p: &[f64]| p.iter().map(|v| Some(*v)).collect::<Vec<_>>();
+        let xy = |p: (f64, f64)| [Some(p.0), Some(p.1)];
+        let mut done = false;
+        while !done {
+            // If needed, raise up so we can move down to pull out backlash
+            let mut cur_pos = toolhead.get_position();
+            if cur_pos[2] < scan_height + 0.5 {
+                cur_pos[2] = scan_height + 0.5;
+                toolhead.manual_move(&all(&cur_pos), self.lift_speed.get())?;
+            }
+
+            // Move down to scan height
+            cur_pos[2] = scan_height;
+            toolhead.manual_move(&all(&cur_pos), probe_speed)?;
+
+            let path = self.generate_rapid_path();
+
+            toolhead.manual_move(&xy(path[0].0), scan_speed)?;
+            toolhead.wait_moves()?;
+
+            let session = probe.mcu_probe.begin_collect_distance()?;
+            let point_times: Rc<RefCell<Vec<(f64, (f64, f64))>>> = Rc::new(RefCell::new(vec![]));
+            let scan = || -> KResult<Vec<ProbeDistanceResult>> {
+                let sample_rate = session.sample_rate();
+                let sample_interval = 1.0 / sample_rate as f64;
+
+                if window < sample_interval {
+                    let max_speed = py_round(2.0 * sample_rate as f64, 1);
+                    return Err(gcmd.error(format!(
+                        "Sample rate is not high enough for the requested speed. At {} Hz, maximum possible speed is ~{} mm/s but {} mm/s was requested. Actual attainable speed may be lower.",
+                        sample_rate,
+                        py_float_repr(max_speed),
+                        py_float_repr(scan_speed)
+                    )));
+                }
+
+                toolhead.dwell(sample_interval)?;
+
+                for (point, capture) in &path[1..] {
+                    toolhead.manual_move(&xy(*point), scan_speed)?;
+                    if *capture {
+                        let (pt, p) = (point_times.clone(), *point);
+                        toolhead.register_lookahead_callback(Rc::new(move |time| {
+                            pt.borrow_mut().push((time, p));
+                            Ok(())
+                        }))?;
+                    }
+                }
+
+                toolhead.wait_moves()?;
+                toolhead.dwell(sample_interval)?;
+                session.finish(toolhead.get_last_move_time()?)
+            };
+            let samples = match scan() {
+                Ok(samples) => samples,
+                Err(e) => {
+                    session.finish(toolhead.get_last_move_time()?)?;
+                    return Err(e);
+                }
+            };
+
+            // In `point_times` we now have the timestamp of reaching each point in `self.probe_points`,
+            // and we have all the (time,dist) samples. Both will be monotonically increasing in time,
+            // so walk through them together and calculate the bed surface z.
+
+            let mut j = 0;
+
+            // Window catches all samples within a 2mm disc centered on the target point,
+            // based on the maximum speed during the scan. Moving slower results in a bigger time window
+            // and thus more samples for that point.
+            let half_window = window / 2.0;
+            for &(time, point) in point_times.borrow().iter() {
+                let earliest = time - half_window;
+                let latest = time + half_window;
+                while j < samples.len() && samples[j].0 < earliest {
+                    j += 1;
+                }
+                let mut end = j;
+                while end < samples.len() && samples[end].0 < latest {
+                    end += 1;
+                }
+                if j == end {
+                    return Err(gcmd.error(format!(
+                        "Scanning failed. Point at ({},{}) had no samples collected for it.",
+                        py_float_repr(point.0),
+                        py_float_repr(point.1)
+                    )));
+                }
+                let relevant = &samples[j..end];
+                let invalid = relevant.iter().any(|p| p.1.abs() >= 99.0);
+                if invalid {
+                    return Err(gcmd.error(format!(
+                        "Scanning failed. Point at ({},{}) gathered one or more invalid samples.",
+                        py_float_repr(point.0),
+                        py_float_repr(point.1)
+                    )));
+                }
+                let distance = py_sum(relevant.iter().map(|p| p.1)) / (end - j) as f64;
+                let mut z = scan_height - distance + self.probe_offsets.get().2;
+                if let Some(atc) = &axis_twist_compensation {
+                    z += atc.get_z_compensation_value(&[point.0, point.1, scan_height]);
+                }
+                self.store_probe_result(vec![point.0, point.1, z]);
+            }
+
+            let results = self.results.borrow().clone();
+            let res = (self.finalize_callback)(self.probe_offsets.get(), &results)?;
+            self.results.borrow_mut().clear();
+            match res {
+                FinalizeResult::Num(res) => {
+                    if res == 0.0 {
+                        done = true;
+                    }
+                    if self.adaptive_horizontal_move_z {
+                        // then res is error
+                        let error = res.ceil();
+                        scan_height = py_max(error + self.probe_offsets.get().2, self.min_horizontal_move_z);
+                    }
+                }
+                FinalizeResult::Retry => {}
+                FinalizeResult::Done => done = true,
+            }
+            if !done && self.alternate_probe_direction {
+                self.probe_pass_direction_reversed.set(!self.probe_pass_direction_reversed.get());
+            }
+        }
+
+        probe.multi_probe_end()?;
+        self.retry_session.end();
+        Ok(())
+    }
+
+    fn generate_rapid_path(&self) -> Vec<((f64, f64), bool)> {
+        // TODO: When changing direction, add an arc where the points don't capture
+        let mut points = vec![];
+
+        let mut source = self.probe_points.borrow().clone();
+        if self.probe_pass_direction_reversed.get() {
+            source.reverse();
+        }
+
+        let offsets = self.probe_offsets.get();
+        let (mut x, mut y) = source[0];
+        if self.use_offsets.get() {
+            x -= offsets.0;
+            y -= offsets.1;
+        }
+        points.push(((x, y), false));
+
+        for &(mut x, mut y) in &source {
+            if self.use_offsets.get() {
+                x -= offsets.0;
+                y -= offsets.1;
+            }
+            points.push(((x, y), true));
+        }
+        points
     }
 
     fn manual_probe_start(&self) -> KResult<()> {

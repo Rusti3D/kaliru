@@ -68,6 +68,7 @@ pub mod icm20948;
 pub mod idle_timeout;
 pub mod indx;
 pub mod input_shaper;
+pub mod ldc1612;
 pub mod led;
 pub mod lis2dw;
 pub mod lis3dh;
@@ -94,6 +95,7 @@ pub mod pca9632;
 pub mod pid_calibrate;
 pub mod print_stats;
 pub mod probe;
+pub mod probe_eddy_current;
 pub mod pulse_counter;
 pub mod pwm_cycle_time;
 pub mod pwm_tool;
@@ -211,7 +213,7 @@ pub static MODULES: &[PrinterModule] = &[
     PrinterModule { name: "idle_timeout", ported: true, load_config: Some(idle_timeout::load_config), load_config_prefix: None, register_components: None },
     PrinterModule { name: "indx", ported: true, load_config: Some(indx::load_config), load_config_prefix: None, register_components: None },
     PrinterModule { name: "input_shaper", ported: true, load_config: Some(input_shaper::load_config), load_config_prefix: None, register_components: None },
-    todo("ldc1612"),
+    PrinterModule { name: "ldc1612", ported: true, load_config: None, load_config_prefix: None, register_components: Some(ldc1612::register_components) },
     PrinterModule { name: "led", ported: true, load_config: None, load_config_prefix: Some(led::load_config_prefix), register_components: None },
     PrinterModule { name: "lis2dw", ported: true, load_config: Some(lis2dw::load_config), load_config_prefix: Some(lis2dw::load_config_prefix), register_components: None },
     PrinterModule { name: "lis3dh", ported: true, load_config: Some(lis3dh::load_config), load_config_prefix: Some(lis3dh::load_config_prefix), register_components: None },
@@ -240,7 +242,7 @@ pub static MODULES: &[PrinterModule] = &[
     PrinterModule { name: "pid_calibrate", ported: true, load_config: Some(pid_calibrate::load_config), load_config_prefix: None, register_components: None },
     PrinterModule { name: "print_stats", ported: true, load_config: Some(print_stats::load_config), load_config_prefix: None, register_components: None },
     PrinterModule { name: "probe", ported: true, load_config: Some(probe::load_config), load_config_prefix: Some(probe::load_config_prefix), register_components: None },
-    todo("probe_eddy_current"),
+    PrinterModule { name: "probe_eddy_current", ported: true, load_config: None, load_config_prefix: Some(probe_eddy_current::load_config_prefix), register_components: None },
     PrinterModule { name: "pulse_counter", ported: true, load_config: None, load_config_prefix: None, register_components: None },
     PrinterModule { name: "pwm_cycle_time", ported: true, load_config: None, load_config_prefix: Some(pwm_cycle_time::load_config_prefix), register_components: None },
     PrinterModule { name: "pwm_tool", ported: true, load_config: None, load_config_prefix: Some(pwm_tool::load_config_prefix), register_components: None },

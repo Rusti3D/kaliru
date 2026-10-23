@@ -63,17 +63,17 @@ pub fn register_components(subsystem: &SubsystemComponentCollection) -> KResult<
 }
 
 /// config.getchoice("sensor_type", printer.lookup_components(subsystem))
-pub fn lookup_sensor_class(config: &ConfigWrapper, subsystem: &str) -> KResult<SensorFactory> {
+pub fn lookup_sensor_class<T: Copy + 'static>(config: &ConfigWrapper, subsystem: &str) -> KResult<T> {
     let sensors = config.get_printer().lookup_components(subsystem);
-    let choices: Vec<(&str, SensorFactory)> = sensors
+    let choices: Vec<(&str, T)> = sensors
         .iter()
-        .filter_map(|(name, c)| c.downcast_ref::<SensorFactory>().map(|f| (name.as_str(), *f)))
+        .filter_map(|(name, c)| c.downcast_ref::<T>().map(|f| (name.as_str(), *f)))
         .collect();
     Ok(config.getchoice("sensor_type", &choices, crate::configfile::Dflt::Required)?)
 }
 
 pub fn load_config(config: &ConfigWrapper) -> KResult<PObj> {
-    let sensor_class = lookup_sensor_class(config, "load_cell_sensors")?;
+    let sensor_class = lookup_sensor_class::<SensorFactory>(config, "load_cell_sensors")?;
     let sensor = sensor_class(config)?;
     Ok(load_cell::LoadCell::new(config, sensor)?)
 }
