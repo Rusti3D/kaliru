@@ -22,21 +22,21 @@ What must match per run: serialqueue trace, exit code, masked log (see `tools/re
 | `src/configfile.rs` | `klippy/configfile.py` | `tools/config_cmp.sh`: 307 configs (Kalico config/, test/klippy/, test/test_configs/, tools/config_cases/): sections, raw + interpolated values, tracking, every getter, autosave, log_config, get_status | 307/307 identical (2026-10-23) |
 | | | `tools/save_cmp.sh`: 9 SAVE_CONFIG scenarios (set, remove_section, autosave_includes, include conflicts, backups); Kalico test_autosave assertions hold | 9/9 identical |
 | `src/pins.rs` | `klippy/pins.py` | `tools/pins_cmp.sh`: 55 hand cases + 32349 ops from every pin option of the corpus | identical |
-| `src/logging.rs` | python `logging` (root, basicConfig format) | used by the checks above (stderr compared) | pass; no tracebacks for logging.exception |
-| `src/mathutil.rs` | `klippy/mathutil.py` (safe_float only) | config_cmp getfloatlist | rest ported with first user |
+| `src/logging.rs` | python `logging` (root, basicConfig format) | used by the checks above (stderr compared) | pass; tracebacks = one placeholder frame (masked by refdiff) + python's last line, chained exceptions included |
+| `src/mathutil.rs` | `klippy/mathutil.py` + numpy helpers (np_std/mean/solve/lstsq/interp/i0/kaiser) | `tools/gen_numpy_cases.py`, `gen_angle_cases.py`, `gen_fft_cases.py` | bit-identical (lstsq: ill-conditioned systems excepted, NOTES.md) |
+| `src/numpy_fft.rs` | numpy 2.2 pocketfft rfft (power-of-two lengths) | `tools/gen_fft_cases.py` | bit-identical |
+| `src/scipy_signal.rs` | scipy 1.14.1 butter/iirnotch/tf2sos/sosfilt_zi | `tools/gen_sos_cases.py` (fixed point values) | 3000/3000 identical |
 | `src/greenlet.rs` | python `greenlet` (subset) on corosensei: symmetric switch via trampoline, kill = unwind | unit tests (switching, kill unwinds, 600 KB deep stack); `tools/cross_test.sh` runs them under qemu: armv7, aarch64, armv6 | pass on all (armv6: corosensei asm warns about D16-D31, see NOTES) |
 | `src/reactor.rs` | `klippy/reactor.py` (SelectReactor logic + PollReactor fds) | `tools/reactor_cmp.sh`: 10 scenarios (timers, nested pause, re-pause, completion, mutex, register_callback, async thread callback, assert_no_pause, sys pause, delay_for_ms), event order + greenlet count, 3 runs; also armv7 under qemu | identical |
 | `src/chelper/pyhelper.rs` | `chelper/pyhelper.c` (all) | used by reactor (get_monotonic) | dump_string / fill_time untested until serialqueue |
 | `src/util.rs` | `klippy/util.py` (all) | reactor_cmp (set_nonblock); rest used from printer.py on | get_git_version = tracked KALICO_VERSION, branch/remote/url "?"; dump_mcu_build looks one dir above the binary |
 | `src/queuelogger.rs` | `klippy/queuelogger.py` + py3.13 `TimedRotatingFileHandler` | `tools/ql_cmp.sh`: computeRollover in 3 time zones across DST (90 cases); unit test: rotation names + backupCount deletion | identical; tracebacks of logging.exception not written |
 | (none) | `klippy/compat.py` | n/a: python import-hook aliases for legacy plugins; a compiled binary has no imports (static registry instead) | n/a |
-| `src/error.rs` | (python exception classes) | used everywhere | KError lacks the python class name needed for traceback last lines (next step) |
-| `src/printer.rs` | `klippy/printer.py` (Printer, main, options, registry) | smoke: arg errors + config error runs match python (message, exit 2 / 255); full check = milestone traces | built, NOT parity-verified yet |
-| `src/gcode.rs` | `klippy/gcode.py` | via milestone runs | built, NOT verified; request_restart ready branch waits for toolhead |
+| `src/error.rs` | (python exception classes) | used everywhere | KError carries the python class (`Py`, `CommandSub`) and `__context__` chains (`Chained`) |
+| `src/printer.rs` | `klippy/printer.py` (Printer, main, options, registry) | stock suite + custom cases | identical |
+| `src/gcode.rs` | `klippy/gcode.py` | stock suite + custom cases | identical |
 | `src/webhooks.rs` | `klippy/webhooks.py` | via milestone runs + a socket test (todo) | built, NOT verified |
-| `src/extras/mod.rs` | (pkgutil scan of extras/) | registry order == code point order (checked) | 143 modules, 1 ported |
-| `src/extras/danger_options.rs` | `extras/danger_options.py` | via milestone | built |
-| `src/extras/probe.rs` | `extras/probe.py` (ProbeList only) | via milestone | add_probe_object + PrinterProbe todo |
+| `src/extras/mod.rs` | (pkgutil scan of extras/) | registry order == code point order (checked) | every module ported (see below) |
 | `src/chelper/pollreactor.rs` | `chelper/pollreactor.c` | via serialqueue checks | pass |
 | `src/chelper/serialqueue.rs` | `chelper/serialqueue.c` (uart, can, debugfile modes; RK_SQ_TRACE trace) | `tools/sq_cmp.sh`: scripted pty exchange vs Kalico's C serialqueue (framing, seq, acks, data + notify delivery, cross-queue priority, timeout + nak retransmit, resync after garbage, stats counters, extract_old, pull after exit), 3 runs | identical; clock-est scheduling (min_clock stalls) only checked through later batch traces; CAN path untested |
 
@@ -48,7 +48,22 @@ Run everything: `tools/check_all.sh` (~10 min).
 
 ## Stock test cases (`test/klippy/*.test`, 88 runs)
 
-None run against Rust yet (no klippy binary).
+`tools/suite_cmp.sh`: 85/88 identical (2026-10-23). gcode_python and macro_loading need python g-code macros
+(RustPython, not ported yet); printers differs by wall-clock timer timing only (NOTES.md "Parity harness").
+
+## Custom cases (`tests/cases/*.test`, `tools/case_cmp.sh`)
+
+55 runs, all identical, for modules and error paths the stock suite misses: accelerometers (accels), angle, chained
+exception tracebacks (chains, parse_errors), canbus_ids, digipots, eddy current probes, fan, heater_bed, load cell
+probes (lcp, lcp_bad; filter designs in `tests/cases/scipy/` against a scipy venv, `REF_KLIPPY`), misc extras,
+nozzle_cleanup, palette2, pwm_clock, replicape, i2c/spi temperature sensors (sensors, sensor_status), resonance
+tester / shaper_calibrate commands (shaper, shaper_cmds), smart_effector, tools_calibrate, skew/transforms.
+
+Function level checks against python for code file-output runs cannot reach: shaper_calibrate
+(`tools/gen_shaper_cases.py`: psds, fits, csv bit-identical), angle calibration, sos filter design.
+
+Not verified against Kalico: paths that need an mcu query answer (i2c/spi sensor reads, accelerometer and load cell
+data, eddy homing, tap analysis) - python hangs on queries in file-output mode. Ported from source.
 
 ## Kalico pytest suite (`test/test_*.py`)
 
