@@ -56,7 +56,7 @@ impl DisplayTemplate {
                             config.get_name()
                         )));
                     }
-                    return Err(KError::Other(format!("{}: {}", cls, msg)));
+                    return Err(KError::Py(cls.to_string(), msg.to_string()));
                 }
             }
         }

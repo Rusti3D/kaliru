@@ -387,7 +387,7 @@ impl PrinterTemplateEvaluator {
                     Err((cls, _)) if cls == "ValueError" => {
                         return Err(gcmd.error(format!("Unable to parse '{}' as a literal", v)));
                     }
-                    Err((cls, msg)) => return Err(KError::Other(format!("{}: {}", cls, msg))),
+                    Err((cls, msg)) => return Err(KError::Py(cls.to_string(), msg.to_string())),
                 }
             }
             template = Some(t);

@@ -90,7 +90,7 @@ impl SaveVariables {
             Ok(v) => v,
             Err(("ValueError", _)) => return Err(gcmd.error(format!("Unable to parse '{}' as a literal", value))),
             // a SyntaxError is not caught by the python handler
-            Err((cls, m)) => return Err(KError::Other(format!("{}: {}", cls, m))),
+            Err((cls, m)) => return Err(KError::Py(cls.to_string(), m.to_string())),
         };
         let mut newvars = self.all_variables.borrow().clone();
         newvars.insert(varname, value);

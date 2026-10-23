@@ -30,6 +30,9 @@ pub enum KError {
     /// (python class name, message)
     CommandSub(&'static str, String),
     Reactor(String),
+    /// a builtin python exception that is not a klippy error: (class
+    /// name, message), e.g. ("ValueError", "could not convert ...")
+    Py(String, String),
     Other(String),
 }
 
@@ -46,6 +49,7 @@ impl KError {
             | KError::WaitInterruption(m)
             | KError::CommandSub(_, m)
             | KError::Reactor(m)
+            | KError::Py(_, m)
             | KError::Other(m) => m,
         }
     }
@@ -57,7 +61,7 @@ impl KError {
 
     /// the python exception class as traceback.format_exception_only()
     /// names it ("Other" errors carry no class: "Exception")
-    pub fn py_class(&self) -> &'static str {
+    pub fn py_class(&self) -> &str {
         match self {
             KError::Config(_) => "configparser.Error",
             KError::Pins(_) => "klippy.pins.error",
@@ -69,6 +73,7 @@ impl KError {
             KError::WaitInterruption(_) => "klippy.printer.WaitInterruption",
             KError::CommandSub(class, _) => class,
             KError::Reactor(_) => "klippy.reactor.ReactorError",
+            KError::Py(class, _) => class,
             KError::Other(_) => "Exception",
         }
     }

@@ -137,6 +137,7 @@ pub mod tmc5160;
 pub mod tmc5262;
 pub mod tmc_tables;
 pub mod tmc_uart;
+pub mod tools_calibrate;
 pub mod trad_rack;
 pub mod tsl1401cl_filament_width_sensor;
 pub mod tuning_tower;
@@ -285,7 +286,7 @@ pub static MODULES: &[PrinterModule] = &[
     PrinterModule { name: "tmc5160", ported: true, load_config: None, load_config_prefix: Some(tmc5160::load_config_prefix), register_components: None },
     PrinterModule { name: "tmc5262", ported: true, load_config: None, load_config_prefix: Some(tmc5262::load_config_prefix), register_components: None },
     PrinterModule { name: "tmc_uart", ported: true, load_config: None, load_config_prefix: None, register_components: None },
-    todo("tools_calibrate"),
+    PrinterModule { name: "tools_calibrate", ported: true, load_config: Some(tools_calibrate::load_config), load_config_prefix: None, register_components: None },
     PrinterModule { name: "trad_rack", ported: true, load_config: Some(trad_rack::load_config), load_config_prefix: None, register_components: None },
     PrinterModule { name: "tsl1401cl_filament_width_sensor", ported: true, load_config: Some(tsl1401cl_filament_width_sensor::load_config), load_config_prefix: None, register_components: None },
     PrinterModule { name: "tuning_tower", ported: true, load_config: Some(tuning_tower::load_config), load_config_prefix: None, register_components: None },

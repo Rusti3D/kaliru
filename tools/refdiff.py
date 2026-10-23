@@ -25,6 +25,8 @@ LOG_MASKS = [
     (re.compile(rb"\b\d{10}\.\d+\b"), b"<TIME>"),        # time.time()
     (re.compile(rb"0x[0-9a-f]{8,}"), b"<ADDR>"),
     (re.compile(rb"\bpid \d+"), b"pid <PID>"),
+    # gcode.py dump_debug: "Read %f: %r" of the reactor.monotonic() read time
+    (re.compile(rb"^Read \d+\.\d+: ", re.M), b"Read <MONO>: "),
     # traceback frames (kaliru writes one placeholder frame line)
     (re.compile(rb"Traceback \(most recent call last\):\n(?:  [^\n]*\n)+"),
      b"Traceback (most recent call last):\n  <frames>\n"),

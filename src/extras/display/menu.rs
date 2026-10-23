@@ -508,7 +508,7 @@ impl MenuItem {
             return Ok(Value::None);
         }
         literal_eval(&stmt).map_err(|(cls, msg)| {
-            let e = KError::Other(format!("{}: {}", cls, msg));
+            let e = KError::Py(cls.to_string(), msg.to_string());
             logging::exception_tb(&format!("{} Failed to evaluate {}", self.ns, crate::pyfmt::py_str_repr(&stmt)), &cls, &msg);
             e
         })

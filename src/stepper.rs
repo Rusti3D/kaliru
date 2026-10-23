@@ -719,7 +719,14 @@ impl PrinterRail {
             None => {
                 // New endstop, register it
                 let mcu_endstop = crate::pins::setup_pin(&printer, "endstop", &endstop_pin)
-                    .and_then(|o| any_to_endstop(o).ok_or_else(|| KError::Other("endstop pin has an unexpected type".into())))?;
+                    .and_then(|o| {
+                        // tools_calibrate's probe_multi_axis chip returns a list of probes
+                        let is_list = o.is::<Vec<EndstopRef>>();
+                        any_to_endstop(o).ok_or_else(|| match is_list {
+                            true => KError::Py("AttributeError".into(), "'list' object has no attribute 'add_stepper'".into()),
+                            false => KError::Other("endstop pin has an unexpected type".into()),
+                        })
+                    })?;
                 self.endstop_map.borrow_mut().insert(pin_name, (mcu_endstop.clone(), pin_params.invert, pin_params.pullup));
                 let name = stepper.get_name(true);
                 self.endstops.borrow_mut().push((mcu_endstop.clone(), name.clone()));

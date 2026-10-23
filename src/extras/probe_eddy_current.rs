@@ -72,11 +72,11 @@ impl EddyCalibration {
             for d in cal.split(',') {
                 let mut row = vec![];
                 for v in d.trim().splitn(2, ':') {
-                    let f = py_float(v).ok_or_else(|| KError::CommandSub("ValueError", format!("could not convert string to float: {}", py_str_repr(v))))?;
+                    let f = py_float(v).ok_or_else(|| KError::Py("ValueError".into(), format!("could not convert string to float: {}", py_str_repr(v))))?;
                     row.push(f);
                 }
                 if row.len() < 2 {
-                    return Err(KError::CommandSub("IndexError", "list index out of range".into()));
+                    return Err(KError::Py("IndexError".into(), "list index out of range".into()));
                 }
                 parsed.push(row);
             }
