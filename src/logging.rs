@@ -81,7 +81,13 @@ pub fn exception(msg: &str) {
 /// python frames: one placeholder frame line is written (refdiff masks the
 /// frame lines of both).
 pub fn exception_tb(msg: &str, cls: &str, emsg: &str) {
-    log(ERROR, &format!("{}\n{}", msg, traceback(cls, emsg)))
+    log(ERROR, &with_exc(msg, &traceback(cls, emsg)))
+}
+
+/// Formatter.format: the traceback goes on a new line after the message
+fn with_exc(msg: &str, exc_text: &str) -> String {
+    let sep = if msg.ends_with('\n') { "" } else { "\n" };
+    format!("{}{}{}", msg, sep, exc_text)
 }
 
 fn traceback(cls: &str, emsg: &str) -> String {
@@ -113,10 +119,10 @@ fn format_exception(e: &crate::error::KError) -> String {
 
 /// logging.exception(msg) while handling `e`
 pub fn exception_err(msg: &str, e: &crate::error::KError) {
-    log(ERROR, &format!("{}\n{}", msg, format_exception(e)))
+    log(ERROR, &with_exc(msg, &format_exception(e)))
 }
 
 /// logging.warning(msg, exc_info=True) while handling `e`
 pub fn warning_err(msg: &str, e: &crate::error::KError) {
-    log(WARNING, &format!("{}\n{}", msg, format_exception(e)))
+    log(WARNING, &with_exc(msg, &format_exception(e)))
 }

@@ -54,6 +54,8 @@ pub mod garbage_collection;
 pub mod gcode_arcs;
 pub mod gcode_button;
 pub mod gcode_macro;
+#[cfg(feature = "python")]
+pub mod gcode_python;
 pub mod gcode_move;
 pub mod gcode_shell_command;
 pub mod hall_filament_width_sensor;

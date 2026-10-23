@@ -37,6 +37,10 @@ name = "sqtest"
 path = "src/bin/sqtest.rs"
 
 [[bin]]
+name = "pysyntax"
+path = "src/bin/pysyntax.rs"
+
+[[bin]]
 name = "tracedump"
 path = "src/bin/tracedump.rs"
 
@@ -47,6 +51,15 @@ flate2 = "1"
 libc = "0.2"
 corosensei = "0.3"
 minijinja = { version = "2", features = ["custom_syntax", "loop_controls"] }
+rustpython-vm = { version = "0.4", default-features = false, features = ["compiler", "freeze-stdlib"], optional = true }
+rustpython-stdlib = { version = "0.4", default-features = false, optional = true }
+rustpython-pylib = { version = "0.4", features = ["freeze-stdlib"], optional = true }
+
+[features]
+# python g-code macros (an embedded RustPython); --no-default-features
+# builds without them
+default = ["python"]
+python = ["dep:rustpython-vm", "dep:rustpython-stdlib", "dep:rustpython-pylib"]
 
 [profile.release]
 # small binaries for printer hosts with little storage

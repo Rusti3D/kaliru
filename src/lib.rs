@@ -20,6 +20,8 @@ pub mod printer;
 pub mod pyfmt;
 pub mod pyformat;
 pub mod pyliteral;
+#[cfg(feature = "python")]
+pub mod pysyntax;
 pub mod pyglob;
 pub mod pyval;
 pub mod queuelogger;

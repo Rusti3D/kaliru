@@ -1,0 +1,6 @@
+CONFIG pymacro_misc.cfg
+DICTIONARY atmega2560.dict
+
+G4 P500
+PLIST
+JLIST

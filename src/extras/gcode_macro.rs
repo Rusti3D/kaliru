@@ -4,9 +4,8 @@
 //
 // This file may be distributed under the terms of the GNU GPLv3 license.
 //
-// Jinja templates run on the jinja module (a port of Jinja2 3.1.6).
-// ponytail: python script macros (TemplateWrapperPython) need an embedded
-// python interpreter and are not supported yet.
+// Jinja templates run on the jinja module (a port of Jinja2 3.1.6), python
+// scripts on RustPython (gcode_python.rs, cargo feature "python").
 use crate::configfile::{ConfigWrapper, Dflt};
 use crate::error::{KError, KResult};
 use crate::gcode::{GCodeCommand, GCodeDispatch};
@@ -98,7 +97,8 @@ impl Object for GetStatusWrapperJinja {
 }
 
 /// the PrinterGCodeMacro._action_* bound methods
-struct Action {
+#[derive(Clone)]
+pub(crate) struct Action {
     printer: Rc<Printer>,
     name: &'static str,
 }
@@ -119,7 +119,11 @@ impl Object for Action {
 }
 
 impl Action {
-    fn run(&self, args: Vec<Value>, kwargs: IndexMap<String, Value>) -> VResult<Value> {
+    pub(crate) fn new(printer: &Rc<Printer>, name: &'static str) -> Self {
+        Action { printer: printer.clone(), name }
+    }
+
+    pub(crate) fn run(&self, args: Vec<Value>, kwargs: IndexMap<String, Value>) -> VResult<Value> {
         let fname = format!("PrinterGCodeMacro.{}", self.name);
         match self.name {
             "_action_emergency_stop" => {
@@ -130,6 +134,11 @@ impl Action {
             "_action_respond_info" => {
                 let (a, _, _) = bind(&fname, &[("msg", None)], args, kwargs, false, false)?;
                 let gcode = self.printer.lookup::<GCodeDispatch>("gcode").map_err(kerror_exc)?;
+                if !matches!(a[0], Value::Str(_) | Value::Undefined(_)) {
+                    // logging.info(msg), then msg.strip() fails
+                    logging::info(&a[0].to_str());
+                    return Err(Exc::attribute_error(format!("'{}' object has no attribute 'strip'", a[0].type_name())));
+                }
                 gcode.respond_info(&a[0].to_str(), true);
                 Ok(Value::from(""))
             }
@@ -216,11 +225,19 @@ impl TemplateWrapperJinja {
     }
 }
 
+/// Template.function: the wrapper of a jinja or a python script
+#[derive(Clone)]
+enum Function {
+    Jinja(Rc<TemplateWrapperJinja>),
+    #[cfg(feature = "python")]
+    Python(Rc<crate::extras::gcode_python::TemplateWrapperPython>),
+}
+
 /// gcode_macro.Template: a jinja or a python script
 pub struct Template {
     printer: Rc<Printer>,
     name: String,
-    function: RefCell<Rc<TemplateWrapperJinja>>,
+    function: RefCell<Function>,
 }
 
 impl Template {
@@ -229,12 +246,14 @@ impl Template {
         Ok(Rc::new(Template { printer: printer.clone(), name: name.to_string(), function: RefCell::new(function) }))
     }
 
-    fn make(printer: &Rc<Printer>, env: &Environment, name: &str, script_type: &str, script: &str) -> KResult<Rc<TemplateWrapperJinja>> {
+    fn make(printer: &Rc<Printer>, env: &Environment, name: &str, script_type: &str, script: &str) -> KResult<Function> {
         if script_type == "python" {
-            // ponytail: TemplateWrapperPython (an embedded interpreter)
-            return Err(KError::config(format!("Error loading template '{}': python macros are not supported by Kaliru yet", name)));
+            #[cfg(feature = "python")]
+            return Ok(Function::Python(Rc::new(crate::extras::gcode_python::TemplateWrapperPython::new(printer, name, script)?)));
+            #[cfg(not(feature = "python"))]
+            return Err(KError::config(format!("Error loading template '{}': this Kaliru is built without python macros", name)));
         }
-        Ok(Rc::new(TemplateWrapperJinja::new(printer, env, name, script)?))
+        Ok(Function::Jinja(Rc::new(TemplateWrapperJinja::new(printer, env, name, script)?)))
     }
 
     pub fn reload(&self, env: &Environment, script_type: &str, script: &str) -> KResult<()> {
@@ -245,12 +264,22 @@ impl Template {
 
     pub fn render(&self, context: Option<IndexMap<String, Value>>) -> KResult<String> {
         let f = self.function.borrow().clone();
-        f.render(context)
+        match f {
+            Function::Jinja(f) => f.render(context),
+            #[cfg(feature = "python")]
+            Function::Python(_) => {
+                Err(KError::Py("AttributeError".into(), "'TemplateWrapperPython' object has no attribute 'render'".into()))
+            }
+        }
     }
 
     pub fn run_gcode_from_command(&self, context: Option<IndexMap<String, Value>>) -> KResult<()> {
         let f = self.function.borrow().clone();
-        f.run_gcode_from_command(context)
+        match f {
+            Function::Jinja(f) => f.run_gcode_from_command(context),
+            #[cfg(feature = "python")]
+            Function::Python(f) => f.run_gcode_from_command(context),
+        }
     }
 
     pub fn create_template_context(&self) -> IndexMap<String, Value> {

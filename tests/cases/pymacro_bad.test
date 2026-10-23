@@ -1,0 +1,7 @@
+SHOULD_FAIL
+DICTIONARY atmega2560.dict
+
+CONFIG pymacro_syntax.cfg
+CONFIG pymacro_syntax2.cfg
+CONFIG pymacro_indent.cfg
+G4 P1
