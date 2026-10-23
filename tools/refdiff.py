@@ -64,7 +64,7 @@ def main():
         if not rb.exists() or not ra.exists():
             problems.append("missing in " + ("B" if ra.exists() else "A"))
         else:
-            if not (ra / "trace").exists():
+            if not (ra / "trace").exists() and (rb / "trace").exists():
                 problems.append("no trace in A")
             ta, tb = lines(ra / "trace"), lines(rb / "trace")
             if ta != tb:

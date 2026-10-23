@@ -1,0 +1,5 @@
+SHOULD_FAIL
+CONFIG accels_dup.cfg
+DICTIONARY stm32f407.dict
+
+G4 P100

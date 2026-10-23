@@ -197,6 +197,12 @@ pub fn as_accel_chip(obj: &PObj) -> Option<Rc<dyn AccelChip>> {
     if let Some(c) = downcast_rc::<crate::extras::mpu9250::MPU9250>(obj.clone()) {
         return Some(c);
     }
+    if let Some(c) = downcast_rc::<crate::extras::lis2dw::LIS2DW>(obj.clone()) {
+        return Some(c);
+    }
+    if let Some(c) = downcast_rc::<crate::extras::icm20948::ICM20948>(obj.clone()) {
+        return Some(c);
+    }
     None
 }
 
@@ -245,7 +251,12 @@ impl AccelCommandHelper {
         ];
         for (cmd, f, desc) in cmds {
             let h = self.clone();
-            gcode.register_mux_command(cmd, "CHIP", name, Rc::new(move |g| f(&h, g)), Some(desc))?;
+            let repr = format!(
+                "<bound method AccelCommandHelper.cmd_{} of <klippy.extras.adxl345.AccelCommandHelper object at {:#x}>>",
+                cmd,
+                Rc::as_ptr(self) as usize
+            );
+            gcode.register_mux_command_repr(cmd, "CHIP", name, Rc::new(move |g| f(&h, g)), Some(desc), Some(repr))?;
         }
         Ok(())
     }

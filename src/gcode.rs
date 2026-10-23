@@ -227,7 +227,7 @@ pub struct GCodeDispatch {
     active: Cell<Active>,
     base_gcode_handlers: RefCell<IndexMap<String, Handler>>,
     ready_gcode_handlers: RefCell<IndexMap<String, Handler>>,
-    mux_commands: RefCell<IndexMap<String, (String, IndexMap<Option<String>, Handler>)>>,
+    mux_commands: RefCell<IndexMap<String, (String, IndexMap<Option<String>, (Handler, Option<String>)>)>>,
     gcode_help: RefCell<IndexMap<String, String>>,
     status_commands: RefCell<PyVal>,
     interrupt_counter: Cell<i64>,
@@ -396,6 +396,12 @@ impl GCodeDispatch {
     /// register_mux_command(cmd, key, value, func, desc); value None is
     /// python's None key
     pub fn register_mux_command(self: &Rc<Self>, cmd: &str, key: &str, value: Option<&str>, func: Handler, desc: Option<&str>) -> KResult<()> {
+        self.register_mux_command_repr(cmd, key, value, func, desc, None)
+    }
+
+    /// register_mux_command with python's repr of the handler (a bound
+    /// method), shown when a value is registered twice
+    pub fn register_mux_command_repr(self: &Rc<Self>, cmd: &str, key: &str, value: Option<&str>, func: Handler, desc: Option<&str>, repr: Option<String>) -> KResult<()> {
         if !self.mux_commands.borrow().contains_key(cmd) {
             let g = self.clone();
             let c = cmd.to_string();
@@ -410,10 +416,19 @@ impl GCodeDispatch {
         }
         if prev_values.contains_key(&value.map(|s| s.to_string())) {
             // python prints the dict of registered values (handler reprs)
-            let keys: Vec<String> = prev_values.keys().map(|k| k.as_deref().map(py_str_repr).unwrap_or_else(|| "None".into())).collect();
+            let keys: Vec<String> = prev_values
+                .iter()
+                .map(|(k, (_, r))| {
+                    let k = k.as_deref().map(py_str_repr).unwrap_or_else(|| "None".into());
+                    match r {
+                        Some(r) => format!("{}: {}", k, r),
+                        None => k,
+                    }
+                })
+                .collect();
             return Err(KError::config(format!("mux command {} {} {} already registered ({{{}}})", cmd, key, show(value), keys.join(", "))));
         }
-        prev_values.insert(value.map(|s| s.to_string()), func);
+        prev_values.insert(value.map(|s| s.to_string()), (func, repr));
         Ok(())
     }
 
@@ -676,7 +691,7 @@ impl GCodeDispatch {
             let (key, values) = mux.get(command).unwrap();
             let key_param = if values.contains_key(&None) { gcmd.get_opt(key) } else { Some(gcmd.get(key)?) };
             match values.get(&key_param) {
-                Some(f) => (key.clone(), f.clone()),
+                Some((f, _)) => (key.clone(), f.clone()),
                 None => {
                     let shown = key_param.unwrap_or_else(|| "None".into());
                     return Err(gcmd.error(format!("The value '{}' is not valid for {}", shown, key)));

@@ -64,10 +64,13 @@ pub mod homing;
 pub mod homing_heaters;
 pub mod homing_override;
 pub mod htu21d;
+pub mod icm20948;
 pub mod idle_timeout;
 pub mod indx;
 pub mod input_shaper;
 pub mod led;
+pub mod lis2dw;
+pub mod lis3dh;
 pub mod lm75;
 pub mod load_cell;
 pub mod manual_probe;
@@ -204,14 +207,14 @@ pub static MODULES: &[PrinterModule] = &[
     PrinterModule { name: "homing_heaters", ported: true, load_config: Some(homing_heaters::load_config), load_config_prefix: None, register_components: None },
     PrinterModule { name: "homing_override", ported: true, load_config: Some(homing_override::load_config), load_config_prefix: None, register_components: None },
     PrinterModule { name: "htu21d", ported: true, load_config: Some(htu21d::load_config), load_config_prefix: None, register_components: None },
-    todo("icm20948"),
+    PrinterModule { name: "icm20948", ported: true, load_config: Some(icm20948::load_config), load_config_prefix: Some(icm20948::load_config_prefix), register_components: None },
     PrinterModule { name: "idle_timeout", ported: true, load_config: Some(idle_timeout::load_config), load_config_prefix: None, register_components: None },
     PrinterModule { name: "indx", ported: true, load_config: Some(indx::load_config), load_config_prefix: None, register_components: None },
     PrinterModule { name: "input_shaper", ported: true, load_config: Some(input_shaper::load_config), load_config_prefix: None, register_components: None },
     todo("ldc1612"),
     PrinterModule { name: "led", ported: true, load_config: None, load_config_prefix: Some(led::load_config_prefix), register_components: None },
-    todo("lis2dw"),
-    todo("lis3dh"),
+    PrinterModule { name: "lis2dw", ported: true, load_config: Some(lis2dw::load_config), load_config_prefix: Some(lis2dw::load_config_prefix), register_components: None },
+    PrinterModule { name: "lis3dh", ported: true, load_config: Some(lis3dh::load_config), load_config_prefix: Some(lis3dh::load_config_prefix), register_components: None },
     PrinterModule { name: "lm75", ported: true, load_config: Some(lm75::load_config), load_config_prefix: None, register_components: None },
     PrinterModule { name: "load_cell", ported: true, load_config: Some(load_cell::load_config), load_config_prefix: Some(load_cell::load_config_prefix), register_components: Some(load_cell::register_components) },
     todo("load_cell_probe"),
