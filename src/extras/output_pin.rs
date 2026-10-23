@@ -452,7 +452,7 @@ impl PrinterOutputPin {
             let p = setup_pwm_pin(&printer, &config.get("pin", Dflt::Required)?)?;
             let cycle_time = config.getfloat("cycle_time", 0.100, Lim::new().above(0.0).max(MAX_SCHEDULE_TIME))?;
             let hardware_pwm = config.getboolean("hardware_pwm", false)?;
-            p.setup_cycle_time(cycle_time, hardware_pwm);
+            p.setup_cycle_time(cycle_time, hardware_pwm)?;
             let scale = config.getfloat("scale", 1.0, Lim::new().above(0.0))?;
             p.setup_max_duration(0.0);
             let mcu = p.get_mcu();

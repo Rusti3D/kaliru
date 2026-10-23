@@ -875,7 +875,7 @@ impl DigitalOutPin for McuDigitalOut {
 pub trait PwmPin {
     fn get_mcu(&self) -> Rc<Mcu>;
     fn setup_max_duration(&self, max_duration: f64);
-    fn setup_cycle_time(&self, cycle_time: f64, hardware_pwm: bool);
+    fn setup_cycle_time(&self, cycle_time: f64, hardware_pwm: bool) -> KResult<()>;
     fn setup_start_value(&self, start_value: f64, shutdown_value: f64);
     fn set_pwm(&self, print_time: f64, value: f64) -> KResult<()>;
 }
@@ -887,8 +887,9 @@ impl PwmPin for McuPwm {
     fn setup_max_duration(&self, max_duration: f64) {
         McuPwm::setup_max_duration(self, max_duration)
     }
-    fn setup_cycle_time(&self, cycle_time: f64, hardware_pwm: bool) {
-        McuPwm::setup_cycle_time(self, cycle_time, hardware_pwm)
+    fn setup_cycle_time(&self, cycle_time: f64, hardware_pwm: bool) -> KResult<()> {
+        McuPwm::setup_cycle_time(self, cycle_time, hardware_pwm);
+        Ok(())
     }
     fn setup_start_value(&self, start_value: f64, shutdown_value: f64) {
         McuPwm::setup_start_value(self, start_value, shutdown_value)

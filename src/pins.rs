@@ -321,16 +321,19 @@ pub fn setup_pwm_pin(printer: &crate::printer::Printer, pin_desc: &str) -> crate
     }
 }
 
+/// the object setup_pin("digital_out", ...) returns, as a digital output
+/// pin: an McuDigitalOut, or another chip's boxed Rc<dyn DigitalOutPin>
+pub fn any_to_digital_out(obj: Rc<dyn Any>) -> Option<Rc<dyn crate::mcu::DigitalOutPin>> {
+    match obj.downcast::<crate::mcu::McuDigitalOut>() {
+        Ok(p) => Some(p),
+        Err(obj) => obj.downcast::<Rc<dyn crate::mcu::DigitalOutPin>>().ok().map(|p| (*p).clone()),
+    }
+}
+
 /// setup_pin("digital_out", pin_desc) as a digital output pin
 pub fn setup_digital_out_pin(printer: &crate::printer::Printer, pin_desc: &str) -> crate::error::KResult<Rc<dyn crate::mcu::DigitalOutPin>> {
-    let obj = setup_pin(printer, "digital_out", pin_desc)?;
-    match obj.downcast::<crate::mcu::McuDigitalOut>() {
-        Ok(p) => Ok(p),
-        Err(obj) => obj
-            .downcast::<Rc<dyn crate::mcu::DigitalOutPin>>()
-            .map(|p| (*p).clone())
-            .map_err(|_| crate::error::KError::Other(format!("pin '{}' of type digital_out is not supported here by Kaliru yet", pin_desc))),
-    }
+    any_to_digital_out(setup_pin(printer, "digital_out", pin_desc)?)
+        .ok_or_else(|| crate::error::KError::Other(format!("pin '{}' of type digital_out is not supported here by Kaliru yet", pin_desc)))
 }
 
 /// setup_pin("adc", pin_desc) as an adc pin

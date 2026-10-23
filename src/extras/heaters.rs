@@ -568,7 +568,7 @@ impl Heater {
         let heater_pin = config.get("heater_pin", Dflt::Required)?;
         let mcu_pwm = crate::pins::setup_pwm_pin(&printer, &heater_pin)?;
         let pwm_cycle_time = config.getfloat("pwm_cycle_time", 0.100, Lim::new().above(0.0).max(pwm_delay))?;
-        mcu_pwm.setup_cycle_time(pwm_cycle_time, false);
+        mcu_pwm.setup_cycle_time(pwm_cycle_time, false)?;
         mcu_pwm.setup_max_duration(MAX_HEAT_TIME);
         let heater = Rc::new_cyclic(|me| Heater {
             me: me.clone(),

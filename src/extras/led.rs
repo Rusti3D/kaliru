@@ -255,7 +255,7 @@ impl PrinterPWMLED {
             let Some(pin_name) = config.get_opt(&format!("{}_pin", name))? else { continue };
             let mcu_pin = crate::pins::setup_pwm_pin(&printer, &pin_name)?;
             mcu_pin.setup_max_duration(0.0);
-            mcu_pin.setup_cycle_time(cycle_time, hardware_pwm);
+            mcu_pin.setup_cycle_time(cycle_time, hardware_pwm)?;
             pins.push((i, mcu_pin));
         }
         if pins.is_empty() {

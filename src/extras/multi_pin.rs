@@ -116,12 +116,13 @@ impl PwmPin for PrinterMultiPin {
             }
         }
     }
-    fn setup_cycle_time(&self, cycle_time: f64, hardware_pwm: bool) {
+    fn setup_cycle_time(&self, cycle_time: f64, hardware_pwm: bool) -> KResult<()> {
         if let McuPins::Pwm(pins) = &*self.mcu_pins.borrow() {
             for p in pins {
-                p.setup_cycle_time(cycle_time, hardware_pwm);
+                p.setup_cycle_time(cycle_time, hardware_pwm)?;
             }
         }
+        Ok(())
     }
     fn setup_start_value(&self, start_value: f64, shutdown_value: f64) {
         if let McuPins::Pwm(pins) = &*self.mcu_pins.borrow() {

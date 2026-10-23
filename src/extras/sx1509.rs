@@ -276,9 +276,10 @@ impl PwmPin for SX1509Pwm {
         self.max_duration.set(max_duration);
     }
 
-    fn setup_cycle_time(&self, cycle_time: f64, hardware_pwm: bool) {
+    fn setup_cycle_time(&self, cycle_time: f64, hardware_pwm: bool) -> KResult<()> {
         self.cycle_time.set(cycle_time);
         self.hardware_pwm.set(hardware_pwm);
+        Ok(())
     }
 
     fn setup_start_value(&self, start_value: f64, shutdown_value: f64) {

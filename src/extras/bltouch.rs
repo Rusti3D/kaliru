@@ -105,7 +105,7 @@ impl BLTouchEndstopWrapper {
         // Create a pwm object to handle the control pin
         let mcu_pwm = crate::pins::setup_pwm_pin(&printer, &config.get("control_pin", Dflt::Required)?)?;
         mcu_pwm.setup_max_duration(0.0);
-        mcu_pwm.setup_cycle_time(SIGNAL_PERIOD, false);
+        mcu_pwm.setup_cycle_time(SIGNAL_PERIOD, false)?;
         // Create an "endstop" object to handle the sensor pin
         let pin = config.get("sensor_pin", Dflt::Required)?;
         let ppins = printer.lookup::<PinsObject>("pins")?;

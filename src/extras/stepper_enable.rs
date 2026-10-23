@@ -8,8 +8,8 @@ use crate::configfile::{ConfigWrapper, Lim};
 use crate::error::{KError, KResult};
 use crate::gcode::{GCodeCommand, GCodeDispatch};
 use crate::logging;
-use crate::mcu::McuDigitalOut;
-use crate::pins::PinsObject;
+use crate::mcu::DigitalOutPin;
+use crate::pins::{any_to_digital_out, PinsObject};
 use crate::printer::{PObj, Printer, PrinterObject};
 use crate::pyval::PyVal;
 use crate::stepper::McuStepper;
@@ -23,13 +23,13 @@ pub const DISABLE_STALL_TIME: f64 = 0.100;
 
 // Tracking of shared stepper enable pins
 pub struct StepperEnablePin {
-    mcu_enable: Option<Rc<McuDigitalOut>>,
+    mcu_enable: Option<Rc<dyn DigitalOutPin>>,
     enable_count: Cell<i64>,
     pub is_dedicated: Cell<bool>,
 }
 
 impl StepperEnablePin {
-    fn new(mcu_enable: Option<Rc<McuDigitalOut>>, enable_count: i64) -> Rc<Self> {
+    fn new(mcu_enable: Option<Rc<dyn DigitalOutPin>>, enable_count: i64) -> Rc<Self> {
         Rc::new(StepperEnablePin { mcu_enable, enable_count: Cell::new(enable_count), is_dedicated: Cell::new(true) })
     }
 
@@ -73,11 +73,8 @@ pub fn setup_enable_pin(printer: &Printer, pin: Option<&str>) -> KResult<Rc<Step
         return Ok(enable);
     }
     let chip = pin_params.borrow().chip.clone();
-    let mcu_enable = chip
-        .setup_pin("digital_out", &pin_params)
-        .map_err(KError::Pins)?
-        .downcast::<McuDigitalOut>()
-        .map_err(|_| KError::Other("digital_out pin of an unexpected type".into()))?;
+    let mcu_enable = any_to_digital_out(chip.setup_pin("digital_out", &pin_params).map_err(KError::Pins)?)
+        .ok_or_else(|| KError::Other("digital_out pin of an unexpected type".into()))?;
     mcu_enable.setup_max_duration(0.0);
     let enable = StepperEnablePin::new(Some(mcu_enable), 0);
     pin_params.borrow_mut().class = Some(enable.clone());

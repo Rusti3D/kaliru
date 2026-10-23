@@ -94,7 +94,7 @@ impl PrinterServo {
         // Setup mcu_servo pin
         let mcu_servo = crate::pins::setup_pwm_pin(&printer, &config.get("pin", Dflt::Required)?)?;
         mcu_servo.setup_max_duration(0.0);
-        mcu_servo.setup_cycle_time(SERVO_SIGNAL_PERIOD, false);
+        mcu_servo.setup_cycle_time(SERVO_SIGNAL_PERIOD, false)?;
         mcu_servo.setup_start_value(initial_pwm, 0.0);
         let servo = Rc::new(PrinterServo { calc, last_value: Cell::new(0.0), mcu_servo: mcu_servo.clone(), gcrq: RefCell::new(None) });
         // Create gcode request queue

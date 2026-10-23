@@ -102,6 +102,7 @@ pub mod pwm_tool;
 pub mod quad_gantry_level;
 pub mod query_adc;
 pub mod query_endstops;
+pub mod replicape;
 pub mod resonance_tester;
 pub mod respond;
 pub mod safe_z_home;
@@ -250,7 +251,7 @@ pub static MODULES: &[PrinterModule] = &[
     PrinterModule { name: "quad_gantry_level", ported: true, load_config: Some(quad_gantry_level::load_config), load_config_prefix: None, register_components: None },
     PrinterModule { name: "query_adc", ported: true, load_config: Some(query_adc::load_config), load_config_prefix: None, register_components: None },
     PrinterModule { name: "query_endstops", ported: true, load_config: Some(query_endstops::load_config), load_config_prefix: None, register_components: None },
-    todo("replicape"),
+    PrinterModule { name: "replicape", ported: true, load_config: Some(replicape::load_config), load_config_prefix: None, register_components: None },
     PrinterModule { name: "resonance_tester", ported: true, load_config: Some(resonance_tester::load_config), load_config_prefix: None, register_components: None },
     PrinterModule { name: "respond", ported: true, load_config: Some(respond::load_config), load_config_prefix: None, register_components: None },
     PrinterModule { name: "safe_z_home", ported: true, load_config: Some(safe_z_home::load_config), load_config_prefix: None, register_components: None },

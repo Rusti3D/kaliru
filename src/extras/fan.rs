@@ -66,7 +66,7 @@ impl Fan {
         // Setup pwm object
         let mcu_fan = crate::pins::setup_pwm_pin(&printer, &config.get("pin", Dflt::Required)?)?;
         mcu_fan.setup_max_duration(0.0);
-        mcu_fan.setup_cycle_time(cycle_time, hardware_pwm);
+        mcu_fan.setup_cycle_time(cycle_time, hardware_pwm)?;
 
         let shutdown_power = if hardware_pwm {
             py_max(0.0, py_min(max_power, shutdown_speed))

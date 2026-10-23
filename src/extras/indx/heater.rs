@@ -1901,8 +1901,9 @@ impl PwmPin for IndxToolboardHeater {
     fn setup_max_duration(&self, _max_duration: f64) {
         // No-op for INDX, controlled by hardware
     }
-    fn setup_cycle_time(&self, _cycle_time: f64, _hardware_pwm: bool) {
+    fn setup_cycle_time(&self, _cycle_time: f64, _hardware_pwm: bool) -> KResult<()> {
         // No-op for INDX, controlled by hardware
+        Ok(())
     }
     fn setup_start_value(&self, _start_value: f64, _shutdown_value: f64) {}
     fn set_pwm(&self, _print_time: f64, _value: f64) -> KResult<()> {
