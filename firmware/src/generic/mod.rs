@@ -12,6 +12,8 @@ pub mod armcm_timer;
 #[cfg(CONFIG_MACH_STM32)]
 pub mod cmsis;
 pub mod crc16_ccitt;
+#[cfg(CONFIG_SERIAL)]
+pub mod serial_irq;
 #[cfg(CONFIG_USBSERIAL)]
 pub mod usb_cdc;
 #[cfg(CONFIG_USBSERIAL)]

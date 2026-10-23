@@ -76,7 +76,7 @@ fn sources(config: &kconfig::Config) -> Vec<&'static str> {
         if !(on("CONFIG_MACH_STM32F1") || on("CONFIG_MACH_STM32F4")) {
             panic!("only the stm32f1 / stm32f4 boards are ported");
         }
-        if on("CONFIG_CANSERIAL") || on("CONFIG_USBCANBUS") || on("CONFIG_HAVE_STM32_USBFS") {
+        if on("CONFIG_CANSERIAL") || on("CONFIG_USBCANBUS") || (on("CONFIG_USBSERIAL") && on("CONFIG_HAVE_STM32_USBFS")) {
             panic!("stm32 canbus / usbfs are not ported yet");
         }
         // (internal.h: no requests, its GPIO() is used in theirs)
@@ -124,6 +124,9 @@ fn stm32_chip(root: &Path, config: &kconfig::Config) -> Option<(PathBuf, BTreeSe
     }
     let mcu = config.string("CONFIG_MCU").unwrap();
     let path = root.join("src/stm32/chip").join(format!("{}.rs", mcu));
+    if !path.exists() {
+        panic!("no {}: make it with tools/gen_stm32_regs.py", path.display());
+    }
     let text = read(&path);
     let names = text
         .lines()

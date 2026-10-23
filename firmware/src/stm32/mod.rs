@@ -30,6 +30,8 @@ pub mod spi;
 pub mod i2c;
 #[cfg(CONFIG_SERIAL)]
 pub mod serial;
+#[cfg(CONFIG_SERIAL)]
+pub use serial::serial_enable_tx_irq;
 #[cfg(CONFIG_USBSERIAL)]
 pub mod usbotg;
 #[cfg(CONFIG_USBSERIAL)]

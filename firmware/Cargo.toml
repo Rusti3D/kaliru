@@ -24,3 +24,12 @@ panic = "abort"
 
 [profile.dev]
 panic = "abort"
+
+# the micro-controller boards (cargo build --profile mcu): whole program
+# optimisation as Kalico's -flto -fwhole-program. Optimised for size: at
+# -O2 the Rust image is twice the C one and overflows a 64KB stm32f103
+# (CARGO_PROFILE_MCU_OPT_LEVEL=z for an even smaller one)
+[profile.mcu]
+inherits = "release"
+lto = "fat"
+opt-level = "s"
