@@ -20,27 +20,25 @@ Reference: Kalico `5b59427`.
   command trace, exit code and log). The other three: two need python g-code
   macros (planned through RustPython), and one differs only by wall-clock
   timer timing.
-- **Custom parity cases** (`tests/cases/`, 53 runs covering modules the stock
+- **Custom parity cases** (`tests/cases/`, 55 runs covering modules the stock
   suite doesn't reach): all identical to Kalico.
 - Ported: the whole klippy host (reactor, serial and msgproto, clock sync,
   config, pins, gcode, toolhead, steppers and rails, homing, mcu), the chelper
   C code, all kinematics, a Jinja2 port for g-code macros, and every Kalico
-  `extras` module except `shaper_calibrate`: heaters and all temperature sensors,
+  `extras` module: heaters and all temperature sensors,
   TMC drivers, input shaper, probes (incl. eddy current, dockable, BLTouch,
   smart effector), bed mesh and leveling tools, displays and menus,
   accelerometers, load cells and load cell probes, angle sensors, filament sensors, MMUs
   (Palette 2, Trad Rack), Replicape, and more.
-- The scipy filter design that load cell probes use is ported too and checked
-  against scipy.
+- The numpy and scipy pieces Kalico relies on (rfft, kaiser window, least
+  squares, the load cell probe filter design) are ported and checked against
+  numpy/scipy; input shaper calibration gives identical results.
 - Python exception tracebacks are reproduced too, including chained ones
   ("During handling of the above exception ...").
 - Not ported yet:
-  - `shaper_calibrate` (needs a numpy-faithful FFT),
   - python g-code macros,
   - the MCU firmware.
 
-  Loading an unported module fails with
-  `Module 'x' is not ported to Kaliru yet`.
 - Known limits: paths that read sensors over i2c/spi can't be exercised in
   Kalico's file-output test mode. They are ported from source but not yet
   verified against Kalico.

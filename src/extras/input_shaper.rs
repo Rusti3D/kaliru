@@ -281,7 +281,7 @@ impl InputShaper {
         self.update_input_shaping(false)
     }
 
-    fn cmd_set_input_shaper(&self, gcmd: &GCodeCommand) -> KResult<()> {
+    pub fn cmd_set_input_shaper(&self, gcmd: &GCodeCommand) -> KResult<()> {
         if !gcmd.get_command_parameters().is_empty() {
             for shaper in &self.shapers {
                 shaper.update(gcmd)?;

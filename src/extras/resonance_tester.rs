@@ -4,18 +4,15 @@
 // Copyright (C) 2020-2024  Dmitry Butyugin <dmbutyugin@google.com>
 //
 // This file may be distributed under the terms of the GNU GPLv3 license.
-//
-// shaper_calibrate.ShaperCalibrate (numpy) is not ported yet: the outputs
-// that need it (TEST_RESONANCES OUTPUT=resonances, SHAPER_CALIBRATE,
-// MEASURE_AXES_NOISE) fail with an error; OUTPUT=raw_data works.
 use crate::configfile::{strftime_local, ConfigWrapper, Dflt, Lim, ListParser};
 use crate::error::{KError, KResult};
 use crate::extras::adxl345::{as_accel_chip, is_valid_name, AccelChip, AccelQueryHelper};
 use crate::extras::input_shaper::InputShaper;
+use crate::extras::shaper_calibrate::{CalibrationData, CalibrationResult, ShaperCalibrate};
 use crate::gcode::{GCodeCommand, GCodeDispatch};
 use crate::kinematics::cartesian::CartKinematics;
 use crate::logging;
-use crate::printer::{downcast_rc, PObj, Printer, PrinterObject};
+use crate::printer::{downcast_rc, ConfigFileObject, PObj, Printer, PrinterObject};
 use crate::pyfmt::{py_float, py_max, py_sum};
 use crate::pyglob::gettempdir;
 use crate::pyval::PyVal;
@@ -24,9 +21,14 @@ use std::any::Any;
 use std::cell::{Cell, RefCell};
 use std::rc::Rc;
 
-/// what ShaperCalibrate(printer) does here
-fn shaper_calibrate_error() -> KError {
-    KError::Other("shaper_calibrate is not ported to Kaliru yet".into())
+/// python's repr of an AccelQueryHelper
+fn aclient_repr(aclient: &Rc<AccelQueryHelper>) -> String {
+    format!("<klippy.extras.adxl345.AccelQueryHelper object at {:#x}>", Rc::as_ptr(aclient) as usize)
+}
+
+/// a calibration_data[axis] that is still None
+fn no_data(attr: &str) -> KError {
+    KError::Py("AttributeError".into(), format!("'NoneType' object has no attribute '{}'", attr))
 }
 
 #[derive(Clone)]
@@ -180,6 +182,16 @@ impl VibrationPulseTestGenerator {
         self.test_accel_per_hz.set(gcmd.get_float("ACCEL_PER_HZ", Some(self.accel_per_hz), Lim::new().above(0.0))?);
         self.test_hz_per_sec.set(gcmd.get_float("HZ_PER_SEC", Some(self.hz_per_sec), Lim::new().above(0.0).max(2.0))?);
         Ok(())
+    }
+
+    fn get_max_freq(&self) -> f64 {
+        self.freq_end.get()
+    }
+
+    fn get_accel_per_hz(&self) -> f64 {
+        // The value in effect for the current test (including any
+        // ACCEL_PER_HZ override), not the configured default
+        self.test_accel_per_hz.get()
     }
 
     fn gen_test(&self) -> TestSeq {
@@ -461,10 +473,18 @@ impl ResonanceTester {
         Ok(())
     }
 
-    /// _run_test(gcmd, axes, helper=None, ...): the helper (calibration)
-    /// path needs shaper_calibrate
-    fn run_test(&self, gcmd: &GCodeCommand, axes: &[TestAxis], raw_name_suffix: Option<&str>, accel_chips: Option<&[PObj]>, test_point: Option<&[f64]>) -> KResult<()> {
+    /// _run_test(gcmd, axes, helper, ...): the calibration data per axis
+    fn run_test(
+        &self,
+        gcmd: &GCodeCommand,
+        axes: &[TestAxis],
+        helper: Option<&ShaperCalibrate>,
+        raw_name_suffix: Option<&str>,
+        accel_chips: Option<&[PObj]>,
+        test_point: Option<&[f64]>,
+    ) -> KResult<Vec<Option<CalibrationData>>> {
         let toolhead = self.printer.lookup::<ToolHead>("toolhead")?;
+        let mut calibration_data: Vec<Option<CalibrationData>> = vec![None; axes.len()];
 
         // Reads all test overrides (FREQ_START/END, ACCEL_PER_HZ, ...)
         // from gcmd
@@ -481,7 +501,7 @@ impl ResonanceTester {
             if test_points.len() > 1 || test_point.is_some() {
                 gcmd.respond_info(&format!("Probing point ({:.3}, {:.3}, {:.3})", point[0], point[1], point[2]), true);
             }
-            for axis in axes {
+            for (ai, axis) in axes.iter().enumerate() {
                 toolhead.wait_moves()?;
                 toolhead.dwell(0.500)?;
                 if axes.len() > 1 {
@@ -518,9 +538,43 @@ impl ResonanceTester {
                         gcmd.respond_info(&format!("Writing raw accelerometer data to {} file", raw_name), true);
                     }
                 }
+                let Some(helper) = helper else { continue };
+                for (aclient, chip_name) in &raw_values {
+                    if !aclient.has_valid_samples() {
+                        return Err(gcmd.error(format!("accelerometer '{}' measured no data", chip_name)));
+                    }
+                    let new_data = helper.process_accelerometer_data(aclient.get_samples(), &aclient_repr(aclient))?;
+                    match &mut calibration_data[ai] {
+                        None => calibration_data[ai] = Some(new_data),
+                        Some(d) => d.add_data(&new_data),
+                    }
+                }
             }
         }
-        Ok(())
+        Ok(calibration_data)
+    }
+
+    fn get_max_calibration_freq(&self) -> f64 {
+        1.5 * self.generator.vibration_generator.get_max_freq()
+    }
+
+    #[allow(clippy::too_many_arguments)]
+    fn save_calibration_data(
+        &self,
+        base_name: &str,
+        name_suffix: &str,
+        shaper_calibrate: &ShaperCalibrate,
+        axis: &TestAxis,
+        calibration_data: Option<&CalibrationData>,
+        all_shapers: Option<&[CalibrationResult]>,
+        point: Option<&[f64]>,
+        max_freq: f64,
+    ) -> KResult<String> {
+        let output = get_filename(base_name, name_suffix, Some(axis), point, None);
+        let data = calibration_data.ok_or_else(|| no_data("freq_bins"))?;
+        let accel_per_hz = self.generator.vibration_generator.get_accel_per_hz();
+        shaper_calibrate.save_calibration_data(&output, data, all_shapers, Some(max_freq), accel_per_hz)?;
+        Ok(output)
     }
 
     fn parse_chips(&self, accel_chips: &str) -> KResult<Vec<PObj>> {
@@ -572,52 +626,128 @@ impl ResonanceTester {
         self.check_active_fans(gcmd);
 
         // Setup calculation of resonances
-        if csv_output {
-            return Err(shaper_calibrate_error());
-        }
+        let helper = if csv_output { Some(ShaperCalibrate::new(&self.printer)) } else { None };
 
-        self.run_test(
+        let data = self.run_test(
             gcmd,
-            &[axis],
+            std::slice::from_ref(&axis),
+            helper.as_ref(),
             if raw_output { Some(&name_suffix) } else { None },
             accel_chips.as_deref(),
             test_point.as_deref(),
-        )
+        )?;
+        if let Some(helper) = &helper {
+            let max_freq = self.get_max_calibration_freq();
+            let csv_name = self.save_calibration_data("resonances", &name_suffix, helper, &axis, data[0].as_ref(), None, test_point.as_deref(), max_freq)?;
+            gcmd.respond_info(&format!("Resonances data written to {} file", csv_name), true);
+        }
+        Ok(())
     }
 
     fn cmd_shaper_calibrate(&self, gcmd: &GCodeCommand) -> KResult<()> {
         // Parse parameters
-        match gcmd.get_opt("AXIS").filter(|a| !a.is_empty()) {
+        let calibrate_axes = match gcmd.get_opt("AXIS").filter(|a| !a.is_empty()) {
+            None => vec![TestAxis::new(Some("x"), None), TestAxis::new(Some("y"), None)],
             Some(axis) if axis.to_lowercase() != "x" && axis.to_lowercase() != "y" => {
                 return Err(gcmd.error(format!("Unsupported axis '{}'", axis)));
             }
-            _ => {}
-        }
-        if let Some(c) = gcmd.get_opt("CHIPS").filter(|c| !c.is_empty()) {
-            self.parse_chips(&c)?;
-        }
-        gcmd.get_float("MAX_SMOOTHING", self.max_smoothing, Lim::new().min(0.05))?;
+            Some(axis) => vec![TestAxis::new(Some(&axis.to_lowercase()), None)],
+        };
+        let accel_chips = match gcmd.get_opt("CHIPS").filter(|c| !c.is_empty()) {
+            Some(c) => Some(self.parse_chips(&c)?),
+            None => None,
+        };
+        let lim = Lim::new().min(0.05);
+        let max_smoothing = match self.max_smoothing {
+            Some(m) => Some(gcmd.get_float("MAX_SMOOTHING", Some(m), lim)?),
+            None => gcmd.get_float_opt("MAX_SMOOTHING", lim)?,
+        };
         let name_suffix = gcmd.get_or("NAME", &strftime_local("%Y%m%d_%H%M%S"));
         if !is_valid_name(&name_suffix) {
             return Err(gcmd.error("Invalid NAME parameter"));
         }
+
+        let input_shaper = self.printer.lookup_object_opt("input_shaper").and_then(downcast_rc::<InputShaper>);
+
         // Check for active fans and display warning if found
         self.check_active_fans(gcmd);
+
         // Setup shaper calibration
-        Err(shaper_calibrate_error())
+        let helper = ShaperCalibrate::new(&self.printer);
+
+        let mut calibration_data = self.run_test(gcmd, &calibrate_axes, Some(&helper), None, accel_chips.as_deref(), None)?;
+
+        let configfile = self.printer.lookup::<ConfigFileObject>("configfile")?;
+        let gcode = self.printer.lookup::<GCodeDispatch>("gcode")?;
+        for (ai, axis) in calibrate_axes.iter().enumerate() {
+            let axis_name = axis.get_name().to_string();
+            gcmd.respond_info(&format!("Calculating the best input shaper parameters for {} axis", axis_name), true);
+            let data = calibration_data[ai].as_mut().ok_or_else(|| no_data("normalize_to_frequencies"))?;
+            data.normalize_to_frequencies();
+            let systime = self.printer.get_reactor().monotonic();
+            let toolhead = self.printer.lookup::<ToolHead>("toolhead")?;
+            let scv = toolhead_status(&toolhead, systime, "square_corner_velocity");
+            let max_freq = self.get_max_calibration_freq();
+            let logger = |m: &str| gcmd.respond_info(m, true);
+            let (best_shaper, all_shapers) = helper.find_best_shaper(data, scv, max_smoothing, Some(max_freq), Some(&logger))?;
+            gcmd.respond_info(
+                &format!(
+                    "Recommended shaper_type_{} = {}, shaper_freq_{} = {:.1} Hz",
+                    axis_name, best_shaper.name, axis_name, best_shaper.freq
+                ),
+                true,
+            );
+            if let Some(input_shaper) = &input_shaper {
+                // apply_params
+                let upper = axis_name.to_uppercase();
+                let mut params = indexmap::IndexMap::new();
+                params.insert(format!("SHAPER_TYPE_{}", upper), best_shaper.name.to_string());
+                params.insert(format!("SHAPER_FREQ_{}", upper), crate::pyfmt::py_float_repr(best_shaper.freq));
+                input_shaper.cmd_set_input_shaper(&gcode.create_gcode_command("SET_INPUT_SHAPER", "SET_INPUT_SHAPER", params))?;
+            }
+            // save_params
+            {
+                let mut cf = configfile.pconfig.borrow_mut();
+                cf.set("input_shaper", &format!("shaper_type_{}", axis_name), best_shaper.name)?;
+                cf.set("input_shaper", &format!("shaper_freq_{}", axis_name), &format!("{:.1}", best_shaper.freq))?;
+            }
+            let csv_name =
+                self.save_calibration_data("calibration_data", &name_suffix, &helper, axis, calibration_data[ai].as_ref(), Some(&all_shapers), None, max_freq)?;
+            gcmd.respond_info(&format!("Shaper calibration data written to {} file", csv_name), true);
+        }
+        gcmd.respond_info("The SAVE_CONFIG command will update the printer config file\nwith these parameters and restart the printer.", true);
+        Ok(())
     }
 
     fn cmd_measure_axes_noise(&self, gcmd: &GCodeCommand) -> KResult<()> {
         let meas_time = gcmd.get_float("MEAS_TIME", Some(2.0), Lim::new().above(0.0))?;
         let mut raw_values = vec![];
-        for (_, chip) in self.accel_chips.borrow().iter() {
-            raw_values.push(accel_chip(chip)?.start_internal_client()?);
+        for (chip_axis, chip) in self.accel_chips.borrow().iter() {
+            raw_values.push((chip_axis.clone(), accel_chip(chip)?.start_internal_client()?));
         }
         self.printer.lookup::<ToolHead>("toolhead")?.dwell(meas_time)?;
-        for aclient in &raw_values {
+        for (_, aclient) in &raw_values {
             aclient.finish_measurements()?;
         }
-        Err(shaper_calibrate_error())
+        let helper = ShaperCalibrate::new(&self.printer);
+        for (chip_axis, aclient) in &raw_values {
+            if !aclient.has_valid_samples() {
+                return Err(gcmd.error(format!("{}-axis accelerometer measured no data", chip_axis)));
+            }
+            let data = helper.process_accelerometer_data(aclient.get_samples(), &aclient_repr(aclient))?;
+            let mean = |v: &[f64]| crate::mathutil::np_pairwise_sum(v) / v.len() as f64;
+            gcmd.respond_info(
+                &format!(
+                    "Axes noise for {}-axis accelerometer: {:.6} (x), {:.6} (y), {:.6} (z)",
+                    chip_axis,
+                    mean(&data.psd_x),
+                    mean(&data.psd_y),
+                    mean(&data.psd_z)
+                ),
+                true,
+            );
+        }
+        Ok(())
     }
 
     fn check_active_fans(&self, gcmd: &GCodeCommand) {

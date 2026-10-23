@@ -1,0 +1,2 @@
+cd ~/rk/kalico && PYTHONPATH=. ~/rk/kalico/.venv/bin/python /mnt/d/RustyKlipper/kaliru/tools/gen_shaper_cases.py > ~/rk/shaper_cases.jsonl; wc -c ~/rk/shaper_cases.jsonl
+cd /mnt/d/RustyKlipper/kaliru && RK_SHAPER_CASES=~/rk/shaper_cases.jsonl CARGO_TARGET_DIR=~/rk/target ~/.cargo/bin/cargo test --release shaper_vs_python -- --nocapture 2>&1 | grep -E '^error|^warning|case |got|want|test result: .* 1 passed|FAILED|panicked' -A5 | head -60

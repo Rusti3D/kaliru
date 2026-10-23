@@ -115,6 +115,7 @@ pub mod save_variables;
 pub mod screws_tilt_adjust;
 pub mod sdcard_loop;
 pub mod servo;
+pub mod shaper_calibrate;
 pub mod shaper_defs;
 pub mod sht3x;
 pub mod skew_correction;
@@ -153,6 +154,8 @@ pub mod z_thermal_adjust;
 pub mod z_tilt;
 pub mod z_tilt_ng;
 
+/// the entry of a Kalico module not ported yet (none at Kalico 5b59427)
+#[allow(dead_code)]
 const fn todo(name: &'static str) -> PrinterModule {
     PrinterModule { name, ported: false, load_config: None, load_config_prefix: None, register_components: None }
 }
@@ -264,7 +267,7 @@ pub static MODULES: &[PrinterModule] = &[
     PrinterModule { name: "screws_tilt_adjust", ported: true, load_config: Some(screws_tilt_adjust::load_config), load_config_prefix: None, register_components: None },
     PrinterModule { name: "sdcard_loop", ported: true, load_config: Some(sdcard_loop::load_config), load_config_prefix: None, register_components: None },
     PrinterModule { name: "servo", ported: true, load_config: None, load_config_prefix: Some(servo::load_config_prefix), register_components: None },
-    todo("shaper_calibrate"),
+    PrinterModule { name: "shaper_calibrate", ported: true, load_config: None, load_config_prefix: None, register_components: None },
     PrinterModule { name: "shaper_defs", ported: true, load_config: None, load_config_prefix: None, register_components: None },
     PrinterModule { name: "sht3x", ported: true, load_config: Some(sht3x::load_config), load_config_prefix: None, register_components: None },
     PrinterModule { name: "skew_correction", ported: true, load_config: Some(skew_correction::load_config), load_config_prefix: None, register_components: None },
