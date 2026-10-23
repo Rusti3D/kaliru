@@ -1,0 +1,15 @@
+# Renode: an stm32f103 running $elf, its USART1 on the pty $uart
+logLevel 3
+mach create "f103"
+machine LoadPlatformDescription @platforms/cpus/stm32f103.repl
+# the DWT cycle counter (the firmware clock), at the core clock
+machine LoadPlatformDescriptionFromString "dwt: Miscellaneous.DWT @ sysbus 0xE0001000 { frequency: 72000000 }"
+# the clock switch reads back as done (SWS = PLL)
+sysbus Tag <0x40021004, 0x40021007> "RCC_CFGR" 0x8
+sysbus LoadELF $elf
+# start as the bootloader would: from the vector table after it (the
+# initial SP and PC are read from it)
+sysbus.cpu VectorTableOffset 0x08004000
+emulation CreateUartPtyTerminal "term" $uart true
+connector Connect sysbus.usart1 term
+start

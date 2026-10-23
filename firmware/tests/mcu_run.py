@@ -4,10 +4,13 @@
 # msgproto. Clock values are masked; run it on both binaries and diff.
 #
 # usage: mcu_run.py <mcu binary> <script> [--kalico <kalico checkout>]
-#                   [--fakehw <fakehw.so>]
+#                   [--fakehw <fakehw.so>] [--renode <platform.resc>]
 #
 # --fakehw runs the MCU under the fakehw.c shim (fake gpio / spi / i2c / adc)
 # and appends its event log (pin writes, bus transfers) without the times.
+# --renode runs a micro-controller image (the binary is its ELF) in the
+# Renode emulator (RENODE, default ~/rk/renode/renode_1.15.3_portable/renode)
+# with the given platform script, which connects the serial port to $uart.
 #
 # Script lines: a command in msgproto text form ("allocate_oids count=4"),
 # "#raw <hex>" (bytes as they are), "#wait <seconds>", "#identify" (fetch
@@ -33,8 +36,11 @@ import msgproto  # noqa: E402
 MASKED = {"clock", "high", "next_clock", "trigger_clock", "count_clock", "trigger_ticks", "report_clock", "query_ticks"}
 
 
+RENODE = os.environ.get("RENODE", os.path.expanduser("~/rk/renode/renode_1.15.3_portable/renode"))
+
+
 class Mcu:
-    def __init__(self, binary, fakehw=None):
+    def __init__(self, binary, fakehw=None, renode=None):
         self.tty = "/tmp/kaliru_mcu_test_%d" % os.getpid()
         env = dict(os.environ)
         self.hwlog = None
@@ -44,12 +50,25 @@ class Mcu:
             self.hwlog = "/tmp/kaliru_mcu_hw_%d.log" % os.getpid()
             env["LD_PRELOAD"] = os.path.abspath(fakehw)
             env["FAKEHW_LOG"] = self.hwlog
-        self.proc = subprocess.Popen([binary, "-I", self.tty], stderr=subprocess.PIPE, env=env)
+        if renode:
+            cmd = '$elf=@%s; $uart="%s"; include @%s' % (os.path.abspath(binary), self.tty, os.path.abspath(renode))
+            self.proc = subprocess.Popen(
+                [RENODE, "--disable-xwt", "--console", "-e", cmd],
+                stdin=subprocess.PIPE,
+                stdout=subprocess.DEVNULL,
+                stderr=subprocess.PIPE,
+                cwd=os.path.dirname(RENODE),
+            )
+        else:
+            self.proc = subprocess.Popen([binary, "-I", self.tty], stderr=subprocess.PIPE, env=env)
         self.last_clock = 0
-        for _ in range(200):
+        for _ in range(12000 if renode else 200):
             if os.path.exists(self.tty):
                 break
             time.sleep(0.01)
+        if renode:
+            # the firmware boots
+            time.sleep(1)
         self.fd = os.open(self.tty, os.O_RDWR | os.O_NOCTTY)
         attrs = termios.tcgetattr(self.fd)
         attrs[0] = attrs[1] = attrs[3] = 0  # raw
@@ -158,7 +177,8 @@ def expand(mcu, line):
 def main():
     binary, script = sys.argv[1], sys.argv[2]
     fakehw = sys.argv[sys.argv.index("--fakehw") + 1] if "--fakehw" in sys.argv else None
-    mcu = Mcu(binary, fakehw)
+    renode = sys.argv[sys.argv.index("--renode") + 1] if "--renode" in sys.argv else None
+    mcu = Mcu(binary, fakehw, renode)
     out = []
     try:
         # the commands are only known after an identify

@@ -64,7 +64,16 @@ Linux board (Kalico `src/linux` + generic core): `compile_time_request.txt` iden
 data dictionary byte-identical apart from `version` / `build_versions` (`firmware/tests/ref/`). Behaviour:
 `firmware/tests/mcu_cmp.sh`, 7 scripts against the C `klipper.elf` under the `fakehw.c` shim (responses +
 gpio/spi/i2c/adc event logs): all identical (basecmd, config + move_count, error paths, steppers + homing, gpio,
-buses + sensors, drivers + load cell probe). Not ported: the micro-controller boards (stm32, ...), the indx C++ code.
+buses + sensors, drivers + load cell probe).
+
+STM32 boards (Kalico `src/stm32` for F1 / F4 + `src/generic/armcm_*`, `usb_cdc`, `serial_irq`): for
+`configs/stm32f401-usb` (USB OTG) and `configs/stm32f103-serial` (USART1), `compile_time_request.txt` identical
+and the data dictionary byte-identical apart from the version fields (`firmware/tests/ref/stm32*`). Behaviour on a
+chip / emulator: not checked yet. Images (profile `mcu`): F401 53KB (C 42KB), F103 47KB (C 38KB).
+
+Not ported: the other STM32 families (f0 f2 f7 g0 g4 h7 l4) and their files, STM32 CAN / FDCAN / USBFS, the
+generic canbus code, the other boards (avr, rp2040, atsam/atsamd, lpc176x, hc32f460, ar100, pru, simulator), the
+indx C++ code.
 
 ## Custom cases (`tests/cases/*.test`, `tools/case_cmp.sh`)
 

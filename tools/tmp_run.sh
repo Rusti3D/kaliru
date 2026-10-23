@@ -1,2 +1,7 @@
-cd ~/rk/kalico && PYTHONPATH=. ~/rk/kalico/.venv/bin/python /mnt/d/RustyKlipper/kaliru/tools/gen_shaper_cases.py > ~/rk/shaper_cases.jsonl; wc -c ~/rk/shaper_cases.jsonl
-cd /mnt/d/RustyKlipper/kaliru && RK_SHAPER_CASES=~/rk/shaper_cases.jsonl CARGO_TARGET_DIR=~/rk/target ~/.cargo/bin/cargo test --release shaper_vs_python -- --nocapture 2>&1 | grep -E '^error|^warning|case |got|want|test result: .* 1 passed|FAILED|panicked' -A5 | head -60
+cd ~/rk/renode/renode_1.15.3_portable
+rm -f /tmp/renode_fn.log
+grep -v "^start$" /mnt/d/RustyKlipper/kaliru/firmware/tests/renode/stm32f103.resc | sed 's/^logLevel 3$/logLevel 1/' > /tmp/dbg.resc
+printf 'logFile @/tmp/renode_fn.log\nsysbus.cpu LogFunctionNames true false\nstart\n' >> /tmp/dbg.resc
+(sleep 20; echo quit) | timeout 40 ./renode --disable-xwt --console -e '$elf=@/root/rk/fw_stm32f103-serial/klipper.elf; $uart="/tmp/uart_x"; include @/tmp/dbg.resc' > /dev/null 2>&1
+grep -o "Entering function [^ ]*" /tmp/renode_fn.log | sort | uniq -c | sort -rn | head -20
+grep -o "Entering function [^ ]*" /tmp/renode_fn.log | tail -8
