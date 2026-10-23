@@ -11,6 +11,7 @@ use crate::printer::PrinterModule;
 pub mod adc_temperature;
 pub mod aht10;
 pub mod bed_mesh;
+pub mod bed_screws;
 pub mod bed_tilt;
 pub mod bltouch;
 pub mod bme280;
@@ -32,8 +33,10 @@ pub mod filament_motion_sensor;
 pub mod filament_switch_sensor;
 pub mod force_move;
 pub mod garbage_collection;
+pub mod gcode_arcs;
 pub mod gcode_macro;
 pub mod gcode_move;
+pub mod gcode_shell_command;
 pub mod heater_bed;
 pub mod heater_fan;
 pub mod heater_generic;
@@ -60,6 +63,7 @@ pub mod query_adc;
 pub mod query_endstops;
 pub mod respond;
 pub mod safe_z_home;
+pub mod servo;
 pub mod sht3x;
 pub mod spi_temperature;
 pub mod statistics;
@@ -89,7 +93,7 @@ pub static MODULES: &[PrinterModule] = &[
     todo("angle"),
     todo("axis_twist_compensation"),
     PrinterModule { name: "bed_mesh", ported: true, load_config: Some(bed_mesh::load_config), load_config_prefix: None, register_components: None },
-    todo("bed_screws"),
+    PrinterModule { name: "bed_screws", ported: true, load_config: Some(bed_screws::load_config), load_config_prefix: None, register_components: None },
     PrinterModule { name: "bed_tilt", ported: true, load_config: Some(bed_tilt::load_config), load_config_prefix: None, register_components: None },
     todo("belay"),
     PrinterModule { name: "bltouch", ported: true, load_config: Some(bltouch::load_config), load_config_prefix: None, register_components: None },
@@ -123,11 +127,11 @@ pub static MODULES: &[PrinterModule] = &[
     todo("firmware_retraction"),
     PrinterModule { name: "force_move", ported: true, load_config: Some(force_move::load_config), load_config_prefix: None, register_components: None },
     PrinterModule { name: "garbage_collection", ported: true, load_config: Some(garbage_collection::load_config), load_config_prefix: None, register_components: None },
-    todo("gcode_arcs"),
+    PrinterModule { name: "gcode_arcs", ported: true, load_config: Some(gcode_arcs::load_config), load_config_prefix: None, register_components: None },
     todo("gcode_button"),
     PrinterModule { name: "gcode_macro", ported: true, load_config: Some(gcode_macro::load_config), load_config_prefix: Some(gcode_macro::load_config_prefix), register_components: None },
     PrinterModule { name: "gcode_move", ported: true, load_config: Some(gcode_move::load_config), load_config_prefix: None, register_components: None },
-    todo("gcode_shell_command"),
+    PrinterModule { name: "gcode_shell_command", ported: true, load_config: None, load_config_prefix: Some(gcode_shell_command::load_config_prefix), register_components: None },
     todo("hall_filament_width_sensor"),
     todo("heated_fan"),
     PrinterModule { name: "heater_bed", ported: true, load_config: Some(heater_bed::load_config), load_config_prefix: None, register_components: None },
@@ -186,7 +190,7 @@ pub static MODULES: &[PrinterModule] = &[
     todo("save_variables"),
     todo("screws_tilt_adjust"),
     todo("sdcard_loop"),
-    todo("servo"),
+    PrinterModule { name: "servo", ported: true, load_config: None, load_config_prefix: Some(servo::load_config_prefix), register_components: None },
     todo("shaper_calibrate"),
     todo("shaper_defs"),
     PrinterModule { name: "sht3x", ported: true, load_config: Some(sht3x::load_config), load_config_prefix: None, register_components: None },

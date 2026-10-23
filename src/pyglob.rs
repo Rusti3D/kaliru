@@ -100,6 +100,53 @@ pub fn expanduser(path: &str) -> String {
     }
 }
 
+/// posixpath.expandvars(path): $name and ${name} from the environment
+pub fn expandvars(path: &str) -> String {
+    if !path.contains('$') {
+        return path.to_string();
+    }
+    let mut path = path.to_string();
+    let mut i = 0;
+    loop {
+        // re.compile(r'\$(\w+|\{[^}]*\})', re.ASCII).search(path, i)
+        let bytes = path.as_bytes();
+        let mut found = None;
+        let mut k = i;
+        while k < bytes.len() {
+            if bytes[k] == b'$' {
+                let start = k + 1;
+                if start < bytes.len() && (bytes[start].is_ascii_alphanumeric() || bytes[start] == b'_') {
+                    let mut e = start;
+                    while e < bytes.len() && (bytes[e].is_ascii_alphanumeric() || bytes[e] == b'_') {
+                        e += 1;
+                    }
+                    found = Some((k, e, path[start..e].to_string()));
+                    break;
+                }
+                if start < bytes.len() && bytes[start] == b'{' {
+                    if let Some(close) = path[start..].find('}') {
+                        let e = start + close + 1;
+                        found = Some((k, e, path[start + 1..e - 1].to_string()));
+                        break;
+                    }
+                }
+            }
+            k += 1;
+        }
+        let Some((mi, j, name)) = found else { break };
+        match std::env::var(&name) {
+            Err(_) => i = j,
+            Ok(value) => {
+                let tail = path[j..].to_string();
+                path = format!("{}{}", &path[..mi], value);
+                i = path.len();
+                path += &tail;
+            }
+        }
+    }
+    path
+}
+
 pub fn getcwd() -> String {
     std::env::current_dir().map(|p| p.to_string_lossy().into_owned()).unwrap_or_default()
 }

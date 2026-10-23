@@ -297,7 +297,7 @@ impl GCodeMove {
     }
 
     // G-Code movement commands
-    fn cmd_g1(&self, gcmd: &GCodeCommand) -> KResult<()> {
+    pub fn cmd_g1(&self, gcmd: &GCodeCommand) -> KResult<()> {
         // Move
         let params = gcmd.get_command_parameters();
         let parse_error = || gcmd.error(format!("Unable to parse move '{}'", gcmd.get_commandline()));

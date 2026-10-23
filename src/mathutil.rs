@@ -189,3 +189,124 @@ pub fn matrix_sub(m1: [f64; 3], m2: [f64; 3]) -> [f64; 3] {
 pub fn matrix_mul(m1: [f64; 3], s: f64) -> [f64; 3] {
     [m1[0] * s, m1[1] * s, m1[2] * s]
 }
+
+/// python's math.hypot(*coordinates): CPython's vector_norm (lossless
+/// scaling, double-length squares and sums, a differential correction)
+pub fn py_hypot(coords: &[f64]) -> f64 {
+    let vec: Vec<f64> = coords.iter().map(|x| x.abs()).collect();
+    let mut max = 0.0f64;
+    let mut found_nan = false;
+    for &x in &vec {
+        found_nan |= x.is_nan();
+        if x > max {
+            max = x;
+        }
+    }
+    vector_norm(vec, max, found_nan)
+}
+
+fn dl_fast_sum(a: f64, b: f64) -> (f64, f64) {
+    let x = a + b;
+    let z = x - a;
+    let y = b - z;
+    (x, y)
+}
+
+fn dl_mul(x: f64, y: f64) -> (f64, f64) {
+    let z = x * y;
+    let zz = x.mul_add(y, -z);
+    (z, zz)
+}
+
+fn vector_norm(mut vec: Vec<f64>, max: f64, found_nan: bool) -> f64 {
+    if max.is_infinite() {
+        return max;
+    }
+    if found_nan {
+        return f64::NAN;
+    }
+    if max == 0.0 || vec.len() <= 1 {
+        return max;
+    }
+    let max_e = frexp_exp(max);
+    if max_e < -1023 {
+        // When max_e < -1023, ldexp(1.0, -max_e) would overflow.
+        for v in vec.iter_mut() {
+            *v /= f64::MIN_POSITIVE; // convert subnormals to normals
+        }
+        return f64::MIN_POSITIVE * vector_norm(vec, max / f64::MIN_POSITIVE, found_nan);
+    }
+    let scale = ldexp(1.0, -max_e);
+    let (mut csum, mut frac1, mut frac2) = (1.0f64, 0.0f64, 0.0f64);
+    for &v in &vec {
+        let x = v * scale; // lossless scaling
+        let pr = dl_mul(x, x); // lossless squaring
+        let sm = dl_fast_sum(csum, pr.0); // lossless addition
+        csum = sm.0;
+        frac1 += pr.1; // lossy addition
+        frac2 += sm.1; // lossy addition
+    }
+    let mut h = (csum - 1.0 + (frac1 + frac2)).sqrt();
+    let pr = dl_mul(-h, h);
+    let sm = dl_fast_sum(csum, pr.0);
+    csum = sm.0;
+    frac1 += pr.1;
+    frac2 += sm.1;
+    let x = csum - 1.0 + (frac1 + frac2);
+    h += x / (2.0 * h); // differential correction
+    h / scale
+}
+
+/// frexp(x).1 for a finite, non-zero x
+fn frexp_exp(x: f64) -> i32 {
+    let bits = x.to_bits();
+    let exp = ((bits >> 52) & 0x7ff) as i32;
+    if exp == 0 {
+        // subnormal
+        let m = bits & ((1u64 << 52) - 1);
+        return -1022 - (m.leading_zeros() as i32 - 12) ;
+    }
+    exp - 1022
+}
+
+fn ldexp(x: f64, e: i32) -> f64 {
+    x * 2f64.powi(e)
+}
+
+#[cfg(test)]
+mod hypot_tests {
+    /// RK_HYPOT_CASES: lines "a_hex b_hex hypot_hex" from the reference python
+    #[test]
+    fn hypot_vs_python() {
+        let Ok(path) = std::env::var("RK_HYPOT_CASES") else { return };
+        let text = std::fs::read_to_string(path).unwrap();
+        let parse = |s: &str| -> f64 {
+            let neg = s.starts_with('-');
+            let s = s.trim_start_matches('-');
+            if s == "0x0.0p+0" {
+                return if neg { -0.0 } else { 0.0 };
+            }
+            let (mant, exp) = s.trim_start_matches("0x").split_once('p').unwrap();
+            let (ip, fp) = mant.split_once('.').unwrap_or((mant, ""));
+            let mut m = u64::from_str_radix(ip, 16).unwrap() as f64;
+            let mut scale = 1.0 / 16.0;
+            for c in fp.chars() {
+                m += c.to_digit(16).unwrap() as f64 * scale;
+                scale /= 16.0;
+            }
+            let v = m * 2f64.powi(exp.parse::<i32>().unwrap());
+            if neg { -v } else { v }
+        };
+        let mut bad = 0;
+        for line in text.lines() {
+            let p: Vec<&str> = line.split_whitespace().collect();
+            let (a, b, want) = (parse(p[0]), parse(p[1]), parse(p[2]));
+            let got = super::py_hypot(&[a, b]);
+            if got.to_bits() != want.to_bits() {
+                bad += 1;
+                eprintln!("hypot({:e}, {:e}) = {:e} want {:e}", a, b, got, want);
+            }
+        }
+        assert_eq!(bad, 0);
+    }
+}

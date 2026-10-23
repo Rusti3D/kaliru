@@ -304,26 +304,11 @@ fn m_isclose(_: &mut dyn CallCtx, args: Vec<Value>, kwargs: IndexMap<String, Val
 }
 
 fn m_hypot(_: &mut dyn CallCtx, args: Vec<Value>, _kw: IndexMap<String, Value>) -> VResult<Value> {
-    let mut acc = 0.0f64;
-    let mut has_inf = false;
-    let mut has_nan = false;
+    let mut coords = vec![];
     for a in &args {
-        let x = real(a)?;
-        if x.is_infinite() {
-            has_inf = true;
-        }
-        if x.is_nan() {
-            has_nan = true;
-        }
-        acc = acc.hypot(x);
+        coords.push(real(a)?);
     }
-    if has_inf {
-        return Ok(Value::Float(f64::INFINITY));
-    }
-    if has_nan {
-        return Ok(Value::Float(f64::NAN));
-    }
-    Ok(Value::Float(acc))
+    Ok(Value::Float(crate::mathutil::py_hypot(&coords)))
 }
 
 fn m_dist(_: &mut dyn CallCtx, args: Vec<Value>, _kw: IndexMap<String, Value>) -> VResult<Value> {
@@ -332,11 +317,11 @@ fn m_dist(_: &mut dyn CallCtx, args: Vec<Value>, _kw: IndexMap<String, Value>) -
     if p.len() != q.len() {
         return Err(Exc::value_error("both points must have the same number of dimensions"));
     }
-    let mut acc = 0.0f64;
+    let mut diffs = vec![];
     for (a, b) in p.iter().zip(&q) {
-        acc = acc.hypot(real(a)? - real(b)?);
+        diffs.push(real(a)? - real(b)?);
     }
-    Ok(Value::Float(acc))
+    Ok(Value::Float(crate::mathutil::py_hypot(&diffs)))
 }
 
 /// math.fsum: exact partial sums (msum)

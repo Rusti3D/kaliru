@@ -1,28 +1,11 @@
-# one-off: probe CPython sum() semantics with mixed ints/floats
-def neu(items, int_comp):
-    f, c = 0.0, 0.0
-    for x in items:
-        if isinstance(x, int) and not int_comp:
-            f += float(x)
-            continue
-        x = float(x)
-        t = f + x
-        if abs(f) >= abs(x):
-            c += (f - t) + x
-        else:
-            c += (x - t) + f
-        f = t
-    if c:
-        f += c
-    return f
-
-cases = [
-    [0.1] * 10,
-    [1e16, 1.0, -1e16],
-    [0.1, 1, 0.2, 1, 0.3],
-    [1e16, 1, -1e16, 0.1],
-    [0.1, 10**17, 0.2, -10**17],
-    [0.3, 1e100, 7, -1e100],
-]
-for c in cases:
-    print(repr(sum(c)), repr(neu(c, True)), repr(neu(c, False)))
+# one-off: print math.hypot results for kaliru's py_hypot test
+import math, random, struct
+random.seed(5)
+vals = []
+for i in range(2000):
+    a = random.uniform(-500, 500) * 10 ** random.randint(-8, 3)
+    b = random.uniform(-500, 500) * 10 ** random.randint(-8, 3)
+    vals.append((a, b))
+vals += [(3.0, 4.0), (1e-310, 3e-310), (0.0, 5.0), (1e300, 1e300)]
+for a, b in vals:
+    print(a.hex(), b.hex(), math.hypot(a, b).hex())
