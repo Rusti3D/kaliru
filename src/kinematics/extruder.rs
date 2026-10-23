@@ -160,8 +160,10 @@ impl ExtruderStepper {
         self.stepper.set_rotation_distance(rotation_dist);
     }
 
+    /// `_, rotation_dist = self.stepper.get_rotation_distance()`: python
+    /// unpacks the second item (steps_per_rotation)
     pub fn get_rotation_distance(&self) -> f64 {
-        self.stepper.get_rotation_distance().0
+        self.stepper.get_rotation_distance().1
     }
 
     fn set_pressure_advance(&self, pressure_advance: f64, smooth_time: f64) -> KResult<()> {

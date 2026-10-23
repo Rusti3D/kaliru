@@ -45,6 +45,7 @@ pub mod gcode_arcs;
 pub mod gcode_macro;
 pub mod gcode_move;
 pub mod gcode_shell_command;
+pub mod hall_filament_width_sensor;
 pub mod heated_fan;
 pub mod heater_bed;
 pub mod heater_fan;
@@ -59,6 +60,7 @@ pub mod led;
 pub mod lm75;
 pub mod manual_probe;
 pub mod manual_stepper;
+pub mod mixing_extruder;
 pub mod motion_queuing;
 pub mod motion_report;
 pub mod mpc_ambient_temperature;
@@ -164,7 +166,7 @@ pub static MODULES: &[PrinterModule] = &[
     PrinterModule { name: "gcode_macro", ported: true, load_config: Some(gcode_macro::load_config), load_config_prefix: Some(gcode_macro::load_config_prefix), register_components: None },
     PrinterModule { name: "gcode_move", ported: true, load_config: Some(gcode_move::load_config), load_config_prefix: None, register_components: None },
     PrinterModule { name: "gcode_shell_command", ported: true, load_config: None, load_config_prefix: Some(gcode_shell_command::load_config_prefix), register_components: None },
-    todo("hall_filament_width_sensor"),
+    PrinterModule { name: "hall_filament_width_sensor", ported: true, load_config: Some(hall_filament_width_sensor::load_config), load_config_prefix: None, register_components: None },
     PrinterModule { name: "heated_fan", ported: true, load_config: Some(heated_fan::load_config), load_config_prefix: None, register_components: None },
     PrinterModule { name: "heater_bed", ported: true, load_config: Some(heater_bed::load_config), load_config_prefix: None, register_components: None },
     PrinterModule { name: "heater_fan", ported: true, load_config: None, load_config_prefix: Some(heater_fan::load_config_prefix), register_components: None },
@@ -190,7 +192,7 @@ pub static MODULES: &[PrinterModule] = &[
     todo("mcp4018"),
     todo("mcp4451"),
     todo("mcp4728"),
-    todo("mixing_extruder"),
+    PrinterModule { name: "mixing_extruder", ported: true, load_config: Some(mixing_extruder::load_config), load_config_prefix: None, register_components: None },
     PrinterModule { name: "motion_queuing", ported: true, load_config: Some(motion_queuing::load_config), load_config_prefix: None, register_components: None },
     PrinterModule { name: "motion_report", ported: true, load_config: Some(motion_report::load_config), load_config_prefix: None, register_components: None },
     PrinterModule { name: "mpc_ambient_temperature", ported: true, load_config: Some(mpc_ambient_temperature::load_config), load_config_prefix: None, register_components: None },
