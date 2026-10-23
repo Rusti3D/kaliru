@@ -12,7 +12,7 @@ use crate::pins::{PinsObject, SharedPinParams};
 use std::cell::RefCell;
 use std::rc::Rc;
 
-fn same_rc<A: ?Sized, B: ?Sized>(a: &Rc<A>, b: &Rc<B>) -> bool {
+pub fn same_rc<A: ?Sized, B: ?Sized>(a: &Rc<A>, b: &Rc<B>) -> bool {
     Rc::as_ptr(a) as *const () == Rc::as_ptr(b) as *const ()
 }
 
@@ -203,7 +203,7 @@ impl McuSpi {
 }
 
 /// the mcu a pin is on (pin_params["chip"])
-fn pin_mcu(config: &ConfigWrapper, pin_params: &SharedPinParams) -> KResult<Rc<Mcu>> {
+pub fn pin_mcu(config: &ConfigWrapper, pin_params: &SharedPinParams) -> KResult<Rc<Mcu>> {
     let chip_name = pin_params.borrow().chip_name.clone();
     get_printer_mcu(&config.get_printer(), &chip_name)
 }

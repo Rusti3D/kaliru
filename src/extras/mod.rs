@@ -61,6 +61,7 @@ pub mod idle_timeout;
 pub mod input_shaper;
 pub mod led;
 pub mod lm75;
+pub mod load_cell;
 pub mod manual_probe;
 pub mod manual_stepper;
 pub mod mixing_extruder;
@@ -193,7 +194,7 @@ pub static MODULES: &[PrinterModule] = &[
     todo("lis2dw"),
     todo("lis3dh"),
     PrinterModule { name: "lm75", ported: true, load_config: Some(lm75::load_config), load_config_prefix: None, register_components: None },
-    todo("load_cell"),
+    PrinterModule { name: "load_cell", ported: true, load_config: Some(load_cell::load_config), load_config_prefix: Some(load_cell::load_config_prefix), register_components: Some(load_cell::register_components) },
     todo("load_cell_probe"),
     PrinterModule { name: "manual_probe", ported: true, load_config: Some(manual_probe::load_config), load_config_prefix: None, register_components: None },
     PrinterModule { name: "manual_stepper", ported: true, load_config: None, load_config_prefix: Some(manual_stepper::load_config_prefix), register_components: None },
