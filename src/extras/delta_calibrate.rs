@@ -11,7 +11,7 @@ use crate::configfile::{ConfigWrapper, Dflt, Lim};
 use crate::error::{KError, KResult};
 use crate::extras::probe::{FinalizeResult, ProbePointsHelper};
 use crate::gcode::{GCodeCommand, GCodeDispatch};
-use crate::kinematics::delta::{math_kerror, DeltaCalibration, DeltaKinematics};
+use crate::kinematics::delta::{math_kerror, Calibration};
 use crate::logging;
 use crate::mathutil::coordinate_descent;
 use crate::printer::{ConfigFileObject, PObj, Printer, PrinterObject};
@@ -65,7 +65,7 @@ type Distance = (f64, Stable, Stable);
 
 // Convert distance measurements made on the calibration object to
 // 3-tuples of (actual_distance, stable_position1, stable_position2)
-fn measurements_to_distances(mp: &IndexMap<String, Vec<f64>>, dp: &DeltaCalibration) -> KResult<Vec<Distance>> {
+fn measurements_to_distances(mp: &IndexMap<String, Vec<f64>>, dp: &dyn Calibration) -> KResult<Vec<Distance>> {
     let scale = mp["SCALE"][0];
     let cpw = &mp["CENTER_PILLAR_WIDTHS"];
     let center_widths = [cpw[0], cpw[2], cpw[1], cpw[0], cpw[2], cpw[1]];
@@ -109,12 +109,9 @@ pub struct DeltaCalibrate {
     gcode: Rc<GCodeDispatch>,
 }
 
-fn kin_delta(printer: &Printer) -> KResult<DeltaCalibration> {
+fn kin_delta(printer: &Printer) -> KResult<Rc<dyn Calibration>> {
     let kin = printer.lookup::<ToolHead>("toolhead")?.get_kinematics();
-    match kin.as_any().downcast_ref::<DeltaKinematics>() {
-        Some(d) => Ok(d.get_calibration()),
-        None => Err(KError::Other("object has no attribute 'get_calibration'".into())),
-    }
+    kin.get_calibration().ok_or_else(|| KError::Other("object has no attribute 'get_calibration'".into()))
 }
 
 impl DeltaCalibrate {
@@ -125,7 +122,7 @@ impl DeltaCalibrate {
             "klippy:connect",
             Rc::new(move |_| {
                 let kin = p.lookup::<ToolHead>("toolhead")?.get_kinematics();
-                if !kin.as_any().is::<DeltaKinematics>() {
+                if kin.get_calibration().is_none() {
                     return Err(KError::config("Delta calibrate is only for delta printers"));
                 }
                 Ok(())
@@ -202,7 +199,7 @@ impl DeltaCalibrate {
         Ok(dc)
     }
 
-    fn save_state(&self, probe_positions: &[(f64, Stable)], distances: &[Distance], delta_params: &DeltaCalibration) -> KResult<()> {
+    fn save_state(&self, probe_positions: &[(f64, Stable)], distances: &[Distance], delta_params: &dyn Calibration) -> KResult<()> {
         // Save main delta parameters
         delta_params.save_state(&self.printer)?;
         // Save probe stable positions
@@ -301,18 +298,18 @@ impl DeltaCalibrate {
                 z_offset
             ));
         }
-        let dist_of = |dp: &DeltaCalibration, a: &Stable, b: &Stable| -> KResult<f64> {
+        let dist_of = |dp: &dyn Calibration, a: &Stable, b: &Stable| -> KResult<f64> {
             let p1 = dp.get_position_from_stable(&a.v).map_err(math_kerror)?;
             let p2 = dp.get_position_from_stable(&b.v).map_err(math_kerror)?;
             Ok(((p1[0] - p2[0]).powf(2.0) + (p1[1] - p2[1]).powf(2.0) + (p1[2] - p2[2]).powf(2.0)).sqrt())
         };
         for (dist, spos1, spos2) in distances {
-            let orig_dist = dist_of(&odp, spos1, spos2)?;
-            let new_dist = dist_of(&new_delta_params, spos1, spos2)?;
+            let orig_dist = dist_of(&*odp, spos1, spos2)?;
+            let new_dist = dist_of(&*new_delta_params, spos1, spos2)?;
             logging::info(&format!("distance orig: {:.6} new: {:.6} goal: {:.6}", orig_dist, new_dist, dist));
         }
         // Store results for SAVE_CONFIG
-        self.save_state(probe_positions, distances, &new_delta_params)?;
+        self.save_state(probe_positions, distances, &*new_delta_params)?;
         self.gcode.respond_info(
             "The SAVE_CONFIG command will update the printer config file\nwith these parameters and restart the printer.",
             true,
@@ -348,7 +345,7 @@ impl DeltaCalibrate {
             return Err(KError::command("Not all measurements provided"));
         } else {
             let delta_params = kin_delta(&self.printer)?;
-            measurements_to_distances(&entry, &delta_params)?
+            measurements_to_distances(&entry, &*delta_params)?
         };
         let last = self.last_probe_positions.borrow().clone();
         if last.is_empty() {

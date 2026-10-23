@@ -11,7 +11,7 @@ use crate::extras::pause_resume::PauseResume;
 use crate::gcode::{GCodeCommand, GCodeDispatch};
 use crate::logging;
 use crate::mcu::Mcu;
-use crate::printer::{downcast_rc, PObj, Printer, PrinterObject};
+use crate::printer::{PObj, Printer, PrinterObject};
 use crate::pyfmt::py_max;
 use crate::pyval::PyVal;
 use crate::reactor::{Reactor, Timer, NEVER, NOW};
@@ -36,12 +36,6 @@ pub trait DefinedSensor {
     fn reset(&self) -> KResult<()>;
 }
 
-fn load_as<T: 'static>(printer: &Rc<Printer>, config: &ConfigWrapper, name: &str) -> KResult<Rc<T>> {
-    printer
-        .load_object(config, name, true)?
-        .and_then(downcast_rc::<T>)
-        .ok_or_else(|| KError::Other(format!("{} has an unexpected type", name)))
-}
 
 pub struct RunoutHelper {
     me: Weak<RunoutHelper>,
@@ -368,7 +362,7 @@ impl SwitchSensor {
     fn new(config: &ConfigWrapper) -> KResult<Rc<Self>> {
         let printer = config.get_printer();
         let gcode_macro = load_gcode_macro(config)?;
-        let buttons = load_as::<PrinterButtons>(&printer, config, "buttons")?;
+        let buttons = printer.load_as::<PrinterButtons>(config, "buttons")?;
         let switch_pin = config.get("switch_pin", Dflt::Required)?;
         let runout_distance = config.getfloat("runout_distance", 0.0, Lim::new().min(0.0))?;
         // the button callback needs the sensor: route it through a slot

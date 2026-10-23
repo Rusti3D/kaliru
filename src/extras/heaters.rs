@@ -719,6 +719,21 @@ impl Heater {
         self.mpc_sensors.borrow_mut().push(mpc_sensor);
     }
 
+    /// self.smoothed_temp
+    pub fn smoothed_temp(&self) -> f64 {
+        self.smoothed_temp.get()
+    }
+
+    /// self.sensor
+    pub fn sensor(&self) -> Rc<dyn TempSensor> {
+        self._sensor.clone()
+    }
+
+    /// self.mcu_pwm.get_mcu()
+    pub fn pwm_mcu(&self) -> Rc<crate::mcu::Mcu> {
+        self.mcu_pwm.get_mcu()
+    }
+
     pub fn get_pwm_delay(&self) -> f64 {
         self.pwm_delay
     }

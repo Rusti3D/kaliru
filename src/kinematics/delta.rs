@@ -170,14 +170,15 @@ impl DeltaKinematics {
         Ok(kin)
     }
 
-    pub fn get_calibration(&self) -> DeltaCalibration {
-        let endstops = self.rails.iter().map(|r| r.get_homing_info().position_endstop).collect();
-        let stepdists = self.rails.iter().map(|r| r.get_steppers()[0].get_step_dist()).collect();
-        DeltaCalibration::new(self.radius, self.angles.clone(), self.arm_lengths.clone(), endstops, stepdists)
-    }
 }
 
 impl Kinematics for DeltaKinematics {
+    fn get_calibration(&self) -> Option<Rc<dyn Calibration>> {
+        let endstops = self.rails.iter().map(|r| r.get_homing_info().position_endstop).collect();
+        let stepdists = self.rails.iter().map(|r| r.get_steppers()[0].get_step_dist()).collect();
+        Some(Rc::new(DeltaCalibration::new(self.radius, self.angles.clone(), self.arm_lengths.clone(), endstops, stepdists)))
+    }
+
     fn get_steppers(&self) -> Vec<Rc<McuStepper>> {
         self.rails.iter().flat_map(|r| r.get_steppers()).collect()
     }
@@ -310,9 +311,25 @@ impl DeltaCalibration {
         let abs_endstops = endstops.iter().zip(&arms).map(|(e, a)| e + (a.powf(2.0) - radius2).sqrt()).collect();
         DeltaCalibration { radius, angles, arms, endstops, stepdists, towers, abs_endstops }
     }
+}
 
+/// the calibration object of a delta style kinematics (DELTA_CALIBRATE)
+pub trait Calibration {
     /// Determine adjustment parameters (for use with coordinate_descent)
-    pub fn coordinate_descent_params(&self, is_extended: bool) -> (Vec<String>, IndexMap<String, f64>) {
+    fn coordinate_descent_params(&self, is_extended: bool) -> (Vec<String>, IndexMap<String, f64>);
+    /// Create a new calibration object from coordinate_descent params
+    fn new_calibration(&self, params: &IndexMap<String, f64>) -> Rc<dyn Calibration>;
+    /// Return cartesian coordinates for the given stable_position
+    fn get_position_from_stable(&self, stable_position: &[f64]) -> Result<[f64; 3], MathError>;
+    /// Return a stable_position from a cartesian coordinate
+    fn calc_stable_position(&self, coord: &[f64]) -> Result<Vec<f64>, MathError>;
+    /// Save the current parameters (for use with SAVE_CONFIG)
+    fn save_state(&self, printer: &Printer) -> KResult<()>;
+}
+
+impl Calibration for DeltaCalibration {
+
+    fn coordinate_descent_params(&self, is_extended: bool) -> (Vec<String>, IndexMap<String, f64>) {
         let mut adj_params: Vec<String> =
             ["radius", "angle_a", "angle_b", "endstop_a", "endstop_b", "endstop_c"].iter().map(|s| s.to_string()).collect();
         if is_extended {
@@ -329,14 +346,12 @@ impl DeltaCalibration {
         (adj_params, params)
     }
 
-    /// Create a new calibration object from coordinate_descent params
-    pub fn new_calibration(&self, params: &IndexMap<String, f64>) -> Self {
+    fn new_calibration(&self, params: &IndexMap<String, f64>) -> Rc<dyn Calibration> {
         let g = |p: &str| ["a", "b", "c"].iter().map(|a| params[&format!("{}_{}", p, a)]).collect::<Vec<f64>>();
-        DeltaCalibration::new(params["radius"], g("angle"), g("arm"), g("endstop"), g("stepdist"))
+        Rc::new(DeltaCalibration::new(params["radius"], g("angle"), g("arm"), g("endstop"), g("stepdist")))
     }
 
-    /// Return cartesian coordinates for the given stable_position
-    pub fn get_position_from_stable(&self, stable_position: &[f64]) -> Result<[f64; 3], MathError> {
+    fn get_position_from_stable(&self, stable_position: &[f64]) -> Result<[f64; 3], MathError> {
         let mut sphere_coords = [[0.0; 3]; 3];
         for i in 0..3 {
             let (sd, t, es, sp) = (self.stepdists[i], self.towers[i], self.abs_endstops[i], stable_position[i]);
@@ -346,8 +361,7 @@ impl DeltaCalibration {
         trilateration(&sphere_coords, &[arms2[0], arms2[1], arms2[2]])
     }
 
-    /// Return a stable_position from a cartesian coordinate
-    pub fn calc_stable_position(&self, coord: &[f64]) -> Result<Vec<f64>, MathError> {
+    fn calc_stable_position(&self, coord: &[f64]) -> Result<Vec<f64>, MathError> {
         let mut out = vec![];
         for i in 0..3 {
             let (t, a) = (self.towers[i], self.arms[i]);
@@ -361,8 +375,7 @@ impl DeltaCalibration {
         Ok(out)
     }
 
-    /// Save the current parameters (for use with SAVE_CONFIG)
-    pub fn save_state(&self, printer: &Printer) -> KResult<()> {
+    fn save_state(&self, printer: &Printer) -> KResult<()> {
         let configfile = printer.lookup::<ConfigFileObject>("configfile")?;
         {
             let mut cf = configfile.pconfig.borrow_mut();

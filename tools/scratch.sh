@@ -1,1 +1,5 @@
-cd ~/rk/kalico && .venv/bin/python /mnt/d/RustyKlipper/kaliru/tools/gen_tmc_tables.py > /mnt/d/RustyKlipper/kaliru/src/extras/tmc_tables.rs && wc -l /mnt/d/RustyKlipper/kaliru/src/extras/tmc_tables.rs
+cd ~/rk/rs
+for t in dual_carriage hybrid_corexy_dual_carriage limited_cartesian polar rotary_delta_calibrate linuxtest temperature; do
+    echo "== $t"
+    grep -hE 'rror|ported|Traceback|panick' $t/*/log | head -4
+done

@@ -7,7 +7,7 @@ use crate::configfile::ConfigWrapper;
 use crate::error::KResult;
 use crate::pyval::PyVal;
 use crate::extras::homing::Homing;
-use crate::stepper::{McuStepper, RailRef};
+use crate::stepper::{McuStepper, PrinterRail, RailRef};
 use crate::toolhead::{Move, ToolHead};
 use indexmap::IndexMap;
 use std::any::Any;
@@ -16,8 +16,14 @@ use std::rc::Rc;
 
 pub mod cartesian;
 pub mod delta;
+pub mod deltesian;
 pub mod extruder;
+pub mod idex_modes;
+pub mod limited;
 pub mod none;
+pub mod polar;
+pub mod rotary_delta;
+pub mod winch;
 
 /// what toolhead.py uses of a kinematics object
 pub trait Kinematics {
@@ -42,6 +48,16 @@ pub trait Kinematics {
     fn limit(&self, _name: &str) -> Option<&Cell<f64>> {
         None
     }
+    /// update_limits(i, range) (cartesian style kinematics, for idex_modes)
+    fn update_limits(&self, _i: usize, _range: (f64, f64)) {}
+    /// home_axis(homing_state, axis, rail) (for idex_modes)
+    fn home_axis(&self, _homing_state: &Rc<Homing>, _axis: usize, _rail: &Rc<PrinterRail>) -> KResult<()> {
+        Ok(())
+    }
+    /// get_calibration() of the delta style kinematics (DELTA_CALIBRATE)
+    fn get_calibration(&self) -> Option<Rc<dyn delta::Calibration>> {
+        None
+    }
     fn as_any(&self) -> &dyn Any;
 }
 
@@ -51,17 +67,17 @@ pub type LoadKinematics = fn(&Rc<ToolHead>, &ConfigWrapper) -> KResult<Rc<dyn Ki
 /// ported yet
 pub static KINEMATICS: &[(&str, Option<LoadKinematics>)] = &[
     ("cartesian", Some(cartesian::load_kinematics)),
-    ("corexy", None),
-    ("corexz", None),
+    ("corexy", Some(cartesian::load_corexy)),
+    ("corexz", Some(cartesian::load_corexz)),
     ("delta", Some(delta::load_kinematics)),
-    ("deltesian", None),
-    ("hybrid_corexy", None),
-    ("hybrid_corexz", None),
-    ("limited_cartesian", None),
-    ("limited_corexy", None),
-    ("limited_corexz", None),
+    ("deltesian", Some(deltesian::load_kinematics)),
+    ("hybrid_corexy", Some(cartesian::load_hybrid_corexy)),
+    ("hybrid_corexz", Some(cartesian::load_hybrid_corexz)),
+    ("limited_cartesian", Some(limited::load_limited_cartesian)),
+    ("limited_corexy", Some(limited::load_limited_corexy)),
+    ("limited_corexz", Some(limited::load_limited_corexz)),
     ("none", Some(none::load_kinematics)),
-    ("polar", None),
-    ("rotary_delta", None),
-    ("winch", None),
+    ("polar", Some(polar::load_kinematics)),
+    ("rotary_delta", Some(rotary_delta::load_kinematics)),
+    ("winch", Some(winch::load_kinematics)),
 ];

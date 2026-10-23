@@ -307,6 +307,13 @@ impl Printer {
         objs
     }
 
+    /// load_object(config, section) as its concrete type
+    pub fn load_as<T: 'static>(self: &Rc<Self>, config: &ConfigWrapper, name: &str) -> KResult<Rc<T>> {
+        self.load_object(config, name, true)?
+            .and_then(downcast_rc::<T>)
+            .ok_or_else(|| KError::Other(format!("{} has an unexpected type", name)))
+    }
+
     /// load_object(config, section, default): `required` false is python's
     /// default=None (Ok(None) when there is no such module)
     pub fn load_object(self: &Rc<Self>, config: &ConfigWrapper, section: &str, required: bool) -> KResult<Option<PObj>> {

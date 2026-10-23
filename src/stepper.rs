@@ -527,12 +527,6 @@ pub type RailRef = Rc<dyn Rail>;
 // ----------------------------------------------------------------------
 
 /// printer.load_object(config, name) as a concrete type
-fn load_as<T: 'static>(printer: &Rc<Printer>, config: &ConfigWrapper, name: &str) -> KResult<Rc<T>> {
-    printer
-        .load_object(config, name, true)?
-        .and_then(downcast_rc::<T>)
-        .ok_or_else(|| KError::Other(format!("{} has an unexpected type", name)))
-}
 
 fn lookup_pin(printer: &Printer, pin_desc: &str, can_invert: bool, can_pullup: bool) -> KResult<SharedPinParams> {
     let ppins = printer.lookup::<PinsObject>("pins")?;
@@ -560,9 +554,9 @@ pub fn printer_stepper(config: &ConfigWrapper, units_in_radians: bool) -> KResul
         units_in_radians,
     )?;
     // Register with helper modules
-    load_as::<PrinterStepperEnable>(&printer, config, "stepper_enable")?.register_stepper(config, &mcu_stepper)?;
-    load_as::<ForceMove>(&printer, config, "force_move")?.register_stepper(config, &mcu_stepper);
-    load_as::<PrinterMotionReport>(&printer, config, "motion_report")?.register_stepper(config, &mcu_stepper)?;
+    printer.load_as::<PrinterStepperEnable>(config, "stepper_enable")?.register_stepper(config, &mcu_stepper)?;
+    printer.load_as::<ForceMove>(config, "force_move")?.register_stepper(config, &mcu_stepper);
+    printer.load_as::<PrinterMotionReport>(config, "motion_report")?.register_stepper(config, &mcu_stepper)?;
     Ok(mcu_stepper)
 }
 
@@ -726,7 +720,7 @@ impl PrinterRail {
                 self.endstop_map.borrow_mut().insert(pin_name, (mcu_endstop.clone(), pin_params.invert, pin_params.pullup));
                 let name = stepper.get_name(true);
                 self.endstops.borrow_mut().push((mcu_endstop.clone(), name.clone()));
-                load_as::<QueryEndstops>(&printer, config, "query_endstops")?.register_endstop(mcu_endstop.clone(), &name);
+                printer.load_as::<QueryEndstops>(config, "query_endstops")?.register_endstop(mcu_endstop.clone(), &name);
                 mcu_endstop
             }
             Some((mcu_endstop, invert, pullup)) => {

@@ -20,6 +20,7 @@ pub mod bulk_sensor;
 pub mod bus;
 pub mod buttons;
 pub mod control_mpc;
+pub mod controller_fan;
 pub mod danger_options;
 pub mod delta_calibrate;
 pub mod display_status;
@@ -119,7 +120,7 @@ pub static MODULES: &[PrinterModule] = &[
     todo("canbus_ids"),
     todo("canbus_stats"),
     PrinterModule { name: "control_mpc", ported: true, load_config: None, load_config_prefix: None, register_components: None },
-    todo("controller_fan"),
+    PrinterModule { name: "controller_fan", ported: true, load_config: None, load_config_prefix: Some(controller_fan::load_config_prefix), register_components: None },
     todo("dac084S085"),
     PrinterModule { name: "danger_options", ported: true, load_config: Some(danger_options::load_config), load_config_prefix: None, register_components: None },
     todo("delayed_gcode"),

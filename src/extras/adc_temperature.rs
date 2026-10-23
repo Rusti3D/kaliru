@@ -12,7 +12,7 @@ use crate::extras::heaters::{load_heaters, TempCallback, TempSensor};
 use crate::extras::query_adc::QueryADC;
 use crate::logging;
 use crate::mcu::McuAdc;
-use crate::printer::{downcast_rc, none_object, PObj, Printer};
+use crate::printer::{none_object, PObj};
 use crate::pyfmt::{py_max, py_min};
 use crate::pyval::PyVal;
 use std::any::Any;
@@ -120,9 +120,9 @@ impl HelperTemperatureDiagnostics {
             calc_temp_cb,
             minmax: Cell::new(None),
         });
-        let query_adc = load_as::<QueryADC>(&printer, config, "query_adc")?;
+        let query_adc = printer.load_as::<QueryADC>(config, "query_adc")?;
         query_adc.register_adc(&h.name, mcu_adc.clone());
-        let error_mcu = load_as::<PrinterMcuError>(&printer, config, "error_mcu")?;
+        let error_mcu = printer.load_as::<PrinterMcuError>(config, "error_mcu")?;
         let hh = h.clone();
         error_mcu.add_clarify("ADC out of range", Rc::new(move |msg, details| hh.clarify_adc_range(msg, details)));
         Ok(h)
@@ -153,12 +153,6 @@ impl HelperTemperatureDiagnostics {
 }
 
 /// printer.load_object(config, name) as a concrete type
-fn load_as<T: 'static>(printer: &Rc<Printer>, config: &ConfigWrapper, name: &str) -> KResult<Rc<T>> {
-    printer
-        .load_object(config, name, true)?
-        .and_then(downcast_rc::<T>)
-        .ok_or_else(|| KError::Other(format!("{} has an unexpected type", name)))
-}
 
 // ----------------------------------------------------------------------
 // Linear interpolation

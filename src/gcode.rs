@@ -594,7 +594,7 @@ impl GCodeDispatch {
         self.respond_raw(&format!("// {}", lines.join("\n// ")));
     }
 
-    fn respond_error(&self, msg: &str) {
+    pub fn respond_error(&self, msg: &str) {
         logging::warning(msg);
         let lines: Vec<&str> = py_strip(msg).split('\n').collect();
         if lines.len() > 1 {
