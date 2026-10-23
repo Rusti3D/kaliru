@@ -106,6 +106,7 @@ pub mod sdcard_loop;
 pub mod servo;
 pub mod shaper_defs;
 pub mod sht3x;
+pub mod skew_correction;
 pub mod spi_temperature;
 pub mod static_digital_output;
 pub mod static_pwm_clock;
@@ -134,6 +135,7 @@ pub mod tuning_tower;
 pub mod verify_heater;
 pub mod virtual_sdcard;
 pub mod z_calibration;
+pub mod z_thermal_adjust;
 pub mod z_tilt;
 pub mod z_tilt_ng;
 
@@ -251,7 +253,7 @@ pub static MODULES: &[PrinterModule] = &[
     todo("shaper_calibrate"),
     PrinterModule { name: "shaper_defs", ported: true, load_config: None, load_config_prefix: None, register_components: None },
     PrinterModule { name: "sht3x", ported: true, load_config: Some(sht3x::load_config), load_config_prefix: None, register_components: None },
-    todo("skew_correction"),
+    PrinterModule { name: "skew_correction", ported: true, load_config: Some(skew_correction::load_config), load_config_prefix: None, register_components: None },
     todo("smart_effector"),
     PrinterModule { name: "spi_temperature", ported: true, load_config: Some(spi_temperature::load_config), load_config_prefix: None, register_components: None },
     PrinterModule { name: "static_digital_output", ported: true, load_config: None, load_config_prefix: Some(static_digital_output::load_config_prefix), register_components: None },
@@ -282,7 +284,7 @@ pub static MODULES: &[PrinterModule] = &[
     PrinterModule { name: "verify_heater", ported: true, load_config: None, load_config_prefix: Some(verify_heater::load_config_prefix), register_components: None },
     PrinterModule { name: "virtual_sdcard", ported: true, load_config: Some(virtual_sdcard::load_config), load_config_prefix: None, register_components: None },
     PrinterModule { name: "z_calibration", ported: true, load_config: Some(z_calibration::load_config), load_config_prefix: None, register_components: None },
-    todo("z_thermal_adjust"),
+    PrinterModule { name: "z_thermal_adjust", ported: true, load_config: Some(z_thermal_adjust::load_config), load_config_prefix: Some(z_thermal_adjust::load_config_prefix), register_components: None },
     PrinterModule { name: "z_tilt", ported: true, load_config: Some(z_tilt::load_config), load_config_prefix: None, register_components: None },
     PrinterModule { name: "z_tilt_ng", ported: true, load_config: Some(z_tilt_ng::load_config), load_config_prefix: None, register_components: None },
 ];
