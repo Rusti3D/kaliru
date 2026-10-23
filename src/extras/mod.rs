@@ -80,6 +80,7 @@ pub mod query_endstops;
 pub mod respond;
 pub mod safe_z_home;
 pub mod screws_tilt_adjust;
+pub mod sdcard_loop;
 pub mod servo;
 pub mod shaper_defs;
 pub mod sht3x;
@@ -109,6 +110,7 @@ pub mod tuning_tower;
 pub mod verify_heater;
 pub mod virtual_sdcard;
 pub mod z_tilt;
+pub mod z_tilt_ng;
 
 const fn todo(name: &'static str) -> PrinterModule {
     PrinterModule { name, ported: false, load_config: None, load_config_prefix: None, register_components: None }
@@ -219,7 +221,7 @@ pub static MODULES: &[PrinterModule] = &[
     todo("samd_sercom"),
     todo("save_variables"),
     PrinterModule { name: "screws_tilt_adjust", ported: true, load_config: Some(screws_tilt_adjust::load_config), load_config_prefix: None, register_components: None },
-    todo("sdcard_loop"),
+    PrinterModule { name: "sdcard_loop", ported: true, load_config: Some(sdcard_loop::load_config), load_config_prefix: None, register_components: None },
     PrinterModule { name: "servo", ported: true, load_config: None, load_config_prefix: Some(servo::load_config_prefix), register_components: None },
     todo("shaper_calibrate"),
     PrinterModule { name: "shaper_defs", ported: true, load_config: None, load_config_prefix: None, register_components: None },
@@ -257,5 +259,5 @@ pub static MODULES: &[PrinterModule] = &[
     todo("z_calibration"),
     todo("z_thermal_adjust"),
     PrinterModule { name: "z_tilt", ported: true, load_config: Some(z_tilt::load_config), load_config_prefix: None, register_components: None },
-    todo("z_tilt_ng"),
+    PrinterModule { name: "z_tilt_ng", ported: true, load_config: Some(z_tilt_ng::load_config), load_config_prefix: None, register_components: None },
 ];
