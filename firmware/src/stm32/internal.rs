@@ -47,5 +47,5 @@ pub struct Cline {
 }
 #[cfg(CONFIG_MACH_STM32F1)]
 pub use super::stm32f1::{get_pclock_frequency, gpio_clock_enable, lookup_clock_line};
-#[cfg(CONFIG_MACH_STM32F4)]
+#[cfg(any(CONFIG_MACH_STM32F2, CONFIG_MACH_STM32F4))]
 pub use super::stm32f4::{get_pclock_frequency, gpio_clock_enable, lookup_clock_line};

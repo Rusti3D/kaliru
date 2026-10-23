@@ -4,6 +4,9 @@
 //
 // This file may be distributed under the terms of the GNU GPLv3 license.
 use super::internal::*;
+#[cfg(CONFIG_MACH_STM32F2)]
+use super::system_stm32f2xx::SystemInit;
+#[cfg(CONFIG_MACH_STM32F4)]
 use super::system_stm32f4xx::SystemInit;
 use crate::board::irq_disable;
 use crate::config::*;

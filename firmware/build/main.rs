@@ -73,8 +73,8 @@ fn sources(config: &kconfig::Config) -> Vec<&'static str> {
         out.extend(linux);
     } else if on("CONFIG_MACH_STM32") {
         // src/stm32/Makefile
-        if !(on("CONFIG_MACH_STM32F1") || on("CONFIG_MACH_STM32F4")) {
-            panic!("only the stm32f1 / stm32f4 boards are ported");
+        if !(on("CONFIG_MACH_STM32F1") || on("CONFIG_MACH_STM32F2") || on("CONFIG_MACH_STM32F4")) {
+            panic!("only the stm32f1 / f2 / f4 boards are ported");
         }
         if on("CONFIG_USBCANBUS") || on("CONFIG_HAVE_STM32_FDCANBUS") {
             panic!("stm32 usb-to-canbus / fdcan are not ported yet");
@@ -86,6 +86,8 @@ fn sources(config: &kconfig::Config) -> Vec<&'static str> {
         out.extend(["generic/armcm_boot.rs", "generic/armcm_irq.rs", "generic/armcm_reset.rs"]);
         if on("CONFIG_MACH_STM32F1") {
             out.extend(["stm32/stm32f1.rs", "stm32/system_stm32f1xx.rs"]);
+        } else if on("CONFIG_MACH_STM32F2") {
+            out.extend(["stm32/stm32f4.rs", "stm32/system_stm32f2xx.rs"]);
         } else {
             out.extend(["stm32/stm32f4.rs", "stm32/system_stm32f4xx.rs"]);
         }

@@ -37,6 +37,10 @@ unsafe impl Sync for Vector {}
 /// a C table whose `#if` blocks add entries: the concatenation of its
 /// parts (not all empty)
 pub const fn concat<T: Copy, const N: usize>(parts: &[&[T]]) -> [T; N] {
+    if N == 0 {
+        // (an empty C table: a zero length array has no element to make)
+        return unsafe { core::mem::zeroed() };
+    }
     let mut first = 0;
     while parts[first].is_empty() {
         first += 1;

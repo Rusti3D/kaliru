@@ -17,7 +17,9 @@ pub mod gpioperiph;
 pub mod stm32f1;
 #[cfg(CONFIG_MACH_STM32F1)]
 pub mod system_stm32f1xx;
-#[cfg(CONFIG_MACH_STM32F4)]
+#[cfg(CONFIG_MACH_STM32F2)]
+pub mod system_stm32f2xx;
+#[cfg(any(CONFIG_MACH_STM32F2, CONFIG_MACH_STM32F4))]
 pub mod stm32f4;
 #[cfg(CONFIG_MACH_STM32F4)]
 pub mod system_stm32f4xx;
@@ -75,7 +77,7 @@ pub use sdio::{sdio_prepare_data_transfer, sdio_read_data, sdio_send_command, sd
 pub use spi::{spi_prepare, spi_setup, spi_transfer};
 #[cfg(CONFIG_MACH_STM32F1)]
 pub use stm32f1::{armcm_main, bootloader_request};
-#[cfg(CONFIG_MACH_STM32F4)]
+#[cfg(any(CONFIG_MACH_STM32F2, CONFIG_MACH_STM32F4))]
 pub use stm32f4::{armcm_main, bootloader_request};
 #[cfg(all(CONFIG_USBSERIAL, CONFIG_HAVE_STM32_USBFS))]
 pub use usbfs::{

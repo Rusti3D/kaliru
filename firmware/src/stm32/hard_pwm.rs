@@ -6,7 +6,6 @@
 use super::internal::*;
 use crate::board::GpioPwm;
 use crate::config::CONFIG_CLOCK_FREQ;
-#[allow(unused_imports)]
 use crate::ctr::{concat, concat_len};
 use crate::sched::R;
 use crate::{decl_command, decl_constant, shutdown};
@@ -27,9 +26,83 @@ const fn p(timer: *mut TIM_TypeDef, port: char, num: u32, channel: u8, func: u32
     GpioPwmInfo { timer, pin: GPIO(port, num) as u8, channel, function: GPIO_FUNCTION(func) as u8 }
 }
 
-// (the stm32f0 / f7 / g0 / g4 / h7 tables come with those chips)
-#[cfg(CONFIG_MACH_STM32F1)]
-static PWM_REGS: &[GpioPwmInfo] = &[
+// (the C table, its #if blocks as parts: tools/port_table.py)
+#[cfg(all(CONFIG_MACH_STM32F0, CONFIG_MACH_STM32F042))]
+const PWM_REGS_0: &[GpioPwmInfo] = &[
+    p(TIM3, 'B', 4, 1, 1),
+];
+#[cfg(not(all(CONFIG_MACH_STM32F0, CONFIG_MACH_STM32F042)))]
+const PWM_REGS_0: &[GpioPwmInfo] = &[];
+#[cfg(all(CONFIG_MACH_STM32F0, CONFIG_MACH_STM32F070))]
+const PWM_REGS_1: &[GpioPwmInfo] = &[
+    p(TIM15, 'A', 2, 1, 0),
+    p(TIM15, 'A', 3, 2, 0),
+    p(TIM14, 'A', 4, 1, 4),
+    p(TIM3, 'A', 6, 1, 1),
+    p(TIM3, 'A', 7, 2, 1),
+    p(TIM1, 'A', 8, 1, 2),
+    p(TIM1, 'A', 9, 2, 2),
+    p(TIM1, 'A', 10, 3, 2),
+    p(TIM1, 'A', 11, 4, 2),
+    p(TIM3, 'B', 0, 3, 1),
+    p(TIM3, 'B', 1, 4, 1),
+    p(TIM3, 'B', 4, 1, 1),
+    p(TIM3, 'B', 5, 2, 1),
+    p(TIM16, 'B', 8, 1, 2),
+    p(TIM17, 'B', 9, 1, 2),
+    p(TIM15, 'B', 14, 1, 1),
+    p(TIM15, 'B', 15, 2, 1),
+    p(TIM3, 'C', 6, 1, 0),
+    p(TIM3, 'C', 7, 2, 0),
+    p(TIM3, 'C', 8, 3, 0),
+    p(TIM3, 'C', 9, 4, 0),
+];
+#[cfg(not(all(CONFIG_MACH_STM32F0, CONFIG_MACH_STM32F070)))]
+const PWM_REGS_1: &[GpioPwmInfo] = &[];
+#[cfg(all(CONFIG_MACH_STM32F0, CONFIG_MACH_STM32F072))]
+const PWM_REGS_2: &[GpioPwmInfo] = &[
+    p(TIM2, 'A', 1, 2, 2),
+    p(TIM15, 'A', 2, 1, 0),
+    p(TIM15, 'A', 3, 2, 0),
+    p(TIM14, 'A', 4, 1, 4),
+    p(TIM3, 'A', 6, 1, 1),
+    p(TIM3, 'A', 7, 2, 1),
+    p(TIM1, 'A', 8, 1, 2),
+    p(TIM1, 'A', 9, 2, 2),
+    p(TIM1, 'A', 10, 3, 2),
+    p(TIM1, 'A', 11, 4, 2),
+    p(TIM3, 'B', 0, 3, 1),
+    p(TIM3, 'B', 1, 4, 1),
+    p(TIM2, 'B', 3, 2, 2),
+    p(TIM3, 'B', 4, 1, 1),
+    p(TIM3, 'B', 5, 2, 1),
+    p(TIM16, 'B', 8, 1, 2),
+    p(TIM17, 'B', 9, 1, 2),
+    p(TIM2, 'B', 10, 3, 2),
+    p(TIM2, 'B', 11, 4, 2),
+    p(TIM15, 'B', 14, 1, 1),
+    p(TIM15, 'B', 15, 2, 1),
+    p(TIM3, 'C', 6, 1, 0),
+    p(TIM3, 'C', 7, 2, 0),
+    p(TIM3, 'C', 8, 3, 0),
+    p(TIM3, 'C', 9, 4, 0),
+    p(TIM16, 'E', 0, 1, 0),
+    p(TIM17, 'E', 1, 1, 0),
+    p(TIM3, 'E', 3, 1, 0),
+    p(TIM3, 'E', 4, 2, 0),
+    p(TIM3, 'E', 5, 3, 0),
+    p(TIM3, 'E', 6, 4, 0),
+    p(TIM1, 'E', 9, 1, 0),
+    p(TIM1, 'E', 11, 2, 0),
+    p(TIM1, 'E', 13, 3, 0),
+    p(TIM1, 'E', 14, 4, 0),
+    p(TIM15, 'F', 9, 1, 0),
+    p(TIM15, 'F', 10, 2, 0),
+];
+#[cfg(not(all(CONFIG_MACH_STM32F0, CONFIG_MACH_STM32F072)))]
+const PWM_REGS_2: &[GpioPwmInfo] = &[];
+#[cfg(all(not(CONFIG_MACH_STM32F0), CONFIG_MACH_STM32F1))]
+const PWM_REGS_3: &[GpioPwmInfo] = &[
     p(TIM2, 'A', 0, 1, 2),
     p(TIM2, 'A', 1, 2, 2),
     p(TIM2, 'A', 2, 3, 2),
@@ -55,26 +128,51 @@ static PWM_REGS: &[GpioPwmInfo] = &[
     p(TIM4, 'B', 8, 3, 2),
     p(TIM4, 'B', 9, 4, 2),
 ];
-// (the C table, its #if blocks as parts)
-#[cfg(all(CONFIG_MACH_STM32F4, any(CONFIG_MACH_STM32F401, CONFIG_MACH_STM32F411)))]
-const PWM_REGS_0: &[GpioPwmInfo] = &[p(TIM3, 'A', 6, 1, 2), p(TIM3, 'C', 6, 1, 3), p(TIM3, 'A', 7, 2, 2), p(TIM3, 'C', 7, 2, 3), p(TIM3, 'C', 8, 3, 3), p(TIM3, 'C', 9, 4, 3)];
-#[cfg(all(CONFIG_MACH_STM32F4, not(any(CONFIG_MACH_STM32F401, CONFIG_MACH_STM32F411))))]
-const PWM_REGS_0: &[GpioPwmInfo] = &[];
-#[cfg(all(CONFIG_MACH_STM32F4, CONFIG_MACH_STM32F411))]
-const PWM_REGS_1: &[GpioPwmInfo] = &[p(TIM9, 'A', 2, 1, 3), p(TIM9, 'A', 3, 2, 3)];
-#[cfg(all(CONFIG_MACH_STM32F4, not(CONFIG_MACH_STM32F411)))]
-const PWM_REGS_1: &[GpioPwmInfo] = &[];
-#[cfg(all(CONFIG_MACH_STM32F4, CONFIG_MACH_STM32F446))]
-const PWM_REGS_2: &[GpioPwmInfo] = &[p(TIM2, 'B', 2, 4, 1)];
-#[cfg(all(CONFIG_MACH_STM32F4, not(CONFIG_MACH_STM32F446)))]
-const PWM_REGS_2: &[GpioPwmInfo] = &[];
-#[cfg(all(CONFIG_MACH_STM32F4, any(CONFIG_MACH_STM32F4x5, CONFIG_MACH_STM32F446)))]
-const PWM_REGS_3: &[GpioPwmInfo] = &[p(TIM8, 'C', 6, 1, 3), p(TIM8, 'C', 7, 2, 3), p(TIM8, 'C', 8, 3, 3), p(TIM8, 'C', 9, 4, 3), p(TIM11, 'F', 7, 1, 3), p(TIM12, 'B', 14, 1, 9), p(TIM12, 'B', 15, 2, 9), p(TIM13, 'A', 6, 1, 9), p(TIM13, 'F', 8, 1, 9), p(TIM14, 'A', 7, 1, 9), p(TIM14, 'F', 9, 1, 9)];
-#[cfg(all(CONFIG_MACH_STM32F4, not(any(CONFIG_MACH_STM32F4x5, CONFIG_MACH_STM32F446))))]
+#[cfg(not(all(not(CONFIG_MACH_STM32F0), CONFIG_MACH_STM32F1)))]
 const PWM_REGS_3: &[GpioPwmInfo] = &[];
-// Pins that map to all klipper defined STM32F4 procs
-#[cfg(CONFIG_MACH_STM32F4)]
+#[cfg(all(not(CONFIG_MACH_STM32F0), not(CONFIG_MACH_STM32F1), CONFIG_MACH_STM32F4, any(CONFIG_MACH_STM32F401, CONFIG_MACH_STM32F411)))]
 const PWM_REGS_4: &[GpioPwmInfo] = &[
+    p(TIM3, 'A', 6, 1, 2),
+    p(TIM3, 'C', 6, 1, 3),
+    p(TIM3, 'A', 7, 2, 2),
+    p(TIM3, 'C', 7, 2, 3),
+    p(TIM3, 'C', 8, 3, 3),
+    p(TIM3, 'C', 9, 4, 3),
+];
+#[cfg(not(all(not(CONFIG_MACH_STM32F0), not(CONFIG_MACH_STM32F1), CONFIG_MACH_STM32F4, any(CONFIG_MACH_STM32F401, CONFIG_MACH_STM32F411))))]
+const PWM_REGS_4: &[GpioPwmInfo] = &[];
+#[cfg(all(not(CONFIG_MACH_STM32F0), not(CONFIG_MACH_STM32F1), CONFIG_MACH_STM32F4, CONFIG_MACH_STM32F411))]
+const PWM_REGS_5: &[GpioPwmInfo] = &[
+    p(TIM9, 'A', 2, 1, 3),
+    p(TIM9, 'A', 3, 2, 3),
+];
+#[cfg(not(all(not(CONFIG_MACH_STM32F0), not(CONFIG_MACH_STM32F1), CONFIG_MACH_STM32F4, CONFIG_MACH_STM32F411)))]
+const PWM_REGS_5: &[GpioPwmInfo] = &[];
+#[cfg(all(not(CONFIG_MACH_STM32F0), not(CONFIG_MACH_STM32F1), CONFIG_MACH_STM32F4, CONFIG_MACH_STM32F446))]
+const PWM_REGS_6: &[GpioPwmInfo] = &[
+    p(TIM2, 'B', 2, 4, 1),
+];
+#[cfg(not(all(not(CONFIG_MACH_STM32F0), not(CONFIG_MACH_STM32F1), CONFIG_MACH_STM32F4, CONFIG_MACH_STM32F446)))]
+const PWM_REGS_6: &[GpioPwmInfo] = &[];
+#[cfg(all(not(CONFIG_MACH_STM32F0), not(CONFIG_MACH_STM32F1), CONFIG_MACH_STM32F4, any(CONFIG_MACH_STM32F4x5, CONFIG_MACH_STM32F446)))]
+const PWM_REGS_7: &[GpioPwmInfo] = &[
+    p(TIM8, 'C', 6, 1, 3),
+    p(TIM8, 'C', 7, 2, 3),
+    p(TIM8, 'C', 8, 3, 3),
+    p(TIM8, 'C', 9, 4, 3),
+    p(TIM11, 'F', 7, 1, 3),
+    p(TIM12, 'B', 14, 1, 9),
+    p(TIM12, 'B', 15, 2, 9),
+    p(TIM13, 'A', 6, 1, 9),
+    p(TIM13, 'F', 8, 1, 9),
+    p(TIM14, 'A', 7, 1, 9),
+    p(TIM14, 'F', 9, 1, 9),
+];
+#[cfg(not(all(not(CONFIG_MACH_STM32F0), not(CONFIG_MACH_STM32F1), CONFIG_MACH_STM32F4, any(CONFIG_MACH_STM32F4x5, CONFIG_MACH_STM32F446))))]
+const PWM_REGS_7: &[GpioPwmInfo] = &[];
+// Pins that map to all klipper defined STM32F4 procs
+#[cfg(all(not(CONFIG_MACH_STM32F0), not(CONFIG_MACH_STM32F1), CONFIG_MACH_STM32F4))]
+const PWM_REGS_8: &[GpioPwmInfo] = &[
     p(TIM1, 'A', 8, 1, 1),
     p(TIM1, 'E', 9, 1, 1),
     p(TIM1, 'A', 9, 2, 1),
@@ -103,18 +201,196 @@ const PWM_REGS_4: &[GpioPwmInfo] = &[
     p(TIM5, 'A', 2, 3, 2),
     p(TIM5, 'A', 3, 4, 2),
 ];
-#[cfg(all(CONFIG_MACH_STM32F4, not(CONFIG_MACH_STM32F411)))]
-const PWM_REGS_5: &[GpioPwmInfo] = &[p(TIM9, 'E', 5, 1, 3), p(TIM9, 'E', 6, 2, 3)];
-#[cfg(all(CONFIG_MACH_STM32F4, not(not(CONFIG_MACH_STM32F411))))]
-const PWM_REGS_5: &[GpioPwmInfo] = &[];
-#[cfg(CONFIG_MACH_STM32F4)]
-const PWM_REGS_6: &[GpioPwmInfo] = &[
+#[cfg(not(all(not(CONFIG_MACH_STM32F0), not(CONFIG_MACH_STM32F1), CONFIG_MACH_STM32F4)))]
+const PWM_REGS_8: &[GpioPwmInfo] = &[];
+#[cfg(all(not(CONFIG_MACH_STM32F0), not(CONFIG_MACH_STM32F1), CONFIG_MACH_STM32F4, not(CONFIG_MACH_STM32F411)))]
+const PWM_REGS_9: &[GpioPwmInfo] = &[
+    p(TIM9, 'E', 5, 1, 3),
+    p(TIM9, 'E', 6, 2, 3),
+];
+#[cfg(not(all(not(CONFIG_MACH_STM32F0), not(CONFIG_MACH_STM32F1), CONFIG_MACH_STM32F4, not(CONFIG_MACH_STM32F411))))]
+const PWM_REGS_9: &[GpioPwmInfo] = &[];
+#[cfg(all(not(CONFIG_MACH_STM32F0), not(CONFIG_MACH_STM32F1), CONFIG_MACH_STM32F4))]
+const PWM_REGS_10: &[GpioPwmInfo] = &[
     p(TIM10, 'B', 8, 1, 3),
     p(TIM11, 'B', 9, 1, 3),
 ];
-#[cfg(CONFIG_MACH_STM32F4)]
-const PWM_REGS_PARTS: &[&[GpioPwmInfo]] = &[PWM_REGS_0, PWM_REGS_1, PWM_REGS_2, PWM_REGS_3, PWM_REGS_4, PWM_REGS_5, PWM_REGS_6];
-#[cfg(CONFIG_MACH_STM32F4)]
+#[cfg(not(all(not(CONFIG_MACH_STM32F0), not(CONFIG_MACH_STM32F1), CONFIG_MACH_STM32F4)))]
+const PWM_REGS_10: &[GpioPwmInfo] = &[];
+#[cfg(all(not(CONFIG_MACH_STM32F0), not(CONFIG_MACH_STM32F1), not(CONFIG_MACH_STM32F4), CONFIG_MACH_STM32F7))]
+const PWM_REGS_11: &[GpioPwmInfo] = &[
+    p(TIM2, 'A', 15, 1, 1),
+    p(TIM2, 'B', 3, 2, 1),
+    p(TIM2, 'B', 10, 3, 1),
+    p(TIM2, 'B', 11, 4, 1),
+    p(TIM3, 'B', 4, 1, 1),
+    p(TIM3, 'B', 5, 1, 1),
+    p(TIM3, 'C', 8, 2, 1),
+    p(TIM3, 'C', 9, 2, 1),
+    p(TIM5, 'A', 10, 3, 1),
+    p(TIM5, 'E', 13, 3, 1),
+    p(TIM5, 'A', 11, 4, 1),
+    p(TIM5, 'E', 14, 4, 1),
+];
+#[cfg(not(all(not(CONFIG_MACH_STM32F0), not(CONFIG_MACH_STM32F1), not(CONFIG_MACH_STM32F4), CONFIG_MACH_STM32F7)))]
+const PWM_REGS_11: &[GpioPwmInfo] = &[];
+#[cfg(all(not(CONFIG_MACH_STM32F0), not(CONFIG_MACH_STM32F1), not(CONFIG_MACH_STM32F4), not(CONFIG_MACH_STM32F7), CONFIG_MACH_STM32G0))]
+const PWM_REGS_12: &[GpioPwmInfo] = &[
+    p(TIM15, 'A', 2, 1, 5),
+    p(TIM15, 'A', 3, 2, 5),
+    p(TIM14, 'A', 4, 1, 4),
+    p(TIM3, 'A', 6, 1, 1),
+    p(TIM3, 'A', 7, 2, 1),
+    p(TIM1, 'A', 8, 1, 2),
+    p(TIM1, 'A', 9, 2, 2),
+    p(TIM1, 'A', 10, 3, 2),
+    p(TIM1, 'A', 11, 4, 2),
+    p(TIM3, 'B', 0, 3, 1),
+    p(TIM3, 'B', 1, 4, 1),
+    p(TIM1, 'B', 3, 2, 1),
+    p(TIM3, 'B', 4, 1, 1),
+    p(TIM3, 'B', 5, 2, 1),
+];
+#[cfg(not(all(not(CONFIG_MACH_STM32F0), not(CONFIG_MACH_STM32F1), not(CONFIG_MACH_STM32F4), not(CONFIG_MACH_STM32F7), CONFIG_MACH_STM32G0)))]
+const PWM_REGS_12: &[GpioPwmInfo] = &[];
+#[cfg(all(not(CONFIG_MACH_STM32F0), not(CONFIG_MACH_STM32F1), not(CONFIG_MACH_STM32F4), not(CONFIG_MACH_STM32F7), CONFIG_MACH_STM32G0, CONFIG_MACH_STM32G0Bx))]
+const PWM_REGS_13: &[GpioPwmInfo] = &[
+    p(TIM4, 'B', 6, 1, 9),
+    p(TIM4, 'B', 7, 2, 9),
+    p(TIM4, 'B', 8, 3, 9),
+    p(TIM4, 'B', 9, 4, 9),
+];
+#[cfg(not(all(not(CONFIG_MACH_STM32F0), not(CONFIG_MACH_STM32F1), not(CONFIG_MACH_STM32F4), not(CONFIG_MACH_STM32F7), CONFIG_MACH_STM32G0, CONFIG_MACH_STM32G0Bx)))]
+const PWM_REGS_13: &[GpioPwmInfo] = &[];
+#[cfg(all(not(CONFIG_MACH_STM32F0), not(CONFIG_MACH_STM32F1), not(CONFIG_MACH_STM32F4), not(CONFIG_MACH_STM32F7), CONFIG_MACH_STM32G0))]
+const PWM_REGS_14: &[GpioPwmInfo] = &[
+    p(TIM15, 'B', 14, 1, 5),
+    p(TIM15, 'B', 15, 2, 5),
+    p(TIM15, 'C', 1, 1, 2),
+    p(TIM15, 'C', 2, 2, 2),
+    p(TIM3, 'C', 6, 1, 1),
+    p(TIM3, 'C', 7, 2, 1),
+    p(TIM3, 'C', 8, 3, 1),
+    p(TIM3, 'C', 9, 4, 1),
+    p(TIM1, 'C', 10, 3, 2),
+    p(TIM1, 'C', 11, 4, 2),
+    p(TIM14, 'C', 12, 1, 2),
+    p(TIM16, 'D', 0, 1, 2),
+    p(TIM17, 'D', 1, 1, 2),
+];
+#[cfg(not(all(not(CONFIG_MACH_STM32F0), not(CONFIG_MACH_STM32F1), not(CONFIG_MACH_STM32F4), not(CONFIG_MACH_STM32F7), CONFIG_MACH_STM32G0)))]
+const PWM_REGS_14: &[GpioPwmInfo] = &[];
+#[cfg(all(not(CONFIG_MACH_STM32F0), not(CONFIG_MACH_STM32F1), not(CONFIG_MACH_STM32F4), not(CONFIG_MACH_STM32F7), CONFIG_MACH_STM32G0, CONFIG_MACH_STM32G0Bx))]
+const PWM_REGS_15: &[GpioPwmInfo] = &[
+    p(TIM4, 'D', 12, 1, 2),
+    p(TIM4, 'D', 13, 2, 2),
+    p(TIM4, 'D', 14, 3, 2),
+    p(TIM4, 'D', 15, 4, 2),
+];
+#[cfg(not(all(not(CONFIG_MACH_STM32F0), not(CONFIG_MACH_STM32F1), not(CONFIG_MACH_STM32F4), not(CONFIG_MACH_STM32F7), CONFIG_MACH_STM32G0, CONFIG_MACH_STM32G0Bx)))]
+const PWM_REGS_15: &[GpioPwmInfo] = &[];
+#[cfg(all(not(CONFIG_MACH_STM32F0), not(CONFIG_MACH_STM32F1), not(CONFIG_MACH_STM32F4), not(CONFIG_MACH_STM32F7), CONFIG_MACH_STM32G0))]
+const PWM_REGS_16: &[GpioPwmInfo] = &[
+    p(TIM3, 'E', 3, 1, 1),
+    p(TIM3, 'E', 4, 2, 1),
+    p(TIM3, 'E', 5, 3, 1),
+    p(TIM3, 'E', 6, 4, 1),
+    p(TIM1, 'E', 9, 1, 1),
+    p(TIM1, 'E', 11, 2, 1),
+    p(TIM1, 'E', 13, 3, 1),
+    p(TIM1, 'E', 14, 4, 1),
+    p(TIM14, 'F', 0, 1, 2),
+    p(TIM15, 'F', 12, 1, 0),
+    p(TIM15, 'F', 13, 2, 0),
+];
+#[cfg(not(all(not(CONFIG_MACH_STM32F0), not(CONFIG_MACH_STM32F1), not(CONFIG_MACH_STM32F4), not(CONFIG_MACH_STM32F7), CONFIG_MACH_STM32G0)))]
+const PWM_REGS_16: &[GpioPwmInfo] = &[];
+#[cfg(all(not(CONFIG_MACH_STM32F0), not(CONFIG_MACH_STM32F1), not(CONFIG_MACH_STM32F4), not(CONFIG_MACH_STM32F7), not(CONFIG_MACH_STM32G0), CONFIG_MACH_STM32G4))]
+const PWM_REGS_17: &[GpioPwmInfo] = &[
+    p(TIM3, 'B', 0, 3, 2),
+    p(TIM3, 'B', 1, 4, 2),
+    p(TIM3, 'B', 4, 1, 2),
+    p(TIM3, 'B', 5, 2, 2),
+    p(TIM4, 'B', 6, 1, 2),
+    p(TIM4, 'B', 7, 2, 2),
+    p(TIM4, 'B', 8, 3, 2),
+    p(TIM4, 'B', 9, 4, 2),
+    p(TIM2, 'B', 10, 3, 1),
+    p(TIM2, 'B', 11, 4, 1),
+    p(TIM15, 'B', 14, 1, 1),
+    p(TIM15, 'B', 15, 2, 1),
+];
+#[cfg(not(all(not(CONFIG_MACH_STM32F0), not(CONFIG_MACH_STM32F1), not(CONFIG_MACH_STM32F4), not(CONFIG_MACH_STM32F7), not(CONFIG_MACH_STM32G0), CONFIG_MACH_STM32G4)))]
+const PWM_REGS_17: &[GpioPwmInfo] = &[];
+#[cfg(all(not(CONFIG_MACH_STM32F0), not(CONFIG_MACH_STM32F1), not(CONFIG_MACH_STM32F4), not(CONFIG_MACH_STM32F7), not(CONFIG_MACH_STM32G0), not(CONFIG_MACH_STM32G4), CONFIG_MACH_STM32H7))]
+const PWM_REGS_18: &[GpioPwmInfo] = &[
+    p(TIM1, 'A', 8, 1, 1),
+    p(TIM1, 'E', 9, 1, 1),
+    p(TIM1, 'A', 9, 2, 1),
+    p(TIM1, 'E', 11, 2, 1),
+    p(TIM1, 'A', 10, 3, 1),
+    p(TIM1, 'E', 13, 3, 1),
+    p(TIM1, 'A', 11, 4, 1),
+    p(TIM1, 'E', 14, 4, 1),
+    p(TIM2, 'A', 0, 1, 1),
+    p(TIM2, 'A', 5, 1, 1),
+    p(TIM2, 'A', 15, 1, 1),
+    p(TIM2, 'B', 3, 2, 1),
+    p(TIM2, 'A', 1, 2, 1),
+    p(TIM2, 'B', 10, 3, 1),
+    p(TIM2, 'A', 2, 3, 1),
+    p(TIM2, 'A', 3, 4, 1),
+    p(TIM2, 'B', 11, 4, 1),
+    p(TIM3, 'C', 6, 1, 2),
+    p(TIM3, 'B', 4, 1, 2),
+    p(TIM3, 'A', 6, 1, 2),
+    p(TIM3, 'C', 7, 2, 2),
+    p(TIM3, 'B', 5, 2, 2),
+    p(TIM3, 'A', 7, 2, 2),
+    p(TIM3, 'C', 8, 3, 2),
+    p(TIM3, 'B', 0, 3, 2),
+    p(TIM3, 'B', 1, 4, 2),
+    p(TIM3, 'C', 9, 4, 2),
+    p(TIM4, 'D', 12, 1, 2),
+    p(TIM4, 'B', 6, 1, 2),
+    p(TIM4, 'D', 13, 2, 2),
+    p(TIM4, 'B', 7, 2, 2),
+    p(TIM4, 'D', 14, 3, 2),
+    p(TIM4, 'B', 8, 3, 2),
+    p(TIM4, 'B', 9, 4, 2),
+    p(TIM4, 'D', 15, 4, 2),
+    p(TIM5, 'H', 10, 1, 2),
+    p(TIM5, 'A', 0, 1, 2),
+    p(TIM5, 'H', 11, 2, 2),
+    p(TIM5, 'A', 1, 2, 2),
+    p(TIM5, 'H', 12, 3, 2),
+    p(TIM5, 'A', 2, 3, 2),
+    p(TIM5, 'A', 3, 4, 2),
+    p(TIM8, 'C', 6, 1, 3),
+    p(TIM8, 'C', 7, 2, 3),
+    p(TIM8, 'C', 8, 3, 3),
+    p(TIM8, 'C', 9, 4, 3),
+    p(TIM12, 'H', 6, 1, 2),
+    p(TIM12, 'B', 14, 1, 2),
+    p(TIM12, 'H', 9, 2, 2),
+    p(TIM12, 'B', 15, 2, 2),
+    p(TIM13, 'F', 8, 1, 9),
+    p(TIM13, 'A', 6, 1, 9),
+    p(TIM14, 'F', 9, 1, 9),
+    p(TIM14, 'A', 7, 1, 9),
+    p(TIM15, 'C', 12, 1, 2),
+    p(TIM15, 'E', 5, 1, 4),
+    p(TIM15, 'A', 2, 1, 4),
+    p(TIM15, 'A', 3, 2, 4),
+    p(TIM15, 'E', 6, 2, 4),
+    p(TIM16, 'F', 6, 1, 1),
+    p(TIM16, 'B', 8, 1, 1),
+    p(TIM17, 'F', 7, 1, 1),
+    p(TIM17, 'B', 9, 1, 1),
+];
+#[cfg(not(all(not(CONFIG_MACH_STM32F0), not(CONFIG_MACH_STM32F1), not(CONFIG_MACH_STM32F4), not(CONFIG_MACH_STM32F7), not(CONFIG_MACH_STM32G0), not(CONFIG_MACH_STM32G4), CONFIG_MACH_STM32H7)))]
+const PWM_REGS_18: &[GpioPwmInfo] = &[];
+const PWM_REGS_PARTS: &[&[GpioPwmInfo]] = &[PWM_REGS_0, PWM_REGS_1, PWM_REGS_2, PWM_REGS_3, PWM_REGS_4, PWM_REGS_5, PWM_REGS_6, PWM_REGS_7, PWM_REGS_8, PWM_REGS_9, PWM_REGS_10, PWM_REGS_11, PWM_REGS_12, PWM_REGS_13, PWM_REGS_14, PWM_REGS_15, PWM_REGS_16, PWM_REGS_17, PWM_REGS_18];
 static PWM_REGS: [GpioPwmInfo; concat_len(PWM_REGS_PARTS)] = concat(PWM_REGS_PARTS);
 
 fn gpio_timer_setup(pin: u8, cycle_time: u32, val: u32, is_clock_out: bool) -> R<GpioPwm> {
