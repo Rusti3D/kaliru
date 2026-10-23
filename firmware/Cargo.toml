@@ -1,0 +1,27 @@
+[package]
+name = "kaliru-mcu"
+version = "0.1.0"
+edition = "2021"
+description = "Kalico's micro-controller firmware ported to Rust"
+license = "GPL-3.0-only"
+build = "build/main.rs"
+
+[[bin]]
+name = "kaliru-mcu"
+path = "src/main.rs"
+
+[features]
+default = ["linux"]
+# the micro-controller code running as a Linux process (src/linux of Kalico)
+linux = ["dep:libc"]
+
+[dependencies]
+libc = { version = "0.2", optional = true }
+
+[build-dependencies]
+flate2 = { version = "1", default-features = false, features = ["zlib"] }
+
+[profile.release]
+opt-level = 2
+codegen-units = 1
+panic = "abort"
