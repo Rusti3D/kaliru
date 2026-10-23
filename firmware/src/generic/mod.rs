@@ -11,7 +11,13 @@ pub mod armcm_reset;
 pub mod armcm_timer;
 #[cfg(CONFIG_MACH_STM32)]
 pub mod cmsis;
+#[cfg(CONFIG_CANSERIAL)]
+pub mod canbus;
+#[cfg(CONFIG_CANSERIAL)]
+pub mod canserial;
 pub mod crc16_ccitt;
+#[cfg(CONFIG_CANSERIAL)]
+pub mod fasthash;
 #[cfg(CONFIG_SERIAL)]
 pub mod serial_irq;
 #[cfg(CONFIG_USBSERIAL)]

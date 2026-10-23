@@ -36,8 +36,14 @@ pub use serial::serial_enable_tx_irq;
 pub mod usbfs;
 #[cfg(all(CONFIG_USBSERIAL, CONFIG_HAVE_STM32_USBOTG))]
 pub mod usbotg;
-#[cfg(CONFIG_USBSERIAL)]
+#[cfg(any(CONFIG_USBSERIAL, CONFIG_CANSERIAL))]
 pub mod chipid;
+#[cfg(CONFIG_CANSERIAL)]
+pub mod can;
+#[cfg(CONFIG_CANSERIAL)]
+pub use can::{canhw_get_status, canhw_send, canhw_set_filter};
+#[cfg(CONFIG_CANSERIAL)]
+pub use crate::generic::canserial::console_sendf;
 #[cfg(CONFIG_WANT_HARD_PWM)]
 pub mod hard_pwm;
 #[cfg(CONFIG_HAVE_GPIO_SDIO)]
