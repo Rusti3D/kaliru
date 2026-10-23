@@ -1088,7 +1088,7 @@ impl PrinterObject for PrinterProbe {
 // ----------------------------------------------------------------------
 
 #[derive(Clone, Copy, PartialEq)]
-enum Multi {
+pub enum Multi {
     Off,
     First,
     On,

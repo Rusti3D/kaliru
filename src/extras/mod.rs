@@ -28,6 +28,7 @@ pub mod danger_options;
 pub mod delta_calibrate;
 pub mod display_status;
 pub mod display_templates;
+pub mod dockable_probe;
 pub mod dotstar;
 pub mod ds18b20;
 pub mod duplicate_pin_override;
@@ -150,7 +151,7 @@ pub static MODULES: &[PrinterModule] = &[
     PrinterModule { name: "delta_calibrate", ported: true, load_config: Some(delta_calibrate::load_config), load_config_prefix: None, register_components: None },
     todo("display"),
     PrinterModule { name: "display_status", ported: true, load_config: Some(display_status::load_config), load_config_prefix: None, register_components: None },
-    todo("dockable_probe"),
+    PrinterModule { name: "dockable_probe", ported: true, load_config: Some(dockable_probe::load_config), load_config_prefix: None, register_components: None },
     PrinterModule { name: "dotstar", ported: true, load_config: None, load_config_prefix: Some(dotstar::load_config_prefix), register_components: None },
     PrinterModule { name: "ds18b20", ported: true, load_config: Some(ds18b20::load_config), load_config_prefix: None, register_components: None },
     PrinterModule { name: "duplicate_pin_override", ported: true, load_config: Some(duplicate_pin_override::load_config), load_config_prefix: Some(duplicate_pin_override::load_config_prefix), register_components: None },

@@ -270,6 +270,11 @@ impl ConfigWrapper {
         &self.section
     }
 
+    /// config.fileconfig.has_option(config.section, option)
+    pub fn fileconfig_has_option(&self, option: &str) -> bool {
+        self.fileconfig.borrow().has_option(&self.section, option)
+    }
+
     fn get_wrapper(
         &self,
         parser: impl FnOnce(&RawConfigParser) -> std::result::Result<PyVal, ParseErr>,
