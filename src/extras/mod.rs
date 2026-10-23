@@ -83,6 +83,7 @@ pub mod mpc_block_temperature;
 pub mod mpu9250;
 pub mod multi_pin;
 pub mod neopixel;
+pub mod nozzle_cleanup;
 pub mod output_pin;
 pub mod pause_resume;
 pub mod pca9533;
@@ -107,6 +108,7 @@ pub mod servo;
 pub mod shaper_defs;
 pub mod sht3x;
 pub mod skew_correction;
+pub mod smart_effector;
 pub mod spi_temperature;
 pub mod static_digital_output;
 pub mod static_pwm_clock;
@@ -131,6 +133,7 @@ pub mod tmc5262;
 pub mod tmc_tables;
 pub mod tmc_uart;
 pub mod trad_rack;
+pub mod tsl1401cl_filament_width_sensor;
 pub mod tuning_tower;
 pub mod verify_heater;
 pub mod virtual_sdcard;
@@ -225,7 +228,7 @@ pub static MODULES: &[PrinterModule] = &[
     PrinterModule { name: "mpu9250", ported: true, load_config: Some(mpu9250::load_config), load_config_prefix: Some(mpu9250::load_config_prefix), register_components: None },
     PrinterModule { name: "multi_pin", ported: true, load_config: None, load_config_prefix: Some(multi_pin::load_config_prefix), register_components: None },
     PrinterModule { name: "neopixel", ported: true, load_config: None, load_config_prefix: Some(neopixel::load_config_prefix), register_components: None },
-    todo("nozzle_cleanup"),
+    PrinterModule { name: "nozzle_cleanup", ported: true, load_config: Some(nozzle_cleanup::load_config), load_config_prefix: None, register_components: None },
     PrinterModule { name: "output_pin", ported: true, load_config: None, load_config_prefix: Some(output_pin::load_config_prefix), register_components: None },
     todo("palette2"),
     PrinterModule { name: "pause_resume", ported: true, load_config: Some(pause_resume::load_config), load_config_prefix: None, register_components: None },
@@ -254,7 +257,7 @@ pub static MODULES: &[PrinterModule] = &[
     PrinterModule { name: "shaper_defs", ported: true, load_config: None, load_config_prefix: None, register_components: None },
     PrinterModule { name: "sht3x", ported: true, load_config: Some(sht3x::load_config), load_config_prefix: None, register_components: None },
     PrinterModule { name: "skew_correction", ported: true, load_config: Some(skew_correction::load_config), load_config_prefix: None, register_components: None },
-    todo("smart_effector"),
+    PrinterModule { name: "smart_effector", ported: true, load_config: Some(smart_effector::load_config), load_config_prefix: None, register_components: None },
     PrinterModule { name: "spi_temperature", ported: true, load_config: Some(spi_temperature::load_config), load_config_prefix: None, register_components: None },
     PrinterModule { name: "static_digital_output", ported: true, load_config: None, load_config_prefix: Some(static_digital_output::load_config_prefix), register_components: None },
     PrinterModule { name: "static_pwm_clock", ported: true, load_config: None, load_config_prefix: Some(static_pwm_clock::load_config_prefix), register_components: None },
@@ -279,7 +282,7 @@ pub static MODULES: &[PrinterModule] = &[
     PrinterModule { name: "tmc_uart", ported: true, load_config: None, load_config_prefix: None, register_components: None },
     todo("tools_calibrate"),
     PrinterModule { name: "trad_rack", ported: true, load_config: Some(trad_rack::load_config), load_config_prefix: None, register_components: None },
-    todo("tsl1401cl_filament_width_sensor"),
+    PrinterModule { name: "tsl1401cl_filament_width_sensor", ported: true, load_config: Some(tsl1401cl_filament_width_sensor::load_config), load_config_prefix: None, register_components: None },
     PrinterModule { name: "tuning_tower", ported: true, load_config: Some(tuning_tower::load_config), load_config_prefix: None, register_components: None },
     PrinterModule { name: "verify_heater", ported: true, load_config: None, load_config_prefix: Some(verify_heater::load_config_prefix), register_components: None },
     PrinterModule { name: "virtual_sdcard", ported: true, load_config: Some(virtual_sdcard::load_config), load_config_prefix: None, register_components: None },

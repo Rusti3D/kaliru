@@ -552,7 +552,7 @@ pub struct PrinterProbe {
     retry_session: RetrySession,
     z_position: f64,
     pub sample_count: i64,
-    sample_retract_dist: f64,
+    pub sample_retract_dist: f64,
     pub samples_result: String,
     pub samples_tolerance: f64,
     pub samples_retries: i64,
