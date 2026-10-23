@@ -27,6 +27,7 @@ pub mod control_mpc;
 pub mod controller_fan;
 pub mod danger_options;
 pub mod delta_calibrate;
+pub mod display;
 pub mod display_status;
 pub mod display_templates;
 pub mod dockable_probe;
@@ -155,7 +156,7 @@ pub static MODULES: &[PrinterModule] = &[
     PrinterModule { name: "danger_options", ported: true, load_config: Some(danger_options::load_config), load_config_prefix: None, register_components: None },
     todo("delayed_gcode"),
     PrinterModule { name: "delta_calibrate", ported: true, load_config: Some(delta_calibrate::load_config), load_config_prefix: None, register_components: None },
-    todo("display"),
+    PrinterModule { name: "display", ported: true, load_config: Some(display::load_config), load_config_prefix: Some(display::load_config_prefix), register_components: None },
     PrinterModule { name: "display_status", ported: true, load_config: Some(display_status::load_config), load_config_prefix: None, register_components: None },
     PrinterModule { name: "dockable_probe", ported: true, load_config: Some(dockable_probe::load_config), load_config_prefix: None, register_components: None },
     PrinterModule { name: "dotstar", ported: true, load_config: None, load_config_prefix: Some(dotstar::load_config_prefix), register_components: None },

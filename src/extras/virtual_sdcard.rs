@@ -94,8 +94,8 @@ const CMD_SDCARD_PRINT_FILE_HELP: &str = "Loads a SD file and starts the print. 
 pub struct VirtualSD {
     me: Weak<VirtualSD>,
     printer: Rc<Printer>,
-    with_subdirs: bool,
-    sdcard_dirname: String,
+    pub with_subdirs: bool,
+    pub sdcard_dirname: String,
     current_file: RefCell<Option<TextFile>>,
     file_position: Cell<u64>,
     file_size: Cell<u64>,
@@ -217,7 +217,7 @@ impl VirtualSD {
         ));
     }
 
-    fn get_file_list(&self, check_subdirs: bool) -> KResult<Vec<(String, u64)>> {
+    pub fn get_file_list(&self, check_subdirs: bool) -> KResult<Vec<(String, u64)>> {
         if check_subdirs {
             let mut flist = vec![];
             walk(&self.sdcard_dirname, &mut |root, name| {
