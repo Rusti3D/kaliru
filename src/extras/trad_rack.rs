@@ -65,7 +65,7 @@ fn not_homed_error(msg: impl Into<String>) -> KError {
 }
 
 fn is_class(e: &KError, class: &str) -> bool {
-    matches!(e, KError::CommandSub(c, _) if *c == class)
+    matches!(e.base(), KError::CommandSub(c, _) if *c == class)
 }
 
 /// str() of an optional int (python's None / 3)
@@ -2365,7 +2365,15 @@ fn new_tr_toolhead(
     let limits = ToolHeadLimits { max_velocity, max_accel, min_cruise_ratio, square_corner_velocity };
     let kin_slot: RefCell<Option<Rc<TradRackKinematics>>> = RefCell::new(None);
     let th = ToolHead::new_with(config, limits, &|th| {
-        let kin = TradRackKinematics::new(th, config, (sel_max_velocity, sel_max_accel), (fil_max_velocity, fil_max_accel), is_extruder_synced.clone())?;
+        let kin = match TradRackKinematics::new(th, config, (sel_max_velocity, sel_max_accel), (fil_max_velocity, fil_max_accel), is_extruder_synced.clone()) {
+            Ok(kin) => kin,
+            Err(e) if matches!(e.base(), KError::Config(_) | KError::Pins(_)) => return Err(e),
+            Err(e) => {
+                let msg = "Error loading kinematics 'trad_rack'";
+                logging::exception_err(msg, &e);
+                return Err(KError::config(msg).with_context(e));
+            }
+        };
         *kin_slot.borrow_mut() = Some(kin.clone());
         Ok(kin)
     })?;

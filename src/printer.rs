@@ -412,12 +412,12 @@ impl Printer {
         match res {
             Ok(true) => {}
             Ok(false) => return,
-            Err(e @ (KError::Config(_) | KError::Pins(_))) => {
+            Err(e) if matches!(e.base(), KError::Config(_) | KError::Pins(_)) => {
                 logging::exception_err("Config error", &e);
                 self.set_state(&format!("{}\n{}", e, MESSAGE_RESTART));
                 return;
             }
-            Err(e @ (KError::Protocol(_) | KError::Enumeration { .. } | KError::Mcu(_))) => {
+            Err(e) if matches!(e.base(), KError::Protocol(_) | KError::Enumeration { .. } | KError::Mcu(_)) => {
                 let msg = if e.is_protocol_error() { "Protocol error" } else { "MCU error during connect" };
                 logging::exception_err(msg, &e);
                 self.set_state(msg);

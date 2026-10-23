@@ -1,0 +1,9 @@
+SHOULD_FAIL
+DICTIONARY stm32f407.dict
+
+CONFIG parse_float.cfg
+CONFIG parse_int.cfg
+CONFIG parse_bool.cfg
+CONFIG parse_intlist.cfg
+CONFIG parse_floatlist.cfg
+G4 P100

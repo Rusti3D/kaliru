@@ -1,0 +1,11 @@
+SHOULD_FAIL
+DICTIONARY stm32f407.dict
+
+CONFIG chain_kin.cfg
+CONFIG chain_kin_dotted.cfg
+CONFIG chain_literal.cfg
+CONFIG chain_literal_val.cfg
+CONFIG chain_template.cfg
+CONFIG chain_pin.cfg
+CONFIG chain_adctemp.cfg
+G4 P100

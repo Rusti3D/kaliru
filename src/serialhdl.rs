@@ -840,6 +840,47 @@ impl Uart {
         unsafe { libc::write(self.fd, data.as_ptr() as *const libc::c_void, data.len()) };
     }
 
+    /// pyserial read(n) with timeout=0, raising like it: a readable port
+    /// that returns no data is a disconnected device
+    pub fn read_checked(&self, n: usize) -> Result<Vec<u8>, String> {
+        let mut pfd = libc::pollfd { fd: self.fd, events: libc::POLLIN, revents: 0 };
+        if unsafe { libc::poll(&mut pfd, 1, 0) } <= 0 {
+            return Ok(vec![]);
+        }
+        let mut buf = vec![0u8; n];
+        let r = unsafe { libc::read(self.fd, buf.as_mut_ptr() as *mut libc::c_void, n) };
+        if r == 0 {
+            return Err("device reports readiness to read but returned no data (device disconnected or multiple access on port?)".into());
+        }
+        if r < 0 {
+            let e = std::io::Error::last_os_error();
+            return match e.raw_os_error() {
+                // EWOULDBLOCK is EAGAIN on linux
+                Some(libc::EAGAIN) | Some(libc::EALREADY) | Some(libc::EINPROGRESS) | Some(libc::EINTR) => Ok(vec![]),
+                _ => Err(format!("read failed: {}", e)),
+            };
+        }
+        buf.truncate(r as usize);
+        Ok(buf)
+    }
+
+    /// pyserial write(data) with write_timeout=0: anything not written at
+    /// once is a write timeout
+    pub fn write_checked(&self, data: &[u8]) -> Result<(), String> {
+        let r = unsafe { libc::write(self.fd, data.as_ptr() as *const libc::c_void, data.len()) };
+        if r < 0 {
+            let e = std::io::Error::last_os_error();
+            if e.raw_os_error() != Some(libc::EAGAIN) {
+                return Err(format!("write failed: {}", e));
+            }
+        }
+        if r < data.len() as isize {
+            return Err("Write timeout".into());
+        }
+        Ok(())
+    }
+
+
     pub fn into_fd(self) -> RawFd {
         let fd = self.fd;
         std::mem::forget(self);

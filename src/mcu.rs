@@ -1632,10 +1632,10 @@ impl Mcu {
         let path_type_error = || KError::Other("expected str, bytes or os.PathLike object, not NoneType".into());
         let out_fname = out_fname.ok_or_else(path_type_error)?;
         let outfile = std::fs::File::create(&out_fname)
-            .map_err(|e| KError::Other(crate::pyfmt::py_oserror(&e, &out_fname)))?;
+            .map_err(|e| KError::os(&e, &out_fname))?;
         let dict_fname = dict_fname.ok_or_else(path_type_error)?;
         let dict_data =
-            std::fs::read(&dict_fname).map_err(|e| KError::Other(crate::pyfmt::py_oserror(&e, &dict_fname)))?;
+            std::fs::read(&dict_fname).map_err(|e| KError::os(&e, &dict_fname))?;
         use std::os::fd::IntoRawFd;
         self.serial.connect_file(SerialDev { fd: outfile.into_raw_fd() }, &dict_data)?;
         self.clocksync.connect_file(&self.serial, false)
@@ -1936,9 +1936,14 @@ impl Mcu {
             Ok(())
         })();
         match res {
-            Err(KError::Enumeration { enum_name, value, .. }) if enum_name == "pin" => {
+            Err(e @ KError::Enumeration { .. }) => {
+                let KError::Enumeration { enum_name, value, .. } = &e else { unreachable!() };
+                if enum_name != "pin" {
+                    return Err(e);
+                }
                 // Raise pin name errors as a config error (not a protocol error)
-                Err(KError::config(format!("Pin '{}' is not a valid pin name on mcu '{}'", value, self.name)))
+                let msg = format!("Pin '{}' is not a valid pin name on mcu '{}'", value, self.name);
+                Err(KError::config(msg).with_context(e))
             }
             r => r,
         }

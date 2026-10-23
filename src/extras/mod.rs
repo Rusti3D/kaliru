@@ -90,6 +90,7 @@ pub mod multi_pin;
 pub mod neopixel;
 pub mod nozzle_cleanup;
 pub mod output_pin;
+pub mod palette2;
 pub mod pause_resume;
 pub mod pca9533;
 pub mod pca9632;
@@ -238,7 +239,7 @@ pub static MODULES: &[PrinterModule] = &[
     PrinterModule { name: "neopixel", ported: true, load_config: None, load_config_prefix: Some(neopixel::load_config_prefix), register_components: None },
     PrinterModule { name: "nozzle_cleanup", ported: true, load_config: Some(nozzle_cleanup::load_config), load_config_prefix: None, register_components: None },
     PrinterModule { name: "output_pin", ported: true, load_config: None, load_config_prefix: Some(output_pin::load_config_prefix), register_components: None },
-    todo("palette2"),
+    PrinterModule { name: "palette2", ported: true, load_config: Some(palette2::load_config), load_config_prefix: None, register_components: None },
     PrinterModule { name: "pause_resume", ported: true, load_config: Some(pause_resume::load_config), load_config_prefix: None, register_components: None },
     PrinterModule { name: "pca9533", ported: true, load_config: None, load_config_prefix: Some(pca9533::load_config_prefix), register_components: None },
     PrinterModule { name: "pca9632", ported: true, load_config: None, load_config_prefix: Some(pca9632::load_config_prefix), register_components: None },

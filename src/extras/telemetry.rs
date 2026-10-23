@@ -129,7 +129,7 @@ impl KalicoTelemetry {
         let data = self.collect_telemetry()?;
         let text = json_indent(&data, 2, 0);
         std::fs::write(&filename, text)
-            .map_err(|e| KError::Other(crate::pyfmt::py_oserror(&e, &filename.to_string_lossy())))?;
+            .map_err(|e| KError::os(&e, &filename.to_string_lossy()))?;
         gcmd.respond_info(&format!("Example telemetry saved to {}", filename.display()), true);
         Ok(())
     }
@@ -141,7 +141,7 @@ impl KalicoTelemetry {
         let read = |p: &Path| {
             std::fs::read_to_string(p)
                 .map(|s| crate::pyfmt::py_strip(&s).to_string())
-                .map_err(|e| KError::Other(crate::pyfmt::py_oserror(&e, &p.to_string_lossy())))
+                .map_err(|e| KError::os(&e, &p.to_string_lossy()))
         };
         if machine_id.exists() {
             return read(machine_id);
@@ -151,7 +151,7 @@ impl KalicoTelemetry {
         }
         let generated_id = format!("kalico-{}", uuid4());
         std::fs::write(&kalico_machine_id, &generated_id)
-            .map_err(|e| KError::Other(crate::pyfmt::py_oserror(&e, &kalico_machine_id.to_string_lossy())))?;
+            .map_err(|e| KError::os(&e, &kalico_machine_id.to_string_lossy()))?;
         Ok(generated_id)
     }
 

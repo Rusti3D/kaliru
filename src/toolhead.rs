@@ -398,10 +398,13 @@ impl ToolHead {
                     return Err(KError::config(format!("{} (not ported to Kaliru yet)", msg)));
                 }
                 None => {
-                    // ModuleNotFoundError from importlib
+                    // ModuleNotFoundError from importlib (of the first missing
+                    // dotted component)
+                    let module = format!("klippy.kinematics.{}", kin_name.split('.').next().unwrap_or(""));
+                    let cause = KError::Py("ModuleNotFoundError".into(), format!("No module named {}", crate::pyfmt::py_str_repr(&module)));
                     let msg = format!("Error loading kinematics '{}'", kin_name);
-                    logging::exception(&msg);
-                    return Err(KError::config(msg));
+                    logging::exception_err(&msg, &cause);
+                    return Err(KError::config(msg).with_context(cause));
                 }
             };
             if config.has_section("dual_carriage") && !kin.supports_dual_carriage() {

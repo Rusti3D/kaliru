@@ -81,18 +81,42 @@ pub fn exception(msg: &str) {
 /// python frames: one placeholder frame line is written (refdiff masks the
 /// frame lines of both).
 pub fn exception_tb(msg: &str, cls: &str, emsg: &str) {
+    log(ERROR, &format!("{}\n{}", msg, traceback(cls, emsg)))
+}
+
+fn traceback(cls: &str, emsg: &str) -> String {
+    // a SyntaxError's last line is its msg: the " (file, line N)" of str(e)
+    // is shown as frame lines instead
+    let mut emsg = emsg;
+    if matches!(cls, "SyntaxError" | "IndentationError" | "TabError") && emsg.ends_with(')') {
+        if let Some(i) = emsg.rfind(" (") {
+            if emsg[i..].contains(", line ") {
+                emsg = &emsg[..i];
+            }
+        }
+    }
     let last = if emsg.is_empty() { cls.to_string() } else { format!("{}: {}", cls, emsg) };
-    log(ERROR, &format!("{}\nTraceback (most recent call last):\n  File \"<kaliru>\"\n{}", msg, last))
+    format!("Traceback (most recent call last):\n  File \"<kaliru>\"\n{}", last)
+}
+
+/// traceback.format_exception() of `e`, its __context__ chain first
+fn format_exception(e: &crate::error::KError) -> String {
+    match e {
+        crate::error::KError::Chained(err, context) => format!(
+            "{}\n\nDuring handling of the above exception, another exception occurred:\n\n{}",
+            format_exception(context),
+            format_exception(err)
+        ),
+        e => traceback(e.py_class(), &e.to_string()),
+    }
 }
 
 /// logging.exception(msg) while handling `e`
 pub fn exception_err(msg: &str, e: &crate::error::KError) {
-    exception_tb(msg, e.py_class(), &e.to_string())
+    log(ERROR, &format!("{}\n{}", msg, format_exception(e)))
 }
 
 /// logging.warning(msg, exc_info=True) while handling `e`
 pub fn warning_err(msg: &str, e: &crate::error::KError) {
-    let (cls, emsg) = (e.py_class(), e.to_string());
-    let last = if emsg.is_empty() { cls.to_string() } else { format!("{}: {}", cls, emsg) };
-    log(WARNING, &format!("{}\nTraceback (most recent call last):\n  File \"<kaliru>\"\n{}", msg, last))
+    log(WARNING, &format!("{}\n{}", msg, format_exception(e)))
 }

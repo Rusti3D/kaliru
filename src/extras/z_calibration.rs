@@ -497,18 +497,24 @@ fn get_xy(config: &ConfigWrapper, name: &str, optional: bool) -> KResult<Option<
 
 fn parse_xy(config: &ConfigWrapper, name: &str, site: &str) -> KResult<Site> {
     let parts: Vec<&str> = site.split(',').collect();
-    if let [x, y] = parts[..] {
-        if let (Some(x), Some(y)) = (py_float(x), py_float(y)) {
-            return Ok(vec![Some(x), Some(y), None]);
-        }
-    }
-    Err(KError::config(format!("Unable to parse {} in {}", name, config.get_name())))
+    let cause = match crate::pyfmt::py_unpack_error(2, parts.len()) {
+        Some(e) => e,
+        None => match (py_float(parts[0]), py_float(parts[1])) {
+            (Some(x), Some(y)) => return Ok(vec![Some(x), Some(y), None]),
+            (None, _) => crate::pyfmt::py_float_error(parts[0]),
+            (_, None) => crate::pyfmt::py_float_error(parts[1]),
+        },
+    };
+    Err(KError::config(format!("Unable to parse {} in {}", name, config.get_name())).with_context(KError::Py("ValueError".into(), cause)))
 }
 
 fn get_offset_margins(config: &ConfigWrapper, name: &str, default: &str) -> KResult<Vec<f64>> {
-    let err = || KError::config(format!("Unable to parse {} in {}", name, config.get_name()));
-    let raw = config.get(name, default).map_err(|_| err())?;
-    let mut margins = raw.split(',').map(py_float).collect::<Option<Vec<f64>>>().ok_or_else(err)?;
+    let err = |cause: KError| KError::config(format!("Unable to parse {} in {}", name, config.get_name())).with_context(cause);
+    let raw = config.get(name, default).map_err(|e| err(e.into()))?;
+    let mut margins = vec![];
+    for val in raw.split(',') {
+        margins.push(py_float(val).ok_or_else(|| err(KError::Py("ValueError".into(), crate::pyfmt::py_float_error(val))))?);
+    }
     if margins.len() == 1 {
         let val = margins[0].abs();
         margins[0] = -val;

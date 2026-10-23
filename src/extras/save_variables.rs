@@ -38,13 +38,13 @@ impl SaveVariables {
         let s = Rc::new(SaveVariables { filename, all_variables: RefCell::new(IndexMap::new()) });
         let r = (|| -> KResult<()> {
             if !std::path::Path::new(&s.filename).exists() {
-                std::fs::File::create(&s.filename).map_err(|e| KError::Other(e.to_string()))?;
+                std::fs::File::create(&s.filename).map_err(|e| KError::os(&e, &s.filename))?;
             }
             s.load_variables()
         })();
         if let Err(e) = r {
             if e.is_command_error() {
-                return Err(KError::config(e.message().to_string()));
+                return Err(KError::config(e.message().to_string()).with_context(e));
             }
             return Err(e);
         }

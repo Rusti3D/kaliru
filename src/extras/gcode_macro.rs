@@ -189,7 +189,7 @@ impl TemplateWrapperJinja {
                     "jinja2.exceptions.TemplateSyntaxError"
                 };
                 logging::exception_tb(&msg, cls, &e.message);
-                return Err(KError::command(msg));
+                return Err(KError::command(msg).with_context(KError::Py(cls.into(), e.message.clone())));
             }
         };
         Ok(TemplateWrapperJinja { printer: printer.clone(), name: name.to_string(), gcode, template })
@@ -403,13 +403,9 @@ impl GCodeMacro {
                 Ok(literal) => {
                     m.variables.borrow_mut().insert(option[prefix.len()..].to_string(), literal);
                 }
-                Err((_, e)) => {
-                    return Err(KError::config(format!(
-                        "Option '{}' in section '{}' is not a valid literal: {}",
-                        option,
-                        config.get_name(),
-                        e
-                    )))
+                Err((cls, e)) => {
+                    let msg = format!("Option '{}' in section '{}' is not a valid literal: {}", option, config.get_name(), e);
+                    return Err(KError::config(msg).with_context(KError::Py(cls.to_string(), e.to_string())));
                 }
             }
         }

@@ -241,7 +241,7 @@ impl LinearVoltage {
             samples.push((adc, temp));
         }
         let li = LinearInterpolate::new(&samples)
-            .map_err(|e| KError::config(format!("adc_temperature {} in heater {}", e, config.get_name())))?;
+            .map_err(|e| KError::config(format!("adc_temperature {} in heater {}", e, config.get_name())).with_context(KError::Py("ValueError".into(), e.to_string())))?;
         Ok(LinearVoltage { li })
     }
 }
@@ -290,7 +290,7 @@ impl LinearResistance {
         let inline_resistor = config.getfloat("inline_resistor", 0.0, Lim::new().min(0.0))?;
         let rt: Vec<(f64, f64)> = samples.iter().map(|&(t, r)| (r, t)).collect();
         let li = LinearInterpolate::new(&rt)
-            .map_err(|e| KError::config(format!("adc_temperature {} in heater {}", e, config.get_name())))?;
+            .map_err(|e| KError::config(format!("adc_temperature {} in heater {}", e, config.get_name())).with_context(KError::Py("ValueError".into(), e.to_string())))?;
         Ok(LinearResistance { pullup, inline_resistor, li })
     }
 }

@@ -980,6 +980,7 @@ impl Heater {
                         "Unable to parse option 'filament_temperature_source' in section '{}'",
                         config_section.get_name()
                     ))
+                    .with_context(KError::Py("ValueError".into(), crate::pyfmt::py_float_error(&temp)))
                 })?;
                 PyVal::Tuple(vec![PyVal::from(FILAMENT_TEMP_SRC_FIXED), PyVal::Float(value)])
             };

@@ -12,7 +12,7 @@
 use crate::configparser::{self, Error, Interpolation, RawConfigParser};
 use crate::logging;
 use crate::mathutil;
-use crate::pyfmt::{py_int, py_rstrip, py_strip};
+use crate::pyfmt::{py_int, py_rstrip, py_str_repr, py_strip};
 use crate::pyglob;
 use indexmap::IndexMap;
 use crate::pyval::PyVal;
@@ -233,19 +233,24 @@ pub enum ListParser {
 }
 
 // a getter's parse failure: a configparser error is re-raised as is, any
-// other exception becomes "Unable to parse option"
+// other exception (class, message) becomes "Unable to parse option"
 enum ParseErr {
     Config(Error),
-    Other,
+    Other(&'static str, String),
 }
 
 impl From<std::result::Result<Error, String>> for ParseErr {
     fn from(e: std::result::Result<Error, String>) -> Self {
         match e {
             Ok(e) => ParseErr::Config(e),
-            Err(_) => ParseErr::Other,
+            // the conversions raise ValueError
+            Err(msg) => ParseErr::Other("ValueError", msg),
         }
     }
+}
+
+fn value_error(msg: String) -> ParseErr {
+    ParseErr::Other("ValueError", msg)
 }
 
 type Deprecated = IndexMap<(String, String, Option<String>), String>;
@@ -301,8 +306,8 @@ impl ConfigWrapper {
         let v = match parser(&self.fileconfig.borrow()) {
             Ok(v) => v,
             Err(ParseErr::Config(e)) => return Err(e),
-            Err(ParseErr::Other) => {
-                return Err(error(format!("Unable to parse option '{}' in section '{}'", option, self.section)))
+            Err(ParseErr::Other(cls, msg)) => {
+                return Err(error(format!("Unable to parse option '{}' in section '{}'", option, self.section)).with_context(cls, &msg))
             }
         };
         if lim.note_valid {
@@ -629,9 +634,9 @@ fn lparser(
     for p in &parts {
         res.push(match parser {
             ListParser::Str => PyVal::Str(p.to_string()),
-            ListParser::Int => PyVal::from(py_int(p).ok_or(ParseErr::Other)?),
-            ListParser::SafeFloat => PyVal::from(mathutil::safe_float(p).map_err(|_| ParseErr::Other)?),
-            ListParser::Float => PyVal::from(crate::pyfmt::py_float(p).ok_or(ParseErr::Other)?),
+            ListParser::Int => PyVal::from(py_int(p).ok_or_else(|| value_error(format!("invalid literal for int() with base 10: {}", py_str_repr(p))))?),
+            ListParser::SafeFloat => PyVal::from(mathutil::safe_float(p).map_err(value_error)?),
+            ListParser::Float => PyVal::from(crate::pyfmt::py_float(p).ok_or_else(|| value_error(format!("could not convert string to float: {}", py_str_repr(p))))?),
         });
     }
     if let Some(count) = count {
@@ -687,12 +692,16 @@ impl PrinterConfig {
 
     fn read_config_file(&self, filename: &str) -> Result<String> {
         // open(filename, "r"): utf-8, universal newlines
-        match std::fs::read(filename).ok().and_then(|b| String::from_utf8(b).ok()) {
-            Some(data) => Ok(data.replace("\r\n", "\n").replace('\r', "\n")),
-            None => {
+        let res = match std::fs::read(filename) {
+            Ok(b) => String::from_utf8(b).map_err(|e| ("UnicodeDecodeError", crate::pyfmt::py_utf8_error(e.as_bytes(), &e.utf8_error()))),
+            Err(e) => Err((crate::pyfmt::py_oserror_class(&e), crate::pyfmt::py_oserror(&e, filename))),
+        };
+        match res {
+            Ok(data) => Ok(data.replace("\r\n", "\n").replace('\r', "\n")),
+            Err((cls, emsg)) => {
                 let msg = format!("Unable to open config file {}", filename);
-                logging::exception(&msg);
-                Err(error(msg))
+                logging::exception_tb(&msg, cls, &emsg);
+                Err(error(msg).with_context(cls, &emsg))
             }
         }
     }
@@ -1234,26 +1243,28 @@ fn render_include(data: &str, filename: &str, include_vars: &IndexMap<String, St
         }
     }
 
-    let render_err = |e: String| error(format!("Error rendering include file '{}': {}", filename, e));
+    // raised while handling the jinja2 exception (class, message)
+    let render_err = |cls: &str, e: String| error(format!("Error rendering include file '{}': {}", filename, e)).with_context(cls, &e);
+    const SYNTAX: &str = "jinja2.exceptions.TemplateSyntaxError";
     let syntax = SyntaxConfig::builder()
         .block_delimiters("{!%", "%!}")
         .variable_delimiters("{!", "!}")
         .comment_delimiters("{!#", "#!}")
         .build()
-        .map_err(|e| render_err(e.to_string()))?;
+        .map_err(|e| render_err(SYNTAX, e.to_string()))?;
     let mut env = minijinja::Environment::new();
     env.set_syntax(syntax);
     env.set_undefined_behavior(minijinja::UndefinedBehavior::Strict);
     env.set_keep_trailing_newline(true);
     // ponytail: jinja2 error texts are only reproduced for undefined names
-    let tmpl = env.template_from_str(data).map_err(|e| render_err(e.to_string()))?;
+    let tmpl = env.template_from_str(data).map_err(|e| render_err(SYNTAX, e.to_string()))?;
     let ctx = Arc::new(Ctx { vars: include_vars.clone(), missing: Mutex::new(None) });
     tmpl.render(JValue::from_dyn_object(ctx.clone())).map_err(|e| {
         if e.kind() == minijinja::ErrorKind::UndefinedError {
             if let Some(name) = ctx.missing.lock().unwrap().clone() {
-                return render_err(format!("'{}' is undefined", name));
+                return render_err("jinja2.exceptions.UndefinedError", format!("'{}' is undefined", name));
             }
         }
-        render_err(e.to_string())
+        render_err("jinja2.exceptions.TemplateError", e.to_string())
     })
 }

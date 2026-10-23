@@ -333,7 +333,7 @@ impl LoadCellGuidedCalibrationHelper {
     fn verify_no_active_calibration(&self) -> KResult<()> {
         let dummy: crate::gcode::Handler = Rc::new(|_| Ok(()));
         if let Err(e) = self.gcode.register_command("TARE", Some(dummy), false, None) {
-            if matches!(e, KError::Config(_)) {
+            if matches!(e.base(), KError::Config(_)) {
                 return Err(KError::command("Already Calibrating a Load Cell. Use ABORT to quit."));
             }
             return Err(e);

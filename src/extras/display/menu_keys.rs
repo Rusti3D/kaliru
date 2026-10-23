@@ -41,7 +41,8 @@ impl MenuKeys {
         if let Some(encoder_pins) = encoder_pins {
             let parts: Vec<&str> = encoder_pins.split(',').collect();
             let [pin1, pin2] = parts[..] else {
-                return Err(KError::config("Unable to parse encoder_pins"));
+                let cause = crate::pyfmt::py_unpack_error(2, parts.len()).unwrap_or_default();
+                return Err(KError::config("Unable to parse encoder_pins").with_context(KError::Py("ValueError".into(), cause)));
             };
             let (s1, s2) = (slot.clone(), slot.clone());
             buttons.register_rotary_encoder(

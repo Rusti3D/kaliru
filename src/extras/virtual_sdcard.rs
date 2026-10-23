@@ -253,7 +253,7 @@ impl VirtualSD {
             Err(e) => {
                 logging::exception_err(
                     "virtual_sdcard get_file_list",
-                    &KError::Other(crate::pyfmt::py_oserror(&e, dname)),
+                    &KError::os(&e, dname),
                 );
                 Err(KError::command("Unable to get file list"))
             }

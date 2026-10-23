@@ -233,6 +233,30 @@ pub fn py_int_base0(s: &str) -> Option<i64> {
     i64::from_str_radix(&clean, radix).ok().filter(|_| clean.chars().all(|c| c.is_digit(radix))).map(|v| v * sign)
 }
 
+/// Python's int(str, 16): an optional 0x prefix, then hex digits
+pub fn py_int_base16(s: &str) -> Option<i64> {
+    let t = py_strip(s);
+    let (sign, body) = match t.as_bytes().first()? {
+        b'+' => (1, &t[1..]),
+        b'-' => (-1, &t[1..]),
+        _ => (1, t),
+    };
+    let lower = body.to_ascii_lowercase();
+    let digits = match lower.strip_prefix("0x") {
+        // an underscore may follow the prefix
+        Some(d) => d.strip_prefix('_').unwrap_or(d),
+        None => lower.as_str(),
+    };
+    if digits.is_empty() || digits.starts_with('_') || digits.ends_with('_') || digits.contains("__") {
+        return None;
+    }
+    let clean: String = digits.chars().filter(|c| *c != '_').collect();
+    if !clean.chars().all(|c| c.is_ascii_hexdigit()) {
+        return None;
+    }
+    i64::from_str_radix(&clean, 16).ok().map(|v| v * sign)
+}
+
 /// Python's float(str) conversion
 pub fn py_float(s: &str) -> Option<f64> {
     let t = py_strip(s);
@@ -408,6 +432,55 @@ pub fn py_oserror(e: &std::io::Error, path: &str) -> String {
     let errno = e.raw_os_error().unwrap_or(0);
     let msg = unsafe { std::ffi::CStr::from_ptr(libc::strerror(errno)) }.to_string_lossy().into_owned();
     format!("[Errno {}] {}: {}", errno, msg, py_str_repr(path))
+}
+
+/// the OSError subclass python raises for an io failure's errno
+pub fn py_oserror_class(e: &std::io::Error) -> &'static str {
+    match e.raw_os_error().unwrap_or(0) {
+        libc::ENOENT => "FileNotFoundError",
+        libc::EACCES | libc::EPERM => "PermissionError",
+        libc::EISDIR => "IsADirectoryError",
+        libc::ENOTDIR => "NotADirectoryError",
+        libc::EEXIST => "FileExistsError",
+        libc::EINTR => "InterruptedError",
+        libc::EAGAIN | libc::EALREADY | libc::EINPROGRESS => "BlockingIOError",
+        libc::ECHILD => "ChildProcessError",
+        libc::EPIPE | libc::ESHUTDOWN => "BrokenPipeError",
+        libc::ECONNABORTED => "ConnectionAbortedError",
+        libc::ECONNREFUSED => "ConnectionRefusedError",
+        libc::ECONNRESET => "ConnectionResetError",
+        libc::ESRCH => "ProcessLookupError",
+        libc::ETIMEDOUT => "TimeoutError",
+        _ => "OSError",
+    }
+}
+
+/// str() of the UnicodeDecodeError of decoding `data` as utf-8
+pub fn py_utf8_error(data: &[u8], e: &std::str::Utf8Error) -> String {
+    let pos = e.valid_up_to();
+    let reason = match e.error_len() {
+        None => "unexpected end of data",
+        Some(_) if matches!(data[pos], 0x80..=0xC1 | 0xF5..=0xFF) => "invalid start byte",
+        Some(_) => "invalid continuation byte",
+    };
+    format!("'utf-8' codec can't decode byte 0x{:02x} in position {}: {}", data[pos], pos, reason)
+}
+
+/// the ValueError of unpacking a list of `got` items into `expected`
+/// names, None when they match
+pub fn py_unpack_error(expected: usize, got: usize) -> Option<String> {
+    if got < expected {
+        Some(format!("not enough values to unpack (expected {}, got {})", expected, got))
+    } else if got > expected {
+        Some(format!("too many values to unpack (expected {})", expected))
+    } else {
+        None
+    }
+}
+
+/// the ValueError of float(s)
+pub fn py_float_error(s: &str) -> String {
+    format!("could not convert string to float: {}", py_str_repr(s))
 }
 
 /// json.dumps() of a python float

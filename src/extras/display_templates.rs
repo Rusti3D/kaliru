@@ -50,11 +50,8 @@ impl DisplayTemplate {
                 }
                 Err((cls, msg)) => {
                     if cls == "ValueError" {
-                        return Err(KError::config(format!(
-                            "Option '{}' in section '{}' is not a valid literal",
-                            option,
-                            config.get_name()
-                        )));
+                        let e = format!("Option '{}' in section '{}' is not a valid literal", option, config.get_name());
+                        return Err(KError::config(e).with_context(KError::Py(cls.to_string(), msg.to_string())));
                     }
                     return Err(KError::Py(cls.to_string(), msg.to_string()));
                 }
@@ -94,10 +91,25 @@ impl DisplayGroup {
         let mut items = vec![];
         for c in data_configs {
             let pos = c.get("position", Dflt::Required)?;
-            let parsed: Option<Vec<i64>> = pos.split(',').map(|v| crate::pyfmt::py_int(py_strip(v))).collect();
-            match parsed.as_deref() {
-                Some([row, col]) => items.push((*row, *col, c.get_name().to_string())),
-                _ => return Err(KError::config(format!("Unable to parse 'position' in section '{}'", c.get_name()))),
+            // row, col = [int(v.strip()) for v in pos.split(",")]
+            let mut parsed = vec![];
+            let mut cause = None;
+            for v in pos.split(',') {
+                match crate::pyfmt::py_int(py_strip(v)) {
+                    Some(i) => parsed.push(i),
+                    None => {
+                        cause = Some(format!("invalid literal for int() with base 10: {}", crate::pyfmt::py_str_repr(py_strip(v))));
+                        break;
+                    }
+                }
+            }
+            let cause = cause.or_else(|| crate::pyfmt::py_unpack_error(2, parsed.len()));
+            match cause {
+                None => items.push((parsed[0], parsed[1], c.get_name().to_string())),
+                Some(cause) => {
+                    let msg = format!("Unable to parse 'position' in section '{}'", c.get_name());
+                    return Err(KError::config(msg).with_context(KError::Py("ValueError".into(), cause)));
+                }
             }
         }
         // Load all templates and store sorted by display position

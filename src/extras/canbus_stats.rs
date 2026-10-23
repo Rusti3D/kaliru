@@ -145,7 +145,7 @@ impl PrinterCANBusStats {
                 Some(Ok(p)) => p,
                 // The connection can drop while a query is in flight (e.g. a
                 // non-critical mcu disconnecting) - keep stats and retry later
-                Some(Err(e)) if matches!(e, KError::Serial(_)) || e.is_command_error() => return self.reactor.monotonic() + 1.0,
+                Some(Err(e)) if matches!(e.base(), KError::Serial(_)) || e.is_command_error() => return self.reactor.monotonic() + 1.0,
                 Some(Err(e)) => {
                     logging::exception_err("canbus_stats query", &e);
                     return self.reactor.monotonic() + 1.0;

@@ -28,14 +28,21 @@ pub enum ErrorKind {
 pub struct Error {
     pub kind: ErrorKind,
     pub message: String,
+    /// the python exception (class, message) this was raised while handling
+    pub context: Option<Box<(String, String)>>,
 }
 
 impl Error {
     pub fn new(msg: impl Into<String>) -> Self {
-        Error { kind: ErrorKind::Error, message: msg.into() }
+        Error { kind: ErrorKind::Error, message: msg.into(), context: None }
     }
     fn kind(kind: ErrorKind, message: String) -> Self {
-        Error { kind, message }
+        Error { kind, message, context: None }
+    }
+    /// raise self while handling a python exception (cls, msg)
+    pub fn with_context(mut self, cls: &str, msg: &str) -> Self {
+        self.context = Some(Box::new((cls.to_string(), msg.to_string())));
+        self
     }
     pub fn no_section(section: &str) -> Self {
         Self::kind(ErrorKind::NoSection, format!("No section: {}", py_str_repr(section)))

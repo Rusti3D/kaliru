@@ -34,11 +34,15 @@ pub enum KError {
     /// name, message), e.g. ("ValueError", "could not convert ...")
     Py(String, String),
     Other(String),
+    /// an error raised while handling another: (error, its __context__).
+    /// It behaves as the error; tracebacks print the context first
+    Chained(Box<KError>, Box<KError>),
 }
 
 impl KError {
     pub fn message(&self) -> &str {
         match self {
+            KError::Chained(e, _) => e.message(),
             KError::Config(m)
             | KError::Pins(m)
             | KError::Protocol(m)
@@ -56,7 +60,20 @@ impl KError {
 
     /// isinstance(e, gcode.CommandError)
     pub fn is_command_error(&self) -> bool {
-        matches!(self, KError::Command(_) | KError::WaitInterruption(_) | KError::CommandSub(..))
+        matches!(self.base(), KError::Command(_) | KError::WaitInterruption(_) | KError::CommandSub(..))
+    }
+
+    /// raise self while handling `context` (python's implicit __context__)
+    pub fn with_context(self, context: KError) -> KError {
+        KError::Chained(Box::new(self), Box::new(context))
+    }
+
+    /// the error itself, without the exceptions it was raised while handling
+    pub fn base(&self) -> &KError {
+        match self {
+            KError::Chained(e, _) => e.base(),
+            e => e,
+        }
     }
 
     /// the python exception class as traceback.format_exception_only()
@@ -75,12 +92,18 @@ impl KError {
             KError::Reactor(_) => "klippy.reactor.ReactorError",
             KError::Py(class, _) => class,
             KError::Other(_) => "Exception",
+            KError::Chained(e, _) => e.py_class(),
         }
     }
 
     /// isinstance(e, msgproto.error)
     pub fn is_protocol_error(&self) -> bool {
-        matches!(self, KError::Protocol(_) | KError::Enumeration { .. })
+        matches!(self.base(), KError::Protocol(_) | KError::Enumeration { .. })
+    }
+
+    /// the OSError python raises for an io failure on `path`
+    pub fn os(e: &std::io::Error, path: &str) -> Self {
+        KError::Py(crate::pyfmt::py_oserror_class(e).into(), crate::pyfmt::py_oserror(e, path))
     }
 
     pub fn config(msg: impl Into<String>) -> Self {
@@ -100,7 +123,10 @@ impl fmt::Display for KError {
 
 impl From<crate::configparser::Error> for KError {
     fn from(e: crate::configparser::Error) -> Self {
-        KError::Config(e.message)
+        match e.context {
+            Some(c) => KError::Config(e.message).with_context(KError::Py(c.0, c.1)),
+            None => KError::Config(e.message),
+        }
     }
 }
 

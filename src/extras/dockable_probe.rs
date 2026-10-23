@@ -282,7 +282,10 @@ fn parse_coord(config: &ConfigWrapper, name: &str, default: Option<Coord>) -> KR
         let x = x.trim();
         match py_float(x) {
             Some(f) => vals.push(f),
-            None => return Err(error_msg(&format!("could not convert string to float: {}", py_str_repr(x)))),
+            None => {
+                let e = format!("could not convert string to float: {}", py_str_repr(x));
+                return Err(error_msg(&e).with_context(KError::Py("ValueError".into(), e)));
+            }
         }
     }
     if !(2..=3).contains(&vals.len()) {

@@ -383,7 +383,7 @@ impl ControlAutoTune {
             })
             .collect();
         out += &data.join("\n");
-        std::fs::write(filename, out).map_err(|e| KError::Other(crate::pyfmt::py_oserror(&e, filename)))
+        std::fs::write(filename, out).map_err(|e| KError::os(&e, filename))
     }
 
     fn calc_pid(&self) -> KResult<(f64, f64, f64)> {

@@ -10,7 +10,7 @@ use crate::pyfmt::py_float;
 
 /// safe_float(v): float(v), rejecting nan and inf (python raises ValueError)
 pub fn safe_float(v: &str) -> Result<f64, String> {
-    let f = py_float(v).ok_or_else(|| format!("could not convert string to float: '{}'", v))?;
+    let f = py_float(v).ok_or_else(|| format!("could not convert string to float: {}", crate::pyfmt::py_str_repr(v)))?;
     if f.is_nan() || f.is_infinite() {
         return Err(format!("{} is not a valid float", v));
     }

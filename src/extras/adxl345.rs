@@ -228,8 +228,8 @@ impl AccelCommandHelper {
         let none: Weak<dyn AccelChip> = Weak::<ADXL345>::new();
         let h = Rc::new(AccelCommandHelper { printer: config.get_printer(), chip: RefCell::new(none), bg_client: RefCell::new(None), base_name, name: name.clone() });
         if let Err(e) = h.register_commands(Some(&name)) {
-            if matches!(e, KError::Config(_)) {
-                return Err(KError::config(format!("Accelerometer with name '{}' already defined", name)));
+            if matches!(e.base(), KError::Config(_)) {
+                return Err(KError::config(format!("Accelerometer with name '{}' already defined", name)).with_context(e));
             }
             return Err(e);
         }
