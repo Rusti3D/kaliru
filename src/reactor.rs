@@ -88,8 +88,10 @@ impl<T: Clone> ReactorCompletion<T> {
 
 pub struct ReactorFileHandler {
     pub fd: RawFd,
-    read_callback: RefCell<Box<dyn FnMut(f64)>>,
-    write_callback: RefCell<Option<Box<dyn FnMut(f64)>>>,
+    // Rc so a callback can run re-entrantly (a pause inside it lets
+    // another greenlet dispatch the same fd, as python allows)
+    read_callback: Rc<dyn Fn(f64)>,
+    write_callback: Option<Rc<dyn Fn(f64)>>,
 }
 
 pub type FileHandler = Rc<ReactorFileHandler>;
@@ -219,8 +221,8 @@ impl Reactor {
             },
             dummy_fd_hdl: Rc::new(ReactorFileHandler {
                 fd: -1,
-                read_callback: RefCell::new(Box::new(|_| {})),
-                write_callback: RefCell::new(Some(Box::new(|_| {}))),
+                read_callback: Rc::new(|_| {}),
+                write_callback: Some(Rc::new(|_| {})),
             }),
             fds: RefCell::new(IndexMap::new()),
             poll_fds: RefCell::new(IndexMap::new()),
@@ -489,11 +491,11 @@ impl Reactor {
     }
 
     // File descriptors (PollReactor)
-    pub fn register_fd(&self, fd: RawFd, read_callback: Box<dyn FnMut(f64)>, write_callback: Option<Box<dyn FnMut(f64)>>) -> FileHandler {
+    pub fn register_fd(&self, fd: RawFd, read_callback: Box<dyn Fn(f64)>, write_callback: Option<Box<dyn Fn(f64)>>) -> FileHandler {
         let file_handler = Rc::new(ReactorFileHandler {
             fd,
-            read_callback: RefCell::new(read_callback),
-            write_callback: RefCell::new(write_callback),
+            read_callback: Rc::from(read_callback),
+            write_callback: write_callback.map(Rc::from),
         });
         self.fds.borrow_mut().insert(fd, file_handler.clone());
         self.poll_fds.borrow_mut().insert(fd, libc::POLLIN | libc::POLLHUP);
@@ -524,14 +526,15 @@ impl Reactor {
         for &(fd, event) in hdls {
             let hdl = self.fds.borrow().get(&fd).cloned().unwrap_or_else(|| self.dummy_fd_hdl.clone());
             if event & self.read_mask != 0 {
-                (hdl.read_callback.borrow_mut())(eventtime);
+                let cb = hdl.read_callback.clone();
+                cb(eventtime);
                 if !same(&g_dispatch, &self.g_dispatch.borrow()) {
                     self.end_greenlet(g_dispatch.unwrap());
                     return self.monotonic();
                 }
             }
             if event & self.write_mask != 0 {
-                if let Some(cb) = hdl.write_callback.borrow_mut().as_mut() {
+                if let Some(cb) = hdl.write_callback.clone() {
                     cb(eventtime);
                 }
                 if !same(&g_dispatch, &self.g_dispatch.borrow()) {

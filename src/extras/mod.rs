@@ -12,6 +12,7 @@ pub mod adc_temperature;
 pub mod aht10;
 pub mod bed_mesh;
 pub mod bed_tilt;
+pub mod bltouch;
 pub mod bme280;
 pub mod board_pins;
 pub mod bulk_sensor;
@@ -35,6 +36,7 @@ pub mod heater_fan;
 pub mod heater_generic;
 pub mod heaters;
 pub mod homing;
+pub mod homing_override;
 pub mod htu21d;
 pub mod idle_timeout;
 pub mod lm75;
@@ -85,7 +87,7 @@ pub static MODULES: &[PrinterModule] = &[
     todo("bed_screws"),
     PrinterModule { name: "bed_tilt", ported: true, load_config: Some(bed_tilt::load_config), load_config_prefix: None, register_components: None },
     todo("belay"),
-    todo("bltouch"),
+    PrinterModule { name: "bltouch", ported: true, load_config: Some(bltouch::load_config), load_config_prefix: None, register_components: None },
     PrinterModule { name: "bme280", ported: true, load_config: Some(bme280::load_config), load_config_prefix: None, register_components: None },
     PrinterModule { name: "board_pins", ported: true, load_config: Some(board_pins::load_config), load_config_prefix: Some(board_pins::load_config_prefix), register_components: None },
     PrinterModule { name: "bulk_sensor", ported: true, load_config: None, load_config_prefix: None, register_components: None },
@@ -129,7 +131,7 @@ pub static MODULES: &[PrinterModule] = &[
     PrinterModule { name: "heaters", ported: true, load_config: Some(heaters::load_config), load_config_prefix: None, register_components: None },
     PrinterModule { name: "homing", ported: true, load_config: Some(homing::load_config), load_config_prefix: None, register_components: None },
     todo("homing_heaters"),
-    todo("homing_override"),
+    PrinterModule { name: "homing_override", ported: true, load_config: Some(homing_override::load_config), load_config_prefix: None, register_components: None },
     PrinterModule { name: "htu21d", ported: true, load_config: Some(htu21d::load_config), load_config_prefix: None, register_components: None },
     todo("icm20948"),
     PrinterModule { name: "idle_timeout", ported: true, load_config: Some(idle_timeout::load_config), load_config_prefix: None, register_components: None },
