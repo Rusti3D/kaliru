@@ -133,6 +133,8 @@ pub fn generate(requests: &[Request], eval: &Eval, versions: &Versions, kconfig:
     let mut constants: Ordered<Json> = Ordered::new();
     // HandleInitialPins
     let mut initial_pins: Vec<String> = vec![];
+    // Handle_arm_irq: irq number -> handler path
+    let mut irqs: BTreeMap<i64, (String, String)> = BTreeMap::new();
     // HandleCommandGeneration
     let mut commands: Ordered<(String, String)> = Ordered::new();
     let mut encoders: Vec<(Option<String>, String)> = vec![];
@@ -244,6 +246,16 @@ pub fn generate(requests: &[Request], eval: &Eval, versions: &Versions, kconfig:
                     set_constant(&mut constants, "INITIAL_PINS", Json::Str(initial_pins.join(",")));
                 }
                 format!("DECL_INITIAL_PINS \"{}\"", pins)
+            }
+            Decl::ArmcmIrq { func, expr } => {
+                let num = eval.eval(expr);
+                if let Some((old, _)) = irqs.get(&num) {
+                    if old != func {
+                        panic!("Conflicting IRQ definition {} (old {} new {})", num, old, func);
+                    }
+                }
+                irqs.insert(num, (func.clone(), format!("{}::{}", r.module, func)));
+                format!("DECL_ARMCM_IRQ {}{}", func, ctr_int(num))
             }
         };
         txt += &line;
@@ -441,6 +453,25 @@ pub fn generate(requests: &[Request], eval: &Eval, versions: &Versions, kconfig:
         }
     }
     code += &format!("\npub static INITIAL_PINS: [InitialPin; {}] = [\n{}];\n", pins_code.len(), pins_code.concat());
+    // the vector table (Handle_arm_irq.generate_code), when there is a
+    // ResetHandler
+    let armcm_offset = 16;
+    if irqs.contains_key(&(1 - armcm_offset)) {
+        let max_irq = *irqs.keys().max().unwrap();
+        let mut table = vec!["    Vector { handler: crate::generic::armcm_boot::DefaultHandler },\n".to_string(); (max_irq + armcm_offset + 1) as usize];
+        for (num, (func, path)) in &irqs {
+            if *num < 1 - armcm_offset {
+                panic!("Invalid IRQ {} ({})", num, func);
+            }
+            table[(num + armcm_offset) as usize] = format!("    Vector {{ handler: {} }},\n", path);
+        }
+        table[0] = "    Vector { stack: &raw const crate::generic::armcm_boot::_stack_end },\n".to_string();
+        code += &format!(
+            "\n#[unsafe(no_mangle)]\n#[unsafe(link_section = \".vector_table\")]\n#[used]\npub static VectorTable: [Vector; {}] = [\n{}];\n",
+            table.len(),
+            table.concat()
+        );
+    }
     // the identify data (HandleIdentify)
     let z = {
         use std::io::Write;

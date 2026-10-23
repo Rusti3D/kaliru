@@ -9,6 +9,7 @@ mod json;
 mod kconfig;
 mod scan;
 
+use std::collections::BTreeSet;
 use std::path::{Path, PathBuf};
 
 /// src/Makefile, src/linux/Makefile: (config option or "", source file)
@@ -66,11 +67,98 @@ fn sources(config: &kconfig::Config) -> Vec<&'static str> {
         "generic/alloc.rs",
         "linux/sensor_ds18b20.rs",
     ];
-    let mut out: Vec<&'static str> = main.iter().filter(|(c, _)| c.is_empty() || config.enabled(c)).map(|(_, f)| *f).collect();
-    if config.enabled("CONFIG_MACH_LINUX") {
+    let on = |c: &str| config.enabled(c);
+    let mut out: Vec<&'static str> = main.iter().filter(|(c, _)| c.is_empty() || on(c)).map(|(_, f)| *f).collect();
+    if on("CONFIG_MACH_LINUX") {
         out.extend(linux);
+    } else if on("CONFIG_MACH_STM32") {
+        // src/stm32/Makefile
+        if !(on("CONFIG_MACH_STM32F1") || on("CONFIG_MACH_STM32F4")) {
+            panic!("only the stm32f1 / stm32f4 boards are ported");
+        }
+        if on("CONFIG_CANSERIAL") || on("CONFIG_USBCANBUS") || on("CONFIG_HAVE_STM32_USBFS") {
+            panic!("stm32 canbus / usbfs are not ported yet");
+        }
+        // (internal.h: no requests, its GPIO() is used in theirs)
+        out.push("stm32/internal.rs");
+        out.extend(["stm32/watchdog.rs", "stm32/clockline.rs", "stm32/dfu_reboot.rs"]);
+        out.push("generic/crc16_ccitt.rs");
+        out.extend(["generic/armcm_boot.rs", "generic/armcm_irq.rs", "generic/armcm_reset.rs"]);
+        if on("CONFIG_MACH_STM32F1") {
+            out.extend(["stm32/stm32f1.rs", "stm32/system_stm32f1xx.rs"]);
+        } else {
+            out.extend(["stm32/stm32f4.rs", "stm32/system_stm32f4xx.rs"]);
+        }
+        out.push("generic/armcm_timer.rs");
+        if on("CONFIG_MACH_STM32F1") {
+            out.push("stm32/gpio.rs");
+        } else {
+            out.extend(["stm32/gpio.rs", "stm32/gpioperiph.rs"]);
+        }
+        let opt: &[(&str, &[&'static str])] = &[
+            ("CONFIG_WANT_ADC", &["stm32/adc.rs"]),
+            ("CONFIG_WANT_GPIO_SPI", &["stm32/spi.rs"]),
+            ("CONFIG_WANT_GPIO_I2C", &["stm32/i2c.rs"]),
+            ("CONFIG_SERIAL", &["stm32/serial.rs", "generic/serial_irq.rs"]),
+            ("CONFIG_USBSERIAL", &["stm32/usbotg.rs", "stm32/chipid.rs", "generic/usb_cdc.rs"]),
+            ("CONFIG_WANT_HARD_PWM", &["stm32/hard_pwm.rs"]),
+            ("CONFIG_HAVE_GPIO_SDIO", &["stm32/sdio.rs"]),
+        ];
+        for (c, files) in opt {
+            if on(c) {
+                out.extend(*files);
+            }
+        }
     } else {
-        panic!("only the linux board is ported");
+        panic!("only the linux and stm32 boards are ported");
+    }
+    out
+}
+
+/// The CMSIS device header of an stm32 build (src/stm32/chip/<mcu>.rs,
+/// made by tools/gen_stm32_regs.py): its path and the names it defines
+/// (the C `#ifdef NAME`, here `#[cfg(has_NAME)]`)
+fn stm32_chip(root: &Path, config: &kconfig::Config) -> Option<(PathBuf, BTreeSet<String>)> {
+    if !config.enabled("CONFIG_MACH_STM32") {
+        return None;
+    }
+    let mcu = config.string("CONFIG_MCU").unwrap();
+    let path = root.join("src/stm32/chip").join(format!("{}.rs", mcu));
+    let text = read(&path);
+    let names = text
+        .lines()
+        .filter_map(|l| l.strip_prefix("pub const ").and_then(|r| r.split(':').next()))
+        .map(|n| n.to_string())
+        .collect();
+    Some((path, names))
+}
+
+/// generic/armcm_link.lds.S through the C preprocessor: its `#if CONFIG_X`
+/// blocks and CONFIG_X values from the configuration
+fn armcm_link(src: &str, config: &kconfig::Config) -> String {
+    let mut out = String::new();
+    let mut skip = vec![];
+    for line in src.lines() {
+        let t = line.trim();
+        if let Some(c) = t.strip_prefix("#if ") {
+            skip.push(!config.enabled(c.trim()));
+            continue;
+        }
+        if t.starts_with("#endif") {
+            skip.pop();
+            continue;
+        }
+        if t.starts_with("#include") || t.starts_with("//") || skip.contains(&true) {
+            continue;
+        }
+        let mut l = line.to_string();
+        while let Some(i) = l.find("CONFIG_") {
+            let name: String = l[i..].chars().take_while(|c| c.is_ascii_alphanumeric() || *c == '_').collect();
+            let v = config.int(&name).unwrap_or_else(|| panic!("linker script: {}", name));
+            l = format!("{}{}{}", &l[..i], v, &l[i + name.len()..]);
+        }
+        out += &l;
+        out.push('\n');
     }
     out
 }
@@ -131,23 +219,47 @@ fn main() {
     }
     // and for the symbols the sources name that this config lacks
     // (another board's)
-    for name in config_names(&root.join("src")) {
+    for name in config_names(&root.join("src"), "CONFIG_") {
         if !config.values.contains_key(&name) {
             println!("cargo::rustc-check-cfg=cfg({})", name);
         }
     }
     std::fs::write(out.join("config.rs"), config.rust_consts()).unwrap();
 
+    // stm32: the chip header, has_NAME cfgs, the linker script
+    let chip = stm32_chip(&root, &config);
+    let chip_names = chip.as_ref().map(|c| c.1.clone()).unwrap_or_default();
+    for name in config_names(&root.join("src"), "has_") {
+        println!("cargo::rustc-check-cfg=cfg({})", name);
+        if chip_names.contains(&name["has_".len()..]) {
+            println!("cargo:rustc-cfg={}", name);
+        }
+    }
+    let has = |n: &str| config.enabled(n) || n.strip_prefix("has_").is_some_and(|c| chip_names.contains(c));
+    if let Some((path, _)) = &chip {
+        std::fs::write(out.join("chip.rs"), format!("include!({:?});\n", path.display().to_string())).unwrap();
+        let lds = armcm_link(&read(&root.join("build/armcm_link.lds.S")), &config);
+        std::fs::write(out.join("armcm_link.ld"), lds).unwrap();
+        println!("cargo:rustc-link-arg=-T{}", out.join("armcm_link.ld").display());
+        // the C link has no entry symbol either: ld then uses the start of
+        // .text, the vector table
+        println!("cargo:rustc-link-arg=--entry=_text_vectortable_start");
+    }
+
     // scan: per file, the requests come out in reverse source order (as
     // gcc emits a file's .compile_time_request section)
     let src = root.join("src");
     let files: Vec<&str> = sources(&config);
     let mut consts = scan::Consts::default();
+    if let Some((path, _)) = &chip {
+        // the register / irq number constants
+        scan::scan(&read(path), &mut consts, &has);
+    }
     let mut scanned = vec![];
     for f in &files {
         let path = src.join(f);
         let text = read(&path);
-        let s = scan::scan(&text, &mut consts, &|n| config.enabled(n));
+        let s = scan::scan(&text, &mut consts, &has);
         scanned.push((*f, s));
     }
     let mut requests = vec![];
@@ -211,20 +323,27 @@ fn parse_request(line: &str) -> commands::Request {
     commands::Request { decl, module: "crate".into() }
 }
 
-/// the CONFIG_* names in the sources under `dir`
-fn config_names(dir: &Path) -> std::collections::BTreeSet<String> {
-    let mut out = std::collections::BTreeSet::new();
+/// the names starting with `prefix` (CONFIG_*, has_*) in the sources
+/// under `dir` (the generated chip headers aside)
+fn config_names(dir: &Path, prefix: &str) -> BTreeSet<String> {
+    let mut out = BTreeSet::new();
     for e in std::fs::read_dir(dir).unwrap().flatten() {
         let p = e.path();
         if p.is_dir() {
-            out.extend(config_names(&p));
+            if !p.ends_with("chip") {
+                out.extend(config_names(&p, prefix));
+            }
         } else if p.extension().is_some_and(|x| x == "rs") {
             let text = std::fs::read_to_string(&p).unwrap();
             let mut rest = text.as_str();
-            while let Some(i) = rest.find("CONFIG_") {
+            while let Some(i) = rest.find(prefix) {
                 let name: String = rest[i..].chars().take_while(|c| c.is_ascii_alphanumeric() || *c == '_').collect();
+                // a whole word only (not the has_ of flash_x)
+                let word = i == 0 || !rest[..i].ends_with(|c: char| c.is_ascii_alphanumeric() || c == '_');
                 rest = &rest[i + name.len()..];
-                out.insert(name);
+                if word {
+                    out.insert(name);
+                }
             }
         }
     }

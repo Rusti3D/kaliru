@@ -4,7 +4,7 @@
 //
 // This file may be distributed under the terms of the GNU GPLv3 license.
 #![allow(non_upper_case_globals)]
-use crate::board::{console_receive_buffer, console_sendf, crc16_ccitt, irq_poll};
+use crate::board::{console_sendf, crc16_ccitt, irq_poll};
 use crate::ctr::{Global, COMMAND_INDEX};
 use crate::sched::{sched_is_shutdown, sched_report_shutdown, R};
 use crate::{decl_shutdown, shutdown};
@@ -106,18 +106,20 @@ impl<'a> From<&'a str> for SendArg<'a> {
 
 static NEXT_SEQUENCE: Global<u8> = Global::new(MESSAGE_DEST);
 
+// (the C `if (sizeof(size_t) > sizeof(uint32_t))` as a cfg: 32bit boards
+// have no console_receive_buffer())
 fn command_encode_ptr(p: *const u8) -> u32 {
-    if core::mem::size_of::<usize>() > core::mem::size_of::<u32>() {
-        return (p as usize).wrapping_sub(console_receive_buffer() as usize) as u32;
-    }
-    p as usize as u32
+    #[cfg(target_pointer_width = "64")]
+    return (p as usize).wrapping_sub(crate::board::console_receive_buffer() as usize) as u32;
+    #[cfg(not(target_pointer_width = "64"))]
+    return p as usize as u32;
 }
 
 pub fn command_decode_ptr(v: u32) -> *mut u8 {
-    if core::mem::size_of::<usize>() > core::mem::size_of::<u32>() {
-        return console_receive_buffer().wrapping_add(v as usize);
-    }
-    v as usize as *mut u8
+    #[cfg(target_pointer_width = "64")]
+    return crate::board::console_receive_buffer().wrapping_add(v as usize);
+    #[cfg(not(target_pointer_width = "64"))]
+    return v as usize as *mut u8;
 }
 
 /// the bytes of a buffer argument (length, encoded pointer)
@@ -240,7 +242,7 @@ pub fn command_parsef(buf: &[u8], mut p: usize, maxend: usize, cp: &CommandParse
 }
 
 // Encode a message
-fn command_encodef(buf: &mut [u8; MESSAGE_MAX], ce: &CommandEncoder, args: &[SendArg]) -> R<usize> {
+fn command_encodef(buf: &mut [u8], ce: &CommandEncoder, args: &[SendArg]) -> R<usize> {
     let max_size = ce.max_size as usize;
     if max_size <= MESSAGE_MIN {
         // Ack/Nak message
@@ -296,7 +298,7 @@ fn command_add_frame(buf: &mut [u8], msglen: usize) {
 }
 
 // Encode a message and then add a message block frame around it
-pub fn command_encode_and_frame(buf: &mut [u8; MESSAGE_MAX], ce: &CommandEncoder, args: &[SendArg]) -> R<usize> {
+pub fn command_encode_and_frame(buf: &mut [u8], ce: &CommandEncoder, args: &[SendArg]) -> R<usize> {
     let msglen = command_encodef(buf, ce, args)?;
     command_add_frame(buf, msglen);
     Ok(msglen)

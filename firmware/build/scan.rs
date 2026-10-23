@@ -16,6 +16,7 @@ pub enum Decl {
     Enumeration { enumeration: String, name: String, expr: String },
     EnumerationRange { enumeration: String, name: String, expr: String, count: String },
     InitialPins(String),
+    ArmcmIrq { func: String, expr: String },
 }
 
 #[derive(Default)]
@@ -40,6 +41,8 @@ const MACROS: &[&str] = &[
     "decl_enumeration",
     "decl_enumeration_range",
     "decl_initial_pins",
+    "decl_armcm_irq",
+    "armcm_enable_irq",
     "sendf",
     "output",
     "shutdown",
@@ -83,8 +86,9 @@ fn strip_comments(src: &str) -> Vec<char> {
             out.push(' ');
             i += 2;
         } else if c[i] == '\'' && c.get(i + 2) == Some(&'\'') {
-            // a char literal ('x'), not a lifetime
-            out.extend(['\'', ' ', '\'']);
+            // a char literal ('x'), not a lifetime: kept (constant
+            // expressions use them, GPIO('A', 0)) unless it is a quote
+            out.extend(['\'', if c[i + 1] == '"' { ' ' } else { c[i + 1] }, '\'']);
             i += 3;
         } else if c[i] == '\'' && c.get(i + 1) == Some(&'\\') {
             // an escaped char literal ('\n', '\'', '\x7e'): up to its quote
@@ -326,6 +330,7 @@ pub fn scan(src: &str, consts: &mut Consts, enabled: &dyn Fn(&str) -> bool) -> S
                 count: args[3].clone(),
             },
             "decl_initial_pins" => Decl::InitialPins(args[0].clone()),
+            "decl_armcm_irq" | "armcm_enable_irq" => Decl::ArmcmIrq { func: args[0].clone(), expr: args[1].clone() },
             "sendf" => Decl::Encoder(lit(0)),
             "output" => Decl::Output(lit(0)),
             _ => Decl::StaticStr(lit(0)),

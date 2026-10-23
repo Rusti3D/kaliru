@@ -10,13 +10,9 @@ build = "build/main.rs"
 name = "kaliru-mcu"
 path = "src/main.rs"
 
-[features]
-default = ["linux"]
-# the micro-controller code running as a Linux process (src/linux of Kalico)
-linux = ["dep:libc"]
-
-[dependencies]
-libc = { version = "0.2", optional = true }
+# the Linux process MCU (src/linux of Kalico) uses libc
+[target.'cfg(target_os = "linux")'.dependencies]
+libc = "0.2"
 
 [build-dependencies]
 flate2 = { version = "1", default-features = false, features = ["zlib"] }
@@ -24,4 +20,7 @@ flate2 = { version = "1", default-features = false, features = ["zlib"] }
 [profile.release]
 opt-level = 2
 codegen-units = 1
+panic = "abort"
+
+[profile.dev]
 panic = "abort"

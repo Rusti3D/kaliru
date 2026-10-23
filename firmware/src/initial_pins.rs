@@ -16,7 +16,7 @@ pub fn initial_pins_setup() -> R {
         return Ok(());
     }
     for ip in INITIAL_PINS.iter() {
-        gpio_out_setup(ip.pin as u32, ip.flags & IP_OUT_HIGH)?;
+        gpio_out_setup(ip.pin as u32, (ip.flags & IP_OUT_HIGH) as crate::board::GpioOutVal)?;
     }
     Ok(())
 }

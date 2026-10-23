@@ -55,7 +55,7 @@ fn shutdown_oid_type() -> OidType {
 pub fn command_config_spi(args: &[u32]) -> R {
     let spi = unsafe { &mut *(oid_alloc(args[0] as u8, oid_type(), size_of::<SpiDev>() as u16)? as *mut SpiDev) };
     let cs_active_high = args[2] as u8;
-    spi.pin = gpio_out_setup(args[1], (cs_active_high == 0) as u8)?;
+    spi.pin = gpio_out_setup(args[1], (cs_active_high == 0) as crate::board::GpioOutVal)?;
     spi.flags |= SF_HAVE_PIN | if cs_active_high != 0 { SF_CS_ACTIVE_HIGH } else { 0 };
     Ok(())
 }

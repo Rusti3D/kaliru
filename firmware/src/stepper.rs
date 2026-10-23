@@ -132,7 +132,8 @@ unsafe fn stepper_load_next(s: &mut Stepper) -> R<u8> {
 }
 
 // Edge optimization only enabled when fastest rate notably slower than 100ns
-const EDGE_STEP_TICKS: u32 = CONFIG_CLOCK_FREQ.div_ceil(8000000);
+// DIV_ROUND_UP(CONFIG_CLOCK_FREQ, 8000000)
+const EDGE_STEP_TICKS: u32 = (CONFIG_CLOCK_FREQ + 8000000 - 1) / 8000000;
 #[cfg(all(CONFIG_INLINE_STEPPER_HACK, CONFIG_WANT_STEPPER_OPTIMIZED_BOTH_EDGE))]
 decl_constant!("STEPPER_OPTIMIZED_EDGE", EDGE_STEP_TICKS);
 
@@ -225,7 +226,7 @@ pub fn command_config_stepper(args: &[u32]) -> R {
     } else if invert_step < 0 {
         s.flags = SF_SINGLE_SCHED;
     }
-    s.step_pin = gpio_out_setup(args[1], s.flags & SF_INVERT_STEP)?;
+    s.step_pin = gpio_out_setup(args[1], (s.flags & SF_INVERT_STEP) as crate::board::GpioOutVal)?;
     s.dir_pin = gpio_out_setup(args[2], 0)?;
     s.position = POSITION_BIAS.wrapping_neg();
     s.step_pulse_ticks = args[4];

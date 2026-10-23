@@ -376,12 +376,19 @@ pub fn sched_shutdown(reason: u8) -> Shutdown {
  ****************************************************************/
 
 // Main loop of program
-pub fn sched_main() {
+pub fn sched_main() -> ! {
     // an init function's shutdown: C longjmps before setjmp; report it
     // like any other
-    let mut res = crate::ctr::ctr_run_initfuncs().and_then(|_| sendf!("starting"));
+    let res = crate::ctr::ctr_run_initfuncs().and_then(|_| sendf!("starting"));
 
     irq_disable();
+    sched_main_loop(res)
+}
+
+// The loop of sched_main() after its setjmp: `res` is a Shutdown when
+// entered from a longjmp (a shutdown inside an irq handler on boards with
+// irqs, see generic/armcm_irq.rs)
+pub fn sched_main_loop(mut res: R) -> ! {
     loop {
         if let Err(Shutdown(reason)) = res {
             // setjmp returned from a longjmp: run the shutdown, then

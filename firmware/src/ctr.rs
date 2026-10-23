@@ -25,6 +25,47 @@ impl<T> Global<T> {
     }
 }
 
+/// an entry of the vector table that DECL_ARMCM_IRQ builds (armcm_boot.h):
+/// the initial stack pointer, then the handlers
+#[repr(C)]
+pub union Vector {
+    pub handler: unsafe extern "C" fn(),
+    pub stack: *const u32,
+}
+unsafe impl Sync for Vector {}
+
+/// a C table whose `#if` blocks add entries: the concatenation of its
+/// parts (not all empty)
+pub const fn concat<T: Copy, const N: usize>(parts: &[&[T]]) -> [T; N] {
+    let mut first = 0;
+    while parts[first].is_empty() {
+        first += 1;
+    }
+    let mut out = [parts[first][0]; N];
+    let (mut n, mut p) = (0, 0);
+    while p < parts.len() {
+        let mut i = 0;
+        while i < parts[p].len() {
+            out[n] = parts[p][i];
+            n += 1;
+            i += 1;
+        }
+        p += 1;
+    }
+    assert!(n == N);
+    out
+}
+
+/// the total length of the parts of a concat()
+pub const fn concat_len<T>(parts: &[&[T]]) -> usize {
+    let (mut n, mut p) = (0, 0);
+    while p < parts.len() {
+        n += parts[p].len();
+        p += 1;
+    }
+    n
+}
+
 /// a pin set at startup (initial_pins.h)
 pub struct InitialPin {
     pub pin: i32,
@@ -97,6 +138,19 @@ macro_rules! decl_enumeration_range {
 #[macro_export]
 macro_rules! decl_initial_pins {
     ($($t:tt)*) => {};
+}
+// Declare an IRQ handler (an entry of the generated VectorTable)
+#[macro_export]
+macro_rules! decl_armcm_irq {
+    ($($t:tt)*) => {};
+}
+// Statically declare an IRQ handler and run-time enable it
+#[macro_export]
+macro_rules! armcm_enable_irq {
+    ($func:path, $num:expr, $prio:expr) => {{
+        $crate::generic::cmsis::NVIC_SetPriority($num, $prio);
+        $crate::generic::cmsis::NVIC_EnableIRQ($num);
+    }};
 }
 
 // Declare a message type and transmit it.

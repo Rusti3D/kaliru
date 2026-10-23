@@ -114,6 +114,10 @@ fn get_chip_fd(chip_id: u8) -> R<libc::c_int> {
     Ok(fd)
 }
 
+// the value / pull_up parameter types of gpio_out_setup() / gpio_in_setup()
+pub type GpioOutVal = u8;
+pub type GpioPullUp = i8;
+
 #[derive(Clone, Copy)]
 #[repr(C)]
 pub struct GpioOut {

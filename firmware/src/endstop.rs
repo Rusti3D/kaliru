@@ -70,7 +70,7 @@ unsafe fn endstop_oversample_event(t: *mut Timer) -> R<u8> {
 
 pub fn command_config_endstop(args: &[u32]) -> R {
     let e = unsafe { &mut *(oid_alloc(args[0] as u8, oid_type(), size_of::<Endstop>() as u16)? as *mut Endstop) };
-    e.pin = gpio_in_setup(args[1], args[2] as i8)?;
+    e.pin = gpio_in_setup(args[1], args[2] as crate::board::GpioPullUp)?;
     Ok(())
 }
 decl_command!(command_config_endstop, "config_endstop oid=%c pin=%c pull_up=%c");

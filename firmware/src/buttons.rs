@@ -112,7 +112,7 @@ pub fn command_buttons_add(args: &[u32]) -> R {
     if pos >= b.button_count {
         shutdown!("Set button past maximum button count");
     }
-    *b.pin(pos as usize) = gpio_in_setup(args[2], args[3] as i8)?;
+    *b.pin(pos as usize) = gpio_in_setup(args[2], args[3] as crate::board::GpioPullUp)?;
     Ok(())
 }
 decl_command!(command_buttons_add, "buttons_add oid=%c pos=%c pin=%u pull_up=%c");

@@ -18,7 +18,7 @@ pub use analog::{gpio_adc_cancel_sample, gpio_adc_read, gpio_adc_sample, gpio_ad
 pub use console::{console_receive_buffer, console_sendf};
 pub use gpio::{
     gpio_in_read, gpio_in_reset, gpio_in_setup, gpio_out_reset, gpio_out_setup, gpio_out_toggle, gpio_out_toggle_noirq, gpio_out_write,
-    GpioIn, GpioOut,
+    GpioIn, GpioOut, GpioOutVal, GpioPullUp,
 };
 pub use hard_pwm::{gpio_pwm_setup, gpio_pwm_write, GpioPwm};
 pub use i2c::{i2c_read, i2c_setup, i2c_write, I2cConfig};

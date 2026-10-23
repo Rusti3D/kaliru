@@ -20,6 +20,10 @@ fn lex(s: &str) -> Vec<Tok> {
         let ch = c[i];
         if ch.is_whitespace() {
             i += 1;
+        } else if ch == '\'' && c.get(i + 2) == Some(&'\'') {
+            // a char literal
+            out.push(Tok::Num(c[i + 1] as i64));
+            i += 3;
         } else if ch.is_ascii_digit() {
             let mut j = i;
             while j < c.len() && (c[j].is_ascii_alphanumeric() || c[j] == '_') {

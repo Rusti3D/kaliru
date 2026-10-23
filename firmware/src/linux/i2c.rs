@@ -106,20 +106,20 @@ pub fn i2c_setup(bus: u32, _rate: u32, addr: u8) -> R<I2cConfig> {
     Ok(I2cConfig { fd, addr })
 }
 
-pub fn i2c_write(config: I2cConfig, data: &[u8]) -> i32 {
+pub fn i2c_write(config: I2cConfig, data: &[u8]) -> R<i32> {
     let mut msgs = [I2cMsg { addr: config.addr as u16, flags: 0x0, len: data.len() as u16, buf: data.as_ptr() as *mut u8 }];
     let mut i2c_data = I2cRdwrIoctlData { msgs: msgs.as_mut_ptr(), nmsgs: 1 };
 
     let ret = unsafe { libc::ioctl(config.fd, I2C_RDWR as _, &mut i2c_data) };
 
     if ret < 0 {
-        return I2C_BUS_NACK;
+        return Ok(I2C_BUS_NACK);
     }
 
-    I2C_BUS_SUCCESS
+    Ok(I2C_BUS_SUCCESS)
 }
 
-pub fn i2c_read(config: I2cConfig, reg: &[u8], data: &mut [u8]) -> i32 {
+pub fn i2c_read(config: I2cConfig, reg: &[u8], data: &mut [u8]) -> R<i32> {
     let mut msgs = [I2cMsg { addr: 0, flags: 0, len: 0, buf: core::ptr::null_mut() }; 2];
     msgs[1] = I2cMsg { addr: config.addr as u16, flags: I2C_M_RD, len: data.len() as u16, buf: data.as_mut_ptr() };
     let mut i2c_data = I2cRdwrIoctlData { msgs: core::ptr::null_mut(), nmsgs: 0 };
@@ -136,8 +136,8 @@ pub fn i2c_read(config: I2cConfig, reg: &[u8], data: &mut [u8]) -> i32 {
     let ret = unsafe { libc::ioctl(config.fd, I2C_RDWR as _, &mut i2c_data) };
 
     if ret < 0 {
-        return I2C_BUS_NACK;
+        return Ok(I2C_BUS_NACK);
     }
 
-    I2C_BUS_SUCCESS
+    Ok(I2C_BUS_SUCCESS)
 }

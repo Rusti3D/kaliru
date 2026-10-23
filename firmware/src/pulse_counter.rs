@@ -54,7 +54,7 @@ unsafe fn counter_event(timer: *mut Timer) -> R<u8> {
 
 pub fn command_config_counter(args: &[u32]) -> R {
     let c = unsafe { &mut *(oid_alloc(args[0] as u8, oid_type(), size_of::<Counter>() as u16)? as *mut Counter) };
-    c.pin = gpio_in_setup(args[1], args[2] as i8)?;
+    c.pin = gpio_in_setup(args[1], args[2] as crate::board::GpioPullUp)?;
     c.timer.func = Some(counter_event);
     Ok(())
 }

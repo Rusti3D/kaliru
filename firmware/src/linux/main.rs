@@ -138,8 +138,7 @@ pub fn main() -> i32 {
     }
 
     // Main loop
-    sched_main();
-    0
+    sched_main()
 }
 
 extern "C" {

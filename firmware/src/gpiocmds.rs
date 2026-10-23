@@ -124,7 +124,7 @@ unsafe fn digital_load_event(timer: *mut Timer) -> R<u8> {
 }
 
 pub fn command_config_digital_out(args: &[u32]) -> R {
-    let pin = gpio_out_setup(args[1], (args[2] != 0) as u8)?;
+    let pin = gpio_out_setup(args[1], (args[2] != 0) as crate::board::GpioOutVal)?;
     let d = unsafe { &mut *(oid_alloc(args[0] as u8, oid_type(), size_of::<DigitalOut>() as u16)? as *mut DigitalOut) };
     d.pin = pin;
     d.flags = (if args[2] != 0 { DF_ON } else { 0 }) | (if args[3] != 0 { DF_DEFAULT_ON } else { 0 });
@@ -222,7 +222,7 @@ pub fn digital_out_shutdown() -> R {
 decl_shutdown!(digital_out_shutdown);
 
 pub fn command_set_digital_out(args: &[u32]) -> R {
-    gpio_out_setup(args[0], args[1] as u8)?;
+    gpio_out_setup(args[0], args[1] as crate::board::GpioOutVal)?;
     Ok(())
 }
 decl_command!(command_set_digital_out, "set_digital_out pin=%u value=%c");

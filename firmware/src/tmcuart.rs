@@ -115,7 +115,7 @@ unsafe fn tmcuart_send_finish_event(timer: *mut Timer) -> R<u8> {
     }
     // Prepare for message rx
     if t.flags & TU_SINGLE_WIRE != 0 {
-        gpio_in_reset(t.rx_pin, (t.flags & TU_PULLUP) as i8)?;
+        gpio_in_reset(t.rx_pin, (t.flags & TU_PULLUP) as crate::board::GpioPullUp)?;
     }
     t.pos = 0;
     t.timer.func = Some(tmcuart_read_sync_event);
@@ -186,7 +186,7 @@ pub fn command_config_tmcuart(args: &[u32]) -> R {
     let t = unsafe { &mut *(oid_alloc(args[0] as u8, oid_type(), size_of::<Tmcuart>() as u16)? as *mut Tmcuart) };
     let pull_up = args[2] as u8;
     let (rx_pin, tx_pin) = (args[1], args[3]);
-    t.rx_pin = gpio_in_setup(rx_pin, (pull_up != 0) as i8)?;
+    t.rx_pin = gpio_in_setup(rx_pin, (pull_up != 0) as crate::board::GpioPullUp)?;
     t.tx_pin = gpio_out_setup(tx_pin, 1)?;
     t.cfg_bit_time = args[4];
     t.flags = TU_LINE_HIGH | (if pull_up != 0 { TU_PULLUP } else { 0 }) | (if rx_pin == tx_pin { TU_SINGLE_WIRE } else { 0 });

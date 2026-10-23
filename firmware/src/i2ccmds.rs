@@ -42,12 +42,12 @@ const IF_HARDWARE: u8 = 2;
 #[cfg(CONFIG_WANT_GPIO_I2C)]
 use crate::board::{i2c_read, i2c_setup, i2c_write};
 #[cfg(not(CONFIG_WANT_GPIO_I2C))]
-fn i2c_write(_i2c: I2cConfig, _data: &[u8]) -> i32 {
-    0
+fn i2c_write(_i2c: I2cConfig, _data: &[u8]) -> R<i32> {
+    Ok(0)
 }
 #[cfg(not(CONFIG_WANT_GPIO_I2C))]
-fn i2c_read(_i2c: I2cConfig, _reg: &[u8], _read: &mut [u8]) -> i32 {
-    0
+fn i2c_read(_i2c: I2cConfig, _reg: &[u8], _read: &mut [u8]) -> R<i32> {
+    Ok(0)
 }
 
 fn oid_type() -> OidType {
@@ -106,12 +106,12 @@ pub fn i2c_dev_write(i2c: *mut I2cDev, data: &[u8]) -> R<i32> {
     if i2c.flags & IF_SOFTWARE != 0 {
         crate::i2c_software::i2c_software_write(unsafe { i2c.bus.i2c_sw }, data)
     } else {
-        Ok(i2c_write(unsafe { i2c.bus.i2c_hw }, data))
+        i2c_write(unsafe { i2c.bus.i2c_hw }, data)
     }
 }
 #[cfg(not(CONFIG_WANT_SOFTWARE_I2C))]
 pub fn i2c_dev_write(i2c: *mut I2cDev, data: &[u8]) -> R<i32> {
-    Ok(i2c_write(unsafe { (*i2c).bus.i2c_hw }, data))
+    i2c_write(unsafe { (*i2c).bus.i2c_hw }, data)
 }
 
 pub fn command_i2c_write(args: &[u32]) -> R {
@@ -129,12 +129,12 @@ pub fn i2c_dev_read(i2c: *mut I2cDev, reg: &[u8], read: &mut [u8]) -> R<i32> {
     if i2c.flags & IF_SOFTWARE != 0 {
         crate::i2c_software::i2c_software_read(unsafe { i2c.bus.i2c_sw }, reg, read)
     } else {
-        Ok(i2c_read(unsafe { i2c.bus.i2c_hw }, reg, read))
+        i2c_read(unsafe { i2c.bus.i2c_hw }, reg, read)
     }
 }
 #[cfg(not(CONFIG_WANT_SOFTWARE_I2C))]
 pub fn i2c_dev_read(i2c: *mut I2cDev, reg: &[u8], read: &mut [u8]) -> R<i32> {
-    Ok(i2c_read(unsafe { (*i2c).bus.i2c_hw }, reg, read))
+    i2c_read(unsafe { (*i2c).bus.i2c_hw }, reg, read)
 }
 
 pub fn command_i2c_read(args: &[u32]) -> R {

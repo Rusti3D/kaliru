@@ -2,6 +2,8 @@
 //
 // This file may be distributed under the terms of the GNU GPLv3 license.
 #![allow(clippy::missing_safety_doc, clippy::new_without_default)]
+// the micro-controller boards: no operating system
+#![cfg_attr(not(CONFIG_MACH_LINUX), no_std, no_main)]
 
 #[allow(non_upper_case_globals, dead_code)]
 pub mod config {
@@ -32,6 +34,8 @@ pub mod spicmds;
 pub mod i2ccmds;
 #[cfg(CONFIG_WANT_HARD_PWM)]
 pub mod pwmcmds;
+#[cfg(CONFIG_HAVE_GPIO_SDIO)]
+pub mod sdiocmds;
 #[cfg(CONFIG_WANT_BUTTONS)]
 pub mod buttons;
 #[cfg(CONFIG_WANT_TMCUART)]
@@ -80,7 +84,22 @@ pub mod generic;
 pub mod linux;
 #[cfg(CONFIG_MACH_LINUX)]
 pub use linux as board;
+#[cfg(CONFIG_MACH_STM32)]
+pub mod stm32;
+#[cfg(CONFIG_MACH_STM32)]
+pub use stm32 as board;
 
+#[cfg(CONFIG_MACH_LINUX)]
 fn main() {
     std::process::exit(board::main::main());
+}
+
+// A Rust panic (an index out of bounds, ...; the C code has none of
+// these checks): stop with irqs off, so the watchdog resets the chip
+#[cfg(not(CONFIG_MACH_LINUX))]
+#[panic_handler]
+fn panic(_info: &core::panic::PanicInfo) -> ! {
+    board::irq_disable();
+    #[allow(clippy::empty_loop)]
+    loop {}
 }
