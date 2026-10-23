@@ -7,6 +7,7 @@ pub mod hard_pwm;
 pub mod i2c;
 pub mod main;
 pub mod pca9685;
+pub mod sensor_ds18b20;
 pub mod spidev;
 pub mod timer;
 pub mod watchdog;
