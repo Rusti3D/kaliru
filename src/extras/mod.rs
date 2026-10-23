@@ -8,6 +8,7 @@
 // Regenerate the names with: ls klippy/extras (*.py and packages), sorted.
 use crate::printer::PrinterModule;
 
+pub mod ad5206;
 pub mod adc_scaled;
 pub mod adc_temperature;
 pub mod adxl345;
@@ -23,9 +24,12 @@ pub mod board_pins;
 pub mod bulk_sensor;
 pub mod bus;
 pub mod buttons;
+pub mod canbus_ids;
+pub mod canbus_stats;
 pub mod control_mpc;
 pub mod controller_fan;
 pub mod danger_options;
+pub mod delayed_gcode;
 pub mod delta_calibrate;
 pub mod display;
 pub mod display_status;
@@ -46,6 +50,7 @@ pub mod firmware_retraction;
 pub mod force_move;
 pub mod garbage_collection;
 pub mod gcode_arcs;
+pub mod gcode_button;
 pub mod gcode_macro;
 pub mod gcode_move;
 pub mod gcode_shell_command;
@@ -56,6 +61,7 @@ pub mod heater_fan;
 pub mod heater_generic;
 pub mod heaters;
 pub mod homing;
+pub mod homing_heaters;
 pub mod homing_override;
 pub mod htu21d;
 pub mod idle_timeout;
@@ -66,12 +72,16 @@ pub mod lm75;
 pub mod load_cell;
 pub mod manual_probe;
 pub mod manual_stepper;
+pub mod mcp4018;
+pub mod mcp4451;
+pub mod mcp4728;
 pub mod mixing_extruder;
 pub mod motion_queuing;
 pub mod motion_report;
 pub mod mpc_ambient_temperature;
 pub mod mpc_block_temperature;
 pub mod mpu9250;
+pub mod multi_pin;
 pub mod neopixel;
 pub mod output_pin;
 pub mod pause_resume;
@@ -98,6 +108,7 @@ pub mod shaper_defs;
 pub mod sht3x;
 pub mod spi_temperature;
 pub mod static_digital_output;
+pub mod static_pwm_clock;
 pub mod statistics;
 pub mod stepper_enable;
 pub mod sx1509;
@@ -131,7 +142,7 @@ const fn todo(name: &'static str) -> PrinterModule {
 }
 
 pub static MODULES: &[PrinterModule] = &[
-    todo("ad5206"),
+    PrinterModule { name: "ad5206", ported: true, load_config: None, load_config_prefix: Some(ad5206::load_config_prefix), register_components: None },
     PrinterModule { name: "adc_scaled", ported: true, load_config: None, load_config_prefix: Some(adc_scaled::load_config_prefix), register_components: None },
     PrinterModule { name: "adc_temperature", ported: true, load_config: Some(adc_temperature::load_config), load_config_prefix: Some(adc_temperature::load_config_prefix), register_components: None },
     PrinterModule { name: "adxl345", ported: true, load_config: Some(adxl345::load_config), load_config_prefix: Some(adxl345::load_config_prefix), register_components: None },
@@ -148,13 +159,13 @@ pub static MODULES: &[PrinterModule] = &[
     PrinterModule { name: "bulk_sensor", ported: true, load_config: None, load_config_prefix: None, register_components: None },
     PrinterModule { name: "bus", ported: true, load_config: None, load_config_prefix: None, register_components: None },
     PrinterModule { name: "buttons", ported: true, load_config: Some(buttons::load_config), load_config_prefix: None, register_components: None },
-    todo("canbus_ids"),
-    todo("canbus_stats"),
+    PrinterModule { name: "canbus_ids", ported: true, load_config: Some(canbus_ids::load_config), load_config_prefix: None, register_components: None },
+    PrinterModule { name: "canbus_stats", ported: true, load_config: None, load_config_prefix: Some(canbus_stats::load_config_prefix), register_components: None },
     PrinterModule { name: "control_mpc", ported: true, load_config: None, load_config_prefix: None, register_components: None },
     PrinterModule { name: "controller_fan", ported: true, load_config: None, load_config_prefix: Some(controller_fan::load_config_prefix), register_components: None },
     todo("dac084S085"),
     PrinterModule { name: "danger_options", ported: true, load_config: Some(danger_options::load_config), load_config_prefix: None, register_components: None },
-    todo("delayed_gcode"),
+    PrinterModule { name: "delayed_gcode", ported: true, load_config: None, load_config_prefix: Some(delayed_gcode::load_config_prefix), register_components: None },
     PrinterModule { name: "delta_calibrate", ported: true, load_config: Some(delta_calibrate::load_config), load_config_prefix: None, register_components: None },
     PrinterModule { name: "display", ported: true, load_config: Some(display::load_config), load_config_prefix: Some(display::load_config_prefix), register_components: None },
     PrinterModule { name: "display_status", ported: true, load_config: Some(display_status::load_config), load_config_prefix: None, register_components: None },
@@ -174,7 +185,7 @@ pub static MODULES: &[PrinterModule] = &[
     PrinterModule { name: "force_move", ported: true, load_config: Some(force_move::load_config), load_config_prefix: None, register_components: None },
     PrinterModule { name: "garbage_collection", ported: true, load_config: Some(garbage_collection::load_config), load_config_prefix: None, register_components: None },
     PrinterModule { name: "gcode_arcs", ported: true, load_config: Some(gcode_arcs::load_config), load_config_prefix: None, register_components: None },
-    todo("gcode_button"),
+    PrinterModule { name: "gcode_button", ported: true, load_config: None, load_config_prefix: Some(gcode_button::load_config_prefix), register_components: None },
     PrinterModule { name: "gcode_macro", ported: true, load_config: Some(gcode_macro::load_config), load_config_prefix: Some(gcode_macro::load_config_prefix), register_components: None },
     PrinterModule { name: "gcode_move", ported: true, load_config: Some(gcode_move::load_config), load_config_prefix: None, register_components: None },
     PrinterModule { name: "gcode_shell_command", ported: true, load_config: None, load_config_prefix: Some(gcode_shell_command::load_config_prefix), register_components: None },
@@ -185,7 +196,7 @@ pub static MODULES: &[PrinterModule] = &[
     PrinterModule { name: "heater_generic", ported: true, load_config: None, load_config_prefix: Some(heater_generic::load_config_prefix), register_components: None },
     PrinterModule { name: "heaters", ported: true, load_config: Some(heaters::load_config), load_config_prefix: None, register_components: None },
     PrinterModule { name: "homing", ported: true, load_config: Some(homing::load_config), load_config_prefix: None, register_components: None },
-    todo("homing_heaters"),
+    PrinterModule { name: "homing_heaters", ported: true, load_config: Some(homing_heaters::load_config), load_config_prefix: None, register_components: None },
     PrinterModule { name: "homing_override", ported: true, load_config: Some(homing_override::load_config), load_config_prefix: None, register_components: None },
     PrinterModule { name: "htu21d", ported: true, load_config: Some(htu21d::load_config), load_config_prefix: None, register_components: None },
     todo("icm20948"),
@@ -201,16 +212,16 @@ pub static MODULES: &[PrinterModule] = &[
     todo("load_cell_probe"),
     PrinterModule { name: "manual_probe", ported: true, load_config: Some(manual_probe::load_config), load_config_prefix: None, register_components: None },
     PrinterModule { name: "manual_stepper", ported: true, load_config: None, load_config_prefix: Some(manual_stepper::load_config_prefix), register_components: None },
-    todo("mcp4018"),
-    todo("mcp4451"),
-    todo("mcp4728"),
+    PrinterModule { name: "mcp4018", ported: true, load_config: None, load_config_prefix: Some(mcp4018::load_config_prefix), register_components: None },
+    PrinterModule { name: "mcp4451", ported: true, load_config: None, load_config_prefix: Some(mcp4451::load_config_prefix), register_components: None },
+    PrinterModule { name: "mcp4728", ported: true, load_config: None, load_config_prefix: Some(mcp4728::load_config_prefix), register_components: None },
     PrinterModule { name: "mixing_extruder", ported: true, load_config: Some(mixing_extruder::load_config), load_config_prefix: None, register_components: None },
     PrinterModule { name: "motion_queuing", ported: true, load_config: Some(motion_queuing::load_config), load_config_prefix: None, register_components: None },
     PrinterModule { name: "motion_report", ported: true, load_config: Some(motion_report::load_config), load_config_prefix: None, register_components: None },
     PrinterModule { name: "mpc_ambient_temperature", ported: true, load_config: Some(mpc_ambient_temperature::load_config), load_config_prefix: None, register_components: None },
     PrinterModule { name: "mpc_block_temperature", ported: true, load_config: Some(mpc_block_temperature::load_config), load_config_prefix: None, register_components: None },
     PrinterModule { name: "mpu9250", ported: true, load_config: Some(mpu9250::load_config), load_config_prefix: Some(mpu9250::load_config_prefix), register_components: None },
-    todo("multi_pin"),
+    PrinterModule { name: "multi_pin", ported: true, load_config: None, load_config_prefix: Some(multi_pin::load_config_prefix), register_components: None },
     PrinterModule { name: "neopixel", ported: true, load_config: None, load_config_prefix: Some(neopixel::load_config_prefix), register_components: None },
     todo("nozzle_cleanup"),
     PrinterModule { name: "output_pin", ported: true, load_config: None, load_config_prefix: Some(output_pin::load_config_prefix), register_components: None },
@@ -244,7 +255,7 @@ pub static MODULES: &[PrinterModule] = &[
     todo("smart_effector"),
     PrinterModule { name: "spi_temperature", ported: true, load_config: Some(spi_temperature::load_config), load_config_prefix: None, register_components: None },
     PrinterModule { name: "static_digital_output", ported: true, load_config: None, load_config_prefix: Some(static_digital_output::load_config_prefix), register_components: None },
-    todo("static_pwm_clock"),
+    PrinterModule { name: "static_pwm_clock", ported: true, load_config: None, load_config_prefix: Some(static_pwm_clock::load_config_prefix), register_components: None },
     PrinterModule { name: "statistics", ported: true, load_config: Some(statistics::load_config), load_config_prefix: None, register_components: None },
     PrinterModule { name: "stepper_enable", ported: true, load_config: Some(stepper_enable::load_config), load_config_prefix: None, register_components: None },
     PrinterModule { name: "sx1509", ported: true, load_config: None, load_config_prefix: Some(sx1509::load_config_prefix), register_components: None },

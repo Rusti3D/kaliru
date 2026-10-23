@@ -1543,11 +1543,11 @@ impl Mcu {
     fn conn_init(self: &Rc<Self>, config: &ConfigWrapper) -> KResult<()> {
         let canbus_uuid = config.get_opt("canbus_uuid")?;
         if let Some(canbus_uuid) = canbus_uuid {
-            *self.conn.serialport.borrow_mut() = canbus_uuid;
-            *self.conn.canbus_iface.borrow_mut() = Some(config.get("canbus_interface", "can0")?);
-            self.printer.load_object(config, "canbus_ids", true)?;
-            // ponytail: canbus_ids (cbid.add_uuid) and canbus_stats are not
-            // ported yet; load_object() above raises for them
+            *self.conn.serialport.borrow_mut() = canbus_uuid.clone();
+            let canbus_iface = config.get("canbus_interface", "can0")?;
+            *self.conn.canbus_iface.borrow_mut() = Some(canbus_iface.clone());
+            let cbid = self.printer.load_as::<crate::extras::canbus_ids::PrinterCANBus>(config, "canbus_ids")?;
+            cbid.add_uuid(config, &canbus_uuid, &canbus_iface)?;
             self.printer.load_object(config, &format!("canbus_stats {}", self.name), true)?;
         } else {
             let serialport = config.get("serial", crate::configfile::REQUIRED)?;
@@ -1640,12 +1640,17 @@ impl Mcu {
         self.clocksync.connect_file(&self.serial, false)
     }
 
+    /// printer.lookup_object("canbus_ids").get_nodeid(canbus_uuid)
+    fn canbus_nodeid(&self, canbus_uuid: &str) -> KResult<i64> {
+        let cbid = self.printer.lookup::<crate::extras::canbus_ids::PrinterCANBus>("canbus_ids")?;
+        cbid.get_nodeid(canbus_uuid)
+    }
+
     pub fn conn_check_serial_exists(&self) -> KResult<bool> {
         let serialport = self.conn.serialport.borrow().clone();
         if let Some(iface) = self.conn.canbus_iface.borrow().clone() {
-            // ponytail: canbus_ids.get_nodeid() arrives with canbus_ids
-            self.printer.lookup_object("canbus_ids")?;
-            return self.serial.check_canbus_connect(&serialport, 0, &iface);
+            let nodeid = self.canbus_nodeid(&serialport)?;
+            return self.serial.check_canbus_connect(&serialport, nodeid, &iface);
         }
         let rts = self.restart_lookup_attach_uart_rts();
         Ok(self.serial.check_connect(&serialport, self.conn.baud.get() as u32, rts))
@@ -1656,9 +1661,8 @@ impl Mcu {
         let serialport = self.conn.serialport.borrow().clone();
         let res = (|| {
             if let Some(iface) = self.conn.canbus_iface.borrow().clone() {
-                // ponytail: canbus_ids.get_nodeid() arrives with canbus_ids
-                self.printer.lookup_object("canbus_ids")?;
-                self.serial.connect_canbus(&serialport, 0, &iface)?;
+                let nodeid = self.canbus_nodeid(&serialport)?;
+                self.serial.connect_canbus(&serialport, nodeid, &iface)?;
             } else if self.conn.baud.get() != 0 {
                 let rts = self.restart_lookup_attach_uart_rts();
                 self.serial.connect_uart(&serialport, self.conn.baud.get() as u32, rts)?;

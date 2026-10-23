@@ -1,0 +1,5 @@
+SHOULD_FAIL
+CONFIG pwm_clock_bad.cfg
+DICTIONARY stm32f407.dict
+
+G4 P100
