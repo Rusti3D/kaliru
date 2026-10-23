@@ -505,12 +505,13 @@ fn do_sort(
     key_func: Option<PyObjectRef>,
     reverse: bool,
 ) -> PyResult<()> {
-    let op = if reverse {
-        PyComparisonOp::Lt
-    } else {
-        PyComparisonOp::Gt
+    let cmp = |a: &PyObjectRef, b: &PyObjectRef| {
+        if reverse {
+            a.rich_compare_bool(b, PyComparisonOp::Lt, vm)
+        } else {
+            b.rich_compare_bool(a, PyComparisonOp::Lt, vm)
+        }
     };
-    let cmp = |a: &PyObjectRef, b: &PyObjectRef| a.rich_compare_bool(b, op, vm);
 
     if let Some(ref key_func) = key_func {
         let mut items = values

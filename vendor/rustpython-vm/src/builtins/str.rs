@@ -747,7 +747,7 @@ impl PyStr {
 
     #[pymethod]
     fn format(&self, args: FuncArgs, vm: &VirtualMachine) -> PyResult<String> {
-        let format_str = FormatString::from_str(self.as_str()).map_err(|e| e.to_pyexception(vm))?;
+        let format_str = FormatString::from_str(self.as_str()).map_err(|e| crate::format::parse_error(&e, self.as_str(), vm))?;
         format(&format_str, &args, vm)
     }
 
@@ -758,7 +758,7 @@ impl PyStr {
     #[pymethod]
     fn format_map(&self, mapping: PyObjectRef, vm: &VirtualMachine) -> PyResult<String> {
         let format_string =
-            FormatString::from_str(self.as_str()).map_err(|err| err.to_pyexception(vm))?;
+            FormatString::from_str(self.as_str()).map_err(|err| crate::format::parse_error(&err, self.as_str(), vm))?;
         format_map(&format_string, &mapping, vm)
     }
 
@@ -775,7 +775,7 @@ impl PyStr {
 
         let s = FormatSpec::parse(spec)
             .and_then(|format_spec| format_spec.format_string(zelf.borrow()))
-            .map_err(|err| err.into_pyexception(vm))?;
+            .map_err(|err| crate::format::spec_error(err, spec, "str", vm))?;
         Ok(vm.ctx.new_str(s))
     }
 
@@ -939,23 +939,26 @@ impl PyStr {
     }
 
     #[pymethod]
-    fn join(
-        zelf: PyRef<Self>,
-        iterable: ArgIterable<PyStrRef>,
-        vm: &VirtualMachine,
-    ) -> PyResult<PyStrRef> {
-        let iter = iterable.iter(vm)?;
-        let joined = match iter.exactly_one() {
-            Ok(first) => {
-                let first = first?;
-                if first.as_object().class().is(vm.ctx.types.str_type) {
-                    return Ok(first);
-                } else {
-                    first.as_str().to_owned()
+    fn join(zelf: PyRef<Self>, iterable: PyObjectRef, vm: &VirtualMachine) -> PyResult<PyStrRef> {
+        let iter = iterable
+            .get_iter(vm)
+            .map_err(|_| vm.new_type_error("can only join an iterable".to_owned()))?;
+        let mut items: Vec<PyStrRef> = Vec::new();
+        for (i, item) in iter.iter::<PyObjectRef>(vm)?.enumerate() {
+            match item?.downcast::<PyStr>() {
+                Ok(s) => items.push(s),
+                Err(o) => {
+                    return Err(vm.new_type_error(format!(
+                        "sequence item {i}: expected str instance, {} found",
+                        o.class().name()
+                    )))
                 }
             }
-            Err(iter) => zelf.as_str().py_join(iter)?,
-        };
+        }
+        if items.len() == 1 && items[0].class().is(vm.ctx.types.str_type) {
+            return Ok(items.pop().unwrap());
+        }
+        let joined = items.iter().map(|s| s.as_str()).collect::<Vec<_>>().join(zelf.as_str());
         Ok(vm.ctx.new_str(joined))
     }
 

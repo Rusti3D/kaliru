@@ -65,7 +65,7 @@ fn spec_format_bytes(
                         }
                     }
                     Err(vm.new_type_error(format!(
-                        "%{} format: a number is required, not {}",
+                        "%{} format: a real number is required, not {}",
                         spec.format_char,
                         obj.class().name()
                     )))
@@ -158,7 +158,7 @@ fn spec_format_string(
                         }
                     }
                     Err(vm.new_type_error(format!(
-                        "%{} format: a number is required, not {}",
+                        "%{} format: a real number is required, not {}",
                         spec.format_char,
                         obj.class().name()
                     )))

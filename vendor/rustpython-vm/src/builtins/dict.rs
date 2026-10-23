@@ -77,20 +77,26 @@ impl PyDict {
             }
         } else {
             let iter = other.get_iter(vm)?;
-            loop {
-                fn err(vm: &VirtualMachine) -> PyBaseExceptionRef {
-                    vm.new_value_error("Iterator must have exactly two elements".to_owned())
-                }
+            for i in 0.. {
                 let element = match iter.next(vm)? {
                     PyIterReturn::Return(obj) => obj,
                     PyIterReturn::StopIteration(_) => break,
                 };
-                let elem_iter = element.get_iter(vm)?;
-                let key = elem_iter.next(vm)?.into_result().map_err(|_| err(vm))?;
-                let value = elem_iter.next(vm)?.into_result().map_err(|_| err(vm))?;
-                if matches!(elem_iter.next(vm)?, PyIterReturn::Return(_)) {
-                    return Err(err(vm));
-                }
+                let items: Vec<PyObjectRef> = element.try_to_value(vm).map_err(|e| {
+                    if e.fast_isinstance(vm.ctx.exceptions.type_error) {
+                        vm.new_type_error(format!(
+                            "cannot convert dictionary update sequence element #{i} to a sequence"
+                        ))
+                    } else {
+                        e
+                    }
+                })?;
+                let [key, value]: [PyObjectRef; 2] = items.try_into().map_err(|items: Vec<_>| {
+                    vm.new_value_error(format!(
+                        "dictionary update sequence element #{i} has length {}; 2 is required",
+                        items.len()
+                    ))
+                })?;
                 dict.insert(vm, &*key, value)?;
             }
         }

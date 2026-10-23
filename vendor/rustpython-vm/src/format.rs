@@ -58,6 +58,64 @@ impl ToPyException for FormatParseError {
     }
 }
 
+/// a FormatParseError of format string `s` in CPython's words
+/// (Objects/stringlib/unicode_format.h)
+pub(crate) fn parse_error(e: &FormatParseError, s: &str, vm: &VirtualMachine) -> PyBaseExceptionRef {
+    // the first brace that is neither doubled nor part of a field
+    let single = || {
+        let c: Vec<char> = s.chars().collect();
+        let mut i = 0;
+        while i < c.len() {
+            match c[i] {
+                '{' if c.get(i + 1) == Some(&'{') => i += 2,
+                '}' if c.get(i + 1) == Some(&'}') => i += 2,
+                '{' => {
+                    if i + 1 == c.len() {
+                        return Some('{');
+                    }
+                    match c[i + 1..].iter().position(|&x| x == '}') {
+                        Some(p) => i += p + 2,
+                        None => return None,
+                    }
+                }
+                '}' => return Some('}'),
+                _ => i += 1,
+            }
+        }
+        None
+    };
+    let msg = match e {
+        FormatParseError::UnmatchedBracket
+        | FormatParseError::UnescapedStartBracketInLiteral
+        | FormatParseError::MissingStartBracket => match single() {
+            Some(c) => format!("Single '{c}' encountered in format string"),
+            None => "expected '}' before end of string".to_owned(),
+        },
+        FormatParseError::EmptyAttribute => "Empty attribute in format string".to_owned(),
+        FormatParseError::MissingRightBracket => "Missing ']' in format string".to_owned(),
+        FormatParseError::InvalidCharacterAfterRightBracket => {
+            "Only '.' or '[' may follow ']' in format field specifier".to_owned()
+        }
+        _ => return e.to_pyexception(vm),
+    };
+    vm.new_value_error(msg)
+}
+
+/// a FormatSpecError of `spec` for an object of type `tname`
+/// (Python/formatter_unicode.c parse_internal_render_format_spec)
+pub(crate) fn spec_error(e: FormatSpecError, spec: &str, tname: &str, vm: &VirtualMachine) -> PyBaseExceptionRef {
+    if let FormatSpecError::InvalidFormatSpecifier = e {
+        // one character after a valid spec is the type code
+        let mut prefix = spec.chars();
+        let last = prefix.next_back();
+        if let (Some(c), Ok(_)) = (last, FormatSpec::parse(prefix.as_str())) {
+            return vm.new_value_error(format!("Unknown format code '{c}' for object of type '{tname}'"));
+        }
+        return vm.new_value_error(format!("Invalid format specifier '{spec}' for object of type '{tname}'"));
+    }
+    e.into_pyexception(vm)
+}
+
 fn format_internal(
     vm: &VirtualMachine,
     format: &FormatString,
@@ -92,7 +150,7 @@ fn format_internal(
                 }
 
                 let nested_format =
-                    FormatString::from_str(format_spec).map_err(|e| e.to_pyexception(vm))?;
+                    FormatString::from_str(format_spec).map_err(|e| parse_error(&e, format_spec, vm))?;
                 let format_spec = format_internal(vm, &nested_format, field_func)?;
 
                 let argument = match conversion_spec.and_then(FormatConversion::from_char) {
@@ -138,7 +196,12 @@ pub(crate) fn format(
                 .args
                 .get(auto_argument_index - 1)
                 .cloned()
-                .ok_or_else(|| vm.new_index_error("tuple index out of range".to_owned()))
+                .ok_or_else(|| {
+                    vm.new_index_error(format!(
+                        "Replacement index {} out of range for positional args tuple",
+                        auto_argument_index - 1
+                    ))
+                })
         }
         FieldType::Index(index) => {
             if auto_argument_index != 0 {
@@ -152,7 +215,11 @@ pub(crate) fn format(
                 .args
                 .get(index)
                 .cloned()
-                .ok_or_else(|| vm.new_index_error("tuple index out of range".to_owned()))
+                .ok_or_else(|| {
+                    vm.new_index_error(format!(
+                        "Replacement index {index} out of range for positional args tuple"
+                    ))
+                })
         }
         FieldType::Keyword(keyword) => arguments
             .get_optional_kwarg(&keyword)

@@ -696,7 +696,7 @@ impl TryFromObject for RangeIndex {
             s @ PySlice => Ok(RangeIndex::Slice(s)),
             obj => {
                 let val = obj.try_index(vm).map_err(|_| vm.new_type_error(format!(
-                    "sequence indices be integers or slices or classes that override __index__ operator, not '{}'",
+                    "range indices must be integers or slices, not {}",
                     obj.class().name()
                 )))?;
                 Ok(RangeIndex::Int(val))

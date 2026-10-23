@@ -194,7 +194,7 @@ impl PyFloat {
     fn format(&self, spec: PyStrRef, vm: &VirtualMachine) -> PyResult<String> {
         FormatSpec::parse(spec.as_str())
             .and_then(|format_spec| format_spec.format_float(self.value))
-            .map_err(|err| err.into_pyexception(vm))
+            .map_err(|err| crate::format::spec_error(err, spec.as_str(), "float", vm))
     }
 
     #[pystaticmethod(magic)]
