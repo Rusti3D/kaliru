@@ -17,6 +17,7 @@ pub mod bltouch;
 pub mod bme280;
 pub mod board_pins;
 pub mod bulk_sensor;
+pub mod bus;
 pub mod buttons;
 pub mod control_mpc;
 pub mod danger_options;
@@ -24,6 +25,7 @@ pub mod delta_calibrate;
 pub mod display_status;
 pub mod display_templates;
 pub mod ds18b20;
+pub mod endstop_phase;
 pub mod error_mcu;
 pub mod exclude_object;
 pub mod extruder_stepper;
@@ -45,6 +47,7 @@ pub mod homing;
 pub mod homing_override;
 pub mod htu21d;
 pub mod idle_timeout;
+pub mod input_shaper;
 pub mod led;
 pub mod lm75;
 pub mod manual_probe;
@@ -64,6 +67,7 @@ pub mod query_endstops;
 pub mod respond;
 pub mod safe_z_home;
 pub mod servo;
+pub mod shaper_defs;
 pub mod sht3x;
 pub mod spi_temperature;
 pub mod statistics;
@@ -75,6 +79,16 @@ pub mod temperature_host;
 pub mod temperature_mcu;
 pub mod temperature_sensor;
 pub mod thermistor;
+pub mod tmc;
+pub mod tmc2130;
+pub mod tmc2208;
+pub mod tmc2209;
+pub mod tmc2240;
+pub mod tmc2660;
+pub mod tmc5160;
+pub mod tmc5262;
+pub mod tmc_tables;
+pub mod tmc_uart;
 pub mod tuning_tower;
 pub mod verify_heater;
 pub mod virtual_sdcard;
@@ -100,7 +114,7 @@ pub static MODULES: &[PrinterModule] = &[
     PrinterModule { name: "bme280", ported: true, load_config: Some(bme280::load_config), load_config_prefix: None, register_components: None },
     PrinterModule { name: "board_pins", ported: true, load_config: Some(board_pins::load_config), load_config_prefix: Some(board_pins::load_config_prefix), register_components: None },
     PrinterModule { name: "bulk_sensor", ported: true, load_config: None, load_config_prefix: None, register_components: None },
-    todo("bus"),
+    PrinterModule { name: "bus", ported: true, load_config: None, load_config_prefix: None, register_components: None },
     PrinterModule { name: "buttons", ported: true, load_config: Some(buttons::load_config), load_config_prefix: None, register_components: None },
     todo("canbus_ids"),
     todo("canbus_stats"),
@@ -116,7 +130,7 @@ pub static MODULES: &[PrinterModule] = &[
     todo("dotstar"),
     PrinterModule { name: "ds18b20", ported: true, load_config: Some(ds18b20::load_config), load_config_prefix: None, register_components: None },
     todo("duplicate_pin_override"),
-    todo("endstop_phase"),
+    PrinterModule { name: "endstop_phase", ported: true, load_config: Some(endstop_phase::load_config), load_config_prefix: Some(endstop_phase::load_config_prefix), register_components: None },
     PrinterModule { name: "error_mcu", ported: true, load_config: Some(error_mcu::load_config), load_config_prefix: None, register_components: None },
     PrinterModule { name: "exclude_object", ported: true, load_config: Some(exclude_object::load_config), load_config_prefix: None, register_components: None },
     PrinterModule { name: "extruder_stepper", ported: true, load_config: None, load_config_prefix: Some(extruder_stepper::load_config_prefix), register_components: None },
@@ -145,7 +159,7 @@ pub static MODULES: &[PrinterModule] = &[
     todo("icm20948"),
     PrinterModule { name: "idle_timeout", ported: true, load_config: Some(idle_timeout::load_config), load_config_prefix: None, register_components: None },
     todo("indx"),
-    todo("input_shaper"),
+    PrinterModule { name: "input_shaper", ported: true, load_config: Some(input_shaper::load_config), load_config_prefix: None, register_components: None },
     todo("ldc1612"),
     PrinterModule { name: "led", ported: true, load_config: None, load_config_prefix: Some(led::load_config_prefix), register_components: None },
     todo("lis2dw"),
@@ -192,7 +206,7 @@ pub static MODULES: &[PrinterModule] = &[
     todo("sdcard_loop"),
     PrinterModule { name: "servo", ported: true, load_config: None, load_config_prefix: Some(servo::load_config_prefix), register_components: None },
     todo("shaper_calibrate"),
-    todo("shaper_defs"),
+    PrinterModule { name: "shaper_defs", ported: true, load_config: None, load_config_prefix: None, register_components: None },
     PrinterModule { name: "sht3x", ported: true, load_config: Some(sht3x::load_config), load_config_prefix: None, register_components: None },
     todo("skew_correction"),
     todo("smart_effector"),
@@ -209,15 +223,15 @@ pub static MODULES: &[PrinterModule] = &[
     PrinterModule { name: "temperature_mcu", ported: true, load_config: Some(temperature_mcu::load_config), load_config_prefix: None, register_components: None },
     PrinterModule { name: "temperature_sensor", ported: true, load_config: None, load_config_prefix: Some(temperature_sensor::load_config_prefix), register_components: None },
     PrinterModule { name: "thermistor", ported: true, load_config: None, load_config_prefix: Some(thermistor::load_config_prefix), register_components: None },
-    todo("tmc"),
-    todo("tmc2130"),
-    todo("tmc2208"),
-    todo("tmc2209"),
-    todo("tmc2240"),
-    todo("tmc2660"),
-    todo("tmc5160"),
-    todo("tmc5262"),
-    todo("tmc_uart"),
+    PrinterModule { name: "tmc", ported: true, load_config: None, load_config_prefix: None, register_components: None },
+    PrinterModule { name: "tmc2130", ported: true, load_config: None, load_config_prefix: Some(tmc2130::load_config_prefix), register_components: None },
+    PrinterModule { name: "tmc2208", ported: true, load_config: None, load_config_prefix: Some(tmc2208::load_config_prefix), register_components: None },
+    PrinterModule { name: "tmc2209", ported: true, load_config: None, load_config_prefix: Some(tmc2209::load_config_prefix), register_components: None },
+    PrinterModule { name: "tmc2240", ported: true, load_config: None, load_config_prefix: Some(tmc2240::load_config_prefix), register_components: None },
+    PrinterModule { name: "tmc2660", ported: true, load_config: None, load_config_prefix: Some(tmc2660::load_config_prefix), register_components: None },
+    PrinterModule { name: "tmc5160", ported: true, load_config: None, load_config_prefix: Some(tmc5160::load_config_prefix), register_components: None },
+    PrinterModule { name: "tmc5262", ported: true, load_config: None, load_config_prefix: Some(tmc5262::load_config_prefix), register_components: None },
+    PrinterModule { name: "tmc_uart", ported: true, load_config: None, load_config_prefix: None, register_components: None },
     todo("tools_calibrate"),
     todo("trad_rack"),
     todo("tsl1401cl_filament_width_sensor"),

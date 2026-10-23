@@ -291,11 +291,14 @@ pub fn add_printer_objects(printer: &Rc<crate::printer::Printer>, _config: &crat
 /// printer.lookup_object("pins").setup_pin(pin_type, pin_desc)
 pub fn setup_pin(printer: &crate::printer::Printer, pin_type: &str, pin_desc: &str) -> crate::error::KResult<Rc<dyn Any>> {
     let ppins = printer.lookup::<PinsObject>("pins")?;
-    let r = ppins.0.borrow_mut().setup_pin(pin_type, pin_desc);
-    r.map_err(|e| match e {
-        Ok(e) => crate::error::KError::Pins(e.0),
-        Err(s) => crate::error::KError::Pins(s),
-    })
+    let can_invert = matches!(pin_type, "endstop" | "digital_out" | "pwm");
+    let can_pullup = pin_type == "endstop";
+    // the pins borrow ends before the chip's setup_pin (a virtual pin chip
+    // may set up further pins from there)
+    let pin_params = ppins.0.borrow_mut().lookup_pin(pin_desc, can_invert, can_pullup, None);
+    let pin_params = pin_params.map_err(|e| crate::error::KError::Pins(e.0))?;
+    let chip = pin_params.borrow().chip.clone();
+    chip.setup_pin(pin_type, &pin_params).map_err(crate::error::KError::Pins)
 }
 
 /// setup_pin() for an mcu pin class (the concrete chip object)

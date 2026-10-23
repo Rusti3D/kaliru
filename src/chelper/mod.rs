@@ -3,6 +3,7 @@ pub mod itersolve;
 pub mod kin_cartesian;
 pub mod kin_delta;
 pub mod kin_extruder;
+pub mod kin_shaper;
 pub mod msgblock;
 pub mod pollreactor;
 pub mod pyhelper;
