@@ -15,6 +15,7 @@ use std::cell::Cell;
 use std::rc::Rc;
 
 pub mod cartesian;
+pub mod delta;
 pub mod extruder;
 pub mod none;
 
@@ -52,7 +53,7 @@ pub static KINEMATICS: &[(&str, Option<LoadKinematics>)] = &[
     ("cartesian", Some(cartesian::load_kinematics)),
     ("corexy", None),
     ("corexz", None),
-    ("delta", None),
+    ("delta", Some(delta::load_kinematics)),
     ("deltesian", None),
     ("hybrid_corexy", None),
     ("hybrid_corexz", None),

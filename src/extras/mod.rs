@@ -19,6 +19,7 @@ pub mod bulk_sensor;
 pub mod buttons;
 pub mod control_mpc;
 pub mod danger_options;
+pub mod delta_calibrate;
 pub mod display_status;
 pub mod ds18b20;
 pub mod error_mcu;
@@ -100,7 +101,7 @@ pub static MODULES: &[PrinterModule] = &[
     todo("dac084S085"),
     PrinterModule { name: "danger_options", ported: true, load_config: Some(danger_options::load_config), load_config_prefix: None, register_components: None },
     todo("delayed_gcode"),
-    todo("delta_calibrate"),
+    PrinterModule { name: "delta_calibrate", ported: true, load_config: Some(delta_calibrate::load_config), load_config_prefix: None, register_components: None },
     todo("display"),
     PrinterModule { name: "display_status", ported: true, load_config: Some(display_status::load_config), load_config_prefix: None, register_components: None },
     todo("dockable_probe"),

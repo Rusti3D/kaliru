@@ -117,3 +117,75 @@ pub fn coordinate_descent(
     ));
     params
 }
+
+// ----------------------------------------------------------------------
+// Trilateration
+// ----------------------------------------------------------------------
+
+/// a python exception of the math helpers: (class, message)
+pub type MathError = (&'static str, &'static str);
+
+fn py_sqrt(x: f64) -> Result<f64, MathError> {
+    if x < 0.0 {
+        return Err(("ValueError", "math domain error"));
+    }
+    Ok(x.sqrt())
+}
+
+fn py_div(a: f64, b: f64) -> Result<f64, MathError> {
+    if b == 0.0 {
+        return Err(("ZeroDivisionError", "float division by zero"));
+    }
+    Ok(a / b)
+}
+
+// Trilateration finds the intersection of three spheres.  See the
+// wikipedia article for the details of the algorithm.
+pub fn trilateration(sphere_coords: &[[f64; 3]; 3], radius2: &[f64; 3]) -> Result<[f64; 3], MathError> {
+    let [sphere_coord1, sphere_coord2, sphere_coord3] = *sphere_coords;
+    let s21 = matrix_sub(sphere_coord2, sphere_coord1);
+    let s31 = matrix_sub(sphere_coord3, sphere_coord1);
+
+    let d = py_sqrt(matrix_magsq(s21))?;
+    let ex = matrix_mul(s21, py_div(1.0, d)?);
+    let i = matrix_dot(ex, s31);
+    let vect_ey = matrix_sub(s31, matrix_mul(ex, i));
+    let ey = matrix_mul(vect_ey, py_div(1.0, py_sqrt(matrix_magsq(vect_ey))?)?);
+    let ez = matrix_cross(ex, ey);
+    let j = matrix_dot(ey, s31);
+
+    let x = py_div(radius2[0] - radius2[1] + d.powf(2.0), 2.0 * d)?;
+    let y = py_div(radius2[0] - radius2[2] - x.powf(2.0) + (x - i).powf(2.0) + j.powf(2.0), 2.0 * j)?;
+    let z = -py_sqrt(radius2[0] - x.powf(2.0) - y.powf(2.0))?;
+
+    let ex_x = matrix_mul(ex, x);
+    let ey_y = matrix_mul(ey, y);
+    let ez_z = matrix_mul(ez, z);
+    Ok(matrix_add(sphere_coord1, matrix_add(ex_x, matrix_add(ey_y, ez_z))))
+}
+
+// Matrix helper functions for 3x1 matrices
+
+pub fn matrix_cross(m1: [f64; 3], m2: [f64; 3]) -> [f64; 3] {
+    [m1[1] * m2[2] - m1[2] * m2[1], m1[2] * m2[0] - m1[0] * m2[2], m1[0] * m2[1] - m1[1] * m2[0]]
+}
+
+pub fn matrix_dot(m1: [f64; 3], m2: [f64; 3]) -> f64 {
+    m1[0] * m2[0] + m1[1] * m2[1] + m1[2] * m2[2]
+}
+
+pub fn matrix_magsq(m1: [f64; 3]) -> f64 {
+    m1[0].powf(2.0) + m1[1].powf(2.0) + m1[2].powf(2.0)
+}
+
+pub fn matrix_add(m1: [f64; 3], m2: [f64; 3]) -> [f64; 3] {
+    [m1[0] + m2[0], m1[1] + m2[1], m1[2] + m2[2]]
+}
+
+pub fn matrix_sub(m1: [f64; 3], m2: [f64; 3]) -> [f64; 3] {
+    [m1[0] - m2[0], m1[1] - m2[1], m1[2] - m2[2]]
+}
+
+pub fn matrix_mul(m1: [f64; 3], s: f64) -> [f64; 3] {
+    [m1[0] * s, m1[1] * s, m1[2] * s]
+}
