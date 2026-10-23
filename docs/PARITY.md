@@ -48,15 +48,22 @@ Run everything: `tools/check_all.sh` (~10 min).
 
 ## Stock test cases (`test/klippy/*.test`, 88 runs)
 
-`tools/suite_cmp.sh`: 85/88 identical (2026-10-23). gcode_python and macro_loading need python g-code macros
-(RustPython, not ported yet); printers differs by wall-clock timer timing only (NOTES.md "Parity harness").
+`tools/suite_cmp.sh`: 87/88 identical (2026-10-24). printers differs by wall-clock timer timing only (NOTES.md
+"Parity harness").
+
+## Python macros (`src/extras/gcode_python.rs`, `src/pysyntax.rs`, `vendor/rustpython-*`)
+
+Stock gcode_python and macro_loading identical; custom pymacro, pymacro_misc, pymacro_bad identical (helpers,
+status access, own_vars, in-place mutation of variables, error messages, syntax errors at config load).
+`tools/gen_pysyntax_cases.py` (CPython 3.13 vs kaliru): SyntaxErrors 313/315 (no `match` statement in RustPython
+0.4), runtime exception messages `--exec` 119/125 (NOTES.md "python macros" lists the rest).
 
 ## Custom cases (`tests/cases/*.test`, `tools/case_cmp.sh`)
 
-55 runs, all identical, for modules and error paths the stock suite misses: accelerometers (accels), angle, chained
+57 runs, all identical, for modules and error paths the stock suite misses: accelerometers (accels), angle, chained
 exception tracebacks (chains, parse_errors), canbus_ids, digipots, eddy current probes, fan, heater_bed, load cell
 probes (lcp, lcp_bad; filter designs in `tests/cases/scipy/` against a scipy venv, `REF_KLIPPY`), misc extras,
-nozzle_cleanup, palette2, pwm_clock, replicape, i2c/spi temperature sensors (sensors, sensor_status), resonance
+nozzle_cleanup, palette2, python macros (pymacro*), pwm_clock, replicape, i2c/spi temperature sensors (sensors, sensor_status), resonance
 tester / shaper_calibrate commands (shaper, shaper_cmds), smart_effector, tools_calibrate, skew/transforms.
 
 Function level checks against python for code file-output runs cannot reach: shaper_calibrate

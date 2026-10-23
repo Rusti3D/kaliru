@@ -16,11 +16,10 @@ Reference: Kalico `5b59427`.
 
 ## Status
 
-- **Kalico's stock test suite: 85 of 88 runs identical** to Kalico (MCU
-  command trace, exit code and log). The other three: two need python g-code
-  macros (planned through RustPython), and one differs only by wall-clock
-  timer timing.
-- **Custom parity cases** (`tests/cases/`, 55 runs covering modules the stock
+- **Kalico's stock test suite: 87 of 88 runs identical** to Kalico (MCU
+  command trace, exit code and log). The remaining one differs only by
+  wall-clock timer timing.
+- **Custom parity cases** (`tests/cases/`, 57 runs covering modules the stock
   suite doesn't reach): all identical to Kalico.
 - Ported: the whole klippy host (reactor, serial and msgproto, clock sync,
   config, pins, gcode, toolhead, steppers and rails, homing, mcu), the chelper
@@ -35,9 +34,12 @@ Reference: Kalico `5b59427`.
   numpy/scipy; input shaper calibration gives identical results.
 - Python exception tracebacks are reproduced too, including chained ones
   ("During handling of the above exception ...").
-- Not ported yet:
-  - python g-code macros,
-  - the MCU firmware.
+- Python g-code macros (`gcode: !...`, `!!include file.py`) run on an
+  embedded [RustPython](https://github.com/RustPython/RustPython) with
+  Kalico's helpers (`emit`, `printer`, `own_vars`, `wait_moves`, ...). Syntax
+  and runtime error messages follow CPython 3.13 (`vendor/` holds the patched
+  RustPython crates). Known gap: no `match` statement.
+- Not ported yet: the MCU firmware.
 
 - Known limits: paths that read sensors over i2c/spi can't be exercised in
   Kalico's file-output test mode. They are ported from source but not yet
@@ -49,7 +51,8 @@ Per-module status and how each part is checked: [`docs/PARITY.md`](docs/PARITY.m
 ## Building
 
 ```sh
-cargo build --release
+cargo build --release                        # with python macros (~30 MB)
+cargo build --release --no-default-features  # without them (~9 MB)
 ```
 
 The parity tools in `tools/` compare Kaliru against a Kalico checkout
