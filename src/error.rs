@@ -11,6 +11,8 @@
 //              (and its subclasses that are caught as CommandError:
 //               WebRequestError, homing.CommandError, ...)
 //   WaitInterruption  printer.WaitInterruption (a CommandError subclass)
+//   CommandSub other CommandError subclasses that are caught by class
+//              (trad_rack's TradRackLoadError, SelectorNotHomedError)
 //   Reactor    reactor.ReactorError
 //   Other      any other exception (str(e) only)
 use std::fmt;
@@ -25,6 +27,8 @@ pub enum KError {
     Mcu(String),
     Command(String),
     WaitInterruption(String),
+    /// (python class name, message)
+    CommandSub(&'static str, String),
     Reactor(String),
     Other(String),
 }
@@ -40,6 +44,7 @@ impl KError {
             | KError::Mcu(m)
             | KError::Command(m)
             | KError::WaitInterruption(m)
+            | KError::CommandSub(_, m)
             | KError::Reactor(m)
             | KError::Other(m) => m,
         }
@@ -47,7 +52,7 @@ impl KError {
 
     /// isinstance(e, gcode.CommandError)
     pub fn is_command_error(&self) -> bool {
-        matches!(self, KError::Command(_) | KError::WaitInterruption(_))
+        matches!(self, KError::Command(_) | KError::WaitInterruption(_) | KError::CommandSub(..))
     }
 
     /// the python exception class as traceback.format_exception_only()
@@ -62,6 +67,7 @@ impl KError {
             KError::Mcu(_) => "klippy.mcu.error",
             KError::Command(_) => "klippy.gcode.CommandError",
             KError::WaitInterruption(_) => "klippy.printer.WaitInterruption",
+            KError::CommandSub(class, _) => class,
             KError::Reactor(_) => "klippy.reactor.ReactorError",
             KError::Other(_) => "Exception",
         }

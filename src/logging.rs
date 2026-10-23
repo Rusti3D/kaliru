@@ -89,3 +89,10 @@ pub fn exception_tb(msg: &str, cls: &str, emsg: &str) {
 pub fn exception_err(msg: &str, e: &crate::error::KError) {
     exception_tb(msg, e.py_class(), &e.to_string())
 }
+
+/// logging.warning(msg, exc_info=True) while handling `e`
+pub fn warning_err(msg: &str, e: &crate::error::KError) {
+    let (cls, emsg) = (e.py_class(), e.to_string());
+    let last = if emsg.is_empty() { cls.to_string() } else { format!("{}: {}", cls, emsg) };
+    log(WARNING, &format!("{}\nTraceback (most recent call last):\n  File \"<kaliru>\"\n{}", msg, last))
+}

@@ -1168,7 +1168,7 @@ impl PrinterConfig {
 }
 
 /// time.strftime(fmt) in local time
-fn strftime_local(fmt: &str) -> String {
+pub fn strftime_local(fmt: &str) -> String {
     let fmt = std::ffi::CString::new(fmt).unwrap();
     let mut buf = [0u8; 128];
     unsafe {

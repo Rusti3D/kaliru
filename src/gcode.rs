@@ -611,7 +611,7 @@ impl GCodeDispatch {
     }
 
     // Parameter parsing helpers
-    fn get_extended_params(&self, gcmd: &GCodeCommand) -> KResult<()> {
+    pub fn get_extended_params(&self, gcmd: &GCodeCommand) -> KResult<()> {
         let rawparams = gcmd.get_raw_command_parameters();
         // Extract args while allowing shell style quoting
         let malformed = || KError::command(format!("Malformed command '{}'", gcmd.get_commandline()));

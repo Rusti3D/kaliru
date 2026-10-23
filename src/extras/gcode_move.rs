@@ -266,6 +266,13 @@ impl GCodeMove {
         self.speed_factor.get() * 60.0
     }
 
+    /// saved_states[dst] = saved_states[src] (KeyError when src is missing)
+    pub fn copy_saved_state(&self, dst: &str, src: &str) -> KResult<()> {
+        let state = self.saved_states.borrow().get(src).cloned().ok_or_else(|| KError::Other(crate::pyfmt::py_str_repr(src)))?;
+        self.saved_states.borrow_mut().insert(dst.to_string(), state);
+        Ok(())
+    }
+
     pub fn reset_last_position(&self) -> KResult<()> {
         if self.is_printer_ready.get() {
             let pos = self.position_with_transform();

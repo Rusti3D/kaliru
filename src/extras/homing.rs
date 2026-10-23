@@ -113,7 +113,7 @@ impl StepperPosition {
         self.halt_pos.unwrap_or(0)
     }
 
-    fn trig(&self) -> i64 {
+    pub fn trig(&self) -> i64 {
         self.trig_pos.unwrap_or(0)
     }
 }
@@ -410,6 +410,42 @@ impl Homing {
         }))
     }
 
+    /// Homing(printer) driving another toolhead (trad_rack's TradRackHoming
+    /// sets self.toolhead after Homing.__init__)
+    pub fn with_toolhead(printer: &Rc<Printer>, toolhead: Rc<ToolHead>) -> Rc<Self> {
+        Rc::new(Homing {
+            printer: printer.clone(),
+            toolhead,
+            changed_axes: RefCell::new(vec![]),
+            trigger_mcu_pos: RefCell::new(IndexMap::new()),
+            adjust_pos: RefCell::new(IndexMap::new()),
+            saved_accel: Cell::new(None),
+        })
+    }
+
+    pub fn toolhead(&self) -> Rc<ToolHead> {
+        self.toolhead.clone()
+    }
+
+    pub fn printer(&self) -> Rc<Printer> {
+        self.printer.clone()
+    }
+
+    /// self.trigger_mcu_pos = ...
+    pub fn set_trigger_positions(&self, trigger_mcu_pos: IndexMap<String, i64>) {
+        *self.trigger_mcu_pos.borrow_mut() = trigger_mcu_pos;
+    }
+
+    /// self.adjust_pos
+    pub fn adjust_pos(&self) -> IndexMap<String, f64> {
+        self.adjust_pos.borrow().clone()
+    }
+
+    /// self.adjust_pos = {}
+    pub fn clear_adjust_pos(&self) {
+        self.adjust_pos.borrow_mut().clear();
+    }
+
     pub fn set_axes(&self, axes: Vec<usize>) {
         *self.changed_axes.borrow_mut() = axes;
     }
@@ -430,7 +466,7 @@ impl Homing {
         self.adjust_pos.borrow_mut().insert(stepper_name.to_string(), adjustment);
     }
 
-    fn fill_coord(&self, coord: &[Option<f64>]) -> Vec<f64> {
+    pub fn fill_coord(&self, coord: &[Option<f64>]) -> Vec<f64> {
         // Fill in any None entries in 'coord' with current toolhead position
         let mut thcoord = self.toolhead.get_position();
         for (i, c) in coord.iter().enumerate() {

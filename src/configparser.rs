@@ -58,8 +58,9 @@ pub trait Interpolation {
     fn before_get(&self, _parser: &RawConfigParser, _section: &str, _option: &str, value: &str) -> Result<String> {
         Ok(value.to_string())
     }
-    fn before_set(&self, _parser: &RawConfigParser, _section: &str, _option: &str, value: &str) -> String {
-        value.to_string()
+    /// Err is python's ValueError (BasicInterpolation's syntax check)
+    fn before_set(&self, _parser: &RawConfigParser, _section: &str, _option: &str, value: &str) -> std::result::Result<String, String> {
+        Ok(value.to_string())
     }
     fn before_read(&self, _parser: &RawConfigParser, _section: &str, _option: &str, value: String) -> String {
         value
@@ -71,6 +72,112 @@ pub trait Interpolation {
 
 pub struct NoInterpolation;
 impl Interpolation for NoInterpolation {}
+
+/// configparser.BasicInterpolation ("%(name)s" references, "%%" escapes)
+pub struct BasicInterpolation;
+
+/// _KEYCRE.match(rest) for r"%\(([^)]+)\)s": (name, match length)
+fn basic_keycre_match(rest: &str) -> Option<(String, usize)> {
+    let body = rest.strip_prefix("%(")?;
+    let close = body.find(')')?;
+    if close == 0 || !body[close + 1..].starts_with('s') {
+        return None;
+    }
+    Some((body[..close].to_string(), 2 + close + 2))
+}
+
+impl BasicInterpolation {
+    fn interpolate_some(
+        &self,
+        option: &str,
+        accum: &mut String,
+        mut rest: &str,
+        section: &str,
+        map: &Section,
+        depth: usize,
+    ) -> Result<()> {
+        if depth > MAX_INTERPOLATION_DEPTH {
+            return Err(Error::new(format!("Recursion limit exceeded in value substitution: option {} in section {}", py_repr_str(option), py_repr_str(section))));
+        }
+        while !rest.is_empty() {
+            let Some(p) = rest.find('%') else {
+                accum.push_str(rest);
+                return Ok(());
+            };
+            if p > 0 {
+                accum.push_str(&rest[..p]);
+                rest = &rest[p..];
+            }
+            let c = rest.get(1..2).unwrap_or("");
+            if c == "%" {
+                accum.push('%');
+                rest = &rest[2..];
+            } else if c == "(" {
+                let Some((name, len)) = basic_keycre_match(rest) else {
+                    return Err(Error::new(format!("bad interpolation variable reference {}", py_repr_str(rest))));
+                };
+                let var = optionxform(&name);
+                rest = &rest[len..];
+                let Some(v) = map.get(&var) else {
+                    return Err(Error::new(format!(
+                        "Bad value substitution: option {} in section {} contains an interpolation key {} which is not a valid option name.",
+                        py_repr_str(option),
+                        py_repr_str(section),
+                        py_repr_str(&var)
+                    )));
+                };
+                if v.contains('%') {
+                    self.interpolate_some(option, accum, v, section, map, depth + 1)?;
+                } else {
+                    accum.push_str(v);
+                }
+            } else {
+                return Err(Error::new(format!("'%' must be followed by '%' or '(', found: {}", py_repr_str(rest))));
+            }
+        }
+        Ok(())
+    }
+}
+
+fn py_repr_str(s: &str) -> String {
+    crate::pyfmt::py_str_repr(s)
+}
+
+impl Interpolation for BasicInterpolation {
+    fn before_get(&self, parser: &RawConfigParser, section: &str, option: &str, value: &str) -> Result<String> {
+        // the interpolation map: defaults updated with the section
+        let mut map = parser.defaults().clone();
+        if let Some(sect) = parser.raw_section(section) {
+            for (k, v) in sect {
+                map.insert(k.clone(), v.clone());
+            }
+        }
+        let mut accum = String::new();
+        self.interpolate_some(option, &mut accum, value, section, &map, 1)?;
+        Ok(accum)
+    }
+
+    fn before_set(&self, _parser: &RawConfigParser, _section: &str, _option: &str, value: &str) -> std::result::Result<String, String> {
+        // escaped percent signs, then valid syntax
+        let escaped = value.replace("%%", "");
+        // _KEYCRE.sub("", tmp_value)
+        let mut tmp_value = String::new();
+        let mut i = 0;
+        while i < escaped.len() {
+            if let Some((_, len)) = basic_keycre_match(&escaped[i..]) {
+                i += len;
+                continue;
+            }
+            let c = escaped[i..].chars().next().unwrap_or('\0');
+            tmp_value.push(c);
+            i += c.len_utf8();
+        }
+        if let Some(pos) = tmp_value.find('%') {
+            return Err(format!("invalid interpolation syntax in {} at position {}", py_repr_str(value), tmp_value[..pos].chars().count()));
+        }
+        Ok(value.to_string())
+    }
+}
 
 pub type Section = IndexMap<String, String>;
 
@@ -390,7 +497,11 @@ impl RawConfigParser {
     }
 
     pub fn set(&mut self, section: &str, option: &str, value: &str) -> Result<()> {
-        let value = if value.is_empty() { value.to_string() } else { self.interpolation.before_set(self, section, option, value) };
+        let value = if value.is_empty() {
+            value.to_string()
+        } else {
+            self.interpolation.before_set(self, section, option, value).map_err(Error::new)?
+        };
         let sectdict = if section.is_empty() || section == self.default_section {
             &mut self.defaults
         } else {

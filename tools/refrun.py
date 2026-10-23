@@ -77,7 +77,12 @@ def run_one(args, test, n, it):
             "-o", str(tmp / "_test_.output"), "-v"]
         for df in it["dicts"]:
             cmd += ["-d", df]
-        env = dict(os.environ, RK_SQ_TRACE=str(tmp / "_test_.trace"))
+        # a fresh HOME per run: modules keep files under ~ (save_variables'
+        # ~/variables.cfg), which would carry state between runs
+        home = tmp / "home"
+        home.mkdir()
+        env = dict(os.environ, RK_SQ_TRACE=str(tmp / "_test_.trace"),
+                   HOME=str(home))
         p = subprocess.run(cmd, cwd=args.cwd, stdout=subprocess.PIPE,
                            stderr=subprocess.STDOUT, timeout=args.timeout,
                            env=env)

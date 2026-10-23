@@ -52,6 +52,29 @@ pub struct PrinterServo {
 }
 
 impl PrinterServo {
+    /// _get_pwm_from_angle(angle)
+    pub fn get_pwm_from_angle(&self, angle: f64) -> f64 {
+        self.calc.from_angle(angle)
+    }
+
+    /// _get_pwm_from_pulse_width(width)
+    pub fn get_pwm_from_pulse_width(&self, width: f64) -> f64 {
+        self.calc.from_pulse_width(width)
+    }
+
+    /// self.max_angle
+    pub fn max_angle(&self) -> f64 {
+        self.calc.max_angle
+    }
+
+    /// self.gcrq.send_async_request(value, print_time)
+    pub fn send_async_request(&self, value: f64, print_time: Option<f64>) -> KResult<()> {
+        let gcrq = self.gcrq.borrow().clone().ok_or_else(|| crate::error::KError::Other("servo request queue".into()))?;
+        gcrq.send_async_request(value, print_time)
+    }
+}
+
+impl PrinterServo {
     fn new(config: &ConfigWrapper) -> KResult<Rc<Self>> {
         let printer = config.get_printer();
         let min_width = config.getfloat("minimum_pulse_width", 0.001, Lim::new().above(0.0).below(SERVO_SIGNAL_PERIOD))?;

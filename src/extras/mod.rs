@@ -15,6 +15,7 @@ pub mod axis_twist_compensation;
 pub mod bed_mesh;
 pub mod bed_screws;
 pub mod bed_tilt;
+pub mod belay;
 pub mod bltouch;
 pub mod bme280;
 pub mod board_pins;
@@ -81,6 +82,7 @@ pub mod query_adc;
 pub mod query_endstops;
 pub mod respond;
 pub mod safe_z_home;
+pub mod save_variables;
 pub mod screws_tilt_adjust;
 pub mod sdcard_loop;
 pub mod servo;
@@ -108,6 +110,7 @@ pub mod tmc5160;
 pub mod tmc5262;
 pub mod tmc_tables;
 pub mod tmc_uart;
+pub mod trad_rack;
 pub mod tuning_tower;
 pub mod verify_heater;
 pub mod virtual_sdcard;
@@ -129,7 +132,7 @@ pub static MODULES: &[PrinterModule] = &[
     PrinterModule { name: "bed_mesh", ported: true, load_config: Some(bed_mesh::load_config), load_config_prefix: None, register_components: None },
     PrinterModule { name: "bed_screws", ported: true, load_config: Some(bed_screws::load_config), load_config_prefix: None, register_components: None },
     PrinterModule { name: "bed_tilt", ported: true, load_config: Some(bed_tilt::load_config), load_config_prefix: None, register_components: None },
-    todo("belay"),
+    PrinterModule { name: "belay", ported: true, load_config: None, load_config_prefix: Some(belay::load_config_prefix), register_components: None },
     PrinterModule { name: "bltouch", ported: true, load_config: Some(bltouch::load_config), load_config_prefix: None, register_components: None },
     PrinterModule { name: "bme280", ported: true, load_config: Some(bme280::load_config), load_config_prefix: None, register_components: None },
     PrinterModule { name: "board_pins", ported: true, load_config: Some(board_pins::load_config), load_config_prefix: Some(board_pins::load_config_prefix), register_components: None },
@@ -221,7 +224,7 @@ pub static MODULES: &[PrinterModule] = &[
     PrinterModule { name: "respond", ported: true, load_config: Some(respond::load_config), load_config_prefix: None, register_components: None },
     PrinterModule { name: "safe_z_home", ported: true, load_config: Some(safe_z_home::load_config), load_config_prefix: None, register_components: None },
     todo("samd_sercom"),
-    todo("save_variables"),
+    PrinterModule { name: "save_variables", ported: true, load_config: Some(save_variables::load_config), load_config_prefix: None, register_components: None },
     PrinterModule { name: "screws_tilt_adjust", ported: true, load_config: Some(screws_tilt_adjust::load_config), load_config_prefix: None, register_components: None },
     PrinterModule { name: "sdcard_loop", ported: true, load_config: Some(sdcard_loop::load_config), load_config_prefix: None, register_components: None },
     PrinterModule { name: "servo", ported: true, load_config: None, load_config_prefix: Some(servo::load_config_prefix), register_components: None },
@@ -253,7 +256,7 @@ pub static MODULES: &[PrinterModule] = &[
     PrinterModule { name: "tmc5262", ported: true, load_config: None, load_config_prefix: Some(tmc5262::load_config_prefix), register_components: None },
     PrinterModule { name: "tmc_uart", ported: true, load_config: None, load_config_prefix: None, register_components: None },
     todo("tools_calibrate"),
-    todo("trad_rack"),
+    PrinterModule { name: "trad_rack", ported: true, load_config: Some(trad_rack::load_config), load_config_prefix: None, register_components: None },
     todo("tsl1401cl_filament_width_sensor"),
     PrinterModule { name: "tuning_tower", ported: true, load_config: Some(tuning_tower::load_config), load_config_prefix: None, register_components: None },
     PrinterModule { name: "verify_heater", ported: true, load_config: None, load_config_prefix: Some(verify_heater::load_config_prefix), register_components: None },

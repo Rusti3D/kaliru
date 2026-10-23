@@ -369,16 +369,65 @@ pub struct ToolHead {
     kin: RefCell<Option<Rc<dyn Kinematics>>>,
 }
 
+/// the velocity limits ToolHead.__init__ reads
+pub struct ToolHeadLimits {
+    pub max_velocity: f64,
+    pub max_accel: f64,
+    pub min_cruise_ratio: f64,
+    pub square_corner_velocity: f64,
+}
+
 impl ToolHead {
     pub fn new(config: &ConfigWrapper) -> KResult<Rc<ToolHead>> {
-        let printer = config.get_printer();
-        let reactor = printer.get_reactor();
-        let mcu = printer.lookup::<Mcu>("mcu")?;
         // Velocity and acceleration control
         let max_velocity = config.getfloat("max_velocity", REQUIRED, Lim::new().above(0.0))?;
         let max_accel = config.getfloat("max_accel", REQUIRED, Lim::new().above(0.0))?;
         let min_cruise_ratio = config.getfloat("minimum_cruise_ratio", 0.5, Lim::new().below(1.0).min(0.0))?;
         let square_corner_velocity = config.getfloat("square_corner_velocity", 5.0, Lim::new().min(0.0))?;
+        let limits = ToolHeadLimits { max_velocity, max_accel, min_cruise_ratio, square_corner_velocity };
+        ToolHead::new_with(config, limits, &|th| {
+            // Create kinematics class
+            let kin_name = config.get("kinematics", REQUIRED)?;
+            let load = kinematics::KINEMATICS.iter().find(|(n, _)| *n == kin_name).map(|(_, l)| *l);
+            let kin = match load {
+                Some(Some(load)) => load(th, config)?,
+                Some(None) => {
+                    // ponytail: an unported kinematics fails like a load failure
+                    let msg = format!("Error loading kinematics '{}'", kin_name);
+                    logging::exception(&msg);
+                    return Err(KError::config(format!("{} (not ported to Kaliru yet)", msg)));
+                }
+                None => {
+                    // ModuleNotFoundError from importlib
+                    let msg = format!("Error loading kinematics '{}'", kin_name);
+                    logging::exception(&msg);
+                    return Err(KError::config(msg));
+                }
+            };
+            if config.has_section("dual_carriage") && !kin.supports_dual_carriage() {
+                return Err(KError::config(format!("dual_carriage not compatible with '{}' kinematics system", kin_name)));
+            }
+            for name in ["max_x_velocity", "max_x_accel", "max_y_velocity", "max_y_accel", "max_z_velocity", "max_z_accel"] {
+                if let Some(v) = kin.limit(name) {
+                    th.orig_cfg.borrow_mut().insert(name.to_string(), v.get());
+                }
+            }
+            Ok(kin)
+        })
+    }
+
+    /// ToolHead.__init__ after the velocity limits are read: `load_kin`
+    /// creates the kinematics (trad_rack's TradRackToolHead subclass
+    /// supplies its own limits and kinematics)
+    pub fn new_with(
+        config: &ConfigWrapper,
+        limits: ToolHeadLimits,
+        load_kin: &dyn Fn(&Rc<ToolHead>) -> KResult<Rc<dyn Kinematics>>,
+    ) -> KResult<Rc<ToolHead>> {
+        let printer = config.get_printer();
+        let reactor = printer.get_reactor();
+        let mcu = printer.lookup::<Mcu>("mcu")?;
+        let ToolHeadLimits { max_velocity, max_accel, min_cruise_ratio, square_corner_velocity } = limits;
         let mut orig_cfg = IndexMap::new();
         orig_cfg.insert("max_velocity".to_string(), max_velocity);
         orig_cfg.insert("max_accel".to_string(), max_accel);
@@ -425,31 +474,7 @@ impl ToolHead {
         // Create kinematics class
         let extruder: ExtraAxisRef = Rc::new(kinematics_extruder::DummyExtruder::new(&printer));
         th.extra_axes.borrow_mut().push(extruder);
-        let kin_name = config.get("kinematics", REQUIRED)?;
-        let load = kinematics::KINEMATICS.iter().find(|(n, _)| *n == kin_name).map(|(_, l)| *l);
-        let kin = match load {
-            Some(Some(load)) => load(&th, config)?,
-            Some(None) => {
-                // ponytail: an unported kinematics fails like a load failure
-                let msg = format!("Error loading kinematics '{}'", kin_name);
-                logging::exception(&msg);
-                return Err(KError::config(format!("{} (not ported to Kaliru yet)", msg)));
-            }
-            None => {
-                // ModuleNotFoundError from importlib
-                let msg = format!("Error loading kinematics '{}'", kin_name);
-                logging::exception(&msg);
-                return Err(KError::config(msg));
-            }
-        };
-        if config.has_section("dual_carriage") && !kin.supports_dual_carriage() {
-            return Err(KError::config(format!("dual_carriage not compatible with '{}' kinematics system", kin_name)));
-        }
-        for name in ["max_x_velocity", "max_x_accel", "max_y_velocity", "max_y_accel", "max_z_velocity", "max_z_accel"] {
-            if let Some(v) = kin.limit(name) {
-                th.orig_cfg.borrow_mut().insert(name.to_string(), v.get());
-            }
-        }
+        let kin = load_kin(&th)?;
         *th.kin.borrow_mut() = Some(kin);
 
         // Register handlers
@@ -462,6 +487,11 @@ impl ToolHead {
             }),
         );
         Ok(th)
+    }
+
+    /// lookahead.get_last().min_move_t
+    pub fn last_move_min_move_t(&self) -> Option<f64> {
+        self.lookahead.borrow_mut().get_last().map(|m| m.min_move_t)
     }
 
     fn kin(&self) -> Rc<dyn Kinematics> {
