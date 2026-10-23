@@ -66,3 +66,8 @@ python = ["dep:rustpython-vm", "dep:rustpython-stdlib", "dep:rustpython-pylib"]
 strip = true
 lto = true
 codegen-units = 1
+
+# RustPython with CPython 3.13's exception messages (vendor/README.md)
+[patch.crates-io]
+rustpython-vm = { path = "vendor/rustpython-vm" }
+rustpython-stdlib = { path = "vendor/rustpython-stdlib" }
