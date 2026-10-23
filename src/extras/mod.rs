@@ -13,6 +13,7 @@ pub mod adc_scaled;
 pub mod adc_temperature;
 pub mod adxl345;
 pub mod aht10;
+pub mod angle;
 pub mod axis_twist_compensation;
 pub mod bed_mesh;
 pub mod bed_screws;
@@ -159,7 +160,7 @@ pub static MODULES: &[PrinterModule] = &[
     PrinterModule { name: "adc_temperature", ported: true, load_config: Some(adc_temperature::load_config), load_config_prefix: Some(adc_temperature::load_config_prefix), register_components: None },
     PrinterModule { name: "adxl345", ported: true, load_config: Some(adxl345::load_config), load_config_prefix: Some(adxl345::load_config_prefix), register_components: None },
     PrinterModule { name: "aht10", ported: true, load_config: Some(aht10::load_config), load_config_prefix: None, register_components: None },
-    todo("angle"),
+    PrinterModule { name: "angle", ported: true, load_config: None, load_config_prefix: Some(angle::load_config_prefix), register_components: None },
     PrinterModule { name: "axis_twist_compensation", ported: true, load_config: Some(axis_twist_compensation::load_config), load_config_prefix: None, register_components: None },
     PrinterModule { name: "bed_mesh", ported: true, load_config: Some(bed_mesh::load_config), load_config_prefix: None, register_components: None },
     PrinterModule { name: "bed_screws", ported: true, load_config: Some(bed_screws::load_config), load_config_prefix: None, register_components: None },

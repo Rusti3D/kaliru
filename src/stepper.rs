@@ -334,6 +334,11 @@ impl McuStepper {
         mcu_pos as f64 * self.step_dist.get() - self.mcu_position_offset.get()
     }
 
+    /// mcu_to_commanded_position() of a float mcu position
+    pub fn mcu_to_commanded_position_f(&self, mcu_pos: f64) -> f64 {
+        mcu_pos * self.step_dist.get() - self.mcu_position_offset.get()
+    }
+
     pub fn dump_steps(&self, count: usize, start_clock: u64, end_clock: u64) -> Vec<crate::chelper::stepcompress::PullHistorySteps> {
         match self.syncemitter.get_stepcompress() {
             Some(sc) => sc.borrow().extract_old(count, start_clock, end_clock),

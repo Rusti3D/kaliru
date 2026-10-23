@@ -25,6 +25,9 @@ LOG_MASKS = [
     (re.compile(rb"\b\d{10}\.\d+\b"), b"<TIME>"),        # time.time()
     (re.compile(rb"0x[0-9a-f]{8,}"), b"<ADDR>"),
     (re.compile(rb"\bpid \d+"), b"pid <PID>"),
+    # util.dump_mcu_build: paths relative to the install dir (klippy/ vs
+    # the kaliru binary's dir)
+    (re.compile(rb"No build file \S*?/\.\./"), b"No build file <DIR>/../"),
     # gcode.py dump_debug: "Read %f: %r" of the reactor.monotonic() read time
     (re.compile(rb"^Read \d+\.\d+: ", re.M), b"Read <MONO>: "),
     # traceback frames (kaliru writes one placeholder frame line)

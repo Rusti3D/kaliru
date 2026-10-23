@@ -436,6 +436,75 @@ pub fn np_solve3(a: [[f64; 3]; 3], b: [f64; 3]) -> Result<[f64; 3], MathError> {
     Ok(b)
 }
 
+/// numpy.linalg.lstsq(a, b, rcond=None)[0]: the minimum norm least squares
+/// solution, with singular values <= eps * max(m, n) * s_max treated as
+/// zero (LAPACK dgelsd's cutoff). This uses a one-sided Jacobi SVD, not
+/// dgelsd's divide and conquer, so results agree with numpy to rounding
+/// (~1e-12 relative), not bit for bit.
+pub fn np_lstsq(a: &[Vec<f64>], b: &[f64]) -> Vec<f64> {
+    let m = a.len();
+    let n = a.first().map(|r| r.len()).unwrap_or(0);
+    // Orthogonalize the columns of w (m >= n: a; else a transposed)
+    let tall = m >= n;
+    let (rows, cols) = if tall { (m, n) } else { (n, m) };
+    let mut w: Vec<Vec<f64>> = (0..cols).map(|j| (0..rows).map(|i| if tall { a[i][j] } else { a[j][i] }).collect()).collect();
+    let mut v: Vec<Vec<f64>> = (0..cols).map(|j| (0..cols).map(|i| (i == j) as i64 as f64).collect()).collect();
+    let dot = |x: &[f64], y: &[f64]| x.iter().zip(y).map(|(a, b)| a * b).sum::<f64>();
+    for _sweep in 0..100 {
+        let mut rotated = false;
+        for p in 0..cols {
+            for q in p + 1..cols {
+                let alpha = dot(&w[p], &w[p]);
+                let beta = dot(&w[q], &w[q]);
+                let gamma = dot(&w[p], &w[q]);
+                if gamma == 0.0 || gamma.abs() <= f64::EPSILON * (alpha * beta).sqrt() {
+                    continue;
+                }
+                rotated = true;
+                let zeta = (beta - alpha) / (2.0 * gamma);
+                let t = zeta.signum() / (zeta.abs() + (1.0 + zeta * zeta).sqrt());
+                let c = 1.0 / (1.0 + t * t).sqrt();
+                let s = c * t;
+                for mat in [&mut w, &mut v] {
+                    for k in 0..mat[p].len() {
+                        let (xp, xq) = (mat[p][k], mat[q][k]);
+                        mat[p][k] = c * xp - s * xq;
+                        mat[q][k] = s * xp + c * xq;
+                    }
+                }
+            }
+        }
+        if !rotated {
+            break;
+        }
+    }
+    // w's columns are s_i * u_i; v's are the matching singular vectors
+    let sv: Vec<f64> = w.iter().map(|c| dot(c, c).sqrt()).collect();
+    let smax = sv.iter().copied().fold(0.0, f64::max);
+    let cutoff = f64::EPSILON * m.max(n) as f64 * smax;
+    let mut x = vec![0.0; n];
+    for i in 0..cols {
+        if sv[i] <= cutoff {
+            continue;
+        }
+        let s2 = sv[i] * sv[i];
+        if tall {
+            // a = sum u_i s_i v_i^T: x = sum v_i (w_i . b) / s_i^2
+            let k = dot(&w[i], b) / s2;
+            for (xj, vj) in x.iter_mut().zip(&v[i]) {
+                *xj += vj * k;
+            }
+        } else {
+            // a^T = sum w_i v_i^T: x = sum w_i (v_i . b) / s_i^2
+            let k = dot(&v[i], b) / s2;
+            for (xj, wj) in x.iter_mut().zip(&w[i]) {
+                *xj += wj * k;
+            }
+        }
+    }
+    x
+}
+
 #[cfg(test)]
 mod hypot_tests {
     /// RK_HYPOT_CASES: lines "a_hex b_hex hypot_hex" from the reference python
@@ -475,12 +544,12 @@ mod hypot_tests {
 }
 
 #[cfg(test)]
-mod numpy_tests {
+pub(crate) mod numpy_tests {
     use super::*;
     use indexmap::IndexMap;
 
     /// a python float.hex() value
-    fn parse_hex(s: &str) -> f64 {
+    pub(crate) fn parse_hex(s: &str) -> f64 {
         match s {
             "inf" => return f64::INFINITY,
             "-inf" => return f64::NEG_INFINITY,
