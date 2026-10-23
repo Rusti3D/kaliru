@@ -1,0 +1,27 @@
+# digital out (scheduled, max_duration), set_digital_out, buttons
+allocate_oids count=6
+config_digital_out oid=0 pin=gpio20 value=0 default_value=0 max_duration=0
+config_digital_out oid=1 pin=gpio21 value=1 default_value=1 max_duration=0
+config_digital_out oid=2 pin=gpio22 value=0 default_value=0 max_duration=10000000
+config_buttons oid=3 button_count=2
+buttons_add oid=3 pos=0 pin=gpio30 pull_up=1
+buttons_add oid=3 pos=1 pin=gpio31 pull_up=0
+finalize_config crc=3
+set_digital_out pin=gpio40 value=1
+update_digital_out oid=0 value=1
+update_digital_out oid=0 value=0
+get_clock
+queue_digital_out oid=1 clock={clock+50000000} on_ticks=0
+queue_digital_out oid=1 clock={clock+60000000} on_ticks=1
+queue_digital_out oid=2 clock={clock+50000000} on_ticks=1
+#wait 1.3
+get_clock
+queue_digital_out oid=2 clock={clock+50000000} on_ticks=1
+#wait 1.6
+get_config
+clear_shutdown
+get_clock
+buttons_query oid=3 clock={clock+50000000} rest_ticks=500000 retransmit_count=10 invert=0
+#wait 1.3
+buttons_ack oid=3 count=1
+emergency_stop

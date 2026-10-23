@@ -1,0 +1,31 @@
+# command parsing and error paths
+allocate_oids count=4
+allocate_oids count=4
+clear_shutdown
+config_trsync oid=9
+clear_shutdown
+config_trsync oid=1
+config_trsync oid=1
+clear_shutdown
+trsync_trigger oid=2 reason=1
+clear_shutdown
+load_cell_probe_set_range oid=1 safety_counts_min=10 safety_counts_max=0 tare_counts=0 trigger_grams=0 grams_per_count=0
+clear_shutdown
+config_sos_filter oid=2 max_sections=2
+sos_filter_set_section oid=2 section_idx=5 sos0=1 sos1=0 sos2=0 sos3=0 sos4=0
+clear_shutdown
+config_load_cell_probe oid=3 sos_filter_oid=2
+load_cell_probe_set_range oid=3 safety_counts_min=0 safety_counts_max=10 tare_counts=0 trigger_grams=70000 grams_per_count=0
+clear_shutdown
+load_cell_probe_set_range oid=3 safety_counts_min=0 safety_counts_max=10 tare_counts=0 trigger_grams=1 grams_per_count=-1
+clear_shutdown
+# a block with a bad crc (nak), sync bytes, an invalid command id
+#raw 0510ffff7e
+#raw 7e7e7e
+get_config
+#raw 06117f00007e
+get_config
+clear_shutdown
+get_config
+#raw 464f5243455f53485554444f574e0a
+get_config

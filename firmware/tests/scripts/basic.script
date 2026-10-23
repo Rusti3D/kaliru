@@ -1,0 +1,29 @@
+# basecmd, debugcmds, trsync, shutdown handling (no hardware needed)
+#identify
+get_uptime
+get_clock
+get_config
+allocate_oids count=8
+config_trsync oid=0
+config_trsync oid=1
+get_config
+debug_ping data=0102ab7e10
+debug_nop
+trsync_start oid=0 report_clock=0 report_ticks=0 expire_reason=4
+trsync_trigger oid=0 reason=7
+trsync_start oid=1 report_clock=0 report_ticks=0 expire_reason=4
+trsync_set_timeout oid=1 clock=0
+#wait 0.2
+finalize_config crc=305419896
+get_config
+config_trsync oid=2
+get_config
+clear_shutdown
+get_config
+emergency_stop
+get_config
+get_uptime
+clear_shutdown
+get_config
+clear_shutdown
+get_config

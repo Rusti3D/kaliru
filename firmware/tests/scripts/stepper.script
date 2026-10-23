@@ -1,0 +1,40 @@
+# steppers, endstop homing, trsync stop (pins through the fake gpio shim)
+allocate_oids count=8
+config_stepper oid=0 step_pin=gpio10 dir_pin=gpio11 invert_step=0 step_pulse_ticks=100
+config_stepper oid=1 step_pin=gpio12 dir_pin=gpio13 invert_step=-1 step_pulse_ticks=100
+config_stepper oid=2 step_pin=gpio14 dir_pin=gpio15 invert_step=1 step_pulse_ticks=100
+config_trsync oid=3
+config_endstop oid=4 pin=gpio16 pull_up=1
+finalize_config crc=7
+get_config
+get_clock
+reset_step_clock oid=0 clock={clock+50000000}
+set_next_step_dir oid=0 dir=1
+queue_step oid=0 interval=100000 count=5 add=0
+set_next_step_dir oid=0 dir=0
+queue_step oid=0 interval=50000 count=3 add=1000
+reset_step_clock oid=1 clock={clock+50000000}
+queue_step oid=1 interval=100000 count=4 add=0
+reset_step_clock oid=2 clock={clock+50000000}
+queue_step oid=2 interval=200000 count=2 add=-500
+#wait 1.6
+stepper_get_position oid=0
+stepper_get_position oid=1
+stepper_get_position oid=2
+# homing: the endstop reads 0 (pin_value=0 matches), the trsync stops stepper 1
+get_clock
+trsync_start oid=3 report_clock={clock+100000000} report_ticks=0 expire_reason=4
+stepper_stop_on_trigger oid=1 trsync_oid=3
+reset_step_clock oid=1 clock={clock+50000000}
+queue_step oid=1 interval=1000000 count=50 add=0
+endstop_home oid=4 clock={clock+52500000} sample_ticks=1000 sample_count=4 rest_ticks=10000 pin_value=0 trsync_oid=3 trigger_reason=1
+#wait 1.5
+endstop_query_state oid=4
+stepper_get_position oid=1
+trsync_trigger oid=3 reason=9
+# a stopped stepper needs a reset_step_clock
+queue_step oid=1 interval=1000 count=2 add=0
+#wait 0.1
+stepper_get_position oid=1
+emergency_stop
+get_config

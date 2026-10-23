@@ -1,0 +1,22 @@
+# object configs that need no hardware, finalize_config and the move queue
+allocate_oids count=12
+config_trsync oid=0
+config_i2c oid=1
+config_spi_without_cs oid=2
+config_sos_filter oid=3 max_sections=4
+config_load_cell_probe oid=4 sos_filter_oid=3
+config_spi_shutdown oid=5 spi_oid=2 shutdown_msg=aabbcc
+config_i2c oid=6
+get_config
+finalize_config crc=1
+get_config
+sos_filter_set_section oid=3 section_idx=0 sos0=1073741824 sos1=0 sos2=0 sos3=0 sos4=0
+sos_filter_set_state oid=3 section_idx=0 state0=5 state1=-7
+sos_filter_set_active oid=3 n_sections=1 coeff_int_bits=1
+load_cell_probe_set_range oid=4 safety_counts_min=-1000 safety_counts_max=1000 tare_counts=10 trigger_grams=50 grams_per_count=268435456
+load_cell_probe_query_state oid=4
+load_cell_probe_home oid=4 trsync_oid=0 trigger_reason=1 error_reason=2 clock=0 rest_ticks=0 timeout=0
+load_cell_probe_query_state oid=4
+spi_send oid=2 data=0102
+spi_transfer oid=2 data=0102
+get_config
