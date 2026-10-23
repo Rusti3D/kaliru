@@ -2,7 +2,8 @@
 
 > **Work in progress.** Kaliru is not ready for a printer yet. It is verified
 > only against Kalico's own test suite and file-output test runs, not on real
-> hardware, and the MCU firmware is not ported. Do not run it on a printer.
+> hardware, and the MCU firmware is ported for the Linux-process MCU only. Do
+> not run it on a printer.
 
 Kaliru is a port of [Kalico](https://github.com/KalicoCrew/kalico) (a Klipper
 fork) to Rust, aimed at small printer hosts with little RAM (the first target
@@ -39,7 +40,13 @@ Reference: Kalico `5b59427`.
   Kalico's helpers (`emit`, `printer`, `own_vars`, `wait_moves`, ...). Syntax
   and runtime error messages follow CPython 3.13 (`vendor/` holds the patched
   RustPython crates). Known gap: no `match` statement.
-- Not ported yet: the MCU firmware.
+- MCU firmware (`firmware/`, the `kaliru-mcu` crate): the generic core, every
+  command module and sensor driver, and the Linux-process board. Its data
+  dictionary is byte-identical to Kalico's C build (version fields aside), and
+  scripted sessions against both, with fake gpio/spi/i2c/adc hardware, give the
+  same answers and the same pin and bus activity. See
+  [`firmware/README.md`](firmware/README.md).
+- Not ported yet: the firmware's micro-controller boards (STM32 first).
 
 - Known limits: paths that read sensors over i2c/spi can't be exercised in
   Kalico's file-output test mode. They are ported from source but not yet
