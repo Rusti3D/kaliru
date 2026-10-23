@@ -1,0 +1,11 @@
+SHOULD_FAIL
+DICTIONARY stm32f407.dict
+
+CONFIG sensor_host.cfg
+CONFIG sensor_lm75.cfg
+CONFIG sensor_sht3x.cfg
+CONFIG sensor_aht.cfg
+CONFIG sensor_htu.cfg
+CONFIG sensor_htu_bad.cfg
+CONFIG sensor_dac.cfg
+G4 P2000

@@ -2,7 +2,7 @@
 // [display_glyph] handling of klippy/extras/display/display.py
 // (DisplayTemplate, DisplayGroup, PrinterDisplayTemplate,
 // lookup_display_templates). The LCD part (PrinterLCD, the chip drivers,
-// menu) is the "display" module, not ported yet.
+// menu) is the "display" module (extras/display).
 //
 // Copyright (C) 2018-2022  Kevin O'Connor <kevin@koconnor.net>
 // Copyright (C) 2018  Aleph Objects, Inc <marcio@alephobjects.com>

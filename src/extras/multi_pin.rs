@@ -90,9 +90,14 @@ impl PrinterMultiPin {
                 let p: Rc<dyn DigitalOutPin> = me;
                 Ok(Rc::new(p))
             }
-            // ponytail: python hands back the multi_pin for any pin type
-            // (only output pins work with it)
-            other => Err(format!("pin '{}' of type {} is not supported here by Kaliru yet", pin_name, other)),
+            other => {
+                // python sets up the pins and hands back the multi_pin for
+                // any pin type; only output pins work with it
+                for d in &descs {
+                    crate::pins::setup_pin(&self.printer, other, d).map_err(|e| e.to_string())?;
+                }
+                Ok(me)
+            }
         }
     }
 

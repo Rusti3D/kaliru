@@ -1741,9 +1741,3 @@ pub fn lookup_heaters(config: &ConfigWrapper) -> KResult<Rc<PrinterHeaters>> {
     config.get_printer().lookup::<PrinterHeaters>("heaters")
 }
 
-/// the factory of a sensor type whose class is not ported yet
-pub fn unported_factory(sensor_type: &'static str) -> SensorFactory {
-    Rc::new(move |_config: &ConfigWrapper| -> KResult<Rc<dyn TempSensor>> {
-        Err(KError::config(format!("Temperature sensor '{}' is not ported to Kaliru yet", sensor_type)))
-    })
-}

@@ -238,6 +238,7 @@ pub struct DockableProbe {
     speed: f64,
     lift_speed: f64,
     dock_retries: i64,
+    pub detach_dockable_before_z_home: bool,
     auto_attach_detach: Cell<bool>,
     restore_toolhead: bool,
     travel_speed: f64,
@@ -360,7 +361,7 @@ impl DockableProbe {
         let attach_speed = config.getfloat("attach_speed", travel_speed, Lim::new().above(0.0))?;
         let detach_speed = config.getfloat("detach_speed", travel_speed, Lim::new().above(0.0))?;
         config.getfloat("sample_retract_dist", 2.0, Lim::new().above(0.0))?;
-        config.getboolean("detach_dockable_before_z_home", false)?;
+        let detach_dockable_before_z_home = config.getboolean("detach_dockable_before_z_home", false)?;
 
         // Positions (approach, detach, etc)
         let approach_position = parse_coord(config, "approach_position", None)?;
@@ -412,6 +413,7 @@ impl DockableProbe {
             speed,
             lift_speed,
             dock_retries,
+            detach_dockable_before_z_home,
             auto_attach_detach: Cell::new(auto_attach_detach),
             restore_toolhead,
             travel_speed,
@@ -634,7 +636,7 @@ impl DockableProbe {
         Ok(())
     }
 
-    fn detach_probe(&self, return_pos: Option<&[f64]>) -> KResult<()> {
+    pub fn detach_probe(&self, return_pos: Option<&[f64]>) -> KResult<()> {
         let mut retry = 0;
         while self.get_probe_state()? != PROBE_DOCKED && retry < self.dock_retries + 1 {
             self.pre_detach_gcode.run_gcode_from_command(None)?;

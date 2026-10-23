@@ -29,6 +29,9 @@ pub mod canbus_ids;
 pub mod canbus_stats;
 pub mod control_mpc;
 pub mod controller_fan;
+// the python module name
+#[allow(non_snake_case)]
+pub mod dac084S085;
 pub mod danger_options;
 pub mod delayed_gcode;
 pub mod delta_calibrate;
@@ -177,7 +180,7 @@ pub static MODULES: &[PrinterModule] = &[
     PrinterModule { name: "canbus_stats", ported: true, load_config: None, load_config_prefix: Some(canbus_stats::load_config_prefix), register_components: None },
     PrinterModule { name: "control_mpc", ported: true, load_config: None, load_config_prefix: None, register_components: None },
     PrinterModule { name: "controller_fan", ported: true, load_config: None, load_config_prefix: Some(controller_fan::load_config_prefix), register_components: None },
-    todo("dac084S085"),
+    PrinterModule { name: "dac084S085", ported: true, load_config: None, load_config_prefix: Some(dac084S085::load_config_prefix), register_components: None },
     PrinterModule { name: "danger_options", ported: true, load_config: Some(danger_options::load_config), load_config_prefix: None, register_components: None },
     PrinterModule { name: "delayed_gcode", ported: true, load_config: None, load_config_prefix: Some(delayed_gcode::load_config_prefix), register_components: None },
     PrinterModule { name: "delta_calibrate", ported: true, load_config: Some(delta_calibrate::load_config), load_config_prefix: None, register_components: None },

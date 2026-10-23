@@ -1,0 +1,5 @@
+CONFIG sensor_bme.cfg
+DICTIONARY stm32f407.dict
+
+SHOW
+G4 P100

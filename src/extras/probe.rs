@@ -3,11 +3,6 @@
 // Copyright (C) 2017-2021  Kevin O'Connor <kevin@koconnor.net>
 //
 // This file may be distributed under the terms of the GNU GPLv3 license.
-//
-// Ported: everything except the METHOD=rapid_scan path of
-// ProbePointsHelper, which needs a probe with begin_collect_distance()
-// (eddy current probes, not ported yet): it falls back like python does
-// for probes without it.
 use crate::configfile::{ConfigWrapper, Dflt, Lim, ListParser};
 use crate::error::{KError, KResult};
 use crate::extras::gcode_macro::{load_gcode_macro, Template};

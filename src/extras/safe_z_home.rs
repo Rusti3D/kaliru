@@ -128,8 +128,9 @@ impl SafeZHoming {
             }
 
             // Do we need to detach the probe?
-            if self.printer.lookup_object_opt("dockable_probe").is_some() {
-                return Err(KError::Other("dockable_probe is not ported to Kaliru yet".into()));
+            let dockable = self.printer.lookup_object_opt("dockable_probe").and_then(crate::printer::downcast_rc::<crate::extras::dockable_probe::DockableProbe>);
+            if let Some(dockable) = dockable.filter(|d| d.detach_dockable_before_z_home) {
+                dockable.detach_probe(None)?;
             }
 
             // Move to safe XY homing position
