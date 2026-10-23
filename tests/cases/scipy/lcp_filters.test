@@ -1,0 +1,10 @@
+# filter designs need scipy in the python reference:
+# REF_KLIPPY="$HOME/rk/scipyenv/bin/python -m klippy" tools/case_cmp.sh tests/cases/scipy/lcp_filters.test
+DICTIONARY stm32f407.dict
+
+CONFIG lcp_drift.cfg
+G4 P100
+CONFIG lcp_all.cfg
+G4 P100
+CONFIG lcp_ads.cfg
+G4 P100

@@ -1,0 +1,4 @@
+DICTIONARY stm32f407.dict
+
+CONFIG lcp_basic.cfg
+G4 P100

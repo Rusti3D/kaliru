@@ -278,6 +278,11 @@ pub struct PrinterMotionReport {
 }
 
 impl PrinterMotionReport {
+    /// self.trapqs[name]
+    pub fn get_dump_trapq(&self, name: &str) -> Option<Rc<DumpTrapQ>> {
+        self.dtrapqs.borrow().get(name).cloned()
+    }
+
     fn new(config: &ConfigWrapper) -> KResult<Rc<Self>> {
         let printer = config.get_printer();
         // get_status information

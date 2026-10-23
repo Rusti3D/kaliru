@@ -89,7 +89,18 @@ pub struct ForceMsg {
     pub overflows: PyVal,
 }
 
-impl ForceMsg {
+/// a message ApiClientHelper sends: json'able for webhooks clients
+pub(crate) trait ApiMsg {
+    fn to_pyval(&self) -> PyVal;
+}
+
+impl ApiMsg for PyVal {
+    fn to_pyval(&self) -> PyVal {
+        self.clone()
+    }
+}
+
+impl ApiMsg for ForceMsg {
     fn to_pyval(&self) -> PyVal {
         let mut d = IndexMap::new();
         d.insert("data".to_string(), PyVal::List(self.data.iter().map(|s| s.to_pyval()).collect()));
@@ -102,19 +113,19 @@ impl ForceMsg {
 pub type ForceClient = Rc<dyn Fn(&ForceMsg) -> bool>;
 
 // Helper for event driven webhooks and subscription based API clients
-struct ApiClientHelper {
+pub(crate) struct ApiClientHelper<M: ApiMsg + 'static = ForceMsg> {
     printer: Rc<Printer>,
-    client_cbs: RefCell<Vec<ForceClient>>,
+    client_cbs: RefCell<Vec<Rc<dyn Fn(&M) -> bool>>>,
     webhooks_start_resp: RefCell<PyVal>,
 }
 
-impl ApiClientHelper {
-    fn new(printer: &Rc<Printer>) -> Rc<Self> {
+impl<M: ApiMsg + 'static> ApiClientHelper<M> {
+    pub(crate) fn new(printer: &Rc<Printer>) -> Rc<Self> {
         Rc::new(ApiClientHelper { printer: printer.clone(), client_cbs: RefCell::new(vec![]), webhooks_start_resp: RefCell::new(PyVal::dict()) })
     }
 
     // send data to clients
-    fn send(&self, msg: &ForceMsg) {
+    pub(crate) fn send(&self, msg: &M) {
         let cbs = self.client_cbs.borrow().clone();
         for client_cb in cbs {
             if !client_cb(msg) {
@@ -128,12 +139,12 @@ impl ApiClientHelper {
     }
 
     // Add a client that gets data callbacks
-    fn add_client(&self, client_cb: ForceClient) {
+    pub(crate) fn add_client(&self, client_cb: Rc<dyn Fn(&M) -> bool>) {
         self.client_cbs.borrow_mut().push(client_cb);
     }
 
     // Set up a webhooks endpoint with a static header
-    fn add_mux_endpoint(self: &Rc<Self>, path: &str, key: &str, value: &str, webhooks_start_resp: PyVal) -> KResult<()> {
+    pub(crate) fn add_mux_endpoint(self: &Rc<Self>, path: &str, key: &str, value: &str, webhooks_start_resp: PyVal) -> KResult<()> {
         *self.webhooks_start_resp.borrow_mut() = webhooks_start_resp;
         let wh = self.printer.lookup::<WebHooks>("webhooks")?;
         let w = Rc::downgrade(self);

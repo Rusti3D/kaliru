@@ -10,6 +10,10 @@ pub mod cs1237;
 pub mod hx71x;
 #[allow(clippy::module_inception)]
 pub mod load_cell;
+pub mod load_cell_probe;
+pub mod sos_filter;
+pub mod tap_analysis;
+pub mod tap_quality_classifier;
 
 use crate::configfile::ConfigWrapper;
 use crate::error::{KError, KResult};

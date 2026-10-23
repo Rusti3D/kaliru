@@ -29,9 +29,7 @@ pub mod canbus_ids;
 pub mod canbus_stats;
 pub mod control_mpc;
 pub mod controller_fan;
-// the python module name
-#[allow(non_snake_case)]
-pub mod dac084S085;
+pub mod dac084s085;
 pub mod danger_options;
 pub mod delayed_gcode;
 pub mod delta_calibrate;
@@ -78,6 +76,7 @@ pub mod lis2dw;
 pub mod lis3dh;
 pub mod lm75;
 pub mod load_cell;
+pub mod load_cell_probe;
 pub mod manual_probe;
 pub mod manual_stepper;
 pub mod mcp4018;
@@ -180,7 +179,7 @@ pub static MODULES: &[PrinterModule] = &[
     PrinterModule { name: "canbus_stats", ported: true, load_config: None, load_config_prefix: Some(canbus_stats::load_config_prefix), register_components: None },
     PrinterModule { name: "control_mpc", ported: true, load_config: None, load_config_prefix: None, register_components: None },
     PrinterModule { name: "controller_fan", ported: true, load_config: None, load_config_prefix: Some(controller_fan::load_config_prefix), register_components: None },
-    PrinterModule { name: "dac084S085", ported: true, load_config: None, load_config_prefix: Some(dac084S085::load_config_prefix), register_components: None },
+    PrinterModule { name: "dac084S085", ported: true, load_config: None, load_config_prefix: Some(dac084s085::load_config_prefix), register_components: None },
     PrinterModule { name: "danger_options", ported: true, load_config: Some(danger_options::load_config), load_config_prefix: None, register_components: None },
     PrinterModule { name: "delayed_gcode", ported: true, load_config: None, load_config_prefix: Some(delayed_gcode::load_config_prefix), register_components: None },
     PrinterModule { name: "delta_calibrate", ported: true, load_config: Some(delta_calibrate::load_config), load_config_prefix: None, register_components: None },
@@ -226,7 +225,7 @@ pub static MODULES: &[PrinterModule] = &[
     PrinterModule { name: "lis3dh", ported: true, load_config: Some(lis3dh::load_config), load_config_prefix: Some(lis3dh::load_config_prefix), register_components: None },
     PrinterModule { name: "lm75", ported: true, load_config: Some(lm75::load_config), load_config_prefix: None, register_components: None },
     PrinterModule { name: "load_cell", ported: true, load_config: Some(load_cell::load_config), load_config_prefix: Some(load_cell::load_config_prefix), register_components: Some(load_cell::register_components) },
-    todo("load_cell_probe"),
+    PrinterModule { name: "load_cell_probe", ported: true, load_config: Some(load_cell_probe::load_config), load_config_prefix: None, register_components: Some(load_cell_probe::register_components) },
     PrinterModule { name: "manual_probe", ported: true, load_config: Some(manual_probe::load_config), load_config_prefix: None, register_components: None },
     PrinterModule { name: "manual_stepper", ported: true, load_config: None, load_config_prefix: Some(manual_stepper::load_config_prefix), register_components: None },
     PrinterModule { name: "mcp4018", ported: true, load_config: None, load_config_prefix: Some(mcp4018::load_config_prefix), register_components: None },

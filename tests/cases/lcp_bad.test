@@ -1,0 +1,13 @@
+SHOULD_FAIL
+DICTIONARY stm32f407.dict
+
+CONFIG lcp_buzz.cfg
+G4 P100
+CONFIG lcp_notches.cfg
+G4 P100
+CONFIG lcp_notch_hi.cfg
+G4 P100
+CONFIG lcp_empty.cfg
+G4 P100
+CONFIG lcp_trigger.cfg
+G4 P100
