@@ -320,8 +320,9 @@ pub fn command_sendf(ce: &CommandEncoder, args: &[SendArg]) -> R {
     r
 }
 
-pub fn sendf_shutdown() {
+pub fn sendf_shutdown() -> R {
     unsafe { core::ptr::write_volatile(IN_SENDF.ptr(), 0) };
+    Ok(())
 }
 decl_shutdown!(sendf_shutdown);
 

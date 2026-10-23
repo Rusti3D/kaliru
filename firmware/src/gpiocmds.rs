@@ -210,13 +210,14 @@ pub fn command_update_digital_out(args: &[u32]) -> R {
 }
 decl_command!(command_update_digital_out, "update_digital_out oid=%c value=%c");
 
-pub fn digital_out_shutdown() {
+pub fn digital_out_shutdown() -> R {
     for p in foreach_oid(oid_type()) {
         let d = unsafe { &mut *(p as *mut DigitalOut) };
         gpio_out_write(d.pin, d.flags & DF_DEFAULT_ON);
         d.flags = if d.flags & DF_DEFAULT_ON != 0 { DF_ON | DF_DEFAULT_ON } else { 0 };
         move_queue_clear(&mut d.mq);
     }
+    Ok(())
 }
 decl_shutdown!(digital_out_shutdown);
 

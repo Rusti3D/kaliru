@@ -373,11 +373,12 @@ pub fn command_stepper_stop_on_trigger(args: &[u32]) -> R {
 }
 decl_command!(command_stepper_stop_on_trigger, "stepper_stop_on_trigger oid=%c trsync_oid=%c");
 
-pub fn stepper_shutdown() {
+pub fn stepper_shutdown() -> R {
     for p in foreach_oid(oid_type()) {
         let s = unsafe { &mut *(p as *mut Stepper) };
         move_queue_clear(&mut s.mq);
         unsafe { stepper_stop(&mut s.stop_signal, 0) };
     }
+    Ok(())
 }
 decl_shutdown!(stepper_shutdown);

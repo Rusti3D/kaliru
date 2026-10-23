@@ -159,10 +159,10 @@ pub fn move_queue_setup(mh: &mut MoveQueueHead, size: usize) -> R {
     Ok(())
 }
 
-pub fn move_reset() {
+pub fn move_reset() -> R {
     let moves = MOVES.get();
     if moves.count == 0 {
-        return;
+        return Ok(());
     }
     // Add everything in move_list to the free list.
     let size = moves.item_size as usize;
@@ -173,6 +173,7 @@ pub fn move_reset() {
     let mf = moves.list.wrapping_add((moves.count as usize - 1) * size) as *mut MoveNode;
     unsafe { (*mf).next = null_mut() };
     moves.free_list = moves.list as *mut MoveNode;
+    Ok(())
 }
 decl_shutdown!(move_reset);
 
@@ -188,7 +189,7 @@ fn move_finalize() -> R {
     let moves = MOVES.get();
     moves.list = list;
     moves.count = count;
-    move_reset();
+    move_reset()?;
     Ok(())
 }
 

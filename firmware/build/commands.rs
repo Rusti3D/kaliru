@@ -418,19 +418,13 @@ pub fn generate(requests: &[Request], eval: &Eval, versions: &Versions, kconfig:
             .map(|f| {
                 if name == "ctr_run_taskfuncs" {
                     format!("    crate::board::irq_poll()?;\n    {}()?;\n", f)
-                } else if name == "ctr_run_shutdownfuncs" {
-                    format!("    {}();\n", f)
                 } else {
                     format!("    {}()?;\n", f)
                 }
             })
             .collect();
         let tail = if name == "ctr_run_taskfuncs" { "    crate::board::irq_poll()?;\n" } else { "" };
-        if name == "ctr_run_shutdownfuncs" {
-            code += &format!("\npub fn {}() {{\n{}}}\n", name, calls.concat());
-        } else {
-            code += &format!("\npub fn {}() -> R {{\n{}{}    Ok(())\n}}\n", name, calls.concat(), tail);
-        }
+        code += &format!("\npub fn {}() -> R {{\n{}{}    Ok(())\n}}\n", name, calls.concat(), tail);
     }
     // initial pins (HandleInitialPins.map_pins)
     let mut pins_code = vec![];

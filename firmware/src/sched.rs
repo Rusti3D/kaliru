@@ -342,7 +342,9 @@ fn run_shutdown(reason: u8) -> R {
     }
     ss.shutdown_status = 2;
     sched_timer_reset();
-    crate::ctr::ctr_run_shutdownfuncs();
+    // a shutdown in a shutdown handler runs them all again (C longjmps
+    // back into run_shutdown)
+    crate::ctr::ctr_run_shutdownfuncs()?;
     SCHED_STATUS.get().shutdown_status = 1;
     irq_enable();
 

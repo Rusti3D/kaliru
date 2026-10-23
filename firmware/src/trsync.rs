@@ -210,9 +210,10 @@ pub fn trsync_task() -> R {
 }
 decl_task!(trsync_task);
 
-pub fn trsync_shutdown() {
+pub fn trsync_shutdown() -> R {
     for p in foreach_oid(oid_type()) {
         trsync_clear(unsafe { &mut *(p as *mut Trsync) });
     }
+    Ok(())
 }
 decl_shutdown!(trsync_shutdown);
