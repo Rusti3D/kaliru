@@ -167,8 +167,12 @@ impl PyBytes {
     }
 
     #[pymethod(magic)]
-    fn add(&self, other: ArgBytesLike) -> Vec<u8> {
-        self.inner.add(&other.borrow_buf())
+    fn add(&self, other: PyObjectRef, vm: &VirtualMachine) -> PyResult<Vec<u8>> {
+        let other = ArgBytesLike::try_from_object(vm, other.clone()).map_err(|_| {
+            vm.new_type_error(format!("can't concat {} to bytes", other.class().name()))
+        })?;
+        let v = self.inner.add(&other.borrow_buf());
+        Ok(v)
     }
 
     #[pymethod(magic)]

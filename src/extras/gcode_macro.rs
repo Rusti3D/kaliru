@@ -119,6 +119,7 @@ impl Object for Action {
 }
 
 impl Action {
+    #[cfg_attr(not(feature = "python"), allow(dead_code))]
     pub(crate) fn new(printer: &Rc<Printer>, name: &'static str) -> Self {
         Action { printer: printer.clone(), name }
     }

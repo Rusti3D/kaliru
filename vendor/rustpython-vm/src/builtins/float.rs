@@ -131,7 +131,12 @@ pub fn float_pow(v1: f64, v2: f64, vm: &VirtualMachine) -> PyResult {
         let v2 = Complex64::new(v2, 0.);
         Ok(v1.powc(v2).to_pyobject(vm))
     } else {
-        Ok(v1.powf(v2).to_pyobject(vm))
+        let r = v1.powf(v2);
+        if r.is_infinite() && v1.is_finite() && v2.is_finite() {
+            let args = vec![vm.new_pyobj(34), vm.new_pyobj("Numerical result out of range")];
+            return Err(vm.new_exception(vm.ctx.exceptions.overflow_error.to_owned(), args));
+        }
+        Ok(r.to_pyobject(vm))
     }
 }
 

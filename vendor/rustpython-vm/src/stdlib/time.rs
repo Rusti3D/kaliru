@@ -609,7 +609,12 @@ mod platform {
     }
 
     #[pyfunction]
-    fn sleep(dur: Duration, vm: &VirtualMachine) -> PyResult<()> {
+    fn sleep(secs: crate::function::ArgIntoFloat, vm: &VirtualMachine) -> PyResult<()> {
+        let secs: f64 = secs.into();
+        if secs < 0.0 {
+            return Err(vm.new_value_error("sleep length must be non-negative".to_owned()));
+        }
+        let dur = Duration::from_secs_f64(secs);
         // this is basically std::thread::sleep, but that catches interrupts and we don't want to;
 
         let ts = TimeSpec::from(dur);

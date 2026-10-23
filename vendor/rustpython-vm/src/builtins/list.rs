@@ -217,7 +217,13 @@ impl PyList {
         match SequenceIndex::try_from_borrowed_object(vm, needle, "list")? {
             SequenceIndex::Int(index) => self.borrow_vec_mut().setitem_by_index(vm, index, value).map_err(|_| vm.new_index_error("list assignment index out of range".to_owned())),
             SequenceIndex::Slice(slice) => {
-                let sec = extract_cloned(&value, Ok, vm)?;
+                let sec = extract_cloned(&value, Ok, vm).map_err(|e| {
+                    if e.fast_isinstance(vm.ctx.exceptions.type_error) {
+                        vm.new_type_error("must assign iterable to extended slice".to_owned())
+                    } else {
+                        e
+                    }
+                })?;
                 self.borrow_vec_mut().setitem_by_slice(vm, slice, &sec)
             }
         }
