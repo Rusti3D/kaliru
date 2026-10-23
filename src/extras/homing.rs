@@ -119,19 +119,61 @@ impl StepperPosition {
 }
 
 // Implementation of homing/probing moves
+/// the toolhead a homing move drives: the toolhead, or a manual_stepper
+/// (python duck types toolhead.get_kinematics() on both)
+pub trait HomingToolhead {
+    fn get_position(&self) -> Vec<f64>;
+    fn set_position(&self, newpos: &[f64], homing_axes: &str) -> KResult<()>;
+    fn flush_step_generation(&self) -> KResult<()>;
+    fn get_last_move_time(&self) -> KResult<f64>;
+    fn dwell(&self, delay: f64) -> KResult<()>;
+    fn drip_move(&self, newpos: &[f64], speed: f64, drip_completion: &Rc<crate::reactor::ReactorCompletion<bool>>) -> KResult<()>;
+    /// get_kinematics().get_steppers()
+    fn kin_steppers(&self) -> Vec<Rc<McuStepper>>;
+    /// get_kinematics().calc_position(stepper_positions)
+    fn kin_calc_position(&self, stepper_positions: &IndexMap<String, f64>) -> Vec<f64>;
+}
+
+impl HomingToolhead for ToolHead {
+    fn get_position(&self) -> Vec<f64> {
+        ToolHead::get_position(self)
+    }
+    fn set_position(&self, newpos: &[f64], homing_axes: &str) -> KResult<()> {
+        ToolHead::set_position(self, newpos, homing_axes)
+    }
+    fn flush_step_generation(&self) -> KResult<()> {
+        ToolHead::flush_step_generation(self)
+    }
+    fn get_last_move_time(&self) -> KResult<f64> {
+        ToolHead::get_last_move_time(self)
+    }
+    fn dwell(&self, delay: f64) -> KResult<()> {
+        ToolHead::dwell(self, delay)
+    }
+    fn drip_move(&self, newpos: &[f64], speed: f64, drip_completion: &Rc<crate::reactor::ReactorCompletion<bool>>) -> KResult<()> {
+        ToolHead::drip_move(self, newpos, speed, drip_completion)
+    }
+    fn kin_steppers(&self) -> Vec<Rc<McuStepper>> {
+        self.get_kinematics().get_steppers()
+    }
+    fn kin_calc_position(&self, stepper_positions: &IndexMap<String, f64>) -> Vec<f64> {
+        self.get_kinematics().calc_position(stepper_positions)
+    }
+}
+
 pub struct HomingMove {
     printer: Rc<Printer>,
     endstops: Vec<(EndstopRef, String)>,
-    toolhead: Rc<ToolHead>,
+    toolhead: Rc<dyn HomingToolhead>,
     pub stepper_positions: RefCell<Vec<StepperPosition>>,
     pub distance_elapsed: RefCell<Vec<f64>>,
 }
 
 impl HomingMove {
-    pub fn new(printer: &Rc<Printer>, endstops: Vec<(EndstopRef, String)>, toolhead: Option<Rc<ToolHead>>) -> KResult<Rc<Self>> {
+    pub fn new(printer: &Rc<Printer>, endstops: Vec<(EndstopRef, String)>, toolhead: Option<Rc<dyn HomingToolhead>>) -> KResult<Rc<Self>> {
         let toolhead = match toolhead {
             Some(t) => t,
-            None => printer.lookup::<ToolHead>("toolhead")?,
+            None => printer.lookup::<ToolHead>("toolhead")? as Rc<dyn HomingToolhead>,
         };
         Ok(Rc::new(HomingMove {
             printer: printer.clone(),
@@ -168,8 +210,7 @@ impl HomingMove {
 
     pub fn calc_toolhead_pos(&self, kin_spos: &IndexMap<String, f64>, offsets: &IndexMap<String, i64>) -> KResult<Vec<f64>> {
         let mut kin_spos = kin_spos.clone();
-        let kin = self.toolhead.get_kinematics();
-        for stepper in kin.get_steppers() {
+        for stepper in self.toolhead.kin_steppers() {
             let sname = stepper.get_name(false);
             let off = offsets.get(&sname).copied().unwrap_or(0) as f64 * stepper.get_step_dist();
             match kin_spos.get_mut(&sname) {
@@ -178,14 +219,13 @@ impl HomingMove {
             }
         }
         let thpos = self.toolhead.get_position();
-        let mut res: Vec<f64> = kin.calc_position(&kin_spos).into_iter().take(3).collect();
+        let mut res: Vec<f64> = self.toolhead.kin_calc_position(&kin_spos).into_iter().take(3).collect();
         res.extend_from_slice(&thpos[3..]);
         Ok(res)
     }
 
     fn kin_spos(&self) -> IndexMap<String, f64> {
-        let kin = self.toolhead.get_kinematics();
-        kin.get_steppers().iter().map(|s| (s.get_name(false), s.get_commanded_position())).collect()
+        self.toolhead.kin_steppers().iter().map(|s| (s.get_name(false), s.get_commanded_position())).collect()
     }
 
     pub fn homing_move(
@@ -200,7 +240,6 @@ impl HomingMove {
         self.printer.send_event("homing:homing_move_begin", &[self])?;
         // Note start location
         self.toolhead.flush_step_generation()?;
-        let kin = self.toolhead.get_kinematics();
         let kin_spos = self.kin_spos();
         *self.stepper_positions.borrow_mut() = self
             .endstops
@@ -287,8 +326,9 @@ impl HomingMove {
                         .collect(),
                 )
             };
-            let filled_steps_moved: IndexMap<String, f64> = kin
-                .get_steppers()
+            let filled_steps_moved: IndexMap<String, f64> = self
+                .toolhead
+                .kin_steppers()
                 .iter()
                 .map(|s| {
                     let sname = s.get_name(false);
@@ -296,7 +336,7 @@ impl HomingMove {
                     (sname, v)
                 })
                 .collect();
-            *self.distance_elapsed.borrow_mut() = kin.calc_position(&filled_steps_moved);
+            *self.distance_elapsed.borrow_mut() = self.toolhead.kin_calc_position(&filled_steps_moved);
             if over_steps.values().any(|v| *v != 0) {
                 self.toolhead.set_position(movepos, "")?;
                 let halt_kin_spos = self.kin_spos();
@@ -580,7 +620,7 @@ impl PrinterHoming {
 
     pub fn manual_home(
         &self,
-        toolhead: &Rc<ToolHead>,
+        toolhead: &Rc<dyn HomingToolhead>,
         endstops: Vec<(EndstopRef, String)>,
         pos: &[f64],
         speed: f64,

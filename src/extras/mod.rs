@@ -26,6 +26,7 @@ pub mod delta_calibrate;
 pub mod display_status;
 pub mod display_templates;
 pub mod ds18b20;
+pub mod duplicate_pin_override;
 pub mod endstop_phase;
 pub mod error_mcu;
 pub mod exclude_object;
@@ -34,12 +35,14 @@ pub mod fan;
 pub mod fan_generic;
 pub mod filament_motion_sensor;
 pub mod filament_switch_sensor;
+pub mod firmware_retraction;
 pub mod force_move;
 pub mod garbage_collection;
 pub mod gcode_arcs;
 pub mod gcode_macro;
 pub mod gcode_move;
 pub mod gcode_shell_command;
+pub mod heated_fan;
 pub mod heater_bed;
 pub mod heater_fan;
 pub mod heater_generic;
@@ -52,6 +55,7 @@ pub mod input_shaper;
 pub mod led;
 pub mod lm75;
 pub mod manual_probe;
+pub mod manual_stepper;
 pub mod motion_queuing;
 pub mod motion_report;
 pub mod mpc_ambient_temperature;
@@ -62,6 +66,8 @@ pub mod pid_calibrate;
 pub mod print_stats;
 pub mod probe;
 pub mod pulse_counter;
+pub mod pwm_cycle_time;
+pub mod pwm_tool;
 pub mod quad_gantry_level;
 pub mod query_adc;
 pub mod query_endstops;
@@ -130,7 +136,7 @@ pub static MODULES: &[PrinterModule] = &[
     todo("dockable_probe"),
     todo("dotstar"),
     PrinterModule { name: "ds18b20", ported: true, load_config: Some(ds18b20::load_config), load_config_prefix: None, register_components: None },
-    todo("duplicate_pin_override"),
+    PrinterModule { name: "duplicate_pin_override", ported: true, load_config: Some(duplicate_pin_override::load_config), load_config_prefix: Some(duplicate_pin_override::load_config_prefix), register_components: None },
     PrinterModule { name: "endstop_phase", ported: true, load_config: Some(endstop_phase::load_config), load_config_prefix: Some(endstop_phase::load_config_prefix), register_components: None },
     PrinterModule { name: "error_mcu", ported: true, load_config: Some(error_mcu::load_config), load_config_prefix: None, register_components: None },
     PrinterModule { name: "exclude_object", ported: true, load_config: Some(exclude_object::load_config), load_config_prefix: None, register_components: None },
@@ -139,7 +145,7 @@ pub static MODULES: &[PrinterModule] = &[
     PrinterModule { name: "fan_generic", ported: true, load_config: None, load_config_prefix: Some(fan_generic::load_config_prefix), register_components: None },
     PrinterModule { name: "filament_motion_sensor", ported: true, load_config: None, load_config_prefix: Some(filament_motion_sensor::load_config_prefix), register_components: None },
     PrinterModule { name: "filament_switch_sensor", ported: true, load_config: None, load_config_prefix: Some(filament_switch_sensor::load_config_prefix), register_components: None },
-    todo("firmware_retraction"),
+    PrinterModule { name: "firmware_retraction", ported: true, load_config: Some(firmware_retraction::load_config), load_config_prefix: None, register_components: None },
     PrinterModule { name: "force_move", ported: true, load_config: Some(force_move::load_config), load_config_prefix: None, register_components: None },
     PrinterModule { name: "garbage_collection", ported: true, load_config: Some(garbage_collection::load_config), load_config_prefix: None, register_components: None },
     PrinterModule { name: "gcode_arcs", ported: true, load_config: Some(gcode_arcs::load_config), load_config_prefix: None, register_components: None },
@@ -148,7 +154,7 @@ pub static MODULES: &[PrinterModule] = &[
     PrinterModule { name: "gcode_move", ported: true, load_config: Some(gcode_move::load_config), load_config_prefix: None, register_components: None },
     PrinterModule { name: "gcode_shell_command", ported: true, load_config: None, load_config_prefix: Some(gcode_shell_command::load_config_prefix), register_components: None },
     todo("hall_filament_width_sensor"),
-    todo("heated_fan"),
+    PrinterModule { name: "heated_fan", ported: true, load_config: Some(heated_fan::load_config), load_config_prefix: None, register_components: None },
     PrinterModule { name: "heater_bed", ported: true, load_config: Some(heater_bed::load_config), load_config_prefix: None, register_components: None },
     PrinterModule { name: "heater_fan", ported: true, load_config: None, load_config_prefix: Some(heater_fan::load_config_prefix), register_components: None },
     PrinterModule { name: "heater_generic", ported: true, load_config: None, load_config_prefix: Some(heater_generic::load_config_prefix), register_components: None },
@@ -169,7 +175,7 @@ pub static MODULES: &[PrinterModule] = &[
     todo("load_cell"),
     todo("load_cell_probe"),
     PrinterModule { name: "manual_probe", ported: true, load_config: Some(manual_probe::load_config), load_config_prefix: None, register_components: None },
-    todo("manual_stepper"),
+    PrinterModule { name: "manual_stepper", ported: true, load_config: None, load_config_prefix: Some(manual_stepper::load_config_prefix), register_components: None },
     todo("mcp4018"),
     todo("mcp4451"),
     todo("mcp4728"),
@@ -192,8 +198,8 @@ pub static MODULES: &[PrinterModule] = &[
     PrinterModule { name: "probe", ported: true, load_config: Some(probe::load_config), load_config_prefix: Some(probe::load_config_prefix), register_components: None },
     todo("probe_eddy_current"),
     PrinterModule { name: "pulse_counter", ported: true, load_config: None, load_config_prefix: None, register_components: None },
-    todo("pwm_cycle_time"),
-    todo("pwm_tool"),
+    PrinterModule { name: "pwm_cycle_time", ported: true, load_config: None, load_config_prefix: Some(pwm_cycle_time::load_config_prefix), register_components: None },
+    PrinterModule { name: "pwm_tool", ported: true, load_config: None, load_config_prefix: Some(pwm_tool::load_config_prefix), register_components: None },
     PrinterModule { name: "quad_gantry_level", ported: true, load_config: Some(quad_gantry_level::load_config), load_config_prefix: None, register_components: None },
     PrinterModule { name: "query_adc", ported: true, load_config: Some(query_adc::load_config), load_config_prefix: None, register_components: None },
     PrinterModule { name: "query_endstops", ported: true, load_config: Some(query_endstops::load_config), load_config_prefix: None, register_components: None },

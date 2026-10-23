@@ -285,7 +285,7 @@ impl ExcludeObject {
         self.normal_move(newpos, speed)
     }
 
-    fn test_in_excluded_region(&self) -> bool {
+    pub fn test_in_excluded_region(&self) -> bool {
         // Inside cancelled object
         let st = self.st.borrow();
         let in_excluded = match &st.current_object {
