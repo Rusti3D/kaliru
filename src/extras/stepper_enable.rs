@@ -147,6 +147,11 @@ impl EnableTracking {
         Ok(())
     }
 
+    /// self.stepper
+    pub fn stepper(&self) -> Rc<McuStepper> {
+        self.stepper.clone()
+    }
+
     pub fn is_motor_enabled(&self) -> bool {
         self.is_enabled.get()
     }

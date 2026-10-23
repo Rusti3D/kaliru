@@ -275,7 +275,7 @@ pub struct PrinterExtruder {
     max_extrude_ratio: Cell<f64>,
     pub max_e_velocity: f64,
     pub max_e_accel: f64,
-    max_e_dist: f64,
+    pub max_e_dist: f64,
     instant_corner_v: f64,
     trapq: TrapQRef,
     pub extruder_stepper: Option<Rc<ExtruderStepper>>,

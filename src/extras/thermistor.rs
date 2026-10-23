@@ -131,7 +131,7 @@ pub fn printer_thermistor(config: &ConfigWrapper, params: &ThermistorParams) -> 
 }
 
 // Custom defined thermistors from the config file
-fn custom_thermistor(config: &ConfigWrapper) -> KResult<ThermistorParams> {
+pub fn custom_thermistor(config: &ConfigWrapper) -> KResult<ThermistorParams> {
     let t1 = config.getfloat("temperature1", Dflt::Required, Lim::new().min(KELVIN_TO_CELSIUS))?;
     let r1 = config.getfloat("resistance1", Dflt::Required, Lim::new().min(0.0))?;
     if let Some(beta) = config.getfloat_opt("beta", Lim::new().above(0.0))? {

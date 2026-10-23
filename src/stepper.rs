@@ -494,6 +494,7 @@ pub fn parse_step_distance(config: &ConfigWrapper, units_in_radians: Option<bool
 pub trait TmcCurrentHelper {
     /// set_current_for_homing(print_time, pre_homing) -> dwell time
     fn set_current_for_homing(&self, print_time: f64, pre_homing: bool) -> KResult<f64>;
+    fn as_any(&self) -> &dyn std::any::Any;
 }
 
 /// stepper.PrinterRail.get_homing_info()'s namedtuple

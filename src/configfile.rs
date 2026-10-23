@@ -511,6 +511,23 @@ impl ConfigWrapper {
         }
     }
 
+    /// a wrapper of one section whose options are `contents` (the indx
+    /// compat.ConfigWrapper): own access tracking, same printer
+    pub fn synthetic(&self, section: &str, contents: &[(&str, String)]) -> ConfigWrapper {
+        let mut fc = RawConfigParser::new(true, &[], Box::new(crate::configparser::NoInterpolation));
+        let _ = fc.add_section(section);
+        for (option, value) in contents {
+            let _ = fc.set(section, option, value);
+        }
+        ConfigWrapper {
+            fileconfig: Rc::new(RefCell::new(fc)),
+            access_tracking: Rc::new(RefCell::new(AccessTracking::new())),
+            section: section.to_string(),
+            deprecated: self.deprecated.clone(),
+            printer: self.printer.clone(),
+        }
+    }
+
     /// this wrapper (and the sections taken from it) with get_printer()
     pub fn with_printer(mut self, printer: &Rc<crate::printer::Printer>) -> Self {
         self.printer = Rc::downgrade(printer);

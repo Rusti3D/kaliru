@@ -58,6 +58,7 @@ pub mod homing;
 pub mod homing_override;
 pub mod htu21d;
 pub mod idle_timeout;
+pub mod indx;
 pub mod input_shaper;
 pub mod led;
 pub mod lm75;
@@ -87,6 +88,7 @@ pub mod query_endstops;
 pub mod resonance_tester;
 pub mod respond;
 pub mod safe_z_home;
+pub mod samd_sercom;
 pub mod save_variables;
 pub mod screws_tilt_adjust;
 pub mod sdcard_loop;
@@ -187,7 +189,7 @@ pub static MODULES: &[PrinterModule] = &[
     PrinterModule { name: "htu21d", ported: true, load_config: Some(htu21d::load_config), load_config_prefix: None, register_components: None },
     todo("icm20948"),
     PrinterModule { name: "idle_timeout", ported: true, load_config: Some(idle_timeout::load_config), load_config_prefix: None, register_components: None },
-    todo("indx"),
+    PrinterModule { name: "indx", ported: true, load_config: Some(indx::load_config), load_config_prefix: None, register_components: None },
     PrinterModule { name: "input_shaper", ported: true, load_config: Some(input_shaper::load_config), load_config_prefix: None, register_components: None },
     todo("ldc1612"),
     PrinterModule { name: "led", ported: true, load_config: None, load_config_prefix: Some(led::load_config_prefix), register_components: None },
@@ -229,7 +231,7 @@ pub static MODULES: &[PrinterModule] = &[
     PrinterModule { name: "resonance_tester", ported: true, load_config: Some(resonance_tester::load_config), load_config_prefix: None, register_components: None },
     PrinterModule { name: "respond", ported: true, load_config: Some(respond::load_config), load_config_prefix: None, register_components: None },
     PrinterModule { name: "safe_z_home", ported: true, load_config: Some(safe_z_home::load_config), load_config_prefix: None, register_components: None },
-    todo("samd_sercom"),
+    PrinterModule { name: "samd_sercom", ported: true, load_config: None, load_config_prefix: Some(samd_sercom::load_config_prefix), register_components: None },
     PrinterModule { name: "save_variables", ported: true, load_config: Some(save_variables::load_config), load_config_prefix: None, register_components: None },
     PrinterModule { name: "screws_tilt_adjust", ported: true, load_config: Some(screws_tilt_adjust::load_config), load_config_prefix: None, register_components: None },
     PrinterModule { name: "sdcard_loop", ported: true, load_config: Some(sdcard_loop::load_config), load_config_prefix: None, register_components: None },

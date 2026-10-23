@@ -162,7 +162,7 @@ pub trait Control {
 pub type ControlRef = Rc<dyn Control>;
 
 /// the TypeError of calling a 3 argument temperature_update with 4
-fn no_secondary(cls: &str, secondary_temp: Option<f64>) -> KResult<()> {
+pub fn no_secondary(cls: &str, secondary_temp: Option<f64>) -> KResult<()> {
     if secondary_temp.is_some() {
         return Err(KError::Other(format!("{}.temperature_update() takes 4 positional arguments but 5 were given", cls)));
     }
@@ -530,6 +530,7 @@ pub struct Heater {
     profiles: RefCell<IndexMap<String, Profile>>,
     incompatible_profiles: RefCell<Vec<String>>,
     control: RefCell<Option<ControlRef>>,
+    set_temp_hook: RefCell<Option<Rc<dyn Fn(f64) -> KResult<()>>>>,
 }
 
 /// an mpc temperature sensor fed by the heater (mpc_*_temperature)
@@ -604,6 +605,7 @@ impl Heater {
             profiles: RefCell::new(IndexMap::new()),
             incompatible_profiles: RefCell::new(vec![]),
             control: RefCell::new(None),
+            set_temp_hook: RefCell::new(None),
         });
         let w = Rc::downgrade(&heater);
         sensor.setup_callback(Rc::new(move |read_time, temp| match w.upgrade() {
@@ -751,6 +753,25 @@ impl Heater {
     }
 
     pub fn set_temp(&self, degrees: f64) -> KResult<()> {
+        let hook = self.set_temp_hook.borrow().clone();
+        match hook {
+            Some(hook) => hook(degrees),
+            None => self.raw_set_temp(degrees),
+        }
+    }
+
+    /// heater.set_temp = guarded_set_temp (indx): the hook replaces
+    /// set_temp; raw_set_temp() stays the original method
+    pub fn set_set_temp_hook(&self, hook: Option<Rc<dyn Fn(f64) -> KResult<()>>>) {
+        *self.set_temp_hook.borrow_mut() = hook;
+    }
+
+    /// heater.mcu_pwm
+    pub fn mcu_pwm(&self) -> Rc<dyn PwmPin> {
+        self.mcu_pwm.clone()
+    }
+
+    pub fn raw_set_temp(&self, degrees: f64) -> KResult<()> {
         if degrees != 0.0 && (degrees < self.min_temp || degrees > self.max_temp) {
             return Err(KError::command(format!(
                 "Requested temperature ({:.1}) out of range ({:.1}:{:.1})",
@@ -1095,7 +1116,7 @@ impl Heater {
         Ok(value)
     }
 
-    fn pm_init_default_profile(&self) -> KResult<Profile> {
+    pub fn pm_init_default_profile(&self) -> KResult<Profile> {
         let config = self.config.clone();
         self.pm_init_profile(&config, "default")?
             .ok_or_else(|| KError::Other("default heater profile is not compatible".into()))
