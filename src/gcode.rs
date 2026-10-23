@@ -176,7 +176,8 @@ impl GCodeCommand {
         Ok(())
     }
 
-    fn get_parsed<T>(&self, name: &str, default: Option<Option<T>>, parse: impl Fn(&str) -> Option<T>, as_f64: impl Fn(&T) -> f64, lim: &Lim) -> KResult<Option<T>> {
+    /// get(name, default, parser=parse, ...); default None = required
+    pub fn get_parsed<T>(&self, name: &str, default: Option<Option<T>>, parse: impl Fn(&str) -> Option<T>, as_f64: impl Fn(&T) -> f64, lim: &Lim) -> KResult<Option<T>> {
         let Some(value) = self.get_opt(name) else {
             return match default {
                 None => Err(self.error(format!("Error on '{}': missing {}", self.commandline, name))),

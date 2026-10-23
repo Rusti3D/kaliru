@@ -36,6 +36,15 @@ pub struct Limited {
     max_y_accel: Cell<f64>,
 }
 
+/// the limits suspend_limits() replaced
+pub struct LimitsSnapshot {
+    max_velocities: [f64; 3],
+    max_accels: [f64; 3],
+    max_x_accel: f64,
+    max_y_accel: f64,
+    scale_per_axis: bool,
+}
+
 fn list_repr(v: &[f64], open: &str, close: &str) -> String {
     format!("{}{}{}", open, v.iter().map(|f| py_float_repr(*f)).collect::<Vec<_>>().join(", "), close)
 }
@@ -84,6 +93,39 @@ impl Limited {
         }
         l.scale_per_axis.set(config.getboolean("scale_xy_accel", false)?);
         Ok(l)
+    }
+
+    /// resonance_tester's suspend_limits(): set the xy limits to
+    /// max_velocity / max_accel and turn off scale_per_axis; returns the
+    /// old values
+    pub fn suspend_limits(&self, max_accel: f64, max_velocity: f64) -> LimitsSnapshot {
+        let snap = LimitsSnapshot {
+            max_velocities: *self.max_velocities.borrow(),
+            max_accels: *self.max_accels.borrow(),
+            max_x_accel: self.max_x_accel.get(),
+            max_y_accel: self.max_y_accel.get(),
+            scale_per_axis: self.scale_per_axis.get(),
+        };
+        if self.mode == Mode::CoreXY {
+            self.max_x_accel.set(max_accel);
+            self.max_y_accel.set(max_accel);
+        } else {
+            *self.max_velocities.borrow_mut() = [max_velocity, max_velocity, snap.max_velocities[2]];
+            *self.max_accels.borrow_mut() = [max_accel, max_accel, snap.max_accels[2]];
+        }
+        self.scale_per_axis.set(false);
+        snap
+    }
+
+    pub fn restore_limits(&self, snap: &LimitsSnapshot) {
+        if self.mode == Mode::CoreXY {
+            self.max_x_accel.set(snap.max_x_accel);
+            self.max_y_accel.set(snap.max_y_accel);
+        } else {
+            *self.max_velocities.borrow_mut() = snap.max_velocities;
+            *self.max_accels.borrow_mut() = snap.max_accels;
+        }
+        self.scale_per_axis.set(snap.scale_per_axis);
     }
 
     pub fn supports_dual_carriage(&self) -> bool {

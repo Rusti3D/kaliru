@@ -10,6 +10,7 @@ use crate::printer::PrinterModule;
 
 pub mod adc_scaled;
 pub mod adc_temperature;
+pub mod adxl345;
 pub mod aht10;
 pub mod axis_twist_compensation;
 pub mod bed_mesh;
@@ -67,6 +68,7 @@ pub mod motion_queuing;
 pub mod motion_report;
 pub mod mpc_ambient_temperature;
 pub mod mpc_block_temperature;
+pub mod mpu9250;
 pub mod neopixel;
 pub mod output_pin;
 pub mod pause_resume;
@@ -81,6 +83,7 @@ pub mod pwm_tool;
 pub mod quad_gantry_level;
 pub mod query_adc;
 pub mod query_endstops;
+pub mod resonance_tester;
 pub mod respond;
 pub mod safe_z_home;
 pub mod save_variables;
@@ -127,7 +130,7 @@ pub static MODULES: &[PrinterModule] = &[
     todo("ad5206"),
     PrinterModule { name: "adc_scaled", ported: true, load_config: None, load_config_prefix: Some(adc_scaled::load_config_prefix), register_components: None },
     PrinterModule { name: "adc_temperature", ported: true, load_config: Some(adc_temperature::load_config), load_config_prefix: Some(adc_temperature::load_config_prefix), register_components: None },
-    todo("adxl345"),
+    PrinterModule { name: "adxl345", ported: true, load_config: Some(adxl345::load_config), load_config_prefix: Some(adxl345::load_config_prefix), register_components: None },
     PrinterModule { name: "aht10", ported: true, load_config: Some(aht10::load_config), load_config_prefix: None, register_components: None },
     todo("angle"),
     PrinterModule { name: "axis_twist_compensation", ported: true, load_config: Some(axis_twist_compensation::load_config), load_config_prefix: None, register_components: None },
@@ -202,7 +205,7 @@ pub static MODULES: &[PrinterModule] = &[
     PrinterModule { name: "motion_report", ported: true, load_config: Some(motion_report::load_config), load_config_prefix: None, register_components: None },
     PrinterModule { name: "mpc_ambient_temperature", ported: true, load_config: Some(mpc_ambient_temperature::load_config), load_config_prefix: None, register_components: None },
     PrinterModule { name: "mpc_block_temperature", ported: true, load_config: Some(mpc_block_temperature::load_config), load_config_prefix: None, register_components: None },
-    todo("mpu9250"),
+    PrinterModule { name: "mpu9250", ported: true, load_config: Some(mpu9250::load_config), load_config_prefix: Some(mpu9250::load_config_prefix), register_components: None },
     todo("multi_pin"),
     PrinterModule { name: "neopixel", ported: true, load_config: None, load_config_prefix: Some(neopixel::load_config_prefix), register_components: None },
     todo("nozzle_cleanup"),
@@ -222,7 +225,7 @@ pub static MODULES: &[PrinterModule] = &[
     PrinterModule { name: "query_adc", ported: true, load_config: Some(query_adc::load_config), load_config_prefix: None, register_components: None },
     PrinterModule { name: "query_endstops", ported: true, load_config: Some(query_endstops::load_config), load_config_prefix: None, register_components: None },
     todo("replicape"),
-    todo("resonance_tester"),
+    PrinterModule { name: "resonance_tester", ported: true, load_config: Some(resonance_tester::load_config), load_config_prefix: None, register_components: None },
     PrinterModule { name: "respond", ported: true, load_config: Some(respond::load_config), load_config_prefix: None, register_components: None },
     PrinterModule { name: "safe_z_home", ported: true, load_config: Some(safe_z_home::load_config), load_config_prefix: None, register_components: None },
     todo("samd_sercom"),

@@ -61,6 +61,18 @@ pub fn normpath(path: &str) -> String {
     }
 }
 
+/// tempfile.gettempdir()
+pub fn gettempdir() -> String {
+    for var in ["TMPDIR", "TEMP", "TMP"] {
+        if let Ok(v) = std::env::var(var) {
+            if !v.is_empty() && std::path::Path::new(&v).is_dir() {
+                return v;
+            }
+        }
+    }
+    "/tmp".into()
+}
+
 /// posixpath.expanduser(path)
 pub fn expanduser(path: &str) -> String {
     if !path.starts_with('~') {

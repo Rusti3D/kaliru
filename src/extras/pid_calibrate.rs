@@ -11,6 +11,7 @@ use crate::extras::heaters::{
 use crate::gcode::{GCodeCommand, GCodeDispatch};
 use crate::logging;
 use crate::printer::{PObj, Printer, PrinterObject};
+use crate::pyglob::gettempdir;
 use crate::pyval::PyVal;
 use crate::toolhead::ToolHead;
 use indexmap::IndexMap;
@@ -23,18 +24,6 @@ const CMD_PID_CALIBRATE_HELP: &str = "Run PID calibration test";
 
 pub struct PIDCalibrate {
     printer: Rc<Printer>,
-}
-
-/// tempfile.gettempdir()
-fn gettempdir() -> String {
-    for var in ["TMPDIR", "TEMP", "TMP"] {
-        if let Ok(v) = std::env::var(var) {
-            if !v.is_empty() && std::path::Path::new(&v).is_dir() {
-                return v;
-            }
-        }
-    }
-    "/tmp".into()
 }
 
 impl PIDCalibrate {

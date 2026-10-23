@@ -205,6 +205,34 @@ pub fn py_int(s: &str) -> Option<i64> {
     clean.parse::<i64>().ok().map(|v| v * sign)
 }
 
+/// Python's int(str, 0): a 0x / 0o / 0b prefix picks the base, and a
+/// decimal may not have leading zeros
+pub fn py_int_base0(s: &str) -> Option<i64> {
+    let t = py_strip(s);
+    let (sign, body) = match t.as_bytes().first()? {
+        b'+' => (1, &t[1..]),
+        b'-' => (-1, &t[1..]),
+        _ => (1, t),
+    };
+    let lower = body.to_ascii_lowercase();
+    let (radix, digits) = match lower.get(..2) {
+        Some("0x") => (16, &lower[2..]),
+        Some("0o") => (8, &lower[2..]),
+        Some("0b") => (2, &lower[2..]),
+        _ => (10, lower.as_str()),
+    };
+    // an underscore may follow the prefix or separate digits
+    let digits = if radix != 10 { digits.strip_prefix('_').unwrap_or(digits) } else { digits };
+    if digits.is_empty() || digits.starts_with('_') || digits.ends_with('_') || digits.contains("__") {
+        return None;
+    }
+    let clean: String = digits.chars().filter(|c| *c != '_').collect();
+    if radix == 10 && clean.len() > 1 && clean.starts_with('0') && clean.chars().any(|c| c != '0') {
+        return None;
+    }
+    i64::from_str_radix(&clean, radix).ok().filter(|_| clean.chars().all(|c| c.is_digit(radix))).map(|v| v * sign)
+}
+
 /// Python's float(str) conversion
 pub fn py_float(s: &str) -> Option<f64> {
     let t = py_strip(s);
