@@ -68,3 +68,52 @@ pub fn np_interp(x: f64, xp: &[f64], fp: &[f64]) -> f64 {
     }
     res
 }
+
+/// coordinate_descent(adj_params, params, error_func): params by name, in
+/// order
+pub fn coordinate_descent(
+    adj_params: &[String],
+    params: &indexmap::IndexMap<String, f64>,
+    error_func: &dyn Fn(&indexmap::IndexMap<String, f64>) -> f64,
+) -> indexmap::IndexMap<String, f64> {
+    // Define potential changes
+    let mut params = params.clone();
+    let mut dp: indexmap::IndexMap<String, f64> = adj_params.iter().map(|p| (p.clone(), 1.0)).collect();
+    // Calculate the error
+    let mut best_err = error_func(&params);
+    crate::logging::info(&format!("Coordinate descent initial error: {}", crate::pyfmt::py_float_repr(best_err)));
+
+    let threshold = 0.00001;
+    let mut rounds = 0;
+
+    while crate::pyfmt::py_sum(dp.values().copied()) > threshold && rounds < 10000 {
+        rounds += 1;
+        for param_name in adj_params {
+            let orig = params[param_name];
+            params.insert(param_name.clone(), orig + dp[param_name]);
+            let err = error_func(&params);
+            if err < best_err {
+                // There was some improvement
+                best_err = err;
+                dp[param_name] *= 1.1;
+                continue;
+            }
+            params.insert(param_name.clone(), orig - dp[param_name]);
+            let err = error_func(&params);
+            if err < best_err {
+                // There was some improvement
+                best_err = err;
+                dp[param_name] *= 1.1;
+                continue;
+            }
+            params.insert(param_name.clone(), orig);
+            dp[param_name] *= 0.9;
+        }
+    }
+    crate::logging::info(&format!(
+        "Coordinate descent best_err: {}  rounds: {}",
+        crate::pyfmt::py_float_repr(best_err),
+        rounds
+    ));
+    params
+}

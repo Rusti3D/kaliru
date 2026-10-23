@@ -106,7 +106,7 @@ impl Move {
         let mut is_kinematic_move = true;
         let mut axes_d: Vec<f64> = start_pos.iter().zip(end_pos).map(|(sp, ep)| ep - sp).collect();
         let mut end_pos = end_pos.to_vec();
-        let mut move_d = (axes_d[..3].iter().fold(0.0, |s, d| s + d * d)).sqrt();
+        let mut move_d = crate::pyfmt::py_sum(axes_d[..3].iter().map(|d| d * d)).sqrt();
         let inv_move_d;
         if move_d < 0.000000001 {
             // Extrude only move

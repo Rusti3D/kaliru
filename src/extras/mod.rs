@@ -11,17 +11,21 @@ use crate::printer::PrinterModule;
 pub mod adc_temperature;
 pub mod aht10;
 pub mod bed_mesh;
+pub mod bed_tilt;
 pub mod bme280;
 pub mod board_pins;
 pub mod bulk_sensor;
 pub mod buttons;
 pub mod control_mpc;
 pub mod danger_options;
+pub mod display_status;
 pub mod ds18b20;
 pub mod error_mcu;
 pub mod exclude_object;
 pub mod extruder_stepper;
 pub mod fan;
+pub mod filament_motion_sensor;
+pub mod filament_switch_sensor;
 pub mod force_move;
 pub mod garbage_collection;
 pub mod gcode_macro;
@@ -45,6 +49,7 @@ pub mod pid_calibrate;
 pub mod print_stats;
 pub mod probe;
 pub mod pulse_counter;
+pub mod quad_gantry_level;
 pub mod query_adc;
 pub mod query_endstops;
 pub mod respond;
@@ -62,6 +67,7 @@ pub mod thermistor;
 pub mod tuning_tower;
 pub mod verify_heater;
 pub mod virtual_sdcard;
+pub mod z_tilt;
 
 const fn todo(name: &'static str) -> PrinterModule {
     PrinterModule { name, ported: false, load_config: None, load_config_prefix: None, register_components: None }
@@ -77,7 +83,7 @@ pub static MODULES: &[PrinterModule] = &[
     todo("axis_twist_compensation"),
     PrinterModule { name: "bed_mesh", ported: true, load_config: Some(bed_mesh::load_config), load_config_prefix: None, register_components: None },
     todo("bed_screws"),
-    todo("bed_tilt"),
+    PrinterModule { name: "bed_tilt", ported: true, load_config: Some(bed_tilt::load_config), load_config_prefix: None, register_components: None },
     todo("belay"),
     todo("bltouch"),
     PrinterModule { name: "bme280", ported: true, load_config: Some(bme280::load_config), load_config_prefix: None, register_components: None },
@@ -94,7 +100,7 @@ pub static MODULES: &[PrinterModule] = &[
     todo("delayed_gcode"),
     todo("delta_calibrate"),
     todo("display"),
-    todo("display_status"),
+    PrinterModule { name: "display_status", ported: true, load_config: Some(display_status::load_config), load_config_prefix: None, register_components: None },
     todo("dockable_probe"),
     todo("dotstar"),
     PrinterModule { name: "ds18b20", ported: true, load_config: Some(ds18b20::load_config), load_config_prefix: None, register_components: None },
@@ -105,8 +111,8 @@ pub static MODULES: &[PrinterModule] = &[
     PrinterModule { name: "extruder_stepper", ported: true, load_config: None, load_config_prefix: Some(extruder_stepper::load_config_prefix), register_components: None },
     PrinterModule { name: "fan", ported: true, load_config: Some(fan::load_config), load_config_prefix: None, register_components: None },
     todo("fan_generic"),
-    todo("filament_motion_sensor"),
-    todo("filament_switch_sensor"),
+    PrinterModule { name: "filament_motion_sensor", ported: true, load_config: None, load_config_prefix: Some(filament_motion_sensor::load_config_prefix), register_components: None },
+    PrinterModule { name: "filament_switch_sensor", ported: true, load_config: None, load_config_prefix: Some(filament_switch_sensor::load_config_prefix), register_components: None },
     todo("firmware_retraction"),
     PrinterModule { name: "force_move", ported: true, load_config: Some(force_move::load_config), load_config_prefix: None, register_components: None },
     PrinterModule { name: "garbage_collection", ported: true, load_config: Some(garbage_collection::load_config), load_config_prefix: None, register_components: None },
@@ -162,7 +168,7 @@ pub static MODULES: &[PrinterModule] = &[
     PrinterModule { name: "pulse_counter", ported: true, load_config: None, load_config_prefix: None, register_components: None },
     todo("pwm_cycle_time"),
     todo("pwm_tool"),
-    todo("quad_gantry_level"),
+    PrinterModule { name: "quad_gantry_level", ported: true, load_config: Some(quad_gantry_level::load_config), load_config_prefix: None, register_components: None },
     PrinterModule { name: "query_adc", ported: true, load_config: Some(query_adc::load_config), load_config_prefix: None, register_components: None },
     PrinterModule { name: "query_endstops", ported: true, load_config: Some(query_endstops::load_config), load_config_prefix: None, register_components: None },
     todo("replicape"),
@@ -209,6 +215,6 @@ pub static MODULES: &[PrinterModule] = &[
     PrinterModule { name: "virtual_sdcard", ported: true, load_config: Some(virtual_sdcard::load_config), load_config_prefix: None, register_components: None },
     todo("z_calibration"),
     todo("z_thermal_adjust"),
-    todo("z_tilt"),
+    PrinterModule { name: "z_tilt", ported: true, load_config: Some(z_tilt::load_config), load_config_prefix: None, register_components: None },
     todo("z_tilt_ng"),
 ];

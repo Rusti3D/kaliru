@@ -1360,7 +1360,7 @@ impl BedMeshCalibrate {
                     corrected_pts.extend_from_slice(&positions[start_idx..idx.min(positions.len())]);
                 }
                 let sl = &positions[idx.min(positions.len())..(idx + pts.len()).min(positions.len())];
-                let avg_z = sl.iter().fold(0.0, |a, p| a + p[2]) / pts.len() as f64;
+                let avg_z = crate::pyfmt::py_sum(sl.iter().map(|p| p[2])) / pts.len() as f64;
                 idx_offset += pts.len() - 1;
                 start_idx = idx + pts.len();
                 fpt.push(avg_z);
@@ -1563,7 +1563,7 @@ impl MoveSplitter {
         self.traverse_complete.set(false);
         self.distance_checked.set(0.0);
         let axes_d: Vec<f64> = next_pos.iter().zip(prev_pos).map(|(np, pp)| np - pp).collect();
-        self.total_move_length.set(axes_d[..3].iter().fold(0.0, |a, d| a + d * d).sqrt());
+        self.total_move_length.set(crate::pyfmt::py_sum(axes_d[..3].iter().map(|d| d * d)).sqrt());
         *self.axis_move.borrow_mut() = axes_d.iter().map(|d| !isclose(*d, 0.0, 1e-09, 1e-10)).collect();
         Ok(())
     }
@@ -1836,7 +1836,7 @@ impl ZMesh {
     pub fn get_z_average(&self) -> f64 {
         match self.mesh_matrix.borrow().as_ref() {
             Some(m) => {
-                let total = m.iter().map(|r| r.iter().fold(0.0, |a, b| a + b)).fold(0.0, |a, b| a + b);
+                let total = crate::pyfmt::py_sum(m.iter().map(|r| crate::pyfmt::py_sum(r.iter().copied())));
                 let count: usize = m.iter().map(|r| r.len()).sum();
                 let avg_z = total / count as f64;
                 // Round average to the nearest 100th.  This

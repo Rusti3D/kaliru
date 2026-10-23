@@ -299,7 +299,7 @@ impl ControlAutoTune {
         if pt.is_empty() {
             return Err(KError::Other("float division by zero".into()));
         }
-        let time = pt.iter().sum::<f64>() / pt.len() as f64;
+        let time = crate::pyfmt::py_sum(pt.iter().copied()) / pt.len() as f64;
         self.peaks.borrow_mut().push((time, self.peak.get()));
         self.peak.set(self.target);
         Ok(())
@@ -416,7 +416,7 @@ impl ControlAutoTune {
         let amplitude = 0.5 * temp_diff.abs();
         let powers = self.powers.borrow();
         let p = &powers[powers.len().saturating_sub(TUNE_PID_SAMPLES)..];
-        let power = p.iter().sum::<f64>() / p.len() as f64;
+        let power = crate::pyfmt::py_sum(p.iter().copied()) / p.len() as f64;
         // calculate the various parameters
         let ku = 4.0 * power / (PI * amplitude);
         let tu = time_diff;

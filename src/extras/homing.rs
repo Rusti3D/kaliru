@@ -149,7 +149,7 @@ impl HomingMove {
     fn calc_endstop_rate(&self, mcu_endstop: &EndstopRef, movepos: &[f64], speed: f64) -> KResult<f64> {
         let startpos = self.toolhead.get_position();
         let axes_d: Vec<f64> = movepos.iter().zip(&startpos).map(|(mp, sp)| mp - sp).collect();
-        let move_d = axes_d[..3].iter().fold(0.0, |s, d| s + d * d).sqrt();
+        let move_d = crate::pyfmt::py_sum(axes_d[..3].iter().map(|d| d * d)).sqrt();
         let move_t = move_d / speed;
         let steps: Vec<f64> = mcu_endstop
             .get_steppers()
@@ -461,7 +461,7 @@ impl Homing {
         let startpos = self.fill_coord(forcepos);
         let homepos = self.fill_coord(movepos);
         let axes_d: Vec<f64> = homepos.iter().zip(&startpos).map(|(hp, sp)| hp - sp).collect();
-        let move_d = axes_d[..3].iter().fold(0.0, |s, d| s + d * d).sqrt();
+        let move_d = crate::pyfmt::py_sum(axes_d[..3].iter().map(|d| d * d)).sqrt();
         let retract_r = py_min(1.0, retract_dist / move_d);
         let retractpos = homepos.iter().zip(&axes_d).map(|(hp, ad)| hp - ad * retract_r).collect();
         (retractpos, axes_d, retract_r)

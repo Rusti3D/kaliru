@@ -692,11 +692,7 @@ pub fn call_filter(r: &mut Renderer, name: &str, value: Value, args: Vec<Value>,
             if matches!(a[2], Value::Str(_)) {
                 return Err(Exc::type_error("sum() can't sum strings [use ''.join(seq) instead]"));
             }
-            let mut rv = a[2].clone();
-            for it in items {
-                rv = rv.add(&it)?;
-            }
-            Ok(rv)
+            py_builtin_sum(a[2].clone(), items)
         }
         "title" => {
             let a = b!("do_title", [("s", None)]);
@@ -1044,4 +1040,49 @@ fn json_dumps_sorted(v: &Value) -> VResult<String> {
 /// filters used by env_getattr fallbacks elsewhere
 pub fn getattr_or_item(obj: &Value, name: &str) -> VResult<Value> {
     env_getattr(obj, name)
+}
+
+/// python's builtin sum(iterable, start): exact ints, Neumaier compensated
+/// floats (int items join a float sum uncompensated), generic + otherwise
+/// (Python/bltinmodule.c builtin_sum_impl)
+pub fn py_builtin_sum(start: Value, items: Vec<Value>) -> VResult<Value> {
+    let mut rv = start;
+    let mut it = items.into_iter().peekable();
+    loop {
+        match rv {
+            Value::Float(start_f) => {
+                let (mut f, mut c) = (start_f, 0.0f64);
+                while let Some(item) = it.peek() {
+                    match item {
+                        Value::Float(x) => {
+                            let x = *x;
+                            let t = f + x;
+                            if f.abs() >= x.abs() {
+                                c += (f - t) + x;
+                            } else {
+                                c += (x - t) + f;
+                            }
+                            f = t;
+                        }
+                        Value::Int(i) => f += *i as f64,
+                        Value::Bool(b) => f += *b as i64 as f64,
+                        _ => break,
+                    }
+                    it.next();
+                }
+                if c != 0.0 && c.is_finite() {
+                    f += c;
+                }
+                rv = Value::Float(f);
+                match it.next() {
+                    None => return Ok(rv),
+                    Some(item) => rv = rv.add(&item)?,
+                }
+            }
+            _ => match it.next() {
+                None => return Ok(rv),
+                Some(item) => rv = rv.add(&item)?,
+            },
+        }
+    }
 }

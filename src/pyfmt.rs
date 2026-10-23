@@ -130,6 +130,29 @@ pub fn py_max(a: f64, b: f64) -> f64 {
     }
 }
 
+/// Python 3.12+ builtin sum() of floats (start 0): Neumaier compensated
+/// summation (Python/bltinmodule.c builtin_sum_impl)
+pub fn py_sum(items: impl IntoIterator<Item = f64>) -> f64 {
+    let mut f_result = 0.0f64;
+    let mut c = 0.0f64;
+    for x in items {
+        // Improved Kahan-Babuska algorithm by Arnold Neumaier
+        let t = f_result + x;
+        if f_result.abs() >= x.abs() {
+            c += (f_result - t) + x;
+        } else {
+            c += (x - t) + f_result;
+        }
+        f_result = t;
+    }
+    // Avoid losing the sign on a negative result, and don't let adding the
+    // compensation convert an infinite or overflowed sum to a NaN.
+    if c != 0.0 && c.is_finite() {
+        f_result += c;
+    }
+    f_result
+}
+
 /// Python's round(x, ndigits) (correctly rounded, ties to even)
 pub fn py_round(x: f64, ndigits: usize) -> f64 {
     if !x.is_finite() {

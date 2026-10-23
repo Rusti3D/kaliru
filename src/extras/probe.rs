@@ -798,7 +798,7 @@ impl PrinterProbe {
 
     fn calc_mean(positions: &[Vec<f64>]) -> Vec<f64> {
         let count = positions.len() as f64;
-        (0..3).map(|i| positions.iter().fold(0.0, |a, p| a + p[i]) / count).collect()
+        (0..3).map(|i| crate::pyfmt::py_sum(positions.iter().map(|p| p[i])) / count).collect()
     }
 
     fn calc_median(positions: &[Vec<f64>]) -> Vec<f64> {
