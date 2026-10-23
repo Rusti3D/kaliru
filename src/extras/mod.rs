@@ -8,8 +8,10 @@
 // Regenerate the names with: ls klippy/extras (*.py and packages), sorted.
 use crate::printer::PrinterModule;
 
+pub mod adc_scaled;
 pub mod adc_temperature;
 pub mod aht10;
+pub mod axis_twist_compensation;
 pub mod bed_mesh;
 pub mod bed_screws;
 pub mod bed_tilt;
@@ -25,6 +27,7 @@ pub mod danger_options;
 pub mod delta_calibrate;
 pub mod display_status;
 pub mod display_templates;
+pub mod dotstar;
 pub mod ds18b20;
 pub mod duplicate_pin_override;
 pub mod endstop_phase;
@@ -60,8 +63,11 @@ pub mod motion_queuing;
 pub mod motion_report;
 pub mod mpc_ambient_temperature;
 pub mod mpc_block_temperature;
+pub mod neopixel;
 pub mod output_pin;
 pub mod pause_resume;
+pub mod pca9533;
+pub mod pca9632;
 pub mod pid_calibrate;
 pub mod print_stats;
 pub mod probe;
@@ -73,12 +79,15 @@ pub mod query_adc;
 pub mod query_endstops;
 pub mod respond;
 pub mod safe_z_home;
+pub mod screws_tilt_adjust;
 pub mod servo;
 pub mod shaper_defs;
 pub mod sht3x;
 pub mod spi_temperature;
+pub mod static_digital_output;
 pub mod statistics;
 pub mod stepper_enable;
+pub mod sx1509;
 pub mod telemetry;
 pub mod temperature_combined;
 pub mod temperature_fan;
@@ -107,12 +116,12 @@ const fn todo(name: &'static str) -> PrinterModule {
 
 pub static MODULES: &[PrinterModule] = &[
     todo("ad5206"),
-    todo("adc_scaled"),
+    PrinterModule { name: "adc_scaled", ported: true, load_config: None, load_config_prefix: Some(adc_scaled::load_config_prefix), register_components: None },
     PrinterModule { name: "adc_temperature", ported: true, load_config: Some(adc_temperature::load_config), load_config_prefix: Some(adc_temperature::load_config_prefix), register_components: None },
     todo("adxl345"),
     PrinterModule { name: "aht10", ported: true, load_config: Some(aht10::load_config), load_config_prefix: None, register_components: None },
     todo("angle"),
-    todo("axis_twist_compensation"),
+    PrinterModule { name: "axis_twist_compensation", ported: true, load_config: Some(axis_twist_compensation::load_config), load_config_prefix: None, register_components: None },
     PrinterModule { name: "bed_mesh", ported: true, load_config: Some(bed_mesh::load_config), load_config_prefix: None, register_components: None },
     PrinterModule { name: "bed_screws", ported: true, load_config: Some(bed_screws::load_config), load_config_prefix: None, register_components: None },
     PrinterModule { name: "bed_tilt", ported: true, load_config: Some(bed_tilt::load_config), load_config_prefix: None, register_components: None },
@@ -134,7 +143,7 @@ pub static MODULES: &[PrinterModule] = &[
     todo("display"),
     PrinterModule { name: "display_status", ported: true, load_config: Some(display_status::load_config), load_config_prefix: None, register_components: None },
     todo("dockable_probe"),
-    todo("dotstar"),
+    PrinterModule { name: "dotstar", ported: true, load_config: None, load_config_prefix: Some(dotstar::load_config_prefix), register_components: None },
     PrinterModule { name: "ds18b20", ported: true, load_config: Some(ds18b20::load_config), load_config_prefix: None, register_components: None },
     PrinterModule { name: "duplicate_pin_override", ported: true, load_config: Some(duplicate_pin_override::load_config), load_config_prefix: Some(duplicate_pin_override::load_config_prefix), register_components: None },
     PrinterModule { name: "endstop_phase", ported: true, load_config: Some(endstop_phase::load_config), load_config_prefix: Some(endstop_phase::load_config_prefix), register_components: None },
@@ -186,13 +195,13 @@ pub static MODULES: &[PrinterModule] = &[
     PrinterModule { name: "mpc_block_temperature", ported: true, load_config: Some(mpc_block_temperature::load_config), load_config_prefix: None, register_components: None },
     todo("mpu9250"),
     todo("multi_pin"),
-    todo("neopixel"),
+    PrinterModule { name: "neopixel", ported: true, load_config: None, load_config_prefix: Some(neopixel::load_config_prefix), register_components: None },
     todo("nozzle_cleanup"),
     PrinterModule { name: "output_pin", ported: true, load_config: None, load_config_prefix: Some(output_pin::load_config_prefix), register_components: None },
     todo("palette2"),
     PrinterModule { name: "pause_resume", ported: true, load_config: Some(pause_resume::load_config), load_config_prefix: None, register_components: None },
-    todo("pca9533"),
-    todo("pca9632"),
+    PrinterModule { name: "pca9533", ported: true, load_config: None, load_config_prefix: Some(pca9533::load_config_prefix), register_components: None },
+    PrinterModule { name: "pca9632", ported: true, load_config: None, load_config_prefix: Some(pca9632::load_config_prefix), register_components: None },
     PrinterModule { name: "pid_calibrate", ported: true, load_config: Some(pid_calibrate::load_config), load_config_prefix: None, register_components: None },
     PrinterModule { name: "print_stats", ported: true, load_config: Some(print_stats::load_config), load_config_prefix: None, register_components: None },
     PrinterModule { name: "probe", ported: true, load_config: Some(probe::load_config), load_config_prefix: Some(probe::load_config_prefix), register_components: None },
@@ -209,7 +218,7 @@ pub static MODULES: &[PrinterModule] = &[
     PrinterModule { name: "safe_z_home", ported: true, load_config: Some(safe_z_home::load_config), load_config_prefix: None, register_components: None },
     todo("samd_sercom"),
     todo("save_variables"),
-    todo("screws_tilt_adjust"),
+    PrinterModule { name: "screws_tilt_adjust", ported: true, load_config: Some(screws_tilt_adjust::load_config), load_config_prefix: None, register_components: None },
     todo("sdcard_loop"),
     PrinterModule { name: "servo", ported: true, load_config: None, load_config_prefix: Some(servo::load_config_prefix), register_components: None },
     todo("shaper_calibrate"),
@@ -218,11 +227,11 @@ pub static MODULES: &[PrinterModule] = &[
     todo("skew_correction"),
     todo("smart_effector"),
     PrinterModule { name: "spi_temperature", ported: true, load_config: Some(spi_temperature::load_config), load_config_prefix: None, register_components: None },
-    todo("static_digital_output"),
+    PrinterModule { name: "static_digital_output", ported: true, load_config: None, load_config_prefix: Some(static_digital_output::load_config_prefix), register_components: None },
     todo("static_pwm_clock"),
     PrinterModule { name: "statistics", ported: true, load_config: Some(statistics::load_config), load_config_prefix: None, register_components: None },
     PrinterModule { name: "stepper_enable", ported: true, load_config: Some(stepper_enable::load_config), load_config_prefix: None, register_components: None },
-    todo("sx1509"),
+    PrinterModule { name: "sx1509", ported: true, load_config: None, load_config_prefix: Some(sx1509::load_config_prefix), register_components: None },
     PrinterModule { name: "telemetry", ported: true, load_config: Some(telemetry::load_config), load_config_prefix: None, register_components: None },
     PrinterModule { name: "temperature_combined", ported: true, load_config: Some(temperature_combined::load_config), load_config_prefix: None, register_components: None },
     PrinterModule { name: "temperature_fan", ported: true, load_config: None, load_config_prefix: Some(temperature_fan::load_config_prefix), register_components: None },

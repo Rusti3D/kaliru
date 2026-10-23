@@ -12,8 +12,8 @@ use crate::gcode::{GCodeCommand, GCodeDispatch};
 use crate::jinja::filters::bind;
 use crate::jinja::value::{CallCtx, Exc, Key, Object, VResult, Value};
 use crate::logging;
-use crate::mcu::{Mcu, McuDigitalOut, McuPwm};
-use crate::pins::setup_pin_as;
+use crate::mcu::{DigitalOutPin, Mcu, PwmPin};
+use crate::pins::{setup_digital_out_pin, setup_pwm_pin};
 use crate::printer::{downcast_rc, PObj, Printer, PrinterObject};
 use crate::pyfmt::py_max;
 use crate::pyval::PyVal;
@@ -429,8 +429,8 @@ pub const MAX_SCHEDULE_TIME: f64 = 5.0;
 const CMD_SET_PIN_HELP: &str = "Set the value of an output pin";
 
 enum OutPin {
-    Pwm(Rc<McuPwm>),
-    Digital(Rc<McuDigitalOut>),
+    Pwm(Rc<dyn PwmPin>),
+    Digital(Rc<dyn DigitalOutPin>),
 }
 
 pub struct PrinterOutputPin {
@@ -449,7 +449,7 @@ impl PrinterOutputPin {
         // Determine pin type
         let is_pwm = config.getboolean("pwm", false)?;
         let (mcu_pin, scale, mcu) = if is_pwm {
-            let p = setup_pin_as::<McuPwm>(&printer, "pwm", &config.get("pin", Dflt::Required)?)?;
+            let p = setup_pwm_pin(&printer, &config.get("pin", Dflt::Required)?)?;
             let cycle_time = config.getfloat("cycle_time", 0.100, Lim::new().above(0.0).max(MAX_SCHEDULE_TIME))?;
             let hardware_pwm = config.getboolean("hardware_pwm", false)?;
             p.setup_cycle_time(cycle_time, hardware_pwm);
@@ -458,7 +458,7 @@ impl PrinterOutputPin {
             let mcu = p.get_mcu();
             (OutPin::Pwm(p), scale, mcu)
         } else {
-            let p = setup_pin_as::<McuDigitalOut>(&printer, "digital_out", &config.get("pin", Dflt::Required)?)?;
+            let p = setup_digital_out_pin(&printer, &config.get("pin", Dflt::Required)?)?;
             p.setup_max_duration(0.0);
             let mcu = p.get_mcu();
             (OutPin::Digital(p), 1.0, mcu)

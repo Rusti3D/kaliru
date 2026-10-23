@@ -7,7 +7,7 @@ use crate::configfile::{ConfigWrapper, Lim};
 use crate::error::{KError, KResult};
 use crate::extras::query_adc::QueryADC;
 use crate::logging;
-use crate::mcu::{get_printer_mcu, ints, pint, CommandWrapper, Mcu, McuAdc};
+use crate::mcu::{get_printer_mcu, ints, pint, CommandWrapper, Mcu};
 use crate::msgproto::{Params, Val};
 use crate::pins::PinsObject;
 use crate::printer::{PObj, Printer, PrinterObject};
@@ -183,12 +183,12 @@ pub struct McuAdcButtons {
     pullup: f64,
     min_value: Cell<f64>,
     max_value: Cell<f64>,
-    _mcu_adc: Rc<McuAdc>,
+    _mcu_adc: Rc<dyn crate::mcu::AdcPin>,
 }
 
 impl McuAdcButtons {
     fn new(printer: &Rc<Printer>, pin: &str, pullup: f64) -> KResult<Rc<Self>> {
-        let mcu_adc = crate::pins::setup_pin_as::<McuAdc>(printer, "adc", pin)?;
+        let mcu_adc = crate::pins::setup_adc_pin(printer, pin)?;
         mcu_adc.setup_adc_sample(ADC_SAMPLE_TIME, ADC_SAMPLE_COUNT, 0.0, 1.0, 0);
         let b = Rc::new(McuAdcButtons {
             reactor: printer.get_reactor(),

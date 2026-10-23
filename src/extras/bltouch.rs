@@ -10,7 +10,7 @@ use crate::extras::homing::{HomingMove, PrinterHoming};
 use crate::extras::probe::{McuProbe, PrinterProbe};
 use crate::gcode::{GCodeCommand, GCodeDispatch};
 use crate::logging;
-use crate::mcu::{Endstop, EndstopRef, Mcu, McuEndstop, McuPwm, StepperRef};
+use crate::mcu::{Endstop, EndstopRef, Mcu, McuEndstop, PwmPin, StepperRef};
 use crate::pins::PinsObject;
 use crate::printer::{PObj, Printer, PrinterObject};
 use crate::pyfmt::{py_max, py_min};
@@ -59,7 +59,7 @@ pub struct BLTouchEndstopWrapper {
     position_endstop: f64,
     stow_on_each_sample: bool,
     probe_touch_mode: bool,
-    mcu_pwm: Rc<McuPwm>,
+    mcu_pwm: Rc<dyn PwmPin>,
     next_cmd_time: Cell<f64>,
     action_end_time: Cell<f64>,
     finish_home_complete: RefCell<Option<Rc<ReactorCompletion<bool>>>>,
@@ -103,7 +103,7 @@ impl BLTouchEndstopWrapper {
         let stow_on_each_sample = config.getboolean("stow_on_each_sample", true)?;
         let probe_touch_mode = config.getboolean("probe_with_touch_mode", false)?;
         // Create a pwm object to handle the control pin
-        let mcu_pwm = crate::pins::setup_pin_as::<McuPwm>(&printer, "pwm", &config.get("control_pin", Dflt::Required)?)?;
+        let mcu_pwm = crate::pins::setup_pwm_pin(&printer, &config.get("control_pin", Dflt::Required)?)?;
         mcu_pwm.setup_max_duration(0.0);
         mcu_pwm.setup_cycle_time(SIGNAL_PERIOD, false);
         // Create an "endstop" object to handle the sensor pin

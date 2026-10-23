@@ -7,7 +7,7 @@
 use crate::configfile::{ConfigWrapper, Lim};
 use crate::error::KResult;
 use crate::gcode::{GCodeCommand, GCodeDispatch};
-use crate::mcu::McuAdc;
+use crate::mcu::AdcPin;
 use crate::printer::{PObj, PrinterObject};
 use crate::pyfmt::{py_max, py_min};
 use indexmap::IndexMap;
@@ -18,7 +18,7 @@ use std::rc::Rc;
 const CMD_QUERY_ADC_HELP: &str = "Report the last value of an analog pin";
 
 pub struct QueryADC {
-    adc: RefCell<IndexMap<String, Rc<McuAdc>>>,
+    adc: RefCell<IndexMap<String, Rc<dyn AdcPin>>>,
 }
 
 impl QueryADC {
@@ -31,7 +31,7 @@ impl QueryADC {
         Ok(q)
     }
 
-    pub fn register_adc(&self, name: &str, mcu_adc: Rc<McuAdc>) {
+    pub fn register_adc(&self, name: &str, mcu_adc: Rc<dyn AdcPin>) {
         self.adc.borrow_mut().insert(name.to_string(), mcu_adc);
     }
 

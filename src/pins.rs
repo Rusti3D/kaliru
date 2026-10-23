@@ -307,3 +307,40 @@ pub fn setup_pin_as<T: 'static>(printer: &crate::printer::Printer, pin_type: &st
         .downcast::<T>()
         .map_err(|_| crate::error::KError::Other(format!("pin '{}' of type {} is not supported here by Kaliru yet", pin_desc, pin_type)))
 }
+
+/// setup_pin("pwm", pin_desc) as a pwm pin (an McuPwm or another chip's
+/// boxed Rc<dyn PwmPin>)
+pub fn setup_pwm_pin(printer: &crate::printer::Printer, pin_desc: &str) -> crate::error::KResult<Rc<dyn crate::mcu::PwmPin>> {
+    let obj = setup_pin(printer, "pwm", pin_desc)?;
+    match obj.downcast::<crate::mcu::McuPwm>() {
+        Ok(p) => Ok(p),
+        Err(obj) => obj
+            .downcast::<Rc<dyn crate::mcu::PwmPin>>()
+            .map(|p| (*p).clone())
+            .map_err(|_| crate::error::KError::Other(format!("pin '{}' of type pwm is not supported here by Kaliru yet", pin_desc))),
+    }
+}
+
+/// setup_pin("digital_out", pin_desc) as a digital output pin
+pub fn setup_digital_out_pin(printer: &crate::printer::Printer, pin_desc: &str) -> crate::error::KResult<Rc<dyn crate::mcu::DigitalOutPin>> {
+    let obj = setup_pin(printer, "digital_out", pin_desc)?;
+    match obj.downcast::<crate::mcu::McuDigitalOut>() {
+        Ok(p) => Ok(p),
+        Err(obj) => obj
+            .downcast::<Rc<dyn crate::mcu::DigitalOutPin>>()
+            .map(|p| (*p).clone())
+            .map_err(|_| crate::error::KError::Other(format!("pin '{}' of type digital_out is not supported here by Kaliru yet", pin_desc))),
+    }
+}
+
+/// setup_pin("adc", pin_desc) as an adc pin
+pub fn setup_adc_pin(printer: &crate::printer::Printer, pin_desc: &str) -> crate::error::KResult<Rc<dyn crate::mcu::AdcPin>> {
+    let obj = setup_pin(printer, "adc", pin_desc)?;
+    match obj.downcast::<crate::mcu::McuAdc>() {
+        Ok(p) => Ok(p),
+        Err(obj) => obj
+            .downcast::<Rc<dyn crate::mcu::AdcPin>>()
+            .map(|p| (*p).clone())
+            .map_err(|_| crate::error::KError::Other(format!("pin '{}' of type adc is not supported here by Kaliru yet", pin_desc))),
+    }
+}

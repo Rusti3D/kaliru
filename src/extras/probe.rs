@@ -779,12 +779,17 @@ impl PrinterProbe {
     }
 
     fn probe(&self, speed: f64, gcmd: &GCodeCommand) -> KResult<(Vec<f64>, Option<bool>)> {
+        let pos = self.toolhead()?.get_position();
         let (mut epos, is_good) = self.probing_move(speed, gcmd)?;
         // get z compensation from axis_twist_compensation
-        if self.printer.lookup_object_opt("axis_twist_compensation").is_some() {
-            return Err(KError::Other("axis_twist_compensation is not ported to Kaliru yet".into()));
+        let axis_twist_compensation = self
+            .printer
+            .lookup_object_opt("axis_twist_compensation")
+            .and_then(downcast_rc::<crate::extras::axis_twist_compensation::AxisTwistCompensation>);
+        let mut z_compensation = 0.0;
+        if let Some(atc) = axis_twist_compensation {
+            z_compensation = atc.get_z_compensation_value(&pos);
         }
-        let z_compensation = 0.0;
         // add z compensation to probe position
         epos[2] += z_compensation;
         self.gcode.respond_info(&format!("probe at {:.3},{:.3} is z={:.6}", epos[0], epos[1], epos[2]), true);

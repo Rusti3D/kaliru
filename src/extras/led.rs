@@ -8,8 +8,7 @@ use crate::error::{KError, KResult};
 use crate::extras::output_pin::{lookup_template_eval, PrinterTemplateEvaluator, TemplateCallback, TemplateFlush};
 use crate::gcode::{GCodeCommand, GCodeDispatch};
 use crate::logging;
-use crate::mcu::McuPwm;
-use crate::pins::setup_pin_as;
+use crate::mcu::PwmPin;
 use crate::printer::{PObj, Printer, PrinterObject};
 use crate::pyfmt::{py_max, py_min};
 use crate::pyval::PyVal;
@@ -239,7 +238,7 @@ pub const MAX_SCHEDULE_TIME: f64 = 5.0;
 // Handler for PWM controlled LEDs
 pub struct PrinterPWMLED {
     printer: Rc<Printer>,
-    pins: Vec<(usize, Rc<McuPwm>)>,
+    pins: Vec<(usize, Rc<dyn PwmPin>)>,
     last_print_time: Cell<f64>,
     led_helper: RefCell<Option<Rc<LEDHelper>>>,
     prev_color: RefCell<Color>,
@@ -254,7 +253,7 @@ impl PrinterPWMLED {
         let mut pins = vec![];
         for (i, name) in ["red", "green", "blue", "white"].iter().enumerate() {
             let Some(pin_name) = config.get_opt(&format!("{}_pin", name))? else { continue };
-            let mcu_pin = setup_pin_as::<McuPwm>(&printer, "pwm", &pin_name)?;
+            let mcu_pin = crate::pins::setup_pwm_pin(&printer, &pin_name)?;
             mcu_pin.setup_max_duration(0.0);
             mcu_pin.setup_cycle_time(cycle_time, hardware_pwm);
             pins.push((i, mcu_pin));

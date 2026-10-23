@@ -839,6 +839,58 @@ impl McuDigitalOut {
     }
 }
 
+/// a "digital_out" pin as its users see it: an McuDigitalOut, or another
+/// chip's pin (sx1509); python duck types these
+pub trait DigitalOutPin {
+    fn get_mcu(&self) -> Rc<Mcu>;
+    fn setup_max_duration(&self, max_duration: f64);
+    fn setup_start_value(&self, start_value: bool, shutdown_value: bool);
+    fn set_digital(&self, print_time: f64, value: bool) -> KResult<()>;
+}
+
+impl DigitalOutPin for McuDigitalOut {
+    fn get_mcu(&self) -> Rc<Mcu> {
+        McuDigitalOut::get_mcu(self)
+    }
+    fn setup_max_duration(&self, max_duration: f64) {
+        McuDigitalOut::setup_max_duration(self, max_duration)
+    }
+    fn setup_start_value(&self, start_value: bool, shutdown_value: bool) {
+        McuDigitalOut::setup_start_value(self, start_value, shutdown_value)
+    }
+    fn set_digital(&self, print_time: f64, value: bool) -> KResult<()> {
+        McuDigitalOut::set_digital(self, print_time, value)
+    }
+}
+
+/// a "pwm" pin as its users see it: an McuPwm, or another chip's pin
+/// (sx1509); python duck types these
+pub trait PwmPin {
+    fn get_mcu(&self) -> Rc<Mcu>;
+    fn setup_max_duration(&self, max_duration: f64);
+    fn setup_cycle_time(&self, cycle_time: f64, hardware_pwm: bool);
+    fn setup_start_value(&self, start_value: f64, shutdown_value: f64);
+    fn set_pwm(&self, print_time: f64, value: f64) -> KResult<()>;
+}
+
+impl PwmPin for McuPwm {
+    fn get_mcu(&self) -> Rc<Mcu> {
+        McuPwm::get_mcu(self)
+    }
+    fn setup_max_duration(&self, max_duration: f64) {
+        McuPwm::setup_max_duration(self, max_duration)
+    }
+    fn setup_cycle_time(&self, cycle_time: f64, hardware_pwm: bool) {
+        McuPwm::setup_cycle_time(self, cycle_time, hardware_pwm)
+    }
+    fn setup_start_value(&self, start_value: f64, shutdown_value: f64) {
+        McuPwm::setup_start_value(self, start_value, shutdown_value)
+    }
+    fn set_pwm(&self, print_time: f64, value: f64) -> KResult<()> {
+        McuPwm::set_pwm(self, print_time, value)
+    }
+}
+
 pub struct McuPwm {
     mcu: Rc<Mcu>,
     hardware_pwm: Cell<bool>,
@@ -1020,6 +1072,30 @@ pub struct McuAdc {
     inv_max_adc: Cell<f64>,
 }
 
+/// an "adc" pin as its users see it: an McuAdc, or another chip's pin
+/// (adc_scaled); python duck types these
+pub trait AdcPin {
+    fn get_mcu(&self) -> Rc<Mcu>;
+    fn setup_adc_sample(&self, sample_time: f64, sample_count: i64, minval: f64, maxval: f64, range_check_count: i64);
+    fn setup_adc_callback(&self, report_time: f64, callback: AdcCallback);
+    fn get_last_value(&self) -> (f64, f64);
+}
+
+impl AdcPin for McuAdc {
+    fn get_mcu(&self) -> Rc<Mcu> {
+        McuAdc::get_mcu(self)
+    }
+    fn setup_adc_sample(&self, sample_time: f64, sample_count: i64, minval: f64, maxval: f64, range_check_count: i64) {
+        McuAdc::setup_adc_sample(self, sample_time, sample_count, minval, maxval, range_check_count)
+    }
+    fn setup_adc_callback(&self, report_time: f64, callback: AdcCallback) {
+        McuAdc::setup_adc_callback(self, report_time, callback)
+    }
+    fn get_last_value(&self) -> (f64, f64) {
+        McuAdc::get_last_value(self)
+    }
+}
+
 impl McuAdc {
     pub fn new(mcu: &Rc<Mcu>, pin_params: &SharedPinParams) -> Rc<Self> {
         let a = Rc::new(McuAdc {
@@ -1063,7 +1139,7 @@ impl McuAdc {
         self.last_state.get()
     }
 
-    fn build_config(self: &Rc<Self>) -> KResult<()> {
+    pub fn build_config(self: &Rc<Self>) -> KResult<()> {
         if self.sample_count.get() == 0 {
             return Ok(());
         }

@@ -1,13 +1,14 @@
-import sys, glob, json, os
+import sys
 sys.path.insert(0, ".")
 from klippy import msgproto
-d = glob.glob(os.path.expanduser("~/rk/kalico/test/klippy/*.dict")) + glob.glob(os.path.expanduser("~/rk/dict/*.dict"))
 mp = msgproto.MessageParser()
-for f in d:
-    if "atmega2560" in f:
-        mp.process_identify(open(f, "rb").read(), decompress=False)
-        break
-for h in sys.argv[1:]:
-    data = bytes.fromhex(h)
+mp.process_identify(open(sys.argv[1], "rb").read(), decompress=False)
+for line in open(sys.argv[2]):
+    parts = line.split()
+    if len(parts) < 6 or not parts[0] == "serialq":
+        continue
+    data = bytes.fromhex(parts[5])
     msg = bytearray([len(data) + 5, 0x10]) + data + b"\0\0\x7e"
-    print(h, mp.dump(msg))
+    out = mp.dump(msg)[1:]
+    if any(" oid=15 " in o + " " or "oid=15" in o.split()[1:2] for o in out):
+        print(parts[2], parts[3], parts[4], out)

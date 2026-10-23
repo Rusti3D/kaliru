@@ -7,8 +7,7 @@ use crate::configfile::{ConfigWrapper, Dflt, Lim};
 use crate::error::KResult;
 use crate::extras::output_pin::{Action, GCodeRequestQueue};
 use crate::gcode::{GCodeCommand, GCodeDispatch};
-use crate::mcu::McuPwm;
-use crate::pins::setup_pin_as;
+use crate::mcu::PwmPin;
 use crate::printer::{PObj, PrinterObject};
 use crate::pyfmt::{py_max, py_min};
 use crate::pyval::PyVal;
@@ -48,7 +47,7 @@ impl PwmCalc {
 pub struct PrinterServo {
     calc: PwmCalc,
     last_value: Cell<f64>,
-    mcu_servo: Rc<McuPwm>,
+    mcu_servo: Rc<dyn PwmPin>,
     gcrq: RefCell<Option<Rc<GCodeRequestQueue>>>,
 }
 
@@ -70,7 +69,7 @@ impl PrinterServo {
             }
         };
         // Setup mcu_servo pin
-        let mcu_servo = setup_pin_as::<McuPwm>(&printer, "pwm", &config.get("pin", Dflt::Required)?)?;
+        let mcu_servo = crate::pins::setup_pwm_pin(&printer, &config.get("pin", Dflt::Required)?)?;
         mcu_servo.setup_max_duration(0.0);
         mcu_servo.setup_cycle_time(SERVO_SIGNAL_PERIOD, false);
         mcu_servo.setup_start_value(initial_pwm, 0.0);

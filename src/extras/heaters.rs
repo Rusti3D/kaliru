@@ -12,7 +12,7 @@ use crate::error::{KError, KResult};
 use crate::extras::control_mpc::{ControlMPC, FILAMENT_TEMP_SRC_AMBIENT, FILAMENT_TEMP_SRC_FIXED, FILAMENT_TEMP_SRC_SENSOR};
 use crate::gcode::{GCodeCommand, GCodeDispatch};
 use crate::logging;
-use crate::mcu::McuPwm;
+use crate::mcu::PwmPin;
 use crate::printer::{ConfigFileObject, PObj, Printer, PrinterObject};
 use crate::pyval::PyVal;
 use crate::reactor::Reactor;
@@ -525,7 +525,7 @@ pub struct Heater {
     last_temp_time: Cell<f64>,
     next_pwm_time: Cell<f64>,
     pub last_pwm_value: Cell<f64>,
-    mcu_pwm: Rc<McuPwm>,
+    mcu_pwm: Rc<dyn PwmPin>,
     gcode: RefCell<Option<Rc<GCodeDispatch>>>,
     profiles: RefCell<IndexMap<String, Profile>>,
     incompatible_profiles: RefCell<Vec<String>>,
@@ -565,7 +565,7 @@ impl Heater {
         config.getfloat_opt("max_delta", Lim::new())?;
         // Setup output heater pin
         let heater_pin = config.get("heater_pin", Dflt::Required)?;
-        let mcu_pwm = crate::pins::setup_pin_as::<McuPwm>(&printer, "pwm", &heater_pin)?;
+        let mcu_pwm = crate::pins::setup_pwm_pin(&printer, &heater_pin)?;
         let pwm_cycle_time = config.getfloat("pwm_cycle_time", 0.100, Lim::new().above(0.0).max(pwm_delay))?;
         mcu_pwm.setup_cycle_time(pwm_cycle_time, false);
         mcu_pwm.setup_max_duration(MAX_HEAT_TIME);

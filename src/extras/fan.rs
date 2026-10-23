@@ -8,8 +8,7 @@ use crate::error::{KError, KResult};
 use crate::extras::output_pin::{Action, GCodeRequestQueue};
 use crate::extras::pulse_counter::FrequencyCounter;
 use crate::gcode::{GCodeCommand, GCodeDispatch};
-use crate::mcu::{Mcu, McuDigitalOut, McuPwm};
-use crate::pins::setup_pin_as;
+use crate::mcu::{DigitalOutPin, Mcu, PwmPin};
 use crate::printer::{PObj, PrinterObject};
 use crate::pyfmt::{py_max, py_min};
 use crate::pyval::PyVal;
@@ -26,8 +25,8 @@ pub struct Fan {
     min_power: f64,
     pub max_power: f64,
     initial_speed: Option<f64>,
-    mcu_fan: Rc<McuPwm>,
-    enable_pin: Option<Rc<McuDigitalOut>>,
+    mcu_fan: Rc<dyn PwmPin>,
+    enable_pin: Option<Rc<dyn DigitalOutPin>>,
     gcrq: RefCell<Option<Rc<GCodeRequestQueue>>>,
     tachometer: FanTachometer,
 }
@@ -65,7 +64,7 @@ impl Fan {
         let hardware_pwm = config.getboolean("hardware_pwm", false)?;
         let shutdown_speed = config.getfloat("shutdown_speed", default_shutdown_speed, Lim::new().min(0.0).max(1.0))?;
         // Setup pwm object
-        let mcu_fan = setup_pin_as::<McuPwm>(&printer, "pwm", &config.get("pin", Dflt::Required)?)?;
+        let mcu_fan = crate::pins::setup_pwm_pin(&printer, &config.get("pin", Dflt::Required)?)?;
         mcu_fan.setup_max_duration(0.0);
         mcu_fan.setup_cycle_time(cycle_time, hardware_pwm);
 
@@ -81,7 +80,7 @@ impl Fan {
         let enable_pin = match config.get_opt("enable_pin")? {
             None => None,
             Some(p) => {
-                let pin = setup_pin_as::<McuDigitalOut>(&printer, "digital_out", &p)?;
+                let pin = crate::pins::setup_digital_out_pin(&printer, &p)?;
                 pin.setup_max_duration(0.0);
                 Some(pin)
             }
