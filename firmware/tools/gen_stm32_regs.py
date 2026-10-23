@@ -138,7 +138,12 @@ for n in sorted(ptrs):
     o.append('pub const %s: *mut %s = 0x%08x as *mut %s;' % (n, ptrs[n], vals[('P', n)], ptrs[n]))
 for n in ints:
     if ('I', n) in vals and n not in enums:
-        o.append('pub const %s: u32 = 0x%x;' % (n, vals[('I', n)] & 0xffffffff))
+        v = vals[('I', n)] & 0xffffffff
+        if macros[n].strip() in enums:
+            # an alias of an irq number (USB_LP_IRQn -> USB_LP_CAN1_RX0_IRQn)
+            o.append('pub const %s: IRQn_Type = %d;' % (n, v - (1 << 32) if v >= 1 << 31 else v))
+        else:
+            o.append('pub const %s: u32 = 0x%x;' % (n, v))
 open(out, 'w').write('\n'.join(o) + '\n')
 print('%s: %d structs, %d irqs, %d pointers, %d values' % (out, len(structs), len(enums), len(ptrs),
                                                          sum(1 for n in ints if ('I', n) in vals)))

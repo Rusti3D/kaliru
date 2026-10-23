@@ -32,7 +32,9 @@ pub mod i2c;
 pub mod serial;
 #[cfg(CONFIG_SERIAL)]
 pub use serial::serial_enable_tx_irq;
-#[cfg(CONFIG_USBSERIAL)]
+#[cfg(all(CONFIG_USBSERIAL, CONFIG_HAVE_STM32_USBFS))]
+pub mod usbfs;
+#[cfg(all(CONFIG_USBSERIAL, CONFIG_HAVE_STM32_USBOTG))]
 pub mod usbotg;
 #[cfg(CONFIG_USBSERIAL)]
 pub mod chipid;
@@ -69,7 +71,12 @@ pub use spi::{spi_prepare, spi_setup, spi_transfer};
 pub use stm32f1::{armcm_main, bootloader_request};
 #[cfg(CONFIG_MACH_STM32F4)]
 pub use stm32f4::{armcm_main, bootloader_request};
-#[cfg(CONFIG_USBSERIAL)]
+#[cfg(all(CONFIG_USBSERIAL, CONFIG_HAVE_STM32_USBFS))]
+pub use usbfs::{
+    usb_read_bulk_out, usb_read_ep0, usb_read_ep0_setup, usb_send_bulk_in, usb_send_ep0, usb_set_address, usb_set_configure,
+    usb_stall_ep0,
+};
+#[cfg(all(CONFIG_USBSERIAL, CONFIG_HAVE_STM32_USBOTG))]
 pub use usbotg::{
     usb_read_bulk_out, usb_read_ep0, usb_read_ep0_setup, usb_send_bulk_in, usb_send_ep0, usb_set_address, usb_set_configure,
     usb_stall_ep0,

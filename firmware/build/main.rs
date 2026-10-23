@@ -76,8 +76,8 @@ fn sources(config: &kconfig::Config) -> Vec<&'static str> {
         if !(on("CONFIG_MACH_STM32F1") || on("CONFIG_MACH_STM32F4")) {
             panic!("only the stm32f1 / stm32f4 boards are ported");
         }
-        if on("CONFIG_CANSERIAL") || on("CONFIG_USBCANBUS") || (on("CONFIG_USBSERIAL") && on("CONFIG_HAVE_STM32_USBFS")) {
-            panic!("stm32 canbus / usbfs are not ported yet");
+        if on("CONFIG_CANSERIAL") || on("CONFIG_USBCANBUS") {
+            panic!("stm32 canbus is not ported yet");
         }
         // (internal.h: no requests, its GPIO() is used in theirs)
         out.push("stm32/internal.rs");
@@ -100,7 +100,8 @@ fn sources(config: &kconfig::Config) -> Vec<&'static str> {
             ("CONFIG_WANT_GPIO_SPI", &["stm32/spi.rs"]),
             ("CONFIG_WANT_GPIO_I2C", &["stm32/i2c.rs"]),
             ("CONFIG_SERIAL", &["stm32/serial.rs", "generic/serial_irq.rs"]),
-            ("CONFIG_USBSERIAL", &["stm32/usbotg.rs", "stm32/chipid.rs", "generic/usb_cdc.rs"]),
+            ("CONFIG_USBSERIAL", if on("CONFIG_HAVE_STM32_USBFS") { &["stm32/usbfs.rs"] } else { &["stm32/usbotg.rs"] }),
+            ("CONFIG_USBSERIAL", &["stm32/chipid.rs", "generic/usb_cdc.rs"]),
             ("CONFIG_WANT_HARD_PWM", &["stm32/hard_pwm.rs"]),
             ("CONFIG_HAVE_GPIO_SDIO", &["stm32/sdio.rs"]),
         ];
