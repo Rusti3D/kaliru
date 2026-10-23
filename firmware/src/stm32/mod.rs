@@ -21,6 +21,14 @@ pub mod stm32f0_timer;
 pub mod system_stm32f0xx;
 #[cfg(CONFIG_MACH_STM32G0)]
 pub mod stm32g0;
+#[cfg(CONFIG_MACH_STM32G4)]
+pub mod stm32g4;
+#[cfg(CONFIG_MACH_STM32G4)]
+pub mod system_stm32g4xx;
+#[cfg(CONFIG_MACH_STM32L4)]
+pub mod stm32l4;
+#[cfg(CONFIG_MACH_STM32L4)]
+pub mod system_stm32l4xx;
 #[cfg(CONFIG_MACH_STM32F1)]
 pub mod stm32f1;
 #[cfg(CONFIG_MACH_STM32F1)]
@@ -38,6 +46,10 @@ pub mod adc;
 pub mod stm32f0_adc;
 #[cfg(all(CONFIG_WANT_ADC, any(CONFIG_MACH_STM32F0, CONFIG_MACH_STM32G0)))]
 pub use stm32f0_adc as adc;
+#[cfg(all(CONFIG_WANT_ADC, any(CONFIG_MACH_STM32G4, CONFIG_MACH_STM32H7, CONFIG_MACH_STM32L4)))]
+pub mod stm32h7_adc;
+#[cfg(all(CONFIG_WANT_ADC, any(CONFIG_MACH_STM32G4, CONFIG_MACH_STM32H7, CONFIG_MACH_STM32L4)))]
+pub use stm32h7_adc as adc;
 #[cfg(CONFIG_WANT_GPIO_SPI)]
 pub mod spi;
 #[cfg(all(CONFIG_WANT_GPIO_I2C, any(CONFIG_MACH_STM32F1, CONFIG_MACH_STM32F2, CONFIG_MACH_STM32F4)))]
@@ -104,6 +116,10 @@ pub use spi::{spi_prepare, spi_setup, spi_transfer};
 pub use stm32f0::{armcm_main, bootloader_request};
 #[cfg(CONFIG_MACH_STM32G0)]
 pub use stm32g0::{armcm_main, bootloader_request};
+#[cfg(CONFIG_MACH_STM32G4)]
+pub use stm32g4::{armcm_main, bootloader_request};
+#[cfg(CONFIG_MACH_STM32L4)]
+pub use stm32l4::{armcm_main, bootloader_request};
 #[cfg(CONFIG_MACH_STM32F1)]
 pub use stm32f1::{armcm_main, bootloader_request};
 #[cfg(any(CONFIG_MACH_STM32F2, CONFIG_MACH_STM32F4))]

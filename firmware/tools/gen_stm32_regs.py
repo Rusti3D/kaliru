@@ -81,7 +81,9 @@ def evaluate():
     items += [('E', n, '(uint32_t)(%s)' % n) for n in enums]
     for s, fl in structs.items():
         items.append(('S', s, 'sizeof(%s)' % s))
-        items += [('F', s + '.' + f, 'offsetof(%s, %s)' % (s, f)) for t, f, dim in fl]
+        # (a field named like a macro, COMP1 of DWT_Type on chips with COMP1
+        # peripherals, cannot be named here: its offset is covered by the size)
+        items += [('F', s + '.' + f, 'offsetof(%s, %s)' % (s, f)) for t, f, dim in fl if f not in macros]
     while True:
         pre = ['#include "%s"' % top, '#include <stddef.h>', '#include <stdint.h>']
         src = pre + ['__attribute__((used)) const uint32_t v%d = %s;' % (i, e) for i, (k, n, e) in enumerate(items)]
@@ -133,7 +135,8 @@ for s, fl in structs.items():
     o.append('}')
     o.append('const _: () = assert!(core::mem::size_of::<%s>() == %d);' % (s, vals[('S', s)]))
     for t, f, dim in fl:
-        o.append('const _: () = assert!(core::mem::offset_of!(%s, %s) == %d);' % (s, f, vals[('F', s + '.' + f)]))
+        if ('F', s + '.' + f) in vals:
+            o.append('const _: () = assert!(core::mem::offset_of!(%s, %s) == %d);' % (s, f, vals[('F', s + '.' + f)]))
 o.append('')
 for n in enums:
     v = vals[('E', n)]
