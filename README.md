@@ -41,22 +41,16 @@ Reference: Kalico `5b59427`.
   and runtime error messages follow CPython 3.13 (`vendor/` holds the patched
   RustPython crates). Known gap: no `match` statement.
 - MCU firmware (`firmware/`, the `kaliru-mcu` crate): the generic core, every
-  command module and sensor driver, the Linux-process board and the STM32F1 /
-  STM32F4 boards (USART serial and USB). The data dictionaries of the linux,
-  STM32F401 (USB) and STM32F103 (serial) builds are byte-identical to Kalico's
-  C builds (version fields aside). For the linux board, scripted sessions
-  against both, with fake gpio/spi/i2c/adc hardware, give the same answers and
-  the same pin and bus activity; the STM32 builds have not run on a chip or an
-  emulator yet. See [`firmware/README.md`](firmware/README.md).
-- Not ported yet: the other micro-controller boards (other STM32 families,
-  STM32 CAN / USBFS, AVR, RP2040, SAM, LPC, ...) and the indx C++ code.
-
-- Known limits: paths that read sensors over i2c/spi can't be exercised in
-  Kalico's file-output test mode. They are ported from source but not yet
-  verified against Kalico.
-
-Per-module status and how each part is checked: [`docs/PARITY.md`](docs/PARITY.md)
-(being brought up to date). Plan: [`docs/PLAN.md`](docs/PLAN.md).
+  command module and sensor driver, the Linux-process board and every STM32
+  family (F0, F1, F2, F4, F7, G0, G4, H7, L4, plus AT32F403 and N32G45x) with
+  USART serial, USB, CAN / FDCAN and the USB-to-CAN bridge. For all 27 build
+  configurations in `firmware/configs/` the data dictionary is byte-identical
+  to Kalico's C build (version fields aside). For the linux board, scripted
+  sessions against both, with fake gpio/spi/i2c/adc hardware, give the same
+  answers and the same pin and bus activity; the STM32 builds have not run on
+  a chip or an emulator yet. See [`firmware/README.md`](firmware/README.md).
+- Not ported yet: the other micro-controller boards (AVR, RP2040, SAM, LPC,
+  HC32F460, AR100, PRU, simulator) and the indx C++ code.
 
 ## Building
 

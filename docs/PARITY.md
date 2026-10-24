@@ -66,14 +66,15 @@ data dictionary byte-identical apart from `version` / `build_versions` (`firmwar
 gpio/spi/i2c/adc event logs): all identical (basecmd, config + move_count, error paths, steppers + homing, gpio,
 buses + sensors, drivers + load cell probe).
 
-STM32 boards (Kalico `src/stm32` for F1 / F4 + `src/generic/armcm_*`, `usb_cdc`, `serial_irq`): for
-`configs/stm32f401-usb` (USB OTG) and `configs/stm32f103-serial` (USART1), `compile_time_request.txt` identical
-and the data dictionary byte-identical apart from the version fields (`firmware/tests/ref/stm32*`). Behaviour on a
-chip / emulator: not checked yet. Images (profile `mcu`): F401 53KB (C 42KB), F103 47KB (C 38KB).
+STM32 boards (Kalico `src/stm32`, all families, + `src/generic/armcm_*`, `usb_cdc`, `serial_irq`, `canbus`,
+`canserial`, `usb_canbus`): `firmware/tests/ctr_check.sh` builds every config in `firmware/configs/` (26 stm32:
+F0 F1 F2 F4 F7 G0 G4 H7 L4, AT32F403, N32G45x; serial, USB fs/otg, bxCAN, FDCAN, USB-to-CAN bridge, angle
+sensors) and compares `compile_time_request.txt` (identical) and the data dictionary (byte-identical apart from the
+version fields) with the C build's (`firmware/tests/ref/`): 27/27. Behaviour on a chip / emulator: not checked yet.
+Images (profile `mcu`): about 1.25x the C size (F401 53KB vs 42KB, F103 47KB vs 38KB).
 
-Not ported: the other STM32 families (f0 f2 f7 g0 g4 h7 l4) and their files, STM32 CAN / FDCAN / USBFS, the
-generic canbus code, the other boards (avr, rp2040, atsam/atsamd, lpc176x, hc32f460, ar100, pru, simulator), the
-indx C++ code.
+Not ported: the other boards (avr, rp2040, atsam/atsamd, lpc176x, hc32f460, ar100, pru, simulator), the indx C++
+code.
 
 ## Custom cases (`tests/cases/*.test`, `tools/case_cmp.sh`)
 
