@@ -237,16 +237,29 @@ class Stm32:
             rcc_cr: lambda v: v | ready,
             rcc_cfgr: lambda v: (v & ~c["RCC_CFGR_SWS_Msk"]) | ((v & c["RCC_CFGR_SW_Msk"]) << sws),
         }
-        # (the system memory with the unique device id, chipid.c: 0 here)
-        self.mmio = [(0x1FF00000, 0x100000)]
+        self.mmio = []
+        self.h7 = cfg.get("CONFIG_MACH_STM32H7")
         if cfg.get("CONFIG_SERIAL"):
             self.port = Stm32Usart(cfg, chip)
         elif cfg.get("CONFIG_USBSERIAL") and cfg.get("CONFIG_HAVE_STM32_USBFS"):
             self.port = UsbFs(cfg, chip)
         elif cfg.get("CONFIG_USBSERIAL") and cfg.get("CONFIG_HAVE_STM32_USBOTG"):
             self.port = UsbOtg(cfg, chip)
+        elif cfg.get("CONFIG_CANSERIAL") and cfg.get("CONFIG_HAVE_STM32_CANBUS"):
+            self.port = BxCan(cfg, chip)
+        elif cfg.get("CONFIG_CANSERIAL") and cfg.get("CONFIG_HAVE_STM32_FDCANBUS"):
+            self.port = FdCan(cfg, chip)
         else:
-            sys.exit("only the stm32 usart and usbfs ports are modelled")
+            sys.exit("only the stm32 usart, usbfs, usbotg, bxcan and fdcan ports are modelled")
+
+    def setup(self, uc):
+        # (the system memory with the unique device id, chipid.c: 0 here; a
+        # rom, not registers: C reads it through plain pointers, in the
+        # order and sizes gcc picks)
+        uc.mem_map(0x1FF00000, 0x100000, unicorn.UC_PROT_READ | unicorn.UC_PROT_EXEC)
+        # (stm32h7: the AXI SRAM, where dfu_reboot.c keeps its flag)
+        if self.h7:
+            uc.mem_map(0x24000000, 0x20000)
 
     def uart_read(self, emu, addr):
         return self.port.read(emu, addr)
@@ -430,6 +443,271 @@ class UsbHost:
             log.write("# usb control %02x %02x: %s\n" % (rtype, request, "stall" if r == "stall" else "ack"))
             yield True
             return
+
+
+class CanHost:
+    """the host side of a canbus node (generic/canserial.c): the admin query
+    for unassigned nodes, the node id assignment to the uuid the node
+    answered, then the serial data in frames to the node's id and from the
+    next id. The controller model gives it `ready()`, `send(id, data)`
+    (False while it has no room) and `recv()` (the frames the node sent, in
+    order). What the node answers is written to the access log."""
+
+    ADMIN, ADMIN_RESP = 0x3F0, 0x3F1
+    NODEID = 4
+
+    def __init__(self, dev):
+        self.dev = dev
+        self.steps = self.assign()
+        self.assigned = False
+        self.id = (self.NODEID << 1) + 0x100
+        self.admin = []
+
+    def step(self, emu):
+        """what the host can do now; True if it did something"""
+        self.emu = emu
+        did = False
+        for fid, data in self.dev.recv(emu):
+            did = True
+            if fid == self.ADMIN_RESP:
+                emu.log.write("# can admin response %s\n" % data.hex())
+                self.admin.append(data)
+            elif fid == self.id + 1:
+                emu.tx += data
+            else:
+                emu.log.write("# can frame %x %s\n" % (fid, data.hex()))
+        while not self.assigned:
+            r = next(self.steps, None)
+            if r is None:
+                self.assigned = True
+            elif not r:
+                return did
+            else:
+                did = True
+        while emu.rx and self.dev.send(emu, self.id, emu.rx[:8]):
+            emu.rx = emu.rx[8:]
+            did = True
+        return did
+
+    def assign(self):
+        """a generator: True for a step done, False for a wait on the node"""
+        dev = self.dev
+        while not dev.ready(self.emu):
+            yield False
+        # (CANBUS_CMD_QUERY_UNASSIGNED; its answer: CANBUS_RESP_NEED_NODEID,
+        # the uuid)
+        while not dev.send(self.emu, self.ADMIN, b"\x00"):
+            yield False
+        yield True
+        while not self.admin:
+            yield False
+        uuid = self.admin.pop(0)[1:7]
+        # (CANBUS_CMD_SET_KLIPPER_NODEID)
+        while not dev.send(self.emu, self.ADMIN, b"\x01" + uuid + bytes([self.NODEID])):
+            yield False
+        yield True
+        # (Kalico's extended query: CANBUS_RESP_HAVE_NODEID once the node
+        # took its id)
+        while not dev.send(self.emu, self.ADMIN, b"\x00\x01"):
+            yield False
+        yield True
+        while not self.admin:
+            yield False
+        self.admin.pop(0)
+
+
+class BxCan:
+    """stm32/can.c: the bxcan controller (MCR INRQ / MSR INAK, the three
+    transmit mailboxes: sent at once, TSR TME always set and RQCP once one
+    was sent; receive fifo 0 of three frames: RF0R FMP0 / RFOM0, IER
+    FMPIE0 / TMEIE) for the CanHost"""
+
+    def __init__(self, cfg, chip):
+        c = chip.const
+        f4_can2 = cfg.get("CONFIG_MACH_STM32F4") and (
+            cfg.get("CONFIG_STM32_CANBUS_PB5_PB6") or cfg.get("CONFIG_STM32_CANBUS_PB12_PB13"))
+        n = "CAN" if cfg.get("CONFIG_MACH_STM32F0") else ("CAN2" if f4_can2 else "CAN1")
+        r = lambda f: chip.at(n, f)  # noqa: E731
+        self.mcr, self.msr, self.tsr, self.rf0r, self.ier = r("MCR"), r("MSR"), r("TSR"), r("RF0R"), r("IER")
+        self.tx_mb, self.rx_mb = r("sTxMailBox"), r("sFIFOMailBox")
+        irq = (lambda k: c["CEC_CAN_IRQn"]) if n == "CAN" else (lambda k: c["%s_%s_IRQn" % (n, k)])  # noqa: E731
+        self.rx_irq, self.tx_irq = irq("RX0"), irq("TX")
+        self.INRQ, self.INAK = c["CAN_MCR_INRQ"], c["CAN_MSR_INAK"]
+        self.TME = c["CAN_TSR_TME0"] | c["CAN_TSR_TME1"] | c["CAN_TSR_TME2"]
+        self.RQCP = c["CAN_TSR_RQCP0"]
+        self.FMP0, self.RFOM0 = c["CAN_RF0R_FMP0"], c["CAN_RF0R_RFOM0"]
+        self.FMPIE0, self.TMEIE = c["CAN_IER_FMPIE0"], c["CAN_IER_TMEIE"]
+        self.TXRQ, self.STID_Pos = c["CAN_TI0R_TXRQ"], c["CAN_TI0R_STID_Pos"]
+        self.sent = False
+        self.rx = []
+        self.tx = []
+        self.host_side = CanHost(self)
+
+    # ---- the cpu's registers
+
+    def read(self, emu, addr):
+        if addr == self.msr:
+            return self.INAK if emu.get(self.mcr, 4) & self.INRQ else 0
+        if addr == self.tsr:
+            return self.TME | (self.RQCP if self.sent else 0)
+        if addr == self.rf0r:
+            return len(self.rx)
+        if self.rx_mb <= addr < self.rx_mb + 16:
+            if not self.rx:
+                return 0
+            fid, data = self.rx[0]
+            words = (fid << self.STID_Pos, len(data)) + struct.unpack("<II", data.ljust(8, b"\0"))
+            return words[(addr - self.rx_mb) // 4]
+        return None
+
+    def write(self, emu, addr, value):
+        if addr == self.rf0r:
+            if value & self.RFOM0 and self.rx:
+                self.rx.pop(0)
+            return True
+        if addr in (self.tx_mb, self.tx_mb + 16, self.tx_mb + 32) and value & self.TXRQ:
+            # (the mailbox's frame goes out)
+            dlc = emu.get(addr + 4, 4) & 0xF
+            data = struct.pack("<II", emu.get(addr + 8, 4), emu.get(addr + 12, 4))[:dlc]
+            self.tx.append(((value >> self.STID_Pos) & 0x7FF, data))
+            self.sent = True
+            emu.put(addr, 4, value & ~self.TXRQ)
+            return True
+        return False
+
+    def used_bits(self, emu, addr):
+        # (a mailbox's TDLR / TDHR bytes past its TDTR DLC are not sent;
+        # can.c copies the whole message data words)
+        for mb in (self.tx_mb, self.tx_mb + 16, self.tx_mb + 32):
+            if addr in (mb + 8, mb + 12):
+                left = min(emu.get(mb + 4, 4) & 0xF, 8) - (addr - mb - 8)
+                return (1 << (8 * max(0, min(left, 4)))) - 1
+        return 0xFFFFFFFF
+
+    def irq(self, emu):
+        ier = emu.get(self.ier, 4)
+        if self.rx and ier & self.FMPIE0:
+            return self.rx_irq
+        if self.sent and ier & self.TMEIE:
+            return self.tx_irq
+        return None
+
+    def host(self, emu):
+        return self.host_side.step(emu)
+
+    # ---- the host's frames
+
+    def ready(self, emu):
+        return not emu.get(self.mcr, 4) & self.INRQ and emu.get(self.ier, 4) & self.FMPIE0
+
+    def send(self, emu, fid, data):
+        if len(self.rx) >= 3:
+            return False
+        self.rx.append((fid, bytes(data)))
+        return True
+
+    def recv(self, emu):
+        frames, self.tx = self.tx, []
+        return frames
+
+
+class FdCan:
+    """stm32/fdcan.c: the fdcan controller (its message ram at SRAMCAN_BASE
+    in fdcan.c's `struct fdcan_msg_ram` layout; the transmit fifo: a TXBAR
+    request goes out at once, TXFQS TFQPI the next put index; receive fifo
+    0: RXF0S fill level / get index, RXF0A acknowledge; IR flags cleared by
+    writing 1, IE, ILE EINT0) for the CanHost. The node handles one frame
+    per RF0N interrupt (fdcan.c clears RF0N first), as frames on a bus come
+    one at a time: the host sends the next when the fifo is empty."""
+
+    # (struct fdcan_msg_ram: FLS[28], FLE[16], RXF0[3], RXF1[3], TEF[6],
+    # TXFIFO[3] of 2 + 16 words)
+    RXF0, TXFIFO, FIFO_SIZE, RAM_SIZE = 176, 632, 72, 848
+
+    def __init__(self, cfg, chip):
+        c = chip.const
+        can2 = any(cfg.get("CONFIG_STM32_CANBUS_" + p) for p in ("PB0_PB1", "PC2_PC3", "PB5_PB6", "PB12_PB13"))
+        n = "FDCAN2" if can2 else "FDCAN1"
+        r = lambda f: chip.at(n, f)  # noqa: E731
+        self.txfqs, self.txbar, self.ir, self.ie = r("TXFQS"), r("TXBAR"), r("IR"), r("IE")
+        self.ile, self.rxf0s, self.rxf0a, self.cccr = r("ILE"), r("RXF0S"), r("RXF0A"), r("CCCR")
+        self.ram = c["SRAMCAN_BASE"] + (self.RAM_SIZE if can2 else 0)
+        self.memory = [(self.ram, self.RAM_SIZE)]
+        self.irq_num = c["TIM16_FDCAN_IT0_IRQn"] if cfg.get("CONFIG_MACH_STM32G0") else c[n + "_IT0_IRQn"]
+        self.RF0N, self.TC, self.TFE = c["FDCAN_IR_RF0N"], c["FDCAN_IE_TCE"], c["FDCAN_IE_TFEE"]
+        self.INIT, self.EINT0 = c["FDCAN_CCCR_INIT"], c["FDCAN_ILE_EINT0"]
+        self.TFQPI_Pos, self.F0GI_Pos = c["FDCAN_TXFQS_TFQPI_Pos"], c["FDCAN_RXF0S_F0GI_Pos"]
+        self.flags = 0
+        # (the transmit put index; receive fifo 0: its frames' indexes, put index)
+        self.tx_put = 0
+        self.rx_idx = []
+        self.rx_put = 0
+        self.tx = []
+        self.host_side = CanHost(self)
+
+    # ---- the cpu's registers
+
+    def read(self, emu, addr):
+        if addr == self.ir:
+            return self.flags
+        if addr == self.txfqs:
+            return self.tx_put << self.TFQPI_Pos
+        if addr == self.rxf0s:
+            return len(self.rx_idx) | ((self.rx_idx[0] if self.rx_idx else 0) << self.F0GI_Pos)
+        return None
+
+    def write(self, emu, addr, value):
+        if addr == self.ir:
+            self.flags &= ~value
+            return True
+        if addr == self.rxf0a:
+            if self.rx_idx and self.rx_idx[0] == value:
+                self.rx_idx.pop(0)
+            return True
+        if addr == self.txbar:
+            # (the fifo element's frame goes out)
+            for i in range(3):
+                if value >> i & 1:
+                    e = self.ram + self.TXFIFO + i * self.FIFO_SIZE
+                    dlc = (emu.get(e + 4, 4) >> 16) & 0xF
+                    data = struct.pack("<II", emu.get(e + 8, 4), emu.get(e + 12, 4))[:dlc]
+                    fid = (emu.get(e, 4) >> 18) & 0x7FF
+                    emu.log.write("# can frame out %x %s\n" % (fid, data.hex()))
+                    self.tx.append((fid, data))
+                    self.tx_put = (i + 1) % 3
+            self.flags |= self.TC | self.TFE
+            return True
+        return False
+
+    def irq(self, emu):
+        if self.flags & emu.get(self.ie, 4) and emu.get(self.ile, 4) & self.EINT0:
+            return self.irq_num
+        return None
+
+    def host(self, emu):
+        return self.host_side.step(emu)
+
+    # ---- the host's frames
+
+    def ready(self, emu):
+        return not emu.get(self.cccr, 4) & self.INIT and emu.get(self.ie, 4) & self.RF0N
+
+    def send(self, emu, fid, data):
+        if self.rx_idx:
+            return False
+        emu.log.write("# can frame in %x %s\n" % (fid, bytes(data).hex()))
+        e = self.ram + self.RXF0 + self.rx_put * self.FIFO_SIZE
+        words = (fid << 18, len(data) << 16) + struct.unpack("<II", bytes(data).ljust(8, b"\0"))
+        for i, w in enumerate(words):
+            emu.put(e + 4 * i, 4, w)
+        self.rx_idx.append(self.rx_put)
+        self.rx_put = (self.rx_put + 1) % 3
+        self.flags |= self.RF0N
+        return True
+
+    def recv(self, emu):
+        frames, self.tx = self.tx, []
+        return frames
 
 
 class UsbFs:
@@ -809,7 +1087,12 @@ class Lpc176x(Ported):
         self.time = DwtTime(chip)
         self.mmio = [(chip.ptr["LPC_GPIO0"] & ~0xFFFF, 0x10000)]
         self.read_rules = {}
-        self.port = LpcUsb(chip) if cfg.get("CONFIG_USBSERIAL") else LpcUart(cfg, chip)
+        if cfg.get("CONFIG_USBSERIAL"):
+            self.port = LpcUsb(chip)
+        elif cfg.get("CONFIG_CANSERIAL"):
+            self.port = LpcCan(cfg, chip)
+        else:
+            self.port = LpcUart(cfg, chip)
 
     # (the boot rom's in application programming entry, chipid.c's serial
     # number read: CMD_SUCCESS, zeros)
@@ -822,6 +1105,91 @@ class Lpc176x(Ported):
     def iap(self, uc, address, size, user):
         uc.mem_write(uc.reg_read(A.UC_ARM_REG_R1), bytes(5 * 4))
         uc.reg_write(A.UC_ARM_REG_PC, uc.reg_read(A.UC_ARM_REG_LR))
+
+
+class LpcCan:
+    """lpc176x/can.c: the can controller (transmit buffer 1: sent at once
+    on CMR TR, SR TBS1 always set; the receive buffer: SR RBS, RFS / RID /
+    RDA / RDB, released by CMR RRB; ICR cleared by reading, IER) for the
+    CanHost"""
+
+    TR, RRB = 1 << 0, 1 << 2
+    RBS, TBS1 = 1 << 0, 1 << 2
+    RI, TI1 = 1 << 0, 1 << 1
+    RIE, TIE1 = 1 << 0, 1 << 1
+
+    def __init__(self, cfg, chip):
+        n = "LPC_CAN2" if cfg.get("CONFIG_LPC_CANBUS_P0_4_P0_5") or cfg.get("CONFIG_LPC_CANBUS_P2_7_P2_8") else "LPC_CAN1"
+        r = lambda f: chip.at(n, f)  # noqa: E731
+        self.mod, self.cmr, self.icr, self.ier, self.sr = r("MOD"), r("CMR"), r("ICR"), r("IER"), r("SR")
+        self.rfs, self.rid, self.rda, self.rdb = r("RFS"), r("RID"), r("RDA"), r("RDB")
+        self.tfi1, self.tid1, self.tda1, self.tdb1 = r("TFI1"), r("TID1"), r("TDA1"), r("TDB1")
+        self.irq_num = chip.const["CAN_IRQn"]
+        self.sent = False
+        self.rx = []
+        self.tx = []
+        self.host_side = CanHost(self)
+
+    # ---- the cpu's registers
+
+    def read(self, emu, addr):
+        if addr == self.sr:
+            return self.TBS1 | (self.RBS if self.rx else 0)
+        if addr == self.icr:
+            v = (self.RI if self.rx else 0) | (self.TI1 if self.sent else 0)
+            self.sent = False
+            return v
+        if addr in (self.rfs, self.rid, self.rda, self.rdb):
+            if not self.rx:
+                return 0
+            fid, data = self.rx[0]
+            words = (len(data) << 16, fid) + struct.unpack("<II", data.ljust(8, b"\0"))
+            return words[(addr - self.rfs) // 4]
+        return None
+
+    def write(self, emu, addr, value):
+        if addr != self.cmr:
+            return False
+        if value & self.RRB and self.rx:
+            self.rx.pop(0)
+        if value & self.TR:
+            dlc = (emu.get(self.tfi1, 4) >> 16) & 0xF
+            data = struct.pack("<II", emu.get(self.tda1, 4), emu.get(self.tdb1, 4))[:dlc]
+            self.tx.append((emu.get(self.tid1, 4) & 0x7FF, data))
+            self.sent = True
+        return True
+
+    def used_bits(self, emu, addr):
+        # (TDA1 / TDB1 bytes past the TFI1 DLC are not sent; can.c copies the
+        # whole message data words)
+        if addr in (self.tda1, self.tdb1):
+            left = min((emu.get(self.tfi1, 4) >> 16) & 0xF, 8) - (addr - self.tda1)
+            return (1 << (8 * max(0, min(left, 4)))) - 1
+        return 0xFFFFFFFF
+
+    def irq(self, emu):
+        ier = emu.get(self.ier, 4)
+        if (self.rx and ier & self.RIE) or (self.sent and ier & self.TIE1):
+            return self.irq_num
+        return None
+
+    def host(self, emu):
+        return self.host_side.step(emu)
+
+    # ---- the host's frames
+
+    def ready(self, emu):
+        return not emu.get(self.mod, 4) & 1 and emu.get(self.ier, 4) & self.RIE
+
+    def send(self, emu, fid, data):
+        if self.rx:
+            return False
+        self.rx.append((fid, bytes(data)))
+        return True
+
+    def recv(self, emu):
+        frames, self.tx = self.tx, []
+        return frames
 
 
 class LpcUart:
@@ -1784,40 +2152,65 @@ class RpTime:
 
 
 class Rp2040:
-    """rp2040: the PL011 uart (serial.c: fr RXFE, imsc, mis), the TIMER;
-    its SIO block, and the xor / set / clear aliases of the peripheral
-    registers (hw_set_alias)"""
+    """rp2040 / rp2350: the PL011 uart or the usb device; the rp2040's TIMER
+    or the rp2350's DWT time (generic/armcm_timer.c); the SIO block, and the
+    xor / set / clear aliases of the peripheral registers (hw_set_alias)"""
 
     def __init__(self, cfg):
-        chip = self.chip = Chip(os.path.join(ROOT, "src", "rp2040", "chip", "rp2040.rs"))
+        self.rp2350 = bool(cfg.get("CONFIG_MACH_RP2350"))
+        chip = self.chip = Chip(os.path.join(ROOT, "src", "rp2040", "chip", cfg["CONFIG_MCU"] + ".rs"))
         c = chip.const
-        self.cpu = A.UC_CPU_ARM_CORTEX_M0
-        self.time = RpTime(chip)
-        self.mmio = [(chip.ptr["sio_hw"], 0x1000), (chip.ptr["ssi_hw"], 0x1000)]
-        # (the flash interface, bootrom.c's unique id read and the image's
-        # boot2: transmit fifo not full and empty, receive fifo not empty)
-        ready = c["SSI_SR_TFNF_BITS"] | c["SSI_SR_TFE_BITS"] | c["SSI_SR_RFNE_BITS"]
-        # (and the flash's answers: 0, its status not busy)
-        self.read_rules = {chip.at("ssi_hw", "sr"): lambda v: ready, chip.at("ssi_hw", "dr0"): lambda v: 0}
+        self.mmio = [(chip.ptr["sio_hw"], 0x1000)]
+        if self.rp2350:
+            self.cpu = A.UC_CPU_ARM_CORTEX_M33
+            self.time = DwtTime(chip)
+            self.read_rules = {}
+        else:
+            self.cpu = A.UC_CPU_ARM_CORTEX_M0
+            self.time = RpTime(chip)
+            self.mmio.append((chip.ptr["ssi_hw"], 0x1000))
+            # (the flash interface, bootrom.c's unique id read and the image's
+            # boot2: transmit fifo not full and empty, receive fifo not empty)
+            ready = c["SSI_SR_TFNF_BITS"] | c["SSI_SR_TFE_BITS"] | c["SSI_SR_RFNE_BITS"]
+            # (and the flash's answers: 0, its status not busy)
+            self.read_rules = {chip.at("ssi_hw", "sr"): lambda v: ready, chip.at("ssi_hw", "dr0"): lambda v: 0}
         self.port = RpUsb(chip) if cfg.get("CONFIG_USBSERIAL") else Rp2040Uart(cfg, chip)
 
-    # (the boot rom bootrom.c uses: at 0x14 / 0x18 the halfword pointers to
-    # the function table and the lookup function; the functions it gives
+    # (the boot rom bootrom.c / rp2350_bootrom.c use: the halfword pointer to
+    # the lookup function (pico-sdk boot/bootrom_constants.h
+    # BOOTROM_TABLE_LOOKUP_OFFSET: 0x18, rp2350 arm 0x16), on the rp2040 the
+    # one to the function table at 0x14; the functions it gives
     # (connect_internal_flash, flash_exit_xip, flash_flush_cache,
-    # reset_usb_boot) return at once)
-    ROM_TABLE, ROM_LOOKUP, ROM_STUBS = 0x100, 0x200, 0x300
+    # reset_usb_boot, reboot) return at once, but the rp2350's get_sys_info,
+    # which fills its buffer)
+    ROM_TABLE, ROM_LOOKUP, ROM_STUBS, ROM_SYS_INFO = 0x100, 0x200, 0x300, 0x400
+    GET_SYS_INFO = ord("G") | ord("S") << 8
+    SYS_INFO = struct.pack("<9I", *range(0x11111111, 0x9999999A, 0x11111111))
 
     def setup(self, uc):
         uc.mem_map(0, 0x4000, unicorn.UC_PROT_READ | unicorn.UC_PROT_EXEC)
-        uc.mem_write(0x14, struct.pack("<H", self.ROM_TABLE))
-        uc.mem_write(0x18, struct.pack("<H", self.ROM_LOOKUP | 1))
+        if self.rp2350:
+            uc.mem_write(0x16, struct.pack("<H", self.ROM_LOOKUP | 1))
+        else:
+            uc.mem_write(0x14, struct.pack("<H", self.ROM_TABLE))
+            uc.mem_write(0x18, struct.pack("<H", self.ROM_LOOKUP | 1))
         uc.mem_write(self.ROM_STUBS, struct.pack("<H", 0x4770) * 64)  # bx lr
         uc.hook_add(unicorn.UC_HOOK_CODE, self.rom_lookup, begin=self.ROM_LOOKUP, end=self.ROM_LOOKUP)
+        uc.hook_add(unicorn.UC_HOOK_CODE, self.rom_sys_info, begin=self.ROM_SYS_INFO, end=self.ROM_SYS_INFO)
 
     def rom_lookup(self, uc, address, size, user):
-        # (rom_table_lookup(table, code): a stub per code)
-        code = uc.reg_read(A.UC_ARM_REG_R1) & 0xFFFF
-        uc.reg_write(A.UC_ARM_REG_R0, (self.ROM_STUBS + 2 * (code % 64)) | 1)
+        # (rom_table_lookup(table, code) / rom_table_lookup(code, mask): a
+        # stub per code)
+        code = uc.reg_read(A.UC_ARM_REG_R0 if self.rp2350 else A.UC_ARM_REG_R1) & 0xFFFF
+        stub = self.ROM_SYS_INFO if self.rp2350 and code == self.GET_SYS_INFO else self.ROM_STUBS + 2 * (code % 64)
+        uc.reg_write(A.UC_ARM_REG_R0, stub | 1)
+        uc.reg_write(A.UC_ARM_REG_PC, uc.reg_read(A.UC_ARM_REG_LR))
+
+    def rom_sys_info(self, uc, address, size, user):
+        # (get_sys_info(out, words, flags): fixed words, their count)
+        n = min(uc.reg_read(A.UC_ARM_REG_R1), len(self.SYS_INFO) // 4)
+        uc.mem_write(uc.reg_read(A.UC_ARM_REG_R0), self.SYS_INFO[: 4 * n])
+        uc.reg_write(A.UC_ARM_REG_R0, n)
         uc.reg_write(A.UC_ARM_REG_PC, uc.reg_read(A.UC_ARM_REG_LR))
 
     def alias(self, addr):
@@ -1935,7 +2328,7 @@ class RpUsb:
             # (cleared by writing 1)
             emu.put(addr, 4, emu.get(addr, 4) & ~value)
             return True
-        if self.ep_buf_ctrl <= addr < self.ep_buf_ctrl + 16 * 8 and not addr & 3:
+        if self.ep_buf_ctrl <= addr < self.ep_buf_ctrl + 16 * 8 and emu.write_size == 4:
             # (a whole buffer control word: the controller starts at buffer 0)
             self.next_buf[(addr - self.ep_buf_ctrl) // 4] = 0
         return False
@@ -1992,6 +2385,11 @@ class RpUsb:
         epb = emu.get(a, 2)
         if self.stalled(emu, ep, True, epb):
             return "stall"
+        # (ep0's data stage after the device has read the setup: until then
+        # its out buffer is the previous request's, which reading the setup
+        # re-arms)
+        if not ep and emu.get(self.sie_status, 4) & self.SETUP_REC:
+            return "nak"
         if not epb & self.AVAIL or epb & self.FULL:
             return "nak"
         for i, b in enumerate(data):
@@ -2015,7 +2413,7 @@ class RpUsb:
 
 
 BOARDS = {"CONFIG_MACH_STM32": Stm32, "CONFIG_MACH_LPC176X": Lpc176x, "CONFIG_MACH_ATSAM": Atsam,
-          "CONFIG_MACH_ATSAMD": Atsamd, "CONFIG_MACH_HC32F460": Hc32f460, "CONFIG_MACH_RP2040": Rp2040}
+          "CONFIG_MACH_ATSAMD": Atsamd, "CONFIG_MACH_HC32F460": Hc32f460, "CONFIG_MACH_RPXXXX": Rp2040}
 
 
 class Emu(mcu_run.Mcu):
@@ -2126,8 +2524,16 @@ class Emu(mcu_run.Mcu):
             else:
                 self.poll_addr, self.poll_count = addr, 1
         v &= (1 << (8 * size)) - 1
-        self.log.write("R %08x %d %s\n" % (addr, size, self.logged(addr, v)))
+        if not self.in_memory(addr):
+            self.log.write("R %08x %d %s\n" % (addr, size, self.logged(addr, v)))
         return v
+
+    def in_memory(self, addr):
+        # (a port's memory, not registers: the fdcan message ram, which C
+        # accesses through plain pointers, in the order and sizes gcc picks;
+        # its frames are logged as they go out)
+        port = getattr(self.board, "port", None)
+        return any(a <= addr < a + n for a, n in getattr(port, "memory", ()))
 
     def logged(self, addr, value):
         # (a register holding a ram address: the images' ram layouts differ)
@@ -2145,8 +2551,10 @@ class Emu(mcu_run.Mcu):
     def mmio_write(self, uc, offset, size, value, base):
         addr = base + offset
         b = self.board
-        self.log.write("W %08x %d %s\n" % (addr, size, self.logged(addr, value)))
+        if not self.in_memory(addr):
+            self.log.write("W %08x %d %s\n" % (addr, size, self.logged(addr, value)))
         self.poll_addr = None
+        self.write_size = size
         if b.uart_write(self, addr, value) or b.time.write(self, addr, value):
             return
         if self.iser <= addr < self.iser + 32:
@@ -2317,9 +2725,10 @@ class Emu(mcu_run.Mcu):
         def name(enum, value, default):
             return {v: k for k, v in enums.get(enum, {}).items()}.get(value, default)
 
-        # (a number the board has none for: the one at that index)
+        # (a number the board has none for: the one at that index, among the
+        # numbered names: not rp2040's ADC_TEMPERATURE pseudo pin)
         def value(enum, n, default):
-            names = sorted(enums.get(enum, {}).items(), key=lambda kv: kv[1])
+            names = sorted(((k, v) for k, v in enums.get(enum, {}).items() if re.search(r"\d", k)), key=lambda kv: kv[1])
             return name(enum, n, names[n % len(names)][0] if names else default)
 
         line = re.sub(r"\b(?:gpio|analog)(\d+)\b", lambda m: value("pin", int(m.group(1)), m.group(0)), line)

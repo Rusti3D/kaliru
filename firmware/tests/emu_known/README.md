@@ -41,6 +41,15 @@ says, with volatile register accesses in source order.
   image's ram (.data + .bss) is smaller, so its dynamic memory pool, and the
   moves it holds, are larger; on this 4KB ram chip the count stays below its
   1024 cap, so the answers show it (see NOTES "Kaliru MCU firmware", size).
+- `rp2350-usb/drivers.txt.diff`, `drivers.diff` (the I2C timeout and all
+  times after it): `sensor_lis2dw.c` `command_query_lis2dw_status()` reads
+  `time2 = timer_read_time()` (the volatile `DWT->CYCCNT`) before
+  `i2c_shutdown_on_err(ret)`; gcc moves that load after the call, which
+  does not return on the timeout, so the C firmware never reads `time2` and
+  its shutdown clock (and every time after it) is one clock read (16 ticks
+  in the emulator) earlier. Rust reads it in source order. The rp2040
+  (Cortex-M0+) C build of the same source keeps the load before the call:
+  identical.
 - `stm32f072-serial/stepper.txt.diff`, `stepper.diff`: the C image's stack
   (CONFIG_STACK_SIZE 512) overflows. With LTO `run_tasks` has a 300 byte frame,
   the idle loop already uses 416 bytes, and `config_stepper` -> `oid_alloc` ->

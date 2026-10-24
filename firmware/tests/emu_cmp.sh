@@ -41,7 +41,10 @@ for s in "${scripts[@]}"; do
             bad="$bad $d"
         fi
     done
-    if [ -n "$bad" ]; then
+    # (no answer to a command: the board model never carried the session)
+    if ! grep -q "^< ack" $out/c_$name.txt; then
+        echo "NOANSWER $c $name (the model carried no command; see $out/c_$name.log)"
+    elif [ -n "$bad" ]; then
         echo "DIFF $c $name"
         for d in $bad; do head -20 $out/$d; done
     else

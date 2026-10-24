@@ -1,0 +1,12 @@
+71c71
+< < shutdown clock=50276704 static_string_id=I2C Timeout
+---
+> < shutdown clock=50276720 static_string_id=I2C Timeout
+97c97
+< < clock clock=63778160
+---
+> < clock clock=63778176
+123c123
+< < shutdown clock=315779456 static_string_id=I2C Timeout
+---
+> < shutdown clock=315779472 static_string_id=I2C Timeout
