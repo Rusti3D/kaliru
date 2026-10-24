@@ -228,6 +228,7 @@ pub fn from_pyval(v: &PyVal) -> PyRef {
             }
             o
         },
+        PyVal::Shared(v) => from_pyval(v),
     }
 }
 
