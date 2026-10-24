@@ -90,9 +90,13 @@ pub mod usbfs;
 pub mod usbotg;
 #[cfg(any(CONFIG_USBSERIAL, CONFIG_CANSERIAL))]
 pub mod chipid;
-#[cfg(CONFIG_CANSERIAL)]
+#[cfg(all(any(CONFIG_CANSERIAL, CONFIG_USBCANBUS), CONFIG_HAVE_STM32_CANBUS))]
 pub mod can;
-#[cfg(CONFIG_CANSERIAL)]
+#[cfg(all(any(CONFIG_CANSERIAL, CONFIG_USBCANBUS), CONFIG_HAVE_STM32_FDCANBUS))]
+pub mod fdcan;
+#[cfg(all(any(CONFIG_CANSERIAL, CONFIG_USBCANBUS), CONFIG_HAVE_STM32_FDCANBUS))]
+pub use fdcan as can;
+#[cfg(any(CONFIG_CANSERIAL, CONFIG_USBCANBUS))]
 pub use can::{canhw_get_status, canhw_send, canhw_set_filter};
 #[cfg(CONFIG_CANSERIAL)]
 pub use crate::generic::canserial::console_sendf;

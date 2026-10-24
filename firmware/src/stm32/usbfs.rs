@@ -4,8 +4,8 @@
 //
 // This file may be distributed under the terms of the GNU GPLv3 license.
 #![allow(non_upper_case_globals, non_snake_case)]
-use super::internal::*;
 use crate::config::{CONFIG_MACH_AT32F403, CONFIG_STM32_USB_DOUBLE_BUFFER_TX};
+use names::*;
 use crate::ctr::Global;
 use crate::generic::usb_cdc::{usb_notify_bulk_in, usb_notify_bulk_out, usb_notify_ep0};
 use crate::generic::usb_cdc_ep::{USB_CDC_EP0_SIZE, USB_CDC_EP_ACM, USB_CDC_EP_BULK_IN, USB_CDC_EP_BULK_OUT, USB_CDC_EP_BULK_OUT_SIZE};
@@ -37,8 +37,28 @@ const USBx_IRQn: IRQn_Type = USB_UCPD1_2_IRQn;
 #[cfg(not(any(CONFIG_MACH_STM32F1, CONFIG_MACH_STM32G4, CONFIG_MACH_STM32G0B1)))]
 const USBx_IRQn: IRQn_Type = USB_IRQn;
 
-// (the stm32g0 register names - USB_DRD_FS, USB_CHEP_ADDR, ... - come with
-// that chip)
+// The chip header names, with the C #defines of the stm32g0 (it has
+// slightly different register names)
+#[allow(dead_code)]
+mod names {
+    pub use crate::stm32::internal::*;
+    #[cfg(CONFIG_MACH_STM32G0)]
+    mod g0 {
+        use crate::stm32::internal::*;
+        pub type USB_TypeDef = USB_DRD_TypeDef;
+        pub const USB: *mut USB_DRD_TypeDef = USB_DRD_FS;
+        pub const USB_PMAADDR: u32 = USB_DRD_PMAADDR;
+        pub const USB_EPADDR_FIELD: u32 = USB_CHEP_ADDR;
+        pub const USB_EP_CTR_RX: u32 = USB_EP_VTRX;
+        pub const USB_EP_CTR_TX: u32 = USB_EP_VTTX;
+        pub const USB_EPRX_STAT: u32 = USB_EP_RX_STRX;
+        pub const USB_EPTX_STAT: u32 = USB_EP_TX_STTX;
+        pub const USB_ISTR_EP_ID: u32 = USB_ISTR_IDN;
+        pub const USB_CNTR_FRES: u32 = USB_CNTR_USBRST;
+    }
+    #[cfg(CONFIG_MACH_STM32G0)]
+    pub use g0::*;
+}
 
 // Some chip variants do not define these fields
 #[cfg(has_USB_EP_DTOG_TX_Pos)]
