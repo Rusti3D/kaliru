@@ -220,6 +220,29 @@ The GIL model was tested as designed:
 
 Plugin threads therefore run only at points where they could also run under Kalico.
 
+## Status (2026-10-24, branch `plugins`)
+
+Built and working:
+- `src/plugins/`: runtime libpython loading (`capi.rs`), greenlet thread states (`greenlets.rs`), the mirror (generated
+  by `tools/gen_mirror.py` from Kalico 5b59427: 208 modules, 7489 method/function/attribute IDs, compressed into
+  the binary), the prelude (`_k`: Object/Meta/Attr, import finder with Kalico's compat aliases, logging to
+  klippy.log), the native module (`_kaliru`), the object table and both-way error mapping.
+- Handlers so far (`src/plugins/impls/`): Printer (get_reactor, lookup_object, add_object, register_event_handler),
+  ConfigWrapper (get_printer, get_name, get, getint, getfloat, getboolean), GCodeDispatch (register_command,
+  respond_info, respond_raw), GCodeCommand (get_command, get_commandline, get, get_int, get_float, respond_info,
+  respond_raw), PollReactor (register/update/unregister_timer, pause, monotonic).
+- `tools/plugin_cmp.sh`: `tests/cases/plugins/basic.test` is identical to Kalico. It covers config values with
+  Python defaults, plugin logging, a command that pauses inside its handler, a timer and a `gcmd.error` raised from
+  Python.
+- `tools/mirror_import_test.py`: 208/208 mirror modules import under CPython 3.15, with signatures, compat aliases,
+  patch reports and isinstance checked.
+- No regression without plugins: stock suite 87/88 (printers/13 timing, as before), cases 62/62. Binary
+  24.3 → 25.3 MB.
+
+Next: conversion traits plus a handler macro, so most handlers are one line. Then trace AFC + AFC_ACE on a
+config shaped like the user's (`Originals_Base/addons/cc1_config/`, copied read-only) and grow the handlers, with
+a Kalico parity case per area.
+
 ## Steps
 
 1. Prototype the risky core and verify it before anything else (WSL, CPython 3.15 built locally):
