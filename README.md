@@ -48,8 +48,10 @@ Reference: Kalico `5b59427`.
   heater code. For all 54 build configurations in `firmware/configs/` the data
   dictionary is byte-identical to Kalico's C build (version fields aside). For
   the linux board, scripted sessions against both, with fake gpio/spi/i2c/adc
-  hardware, give the same answers and the same pin and bus activity; the
-  micro-controller builds have not run on a chip or an emulator yet. See
+  hardware, give the same answers and the same pin and bus activity. In an
+  emulator the C and Rust images of every serial config and of 19 of the 20
+  USB configs give the same answers and the same peripheral register accesses
+  (CAN not emulated yet); no micro-controller build has run on a chip yet. See
   [`firmware/README.md`](firmware/README.md).
 - Not ported yet: the AVR, AR100 and PRU boards.
 

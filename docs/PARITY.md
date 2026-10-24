@@ -74,9 +74,11 @@ toolboard) and compares `compile_time_request.txt` (identical) and the data dict
 version fields) with the C build's (`firmware/tests/ref/`): 54/54. The rp2040 boot2 block and `tools/elf2uf2` output
 are byte-identical to the C build's; `src/libm.rs` gives newlib's bits on 700k inputs (qemu-arm). Emulator
 (`firmware/tests/emu_cmp.sh`, Unicorn, deterministic board models): every serial config (16, all board families
-but the simulator) runs the 7 scripts with identical answers and identical peripheral register accesses, apart from
-the documented C-side differences in `firmware/tests/emu_known/` (non-volatile register pointers gcc reorders, an
-HC32 neopixel store gcc merges away, an F072 stack overflow). USB / CAN transports: not emulated yet. Real chips: not
+but the simulator) and every USB config but rp2350-usb (19: stm32 usbfs / otg, rp2040, samd, lpc176x, sam3x / sam4 /
+same70, each with a usb host that enumerates the device and carries the serial data) run the 7 scripts with identical
+answers and identical peripheral register accesses, apart from the documented C-side differences in
+`firmware/tests/emu_known/` (non-volatile register pointers gcc reorders, an HC32 neopixel store gcc merges away, an
+F072 stack overflow). Not emulated yet: rp2350, CAN / FDCAN / can2040 and the USB-to-CAN bridge. Real chips: not
 run. Images (profile `mcu`): about 1.25-1.4x the C size (F401 53KB vs 42KB, INDX 72KB vs
 58KB).
 

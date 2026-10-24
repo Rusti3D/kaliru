@@ -87,7 +87,8 @@ class Chip:
 
 def load_segments(path):
     """the (address, data) of the ELF's loaded segments, at their load
-    addresses"""
+    addresses, and at their run addresses too where those differ (same70:
+    the flash is also seen at 0, where the code is linked)"""
     data = open(path, "rb").read()
     phoff, = struct.unpack_from("<I", data, 28)
     phentsize, phnum = struct.unpack_from("<HH", data, 42)
@@ -96,6 +97,8 @@ def load_segments(path):
         p_type, p_offset, p_vaddr, p_paddr, p_filesz = struct.unpack_from("<IIIII", data, phoff + i * phentsize)
         if p_type == 1 and p_filesz:
             out.append((p_paddr, data[p_offset : p_offset + p_filesz]))
+            if p_vaddr != p_paddr:
+                out.append((p_vaddr, data[p_offset : p_offset + p_filesz]))
     return out
 
 
@@ -1047,28 +1050,106 @@ class LpcUsb:
         return "ack", data
 
 
-class Atsam:
-    """atsam: the uart (serial.c: SR RXRDY / TXRDY, IER / IDR mask), DWT
-    time"""
+class Atsam(Ported):
+    """atsam: the uart or the usb device (sam3x / same70 UOTGHS / USBHS, sam4
+    UDP), DWT time"""
 
     def __init__(self, cfg):
         mcu = cfg["CONFIG_MCU"]
         chip = self.chip = Chip(os.path.join(ROOT, "src", "atsam", "chip", mcu + ".rs"))
-        c = chip.const
         self.cpu = A.UC_CPU_ARM_CORTEX_M3 if cfg.get("CONFIG_MACH_SAM3X") else (
             A.UC_CPU_ARM_CORTEX_M7 if cfg.get("CONFIG_MACH_SAME70") else A.UC_CPU_ARM_CORTEX_M4)
         self.time = DwtTime(chip)
         self.read_rules = {}
+        if not cfg.get("CONFIG_USBSERIAL"):
+            self.port = AtsamUart(cfg, chip)
+        elif cfg.get("CONFIG_MACH_SAM4"):
+            self.port = SamUdp(chip)
+        else:
+            self.port = SamUotghs(cfg, chip)
+            self.mmio = [(self.port.ram, 10 * 0x8000)]
+        self.eefc = Eefc(chip)
+        # (same70_sysinit.c: the dma copy of the code to the itcm, its length)
+        self.size_regs = {chip.ptr["REG_XDMAC_CUBC0"]} if cfg.get("CONFIG_MACH_SAME70") else set()
+
+    def uart_read(self, emu, addr):
+        v = self.eefc.read(emu, addr)
+        return self.port.read(emu, addr) if v is None else v
+
+    def uart_write(self, emu, addr, value):
+        return self.eefc.write(emu, addr, value) or self.port.write(emu, addr, value)
+
+
+class Eefc:
+    """the (first) flash controller: atsam/chipid.c's unique identifier
+    area, which the STUI command maps over the start of the flash until the
+    SPUI command (FSR FRDY is clear meanwhile), and same70_sysinit.c's
+    GPNVM bits (GGPB reads them to FRR, SGPB / CGPB set / clear one). The
+    emulator cannot follow the reset same70_sysinit.c does after setting the
+    TCM bits, so they start as a first boot left them: GPNVM1 (boot from
+    flash), 7 and 8 (128KiB TCMs)."""
+
+    UID = bytes(range(0x10, 0x20))
+    GPNVM = (1 << 1) | (1 << 7) | (1 << 8)
+
+    def __init__(self, chip):
+        c = chip.const
+        efc = "EFC0" if "EFC0" in chip.ptr else "EFC"
+        self.fsr, self.fcr, self.frr = chip.at(efc, "EEFC_FSR"), chip.at(efc, "EEFC_FCR"), chip.at(efc, "EEFC_FRR")
+        self.flash = c["IFLASH0_ADDR"] if "IFLASH0_ADDR" in c else c["IFLASH_ADDR"]
+        self.FRDY, self.FCMD = c["EEFC_FSR_FRDY"], c["EEFC_FCR_FCMD_Msk"]
+        self.STUI, self.SPUI = c["EEFC_FCR_FCMD_STUI"], c["EEFC_FCR_FCMD_SPUI"]
+        self.GGPB, self.SGPB, self.CGPB = c["EEFC_FCR_FCMD_GGPB"], c["EEFC_FCR_FCMD_SGPB"], c["EEFC_FCR_FCMD_CGPB"]
+        self.FARG_Pos, self.FARG_Msk = c["EEFC_FCR_FARG_Pos"], c["EEFC_FCR_FARG_Msk"]
+        self.saved = None
+        self.gpnvm = self.GPNVM
+        self.result = 0
+
+    def read(self, emu, addr):
+        if addr == self.fsr:
+            return 0 if self.saved is not None else self.FRDY
+        if addr == self.frr:
+            return self.result
+        return None
+
+    def write(self, emu, addr, value):
+        if addr != self.fcr:
+            return False
+        cmd = value & self.FCMD
+        arg = (value & self.FARG_Msk) >> self.FARG_Pos
+        if cmd == self.GGPB:
+            self.result = self.gpnvm
+        elif cmd == self.SGPB:
+            self.gpnvm |= 1 << arg
+        elif cmd == self.CGPB:
+            self.gpnvm &= ~(1 << arg)
+        elif cmd == self.STUI and self.saved is None:
+            self.saved = bytes(emu.uc.mem_read(self.flash, len(self.UID)))
+            emu.uc.mem_write(self.flash, self.UID)
+        elif cmd == self.SPUI and self.saved is not None:
+            emu.uc.mem_write(self.flash, self.saved)
+            self.saved = None
+        return True
+
+
+class AtsamUart:
+    """atsam/serial.c: the uart (SR RXRDY / TXRDY, IER / IDR mask)"""
+
+    def __init__(self, cfg, chip):
+        c = chip.const
         # (serial.c: sam3x UART, sam4s UART1, sam4e UART0)
         port, irq = ("UART", "UART_IRQn") if cfg.get("CONFIG_MACH_SAM3X") else (
             ("UART1", "UART1_IRQn") if cfg.get("CONFIG_MACH_SAM4S") else ("UART0", "UART0_IRQn"))
-        self.irq = c[irq]
+        self.irq_num = c[irq]
         self.sr, self.rhr, self.thr = chip.at(port, "UART_SR"), chip.at(port, "UART_RHR"), chip.at(port, "UART_THR")
         self.ier, self.idr, self.imr = chip.at(port, "UART_IER"), chip.at(port, "UART_IDR"), chip.at(port, "UART_IMR")
         self.RXRDY, self.TXRDY, self.TXEMPTY = c["UART_SR_RXRDY"], c["UART_SR_TXRDY"], c["UART_SR_TXEMPTY"]
         self.mask = 0
 
-    def uart_read(self, emu, addr):
+    def host(self, emu):
+        return False
+
+    def read(self, emu, addr):
         if addr == self.sr:
             return self.TXRDY | self.TXEMPTY | (self.RXRDY if emu.rx else 0)
         if addr == self.rhr:
@@ -1077,7 +1158,7 @@ class Atsam:
             return self.mask
         return None
 
-    def uart_write(self, emu, addr, value):
+    def write(self, emu, addr, value):
         if addr == self.thr:
             emu.tx += bytes([value & 0xFF])
             return True
@@ -1089,10 +1170,284 @@ class Atsam:
             return True
         return False
 
-    def uart_irq(self, emu):
+    def irq(self, emu):
         if (emu.rx and self.mask & self.RXRDY) or self.mask & self.TXRDY:
-            return self.irq
+            return self.irq_num
         return None
+
+
+class SamUdp:
+    """atsam/sam4_usb.c: the sam4 UDP device controller (UDP_CSR flags
+    cleared by writing 0, TXPKTRDY set by writing 1, FORCESTALL; the UDP_FDR
+    fifo registers; two banks for the bulk out endpoint; ISR / IMR) for the
+    UsbHost"""
+
+    def __init__(self, chip):
+        c = chip.const
+        u = lambda f: chip.at("UDP", f)  # noqa: E731
+        self.ier, self.idr, self.imr = u("UDP_IER"), u("UDP_IDR"), u("UDP_IMR")
+        self.isr, self.icr, self.txvc = u("UDP_ISR"), u("UDP_ICR"), u("UDP_TXVC")
+        self.csr, self.fdr = u("UDP_CSR"), u("UDP_FDR")
+        self.irq_num = c["UDP_IRQn"]
+        self.TXCOMP, self.BK0, self.RXSETUP = c["UDP_CSR_TXCOMP"], c["UDP_CSR_RX_DATA_BK0"], c["UDP_CSR_RXSETUP"]
+        self.STALLSENT, self.TXPKTRDY = c["UDP_CSR_STALLSENT"], c["UDP_CSR_TXPKTRDY"]
+        self.FORCESTALL, self.BK1 = c["UDP_CSR_FORCESTALL"], c["UDP_CSR_RX_DATA_BK1"]
+        self.CNT_Pos, self.CNT_Msk = c["UDP_CSR_RXBYTECNT_Pos"], c["UDP_CSR_RXBYTECNT_Msk"]
+        self.ENDBUSRES, self.PUON = c["UDP_ISR_ENDBUSRES"], c["UDP_TXVC_PUON"]
+        self.FLAGS = self.TXCOMP | self.BK0 | self.RXSETUP | self.STALLSENT | self.BK1
+        self.csrs = [0] * 8
+        self.mask = 0
+        self.isr_flags = 0
+        # (per endpoint: the received packets (bank order), the packet written)
+        self.rxq = [[] for _ in range(8)]
+        self.txq = [b""] * 8
+        self.next_bank = [0] * 8
+        self.host_side = UsbHost(self)
+
+    def ep(self, addr, base):
+        if base <= addr < base + 32 and not addr & 3:
+            return (addr - base) // 4
+        return None
+
+    # ---- the cpu's registers
+
+    def read(self, emu, addr):
+        n = self.ep(addr, self.csr)
+        if n is not None:
+            cnt = len(self.rxq[n][0]) if self.rxq[n] else 0
+            return (self.csrs[n] & ~self.CNT_Msk) | (cnt << self.CNT_Pos)
+        n = self.ep(addr, self.fdr)
+        if n is not None:
+            if self.rxq[n] and self.rxq[n][0]:
+                b, self.rxq[n][0] = self.rxq[n][0][0], self.rxq[n][0][1:]
+                return b
+            return 0
+        if addr == self.isr:
+            return self.isr_value()
+        if addr == self.imr:
+            return self.mask
+        return None
+
+    def isr_value(self):
+        return self.isr_flags | sum(1 << n for n in range(8) if self.csrs[n] & self.FLAGS)
+
+    def write(self, emu, addr, value):
+        n = self.ep(addr, self.csr)
+        if n is not None:
+            old = self.csrs[n]
+            # (the flags: cleared by 0; TXPKTRDY: set by 1; the rest written)
+            for bank in (self.BK0, self.BK1):
+                if old & bank and not value & bank and self.rxq[n]:
+                    self.rxq[n].pop(0)
+            if old & self.RXSETUP and not value & self.RXSETUP and self.rxq[n]:
+                self.rxq[n].pop(0)
+            keep = old & value & self.FLAGS
+            rw = value & ~(self.FLAGS | self.TXPKTRDY | self.CNT_Msk)
+            self.csrs[n] = keep | rw | ((old | value) & self.TXPKTRDY)
+            return True
+        n = self.ep(addr, self.fdr)
+        if n is not None:
+            self.txq[n] += bytes([value & 0xFF])
+            return True
+        if addr == self.ier:
+            self.mask |= value
+            return True
+        if addr == self.idr:
+            self.mask &= ~value
+            return True
+        if addr == self.icr:
+            self.isr_flags &= ~value
+            return True
+        return False
+
+    def irq(self, emu):
+        # (end of bus reset is not maskable)
+        if self.isr_value() & (self.mask | self.ENDBUSRES):
+            return self.irq_num
+        return None
+
+    def host(self, emu):
+        self.host_side.emu = emu
+        return self.host_side.step(emu)
+
+    # ---- the host's transactions
+
+    def ready(self, emu):
+        return emu.get(self.txvc, 4) & self.PUON
+
+    def reset(self, emu):
+        self.isr_flags |= self.ENDBUSRES
+
+    def setup(self, emu, data):
+        # (after the device has handled the end of the bus reset)
+        if self.isr_flags & self.ENDBUSRES:
+            return False
+        self.rxq[0] = [bytes(data)]
+        self.csrs[0] = (self.csrs[0] & ~self.FORCESTALL) | self.RXSETUP
+        return True
+
+    def out(self, emu, ep, data):
+        c = self.csrs[ep]
+        if c & self.FORCESTALL:
+            return "stall"
+        banks = (self.BK0, self.BK1) if ep else (self.BK0,)
+        b = banks[self.next_bank[ep] % len(banks)]
+        if c & b or c & self.RXSETUP:
+            return "nak"
+        self.rxq[ep].append(bytes(data))
+        self.csrs[ep] = c | b
+        self.next_bank[ep] += 1
+        return "ack"
+
+    def in_(self, emu, ep):
+        c = self.csrs[ep]
+        if c & self.FORCESTALL:
+            return "stall", b""
+        if not c & self.TXPKTRDY:
+            return "nak", b""
+        data, self.txq[ep] = self.txq[ep], b""
+        self.csrs[ep] = (c & ~self.TXPKTRDY) | self.TXCOMP
+        return "ack", data
+
+
+class SamUotghs:
+    """atsam/sam3_usb.c: the sam3x UOTGHS / same70 USBHS device controller
+    (DEVISR / DEVIMR with their clear / set / enable / disable registers,
+    the endpoint status / mask registers likewise, the fifo windows at the
+    usb ram address, one bank per endpoint here) for the UsbHost"""
+
+    def __init__(self, cfg, chip):
+        c = chip.const
+        e70 = cfg.get("CONFIG_MACH_SAME70")
+        n = "USBHS" if e70 else "UOTGHS"
+        u = lambda f: chip.at(n, n + "_" + f)  # noqa: E731
+        self.devisr, self.devicr, self.devifr = u("DEVISR"), u("DEVICR"), u("DEVIFR")
+        self.devimr, self.devidr, self.devier = u("DEVIMR"), u("DEVIDR"), u("DEVIER")
+        self.eptisr, self.epticr, self.eptifr = u("DEVEPTISR"), u("DEVEPTICR"), u("DEVEPTIFR")
+        self.eptimr, self.eptier, self.eptidr = u("DEVEPTIMR"), u("DEVEPTIER"), u("DEVEPTIDR")
+        self.ctrl = u("CTRL")
+        self.irq_num = c[n + "_IRQn"]
+        # (the usb ram: same70_usb.h's USBHS_RAM_ADDR on the same70)
+        if e70:
+            h = open(os.path.join(mcu_run.KALICO, "src", "atsam", "same70_usb.h")).read()
+            self.ram = int(re.search(r"#define USBHS_RAM_ADDR (0x[0-9a-fA-F]+)", h).group(1), 16)
+        else:
+            self.ram = c["UOTGHS_RAM_ADDR"]
+        self.EORST, self.PEP_0 = c[n + "_DEVISR_EORST"], c[n + "_DEVISR_PEP_0"]
+        self.TXINI, self.RXOUTI, self.RXSTPI = c[n + "_DEVEPTISR_TXINI"], c[n + "_DEVEPTISR_RXOUTI"], c[n + "_DEVEPTISR_RXSTPI"]
+        self.BYCT_Pos = c[n + "_DEVEPTISR_BYCT_Pos"]
+        self.STALLRQ, self.USBE = c[n + "_DEVEPTIMR_STALLRQ"], c[n + "_CTRL_USBE"]
+        self.dev_flags = 0
+        self.dev_mask = 0
+        # (per endpoint: status flags, masks, the received packet, written bytes)
+        self.flags = [self.TXINI] * 10
+        self.masks = [0] * 10
+        self.rx = [b""] * 10
+        self.tx = [b""] * 10
+        self.host_side = UsbHost(self)
+
+    def ep(self, addr, base):
+        if base <= addr < base + 40 and not addr & 3:
+            return (addr - base) // 4
+        return None
+
+    # ---- the cpu's registers
+
+    def devisr_value(self):
+        return self.dev_flags | sum(self.PEP_0 << n for n in range(10) if self.flags[n] & self.masks[n])
+
+    def read(self, emu, addr):
+        if addr == self.devisr:
+            return self.devisr_value()
+        if addr == self.devimr:
+            return self.dev_mask
+        n = self.ep(addr, self.eptisr)
+        if n is not None:
+            return self.flags[n] | (len(self.rx[n]) << self.BYCT_Pos)
+        n = self.ep(addr, self.eptimr)
+        if n is not None:
+            return self.masks[n]
+        if self.ram <= addr < self.ram + 10 * 0x8000:
+            n = (addr - self.ram) // 0x8000
+            if self.rx[n]:
+                b, self.rx[n] = self.rx[n][0], self.rx[n][1:]
+                return b
+            return 0
+        return None
+
+    def write(self, emu, addr, value):
+        if addr == self.devicr:
+            self.dev_flags &= ~value
+            return True
+        if addr == self.devifr:
+            self.dev_flags |= value
+            return True
+        if addr == self.devier:
+            self.dev_mask |= value
+            return True
+        if addr == self.devidr:
+            self.dev_mask &= ~value
+            return True
+        for base, op in ((self.epticr, "clr"), (self.eptifr, "set"), (self.eptier, "mset"), (self.eptidr, "mclr")):
+            n = self.ep(addr, base)
+            if n is not None:
+                if op == "clr":
+                    if value & (self.RXOUTI | self.RXSTPI) and self.flags[n] & (self.RXOUTI | self.RXSTPI):
+                        self.rx[n] = b""
+                    self.flags[n] &= ~value
+                elif op == "set":
+                    self.flags[n] |= value
+                elif op == "mset":
+                    self.masks[n] |= value
+                else:
+                    self.masks[n] &= ~value
+                return True
+        if self.ram <= addr < self.ram + 10 * 0x8000:
+            n = (addr - self.ram) // 0x8000
+            self.tx[n] += bytes([value & 0xFF])
+            return True
+        return False
+
+    def irq(self, emu):
+        if self.devisr_value() & self.dev_mask:
+            return self.irq_num
+        return None
+
+    def host(self, emu):
+        self.host_side.emu = emu
+        return self.host_side.step(emu)
+
+    # ---- the host's transactions
+
+    def ready(self, emu):
+        return emu.get(self.ctrl, 4) & self.USBE and self.dev_mask & self.EORST
+
+    def reset(self, emu):
+        self.dev_flags |= self.EORST
+
+    def setup(self, emu, data):
+        self.rx[0] = bytes(data)
+        self.flags[0] |= self.RXSTPI
+        self.masks[0] &= ~self.STALLRQ
+        return True
+
+    def out(self, emu, ep, data):
+        if self.masks[ep] & self.STALLRQ:
+            return "stall"
+        if self.flags[ep] & (self.RXOUTI | self.RXSTPI):
+            return "nak"
+        self.rx[ep] = bytes(data)
+        self.flags[ep] |= self.RXOUTI
+        return "ack"
+
+    def in_(self, emu, ep):
+        if self.masks[ep] & self.STALLRQ:
+            return "stall", b""
+        if self.flags[ep] & self.TXINI:
+            return "nak", b""
+        data, self.tx[ep] = self.tx[ep], b""
+        self.flags[ep] |= self.TXINI
+        return "ack", data
 
 
 class TcTime:
@@ -1778,6 +2133,9 @@ class Emu(mcu_run.Mcu):
         # (a register holding a ram address: the images' ram layouts differ)
         if addr in getattr(self.board, "pointer_regs", ()):
             return "(ram address)"
+        # (a register holding the image's code size: the images' sizes differ)
+        if addr in getattr(self.board, "size_regs", ()):
+            return "(code size)"
         # (the bytes a port does not use: past a packet's end)
         port = getattr(self.board, "port", None)
         if hasattr(port, "used_bits"):
