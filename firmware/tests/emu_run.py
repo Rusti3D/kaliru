@@ -217,13 +217,39 @@ class Stm32:
             rcc_cr: lambda v: v | ready,
             rcc_cfgr: lambda v: (v & ~c["RCC_CFGR_SWS_Msk"]) | ((v & c["RCC_CFGR_SW_Msk"]) << sws),
         }
-        n = [k for k in ("USART1", "USART2", "USART3") if cfg.get("CONFIG_STM32_SERIAL_" + k)]
-        if not n:
-            sys.exit("only the stm32 usart serial port is modelled")
-        usart = n[0]
+        # (the system memory with the unique device id, chipid.c: 0 here)
+        self.mmio = [(0x1FF00000, 0x100000)]
+        if cfg.get("CONFIG_SERIAL"):
+            self.port = Stm32Usart(cfg, chip)
+        elif cfg.get("CONFIG_USBSERIAL") and cfg.get("CONFIG_HAVE_STM32_USBFS"):
+            self.port = UsbFs(cfg, chip)
+        elif cfg.get("CONFIG_USBSERIAL") and cfg.get("CONFIG_HAVE_STM32_USBOTG"):
+            self.port = UsbOtg(cfg, chip)
+        else:
+            sys.exit("only the stm32 usart and usbfs ports are modelled")
+
+    def uart_read(self, emu, addr):
+        return self.port.read(emu, addr)
+
+    def uart_write(self, emu, addr, value):
+        return self.port.write(emu, addr, value)
+
+    def uart_irq(self, emu):
+        return self.port.irq(emu)
+
+    def host(self, emu):
+        return self.port.host(emu)
+
+
+class Stm32Usart:
+    """stm32/serial.c, stm32f0_serial.c: the usart"""
+
+    def __init__(self, cfg, chip):
+        c = chip.const
+        usart = next(k for k in ("USART1", "USART2", "USART3") if cfg.get("CONFIG_STM32_SERIAL_" + k))
         # (the irq a usart shares on some chips, as stm32f0_serial.c names it)
         shared = {"USART2": ["USART2_LPUART2_IRQn"], "USART3": ["USART3_4_5_6_LPUART1_IRQn", "USART3_4_5_6_IRQn"]}
-        self.irq = next(c[x] for x in [usart + "_IRQn"] + shared.get(usart, []) if x in c)
+        self.irq_num = next(c[x] for x in [usart + "_IRQn"] + shared.get(usart, []) if x in c)
         u = chip.ptr[usart]
         off = lambda f: u + chip.off[("USART_TypeDef", f)]  # noqa: E731
         bit = lambda *names: next(c[x] for x in names if x in c)  # noqa: E731
@@ -243,24 +269,509 @@ class Stm32:
         self.RXNEIE = bit("USART_CR1_RXNEIE", "USART_CR1_RXNEIE_RXFNEIE")
         self.TXEIE = bit("USART_CR1_TXEIE", "USART_CR1_TXEIE_TXFNFIE")
 
-    def uart_read(self, emu, addr):
+    def read(self, emu, addr):
         if addr == self.sr:
             return self.TXE | self.TC | (self.RXNE if emu.rx else 0)
         if addr == self.dr:
             return emu.rx_byte()
         return None
 
-    def uart_write(self, emu, addr, value):
+    def write(self, emu, addr, value):
         if addr == self.tdr:
             emu.tx += bytes([value & 0xFF])
             return True
         return False
 
-    def uart_irq(self, emu):
+    def irq(self, emu):
         cr1 = emu.get(self.cr1, 4)
         if (emu.rx and cr1 & self.RXNEIE) or cr1 & self.TXEIE:
-            return self.irq
+            return self.irq_num
         return None
+
+    def host(self, emu):
+        return False
+
+
+class UsbHost:
+    """the host side of a usb cdc acm device: a reset, the requests of an
+    enumeration (and one the device does not support), then the serial data
+    on the bulk endpoints. The device controller model gives it `ready()`,
+    `reset()`, `setup(data)`, `out(ep, data)` and `in_(ep)` ("ack", "nak" or
+    "stall"). What the device answers is written to the access log."""
+
+    # (generic/usb_cdc_ep.h)
+    EP0_SIZE, BULK_IN, BULK_OUT, BULK_OUT_SIZE = 16, 1, 2, 64
+    LINE_CODING = struct.pack("<IBBB", 250000, 0, 0, 8)
+    REQUESTS = [
+        # (bmRequestType, bRequest, wValue, wIndex, wLength, out data)
+        (0x80, 6, 0x0100, 0, 64, b""),       # GET_DESCRIPTOR device
+        (0x00, 5, 0x0001, 0, 0, b""),        # SET_ADDRESS 1
+        (0x80, 6, 0x0100, 0, 18, b""),       # GET_DESCRIPTOR device
+        (0x80, 6, 0x0200, 0, 9, b""),        # GET_DESCRIPTOR configuration
+        (0x80, 6, 0x0200, 0, 255, b""),
+        (0x80, 6, 0x0300, 0, 255, b""),      # GET_DESCRIPTOR string 0, 1, 2, 3
+        (0x80, 6, 0x0301, 0x0409, 255, b""),
+        (0x80, 6, 0x0302, 0x0409, 255, b""),
+        (0x80, 6, 0x0303, 0x0409, 255, b""),
+        (0x80, 0, 0, 0, 2, b""),             # GET_STATUS (not supported: stall)
+        (0x00, 9, 0x0001, 0, 0, b""),        # SET_CONFIGURATION 1
+        (0x21, 0x20, 0, 0, 7, LINE_CODING),  # SET_LINE_CODING
+        (0xA1, 0x21, 0, 0, 7, b""),          # GET_LINE_CODING
+        (0x21, 0x22, 0x0003, 0, 0, b""),     # SET_CONTROL_LINE_STATE dtr rts
+    ]
+
+    def __init__(self, dev):
+        self.dev = dev
+        self.steps = self.enumerate()
+        self.enumerated = False
+
+    def step(self, emu):
+        """what the host can do now; True if it did something"""
+        did = False
+        while not self.enumerated:
+            r = next(self.steps, None)
+            if r is None:
+                self.enumerated = True
+            elif not r:
+                return did
+            else:
+                did = True
+        dev = self.dev
+        while emu.rx:
+            if dev.out(emu, self.BULK_OUT, emu.rx[: self.BULK_OUT_SIZE]) != "ack":
+                break
+            emu.rx = emu.rx[self.BULK_OUT_SIZE :]
+            did = True
+        while True:
+            r, data = dev.in_(emu, self.BULK_IN)
+            if r != "ack":
+                break
+            emu.tx += data
+            did = True
+        return did
+
+    def enumerate(self):
+        """a generator: True for a step done, False for a wait on the device"""
+        while not self.dev.ready(self.emu):
+            yield False
+        self.dev.reset(self.emu)
+        yield True
+        for req in self.REQUESTS:
+            yield from self.control(*req)
+
+    def control(self, rtype, request, value, index, length, data):
+        emu, dev = self.emu, self.dev
+        log = emu.log
+        while not dev.setup(emu, struct.pack("<BBHHH", rtype, request, value, index, length)):
+            yield False
+        yield True
+        if length and rtype & 0x80:
+            # (data in, then a zero length packet out)
+            got = b""
+            while True:
+                r, d = dev.in_(emu, 0)
+                if r == "nak":
+                    yield False
+                    continue
+                if r == "stall":
+                    log.write("# usb control %02x %02x: stall\n" % (rtype, request))
+                    return
+                got += d
+                yield True
+                if len(d) < self.EP0_SIZE or len(got) >= length:
+                    break
+            log.write("# usb control %02x %02x in %s\n" % (rtype, request, got.hex()))
+            while dev.out(emu, 0, b"") == "nak":
+                yield False
+            yield True
+            return
+        # (data out, then a zero length packet in)
+        for i in range(0, len(data), self.EP0_SIZE):
+            while True:
+                r = dev.out(emu, 0, data[i : i + self.EP0_SIZE])
+                if r == "nak":
+                    yield False
+                    continue
+                if r == "stall":
+                    log.write("# usb control %02x %02x: stall\n" % (rtype, request))
+                    return
+                yield True
+                break
+        while True:
+            r, d = dev.in_(emu, 0)
+            if r == "nak":
+                yield False
+                continue
+            log.write("# usb control %02x %02x: %s\n" % (rtype, request, "stall" if r == "stall" else "ack"))
+            yield True
+            return
+
+
+class UsbFs:
+    """stm32/usbfs.c: the usb full speed device controller (the EPnR toggle /
+    clear-on-0 / read-write bits, ISTR, CNTR, the packet memory with its
+    buffer table, double buffered bulk endpoints) for the UsbHost"""
+
+    def __init__(self, cfg, chip):
+        c = chip.const
+        bit = lambda *names: next(c[x] for x in names if x in c)  # noqa: E731
+        g0 = cfg.get("CONFIG_MACH_STM32G0")
+        usb = "USB_DRD_FS" if g0 else "USB"
+        self.epr = chip.ptr[usb]
+        self.cntr, self.istr = chip.at(usb, "CNTR"), chip.at(usb, "ISTR")
+        self.pma = c["USB_DRD_PMAADDR"] if g0 else c["USB_PMAADDR"]
+        # (usbfs.c: f1 packet memory is 16 bit data in 32 bit words, f0 / l4 /
+        # g4 16 bit words, g0 32 bit words)
+        self.layout = 4 if cfg.get("CONFIG_MACH_STM32F1") else 32 if g0 else 2
+        self.irq_num = bit("USB_LP_IRQn", "USB_UCPD1_2_IRQn", "USB_IRQn")
+        self.CTR_RX, self.CTR_TX = bit("USB_EP_CTR_RX", "USB_EP_VTRX"), bit("USB_EP_CTR_TX", "USB_EP_VTTX")
+        self.DTOG_RX, self.DTOG_TX = c["USB_EP_DTOG_RX"], c["USB_EP_DTOG_TX"]
+        self.STAT_RX, self.STAT_TX = bit("USB_EPRX_STAT", "USB_EP_RX_STRX"), bit("USB_EPTX_STAT", "USB_EP_TX_STTX")
+        self.SETUP, self.KIND, self.TYPE = c["USB_EP_SETUP"], c["USB_EP_KIND"], c["USB_EP_TYPE_MASK"]
+        self.BULK = c["USB_EP_BULK"]
+        self.RX_VALID, self.RX_NAK, self.RX_STALL = c["USB_EP_RX_VALID"], c["USB_EP_RX_NAK"], c["USB_EP_RX_STALL"]
+        self.TX_VALID, self.TX_NAK, self.TX_STALL = c["USB_EP_TX_VALID"], c["USB_EP_TX_NAK"], c["USB_EP_TX_STALL"]
+        self.ISTR_CTR, self.ISTR_RESET, self.ISTR_DIR = c["USB_ISTR_CTR"], c["USB_ISTR_RESET"], c["USB_ISTR_DIR"]
+        self.CTRM, self.RESETM = c["USB_CNTR_CTRM"], c["USB_CNTR_RESETM"]
+        self.T = self.DTOG_RX | self.STAT_RX | self.DTOG_TX | self.STAT_TX
+        self.RC = self.CTR_RX | self.CTR_TX
+        self.eps = [0] * 8
+        self.flags = 0
+        # (the double buffered in endpoints just enabled: they send without
+        # the DTOG_TX == SW_BUF check)
+        self.armed = set()
+        self.host_side = UsbHost(self)
+
+    # ---- the cpu's registers
+
+    def read(self, emu, addr):
+        if self.epr <= addr < self.epr + 32 and not addr & 3:
+            return self.eps[(addr - self.epr) // 4]
+        if addr == self.istr:
+            v = self.flags
+            for n, e in enumerate(self.eps):
+                if e & (self.CTR_RX | self.CTR_TX):
+                    v |= self.ISTR_CTR | n | (self.ISTR_DIR if e & self.CTR_RX else 0)
+                    break
+            return v
+        return None
+
+    def write(self, emu, addr, value):
+        if self.epr <= addr < self.epr + 32 and not addr & 3:
+            n = (addr - self.epr) // 4
+            old = self.eps[n]
+            rw = ~(self.T | self.RC | self.SETUP) & 0xFFFF
+            new = self.eps[n] = ((value & rw) | ((old ^ value) & self.T) | (old & value & self.RC) | (old & self.SETUP))
+            if new & self.STAT_TX == self.TX_VALID and old & self.STAT_TX != self.TX_VALID:
+                self.armed.add(n)
+            return True
+        if addr == self.istr:
+            # (the flags clear on 0; CTR, DIR, EP_ID are read only)
+            self.flags &= value
+            return True
+        return False
+
+    def irq(self, emu):
+        cntr = emu.get(self.cntr, 4)
+        ctr = any(e & (self.CTR_RX | self.CTR_TX) for e in self.eps)
+        if (cntr & self.CTRM and ctr) or (cntr & self.RESETM and self.flags & self.ISTR_RESET):
+            return self.irq_num
+        return None
+
+    def host(self, emu):
+        self.host_side.emu = emu
+        return self.host_side.step(emu)
+
+    # ---- the packet memory
+
+    def pma_addr(self, off):
+        """the cpu address of a packet memory byte offset (even)"""
+        return self.pma + (off // 2 * 4 if self.layout == 4 else off)
+
+    def pma_read(self, emu, off, n):
+        out = b""
+        for i in range(0, n, 2):
+            out += struct.pack("<H", emu.get(self.pma_addr(off + i), 2))
+        return out[:n]
+
+    def pma_write(self, emu, off, data):
+        data += b"\0" * (len(data) & 1)
+        for i in range(0, len(data), 2):
+            emu.put(self.pma_addr(off + i), 2, struct.unpack_from("<H", data, i)[0])
+
+    def desc(self, emu, ep, bufnum):
+        """(buffer address, count, count's address) of a buffer table entry"""
+        o = (ep * 2 + bufnum) * 4
+        if self.layout == 32:
+            w = emu.get(self.pma + o, 4)
+            return w & 0xFFFF, (w >> 16) & 0x3FF, None
+        return emu.get(self.pma_addr(o), 2), emu.get(self.pma_addr(o + 2), 2) & 0x3FF, o + 2
+
+    def set_count(self, emu, ep, bufnum, count):
+        o = (ep * 2 + bufnum) * 4
+        if self.layout == 32:
+            w = emu.get(self.pma + o, 4)
+            emu.put(self.pma + o, 4, (w & ~(0x3FF << 16)) | (count << 16))
+        else:
+            a = self.pma_addr(o + 2)
+            emu.put(a, 2, (emu.get(a, 2) & ~0x3FF) | count)
+
+    # ---- the host's transactions
+
+    def dbuf(self, e):
+        return e & self.TYPE == self.BULK and e & self.KIND
+
+    def ready(self, emu):
+        return emu.get(self.cntr, 4) & self.RESETM
+
+    def reset(self, emu):
+        self.eps = [0] * 8
+        self.flags |= self.ISTR_RESET
+
+    def setup(self, emu, data):
+        e = self.eps[0]
+        if e & self.STAT_RX == 0:
+            return False
+        addr, _, _ = self.desc(emu, 0, 1)
+        self.pma_write(emu, addr, data)
+        self.set_count(emu, 0, 1, len(data))
+        # (a setup sets both directions to NAK, ending a stall)
+        e &= ~(self.STAT_RX | self.STAT_TX)
+        self.eps[0] = e | self.RX_NAK | self.TX_NAK | self.CTR_RX | self.SETUP
+        return True
+
+    def out(self, emu, ep, data):
+        e = self.eps[ep]
+        if e & self.STAT_RX == self.RX_STALL:
+            return "stall"
+        if self.dbuf(e):
+            # (double buffered: the buffer DTOG_RX names, unless both are the
+            # cpu's (DTOG_RX == SW_BUF, the DTOG_TX bit))
+            if e & self.STAT_RX != self.RX_VALID or bool(e & self.DTOG_RX) == bool(e & self.DTOG_TX):
+                return "nak"
+            b = 1 if e & self.DTOG_RX else 0
+            addr, _, _ = self.desc(emu, ep, b)
+            self.pma_write(emu, addr, data)
+            self.set_count(emu, ep, b, len(data))
+            self.eps[ep] = (e ^ self.DTOG_RX) | self.CTR_RX
+            return "ack"
+        if e & self.STAT_RX != self.RX_VALID:
+            return "nak"
+        addr, _, _ = self.desc(emu, ep, 1)
+        self.pma_write(emu, addr, data)
+        self.set_count(emu, ep, 1, len(data))
+        self.eps[ep] = ((e & ~(self.STAT_RX | self.SETUP)) | self.RX_NAK | self.CTR_RX) ^ self.DTOG_RX
+        return "ack"
+
+    def in_(self, emu, ep):
+        e = self.eps[ep]
+        if e & self.STAT_TX == self.TX_STALL:
+            return "stall", b""
+        if self.dbuf(e):
+            # (double buffered: the buffer DTOG_TX names, unless both are the
+            # cpu's (DTOG_TX == SW_BUF, the DTOG_RX bit) after a transfer; a
+            # freshly enabled endpoint sends both, see usbfs.c BI_START)
+            blocked = bool(e & self.DTOG_TX) == bool(e & self.DTOG_RX) and ep not in self.armed
+            if e & self.STAT_TX != self.TX_VALID or blocked:
+                return "nak", b""
+            self.armed.discard(ep)
+            b = 1 if e & self.DTOG_TX else 0
+            addr, count, _ = self.desc(emu, ep, b)
+            data = self.pma_read(emu, addr, count)
+            self.eps[ep] = (e ^ self.DTOG_TX) | self.CTR_TX
+            return "ack", data
+        if e & self.STAT_TX != self.TX_VALID:
+            return "nak", b""
+        addr, count, _ = self.desc(emu, ep, 0)
+        data = self.pma_read(emu, addr, count)
+        self.eps[ep] = ((e & ~self.STAT_TX) | self.TX_NAK | self.CTR_TX) ^ self.DTOG_TX
+        return "ack", data
+
+
+class UsbOtg:
+    """stm32/usbotg.c: the usb otg device controller in full speed device
+    mode (the receive status / data fifos, the endpoint transmit fifos,
+    DIEPCTL / DOEPCTL with EPENA, CNAK / SNAK, EPDIS, STALL, the transfer
+    complete interrupts) for the UsbHost. usbotg.c does not use the bus
+    reset interrupt: the host starts with a setup."""
+
+    def __init__(self, cfg, chip):
+        c = chip.const
+        hs = cfg.get("CONFIG_STM32_USB_PB14_PB15") or cfg.get("CONFIG_MACH_STM32H723")
+        base = c["USB_OTG_HS_PERIPH_BASE"] if hs else c["USB_OTG_FS_PERIPH_BASE"]
+        self.irq_num = c["OTG_HS_IRQn"] if hs else c["OTG_FS_IRQn"]
+        g = lambda f: base + chip.off[("USB_OTG_GlobalTypeDef", f)]  # noqa: E731
+        d = lambda f: base + c["USB_OTG_DEVICE_BASE"] + chip.off[("USB_OTG_DeviceTypeDef", f)]  # noqa: E731
+        self.gahbcfg, self.grstctl, self.gintsts = g("GAHBCFG"), g("GRSTCTL"), g("GINTSTS")
+        self.gintmsk, self.grxstsr, self.grxstsp = g("GINTMSK"), g("GRXSTSR"), g("GRXSTSP")
+        self.diepmsk, self.daint, self.daintmsk = d("DIEPMSK"), d("DAINT"), d("DAINTMSK")
+        self.epin = base + c["USB_OTG_IN_ENDPOINT_BASE"]
+        self.epout = base + c["USB_OTG_OUT_ENDPOINT_BASE"]
+        self.fifo = base + c["USB_OTG_FIFO_BASE"]
+        ie = lambda f: chip.off[("USB_OTG_INEndpointTypeDef", f)]  # noqa: E731
+        oe = lambda f: chip.off[("USB_OTG_OUTEndpointTypeDef", f)]  # noqa: E731
+        self.DIEPCTL, self.DIEPINT, self.DIEPTSIZ = ie("DIEPCTL"), ie("DIEPINT"), ie("DIEPTSIZ")
+        self.DOEPCTL, self.DOEPINT = oe("DOEPCTL"), oe("DOEPINT")
+        self.RXFLVL, self.IEPINT = c["USB_OTG_GINTSTS_RXFLVL"], c["USB_OTG_GINTSTS_IEPINT"]
+        self.RXFLVLM, self.IEPINTM = c["USB_OTG_GINTMSK_RXFLVLM"], c["USB_OTG_GINTMSK_IEPINT"]
+        self.GINT = c["USB_OTG_GAHBCFG_GINT"]
+        self.AHBIDL, self.TXFFLSH = c["USB_OTG_GRSTCTL_AHBIDL"], c["USB_OTG_GRSTCTL_TXFFLSH"]
+        self.TXFNUM_Pos = c["USB_OTG_GRSTCTL_TXFNUM_Pos"]
+        self.EPENA, self.EPDIS = c["USB_OTG_DIEPCTL_EPENA"], c["USB_OTG_DIEPCTL_EPDIS"]
+        self.CNAK, self.SNAK = c["USB_OTG_DIEPCTL_CNAK"], c["USB_OTG_DIEPCTL_SNAK"]
+        self.STALL, self.NAKSTS = c["USB_OTG_DIEPCTL_STALL"], c["USB_OTG_DIEPCTL_NAKSTS"]
+        self.XFRC, self.XFRCM = c["USB_OTG_DIEPINT_XFRC"], c["USB_OTG_DIEPMSK_XFRCM"]
+        self.BCNT_Pos, self.PKTSTS_Pos = c["USB_OTG_GRXSTSP_BCNT_Pos"], c["USB_OTG_GRXSTSP_PKTSTS_Pos"]
+        self.XFRSIZ = c["USB_OTG_DIEPTSIZ_XFRSIZ"]
+        # (the receive fifo: status words with their data words; the data
+        # of the status last popped; the transmit fifos; the nak states)
+        self.rxq = []
+        self.rxdata = []
+        self.txf = [[] for _ in range(16)]
+        self.in_nak = [True] * 16
+        self.out_nak = [True] * 16
+        self.host_side = UsbHost(self)
+
+    def ep_reg(self, addr):
+        """(direction, endpoint, offset) of an endpoint register"""
+        for d, base in (("in", self.epin), ("out", self.epout)):
+            if base <= addr < base + 16 * 0x20:
+                return d, (addr - base) // 0x20, (addr - base) % 0x20
+        return None
+
+    # ---- the cpu's registers
+
+    def read(self, emu, addr):
+        if addr == self.gintsts:
+            v = emu.get(addr, 4) & ~(self.RXFLVL | self.IEPINT)
+            if self.rxq:
+                v |= self.RXFLVL
+            if self.daint_value(emu) & emu.get(self.daintmsk, 4):
+                v |= self.IEPINT
+            return v
+        if addr in (self.grxstsr, self.grxstsp):
+            if not self.rxq:
+                return 0
+            if addr == self.grxstsr:
+                return self.rxq[0][0]
+            sts, data = self.rxq.pop(0)
+            self.rxdata = list(data)
+            return sts
+        if self.fifo <= addr < self.fifo + 16 * 0x1000:
+            return self.rxdata.pop(0) if self.rxdata else 0
+        if addr == self.grstctl:
+            return (emu.get(addr, 4) & ~self.TXFFLSH) | self.AHBIDL
+        if addr == self.daint:
+            return self.daint_value(emu)
+        r = self.ep_reg(addr)
+        if r and r[2] == 0:
+            d, ep, _ = r
+            nak = self.in_nak[ep] if d == "in" else self.out_nak[ep]
+            return (emu.get(addr, 4) & ~self.NAKSTS) | (self.NAKSTS if nak else 0)
+        return None
+
+    def daint_value(self, emu):
+        v = 0
+        for ep in range(16):
+            if emu.get(self.epin + ep * 0x20 + self.DIEPINT, 4) & emu.get(self.diepmsk, 4):
+                v |= 1 << ep
+        return v
+
+    def write(self, emu, addr, value):
+        if self.fifo <= addr < self.fifo + 16 * 0x1000:
+            self.txf[(addr - self.fifo) // 0x1000].append(value)
+            return True
+        if addr == self.grstctl:
+            if value & self.TXFFLSH:
+                n = (value >> self.TXFNUM_Pos) & 0x1F
+                for ep in range(16) if n == 0x10 else [n]:
+                    self.txf[ep] = []
+            emu.put(addr, 4, value & ~self.TXFFLSH)
+            return True
+        r = self.ep_reg(addr)
+        if r is None:
+            return False
+        d, ep, off = r
+        if off == self.DIEPINT or off == self.DOEPINT:
+            # (cleared by writing 1)
+            emu.put(addr, 4, emu.get(addr, 4) & ~value)
+            return True
+        if off == 0:
+            naks = self.in_nak if d == "in" else self.out_nak
+            if value & self.SNAK:
+                naks[ep] = True
+            if value & self.CNAK:
+                naks[ep] = False
+            v = value & ~(self.SNAK | self.CNAK | self.NAKSTS)
+            if v & self.EPDIS:
+                v &= ~(self.EPDIS | self.EPENA)
+            emu.put(addr, 4, v)
+            return True
+        return False
+
+    def irq(self, emu):
+        if not emu.get(self.gahbcfg, 4) & self.GINT:
+            return None
+        msk = emu.get(self.gintmsk, 4)
+        if (self.rxq and msk & self.RXFLVLM) or (msk & self.IEPINTM and self.daint_value(emu) & emu.get(self.daintmsk, 4)):
+            return self.irq_num
+        return None
+
+    def host(self, emu):
+        self.host_side.emu = emu
+        return self.host_side.step(emu)
+
+    # ---- the host's transactions
+
+    def status(self, pktsts, ep, n):
+        return ep | (n << self.BCNT_Pos) | (pktsts << self.PKTSTS_Pos)
+
+    @staticmethod
+    def words(data):
+        data += b"\0" * (-len(data) % 4)
+        return [struct.unpack_from("<I", data, i)[0] for i in range(0, len(data), 4)]
+
+    def ready(self, emu):
+        return emu.get(self.gahbcfg, 4) & self.GINT and emu.get(self.epout + self.DOEPCTL, 4) & self.EPENA
+
+    def reset(self, emu):
+        pass
+
+    def setup(self, emu, data):
+        # (setup data received, setup stage done; a setup ends a stall)
+        self.rxq.append((self.status(6, 0, len(data)), self.words(data)))
+        self.rxq.append((self.status(4, 0, 0), []))
+        a = self.epin + self.DIEPCTL
+        emu.put(a, 4, emu.get(a, 4) & ~self.STALL)
+        return True
+
+    def out(self, emu, ep, data):
+        a = self.epout + ep * 0x20 + self.DOEPCTL
+        ctl = emu.get(a, 4)
+        if ctl & self.STALL or (ep == 0 and emu.get(self.epin + self.DIEPCTL, 4) & self.STALL):
+            return "stall"
+        if not ctl & self.EPENA or self.out_nak[ep]:
+            return "nak"
+        # (data received, transfer done: the endpoint is disabled, naks)
+        self.rxq.append((self.status(2, ep, len(data)), self.words(data)))
+        self.rxq.append((self.status(3, ep, 0), []))
+        emu.put(a, 4, ctl & ~self.EPENA)
+        self.out_nak[ep] = True
+        return "ack"
+
+    def in_(self, emu, ep):
+        a = self.epin + ep * 0x20
+        ctl = emu.get(a + self.DIEPCTL, 4)
+        if ctl & self.STALL:
+            return "stall", b""
+        if not ctl & self.EPENA or self.in_nak[ep]:
+            return "nak", b""
+        n = emu.get(a + self.DIEPTSIZ, 4) & self.XFRSIZ
+        data = b"".join(struct.pack("<I", w) for w in self.txf[ep])[:n]
+        self.txf[ep] = []
+        emu.put(a + self.DIEPCTL, 4, ctl & ~self.EPENA)
+        emu.put(a + self.DIEPINT, 4, emu.get(a + self.DIEPINT, 4) | self.XFRC)
+        return "ack", data
 
 
 class Lpc176x:
@@ -744,6 +1255,9 @@ class Emu(mcu_run.Mcu):
         """the exception to take now, if any (advancing the time to the next
         timer expiry if it is not after `advance_until`)"""
         b = self.board
+        # (the usb host's transactions with the device)
+        if hasattr(b, "host"):
+            b.host(self)
         irq = b.uart_irq(self)
         if irq is not None and irq in self.nvic_enabled:
             return 16 + irq
