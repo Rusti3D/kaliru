@@ -925,37 +925,52 @@ impl QueryStatusHelper {
                     continue;
                 }
             }
-            // Query each requested printer object
+            // Query each requested printer object (borrowed: python iterates
+            // the subscription dict; a None field list becomes the keys)
             let mut cquery = IndexMap::new();
-            let names: Vec<String> = subscription.borrow().keys().cloned().collect();
-            for obj_name in names {
-                if !query.contains_key(&obj_name) {
-                    let res = match self.printer.lookup_object_opt(&obj_name) {
-                        Some(po) if po.has_status() => Status::of(&*po, eventtime),
-                        _ => Status::Val(PyVal::dict()),
+            let mut filled: Vec<(String, PyVal)> = vec![];
+            {
+                let sub = subscription.borrow();
+                for (obj_name, req) in sub.iter() {
+                    if !query.contains_key(obj_name) {
+                        let res = match self.printer.lookup_object_opt(obj_name) {
+                            Some(po) if po.has_status() => Status::of(&*po, eventtime),
+                            _ => Status::Val(PyVal::dict()),
+                        };
+                        query.insert(obj_name.clone(), res);
+                    }
+                    let res = &query[obj_name];
+                    let keys_list;
+                    let req_items = if *req == PyVal::None {
+                        keys_list = PyVal::List(res.keys().into_iter().map(PyVal::Str).collect());
+                        if keys_list.items().is_some_and(|i| !i.is_empty()) {
+                            filled.push((obj_name.clone(), keys_list.clone()));
+                        }
+                        &keys_list
+                    } else {
+                        req
                     };
-                    query.insert(obj_name.clone(), res);
-                }
-                let res = &query[&obj_name];
-                let res_keys: Vec<String> = res.keys();
-                let mut req_items = subscription.borrow()[&obj_name].clone();
-                if req_items == PyVal::None {
-                    req_items = PyVal::List(res_keys.iter().map(|k| PyVal::Str(k.clone())).collect());
-                    if !res_keys.is_empty() {
-                        subscription.borrow_mut().insert(obj_name.clone(), req_items.clone());
+                    let lres = last_query.get(obj_name);
+                    let mut cres = IndexMap::new();
+                    for ri in req_items.items().unwrap_or(&[]) {
+                        let key = match ri.as_str() {
+                            Some(k) => std::borrow::Cow::Borrowed(k),
+                            None => std::borrow::Cow::Owned(ri.str()),
+                        };
+                        if is_query || res.changed(&key, lres) {
+                            let v = res.value(&key);
+                            cres.insert(key.into_owned(), v);
+                        }
+                    }
+                    if !cres.is_empty() || is_query {
+                        cquery.insert(obj_name.clone(), PyVal::Dict(cres));
                     }
                 }
-                let lres = last_query.get(&obj_name);
-                let mut cres = IndexMap::new();
-                for ri in req_items.items().unwrap_or(&[]) {
-                    let ri = ri.str();
-                    if is_query || res.changed(&ri, lres) {
-                        let v = res.value(&ri);
-                        cres.insert(ri, v);
-                    }
-                }
-                if !cres.is_empty() || is_query {
-                    cquery.insert(obj_name.clone(), PyVal::Dict(cres));
+            }
+            if !filled.is_empty() {
+                let mut sub = subscription.borrow_mut();
+                for (k, v) in filled {
+                    sub.insert(k, v);
                 }
             }
             // Send data
