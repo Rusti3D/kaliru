@@ -4,8 +4,10 @@
 // Objects a plugin constructs (`ConfigWrapper(...)`, a subclass of a
 // mirrored class) are bound to their Rust object by _k.new.
 //
-// The table holds both sides until teardown() (the end of a printer
-// instance, as python klippy drops all printer objects on RESTART).
+// The table holds both sides while either can still be reached: a sweep
+// (each time the table doubles) releases the pairs only the table holds
+// (per-call objects: a GCodeCommand, a WebRequest), and teardown() (the end
+// of a printer instance) releases everything.
 use crate::plugins::gil::Gil;
 use super::py::{lookup, py_int, PyRef};
 use crate::error::{KError, KResult};
@@ -24,7 +26,11 @@ struct Entry {
 
 #[derive(Default)]
 struct Table {
-    entries: Vec<Option<Entry>>,
+    // handle -> binding; handles are never reused
+    entries: HashMap<usize, Entry>,
+    next_handle: usize,
+    // the size at which the next sweep runs
+    sweep_at: usize,
     // Rust object address -> handle
     by_addr: HashMap<usize, usize>,
     // Rust type -> mirrored class (module, class name)
@@ -101,7 +107,7 @@ fn wrap_impl(rust: Rc<dyn Any>, type_name: &str, pobj: Option<PObj>) -> KResult<
     if let Some(py) = TABLE.with(|t| {
         let mut t = t.borrow_mut();
         let h = *t.by_addr.get(&addr(&rust))?;
-        let e = t.entries[h].as_mut()?;
+        let e = t.entries.get_mut(&h)?;
         // first met as a plain object, now known as a printer object too
         if e.pobj.is_none() {
             e.pobj = pobj.clone();
@@ -123,13 +129,17 @@ pub fn bind(py: &PyRef, rust: Rc<dyn Any>) -> KResult<()> {
 }
 
 fn bind_impl(py: &PyRef, rust: Rc<dyn Any>, pobj: Option<PObj>) -> KResult<()> {
-    let handle = TABLE.with(|t| {
+    let (handle, sweep) = TABLE.with(|t| {
         let mut t = t.borrow_mut();
-        let h = t.entries.len();
+        let h = t.next_handle;
+        t.next_handle += 1;
         t.by_addr.insert(addr(&rust), h);
-        t.entries.push(Some(Entry { rust, py: py.clone(), pobj }));
-        h
+        t.entries.insert(h, Entry { rust, py: py.clone(), pobj });
+        (h, t.entries.len() >= t.sweep_at.max(64))
     });
+    if sweep {
+        sweep_unreachable()?;
+    }
     // object.__setattr__: Object.__setattr__ would report a patch
     lookup("builtins", "object")?.getattr("__setattr__")?.call(&[py, &super::py::py_str("_k_h"), &py_int(handle as i64)])?;
     Ok(())
@@ -146,7 +156,7 @@ pub fn unwrap(py: &PyRef) -> KResult<Rc<dyn Any>> {
             ))
         }
     };
-    TABLE.with(|t| t.borrow().entries.get(h).and_then(|e| e.as_ref().map(|e| e.rust.clone())))
+    TABLE.with(|t| t.borrow().entries.get(&h).map(|e| e.rust.clone()))
         .ok_or_else(|| KError::Py("ReferenceError".into(), "kaliru: the object no longer exists".into()))
 }
 
@@ -160,14 +170,14 @@ pub fn unwrap_as<T: 'static>(py: &PyRef) -> KResult<Rc<T>> {
 /// The printer object behind a python object, if it is a kaliru one
 pub fn bound_pobj(py: &PyRef) -> Option<PObj> {
     let h = py.getattr("_k_h").ok()?.as_i64().ok()? as usize;
-    TABLE.with(|t| t.borrow().entries.get(h).and_then(|e| e.as_ref().and_then(|e| e.pobj.clone())))
+    TABLE.with(|t| t.borrow().entries.get(&h).and_then(|e| e.pobj.clone()))
 }
 
 /// The python object bound to the kaliru object at this address, if any
 pub fn existing_addr(addr: usize) -> Option<PyRef> {
     TABLE.with(|t| {
         let t = t.borrow();
-        t.by_addr.get(&addr).and_then(|h| t.entries[*h].as_ref().map(|e| e.py.clone()))
+        t.by_addr.get(&addr).and_then(|h| t.entries.get(h).map(|e| e.py.clone()))
     })
 }
 
@@ -175,8 +185,52 @@ pub fn existing_addr(addr: usize) -> Option<PyRef> {
 pub fn existing(rust: &Rc<dyn Any>) -> Option<PyRef> {
     TABLE.with(|t| {
         let t = t.borrow();
-        t.by_addr.get(&addr(rust)).and_then(|h| t.entries[*h].as_ref().map(|e| e.py.clone()))
+        t.by_addr.get(&addr(rust)).and_then(|h| t.entries.get(h).map(|e| e.py.clone()))
     })
+}
+
+/// Release the bindings nothing else holds: the Rust object's only owner
+/// is the table (its Rc, and the printer object view of it) and the python
+/// object's only reference is the table's (sys.getrefcount against that of
+/// a fresh object held the same way). Neither side can be reached again, so
+/// nothing can tell; the next sweep runs when the table has doubled.
+fn sweep_unreachable() -> KResult<()> {
+    let getrefcount = lookup("sys", "getrefcount")?;
+    let fresh = lookup("builtins", "object")?.call(&[])?;
+    let baseline = getrefcount.call(&[&fresh])?.as_i64()?;
+    let candidates: Vec<(usize, PyRef)> = TABLE.with(|t| {
+        t.borrow()
+            .entries
+            .iter()
+            .filter(|(_, e)| Rc::strong_count(&e.rust) == 1 + e.pobj.is_some() as usize)
+            .map(|(h, e)| (*h, e.py.clone()))
+            .collect()
+    });
+    let mut dead = vec![];
+    for (h, py) in candidates {
+        // (`py` here is one more reference than the table's)
+        if getrefcount.call(&[&py])?.as_i64()? == baseline + 1 {
+            dead.push(h);
+        }
+    }
+    let released: Vec<Entry> = TABLE.with(|t| {
+        let mut t = t.borrow_mut();
+        let out: Vec<Entry> = dead.iter().filter_map(|h| t.entries.remove(h)).collect();
+        for e in &out {
+            t.by_addr.remove(&addr(&e.rust));
+        }
+        t.sweep_at = 2 * t.entries.len();
+        out
+    });
+    super::native::forget_instances(&dead);
+    // (dropped outside the table: a python __del__ may call back in)
+    drop(released);
+    Ok(())
+}
+
+/// Number of bindings (tests)
+pub fn table_len() -> usize {
+    TABLE.with(|t| t.borrow().entries.len())
 }
 
 /// Drop every binding (end of a printer instance)
@@ -184,6 +238,7 @@ pub fn teardown() {
     let entries = TABLE.with(|t| {
         let mut t = t.borrow_mut();
         t.by_addr.clear();
+        t.sweep_at = 0;
         std::mem::take(&mut t.entries)
     });
     drop(entries);

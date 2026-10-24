@@ -19,6 +19,9 @@ class TestPlugin:
         gcode.register_command(
             "TEST_PLUGIN", self.cmd_TEST_PLUGIN, desc="kaliru plugin test"
         )
+        gcode.register_command("TEST_PLUGIN_COUNT", self.cmd_TEST_PLUGIN_COUNT)
+        gcode.register_command("TEST_PLUGIN_CHECK", self.cmd_TEST_PLUGIN_CHECK)
+        self.counted = 0
         self.printer.register_event_handler("klippy:ready", self._ready)
         logging.info(
             "test plugin %s: value=%r missing=%r count=%r label=%r flag=%r",
@@ -41,6 +44,20 @@ class TestPlugin:
         gcmd.respond_info("after pause: %s ticks=%d" % (gcmd.get_command(), self.ticks))
         if gcmd.get_int("FAIL", 0):
             raise gcmd.error("test plugin failure")
+
+    def cmd_TEST_PLUGIN_COUNT(self, gcmd):
+        # a command python handles many times (one GCodeCommand each)
+        self.counted += gcmd.get_int("N", 1)
+
+    def cmd_TEST_PLUGIN_CHECK(self, gcmd):
+        # on kaliru: the per-command objects were released (no-op on Kalico)
+        try:
+            import _kaliru
+        except ImportError:
+            _kaliru = None
+        if _kaliru is not None and _kaliru.ext("objects_len") > 400:
+            raise gcmd.error("kaliru object table grew: %d" % (_kaliru.ext("objects_len"),))
+        gcmd.respond_info("counted %d" % (self.counted,))
 
     def get_status(self, eventtime):
         return {"value": self.value, "label": self.label}

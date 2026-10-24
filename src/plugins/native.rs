@@ -296,6 +296,15 @@ native!(k_patched_class, |a| {
     Ok(py_none())
 });
 
+/// Forget the instance patches of released object handles (objects.rs sweep)
+pub fn forget_instances(handles: &[usize]) {
+    if handles.is_empty() {
+        return;
+    }
+    let keys: HashSet<String> = handles.iter().map(|h| format!("@{}", h)).collect();
+    PATCHED.with(|p| p.borrow_mut().retain(|(k, _)| !keys.contains(k)));
+}
+
 // patched_instance(obj, name)
 native!(k_patched_instance, |a| {
     if let Ok(h) = a[0].getattr("_k_h") {

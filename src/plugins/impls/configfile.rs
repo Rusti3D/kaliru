@@ -28,6 +28,8 @@ pub fn register(r: &mut Registry) {
     fn fc(a: &Args) -> KResult<Rc<Parser>> {
         objects::unwrap_as::<Parser>(a.arg(0))
     }
+    // the object table's size (tests/cases/plugins/objects_release)
+    r.ext("objects_len", |_| Ok(py_int(objects::table_len() as i64)));
     r.ext("fc_sections", |a| fc(a)?.borrow().sections().to_py());
     r.ext("fc_has_section", |a| Ok(py_bool(fc(a)?.borrow().has_section(&a.string(1)?))));
     r.ext("fc_add_section", |a| {
