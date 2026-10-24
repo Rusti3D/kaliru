@@ -4,6 +4,8 @@
 #![allow(clippy::missing_safety_doc, clippy::new_without_default)]
 // the micro-controller boards: no operating system
 #![cfg_attr(not(any(CONFIG_MACH_LINUX, CONFIG_MACH_SIMU)), no_std, no_main)]
+// (avr: inline assembly and interrupt handlers are nightly features there)
+#![cfg_attr(CONFIG_MACH_AVR, feature(asm_experimental_arch, abi_avr_interrupt))]
 
 #[allow(non_upper_case_globals, dead_code)]
 pub mod config {
@@ -119,6 +121,10 @@ pub use atsamd as board;
 pub mod hc32f460;
 #[cfg(CONFIG_MACH_HC32F460)]
 pub use hc32f460 as board;
+#[cfg(CONFIG_MACH_AVR)]
+pub mod avr;
+#[cfg(CONFIG_MACH_AVR)]
+pub use avr as board;
 #[cfg(CONFIG_MACH_SIMU)]
 pub mod simulator;
 #[cfg(CONFIG_MACH_SIMU)]

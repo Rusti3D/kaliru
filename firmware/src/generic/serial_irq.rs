@@ -3,6 +3,7 @@
 // Copyright (C) 2016-2018  Kevin O'Connor <kevin@koconnor.net>
 //
 // This file may be distributed under the terms of the GNU GPLv3 license.
+use crate::board::pgm::readp;
 use crate::board::{irq_restore, irq_save, serial_enable_tx_irq};
 use crate::command::{command_dispatch, command_encode_and_frame, command_find_block, command_send_ack, CommandEncoder, SendArg, MESSAGE_SYNC};
 use crate::ctr::Global;
@@ -114,7 +115,7 @@ pub fn console_sendf(ce: &CommandEncoder, args: &[SendArg]) -> R {
         writeb(&TRANSMIT_MAX, 0);
         writeb(&TRANSMIT_POS, 0);
     }
-    let max_size = ce.max_size as usize;
+    let max_size = readp(&ce.max_size) as usize;
     if tmax + max_size > buf.len() {
         if tmax + max_size - tpos > buf.len() {
             // Not enough space for message

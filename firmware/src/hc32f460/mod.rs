@@ -37,3 +37,4 @@ pub use gpio_h::{GpioAdc, GpioIn, GpioOut, GpioOutVal, GpioPullUp, GpioPwm, I2cC
 #[cfg(CONFIG_WANT_HARD_PWM)]
 pub use hard_pwm::{gpio_pwm_setup, gpio_pwm_write};
 pub use main::armcm_main;
+pub use crate::generic::pgm;

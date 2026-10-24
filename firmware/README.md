@@ -13,11 +13,17 @@ command parsing, all command modules and sensor drivers) and these boards:
   (`src/atsamd`: samd21, samc21, samd51, same51, same54): USB, serial, CAN, spi, i2c, adc, pwm;
 - **hc32f460** (`src/hc32f460`): serial, adc, pwm, with the Huada driver library functions it calls
   (`src/hc32f460/lib/`);
+- **avr** (`src/avr`: atmega2560, atmega1280, atmega1284p, atmega644p, atmega328p, atmega328, atmega168,
+  at90usb1286, at90usb646, atmega32u4): serial, USB, spi, i2c, adc, hardware pwm, watchdog; tables in flash
+  (PROGMEM, `src/avr/pgm.rs`), registers from avr-libc (`tools/gen_avr_regs.py`);
 - the ARM Cortex-M code of `src/generic/armcm_*`, `usb_cdc`, `serial_irq`, `canbus`, `canserial`, `usb_canbus`;
 - the **INDX heater** (`src/indx`, C++ in Kalico: the Bondtech INDX induction heater on a SAME51J19 toolboard), with
   the newlib math it uses (`src/libm.rs`: powf, sqrtf, sin, bit for bit newlib 4.4.0's).
 
-Not ported: avr, ar100, pru.
+Not ported: ar100, pru (Rust has no or1k / pru target).
+
+AVR builds need nightly rustc (`avr-none`, `-Z build-std=core`) and avr-gcc / avr-libc for the startup code and
+linker script; `tests/ctr_check.sh` builds them with opt-level z. The atmega168 image does not fit its flash.
 
 ## Building
 
@@ -75,8 +81,8 @@ application address.
 
 ## Checks
 
-- `tests/ctr_check.sh [config ...]` builds every configuration in `configs/` (54: linux, simulator, 25 stm32 incl. AT32 / N32, 5
-  rp2040 / rp2350, 4 lpc176x, 7 atsam, 9 atsamd incl. the INDX toolboard, 2 hc32f460) and compares
+- `tests/ctr_check.sh [config ...]` builds every configuration in `configs/` (64: linux, simulator, 25 stm32 incl. AT32 / N32, 5
+  rp2040 / rp2350, 4 lpc176x, 7 atsam, 9 atsamd incl. the INDX toolboard, 2 hc32f460, 10 avr) and compares
   `$OUT_DIR/compile_time_request.txt` with the C build's (`tests/ref/<config>_compile_time_request.txt`) and the
   data dictionary with `tests/ref/<config>_klipper.dict` apart from `version` / `build_versions`. New configs:
   `configs/src/<name>.in` (Kconfig choices), `../tools/mkref.sh <name>` builds the C reference.

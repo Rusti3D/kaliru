@@ -309,13 +309,31 @@ fn sources(config: &kconfig::Config) -> Vec<&'static str> {
         }
         out.extend(["generic/armcm_boot.rs", "generic/armcm_irq.rs", "generic/armcm_timer.rs"]);
         out.extend(["generic/armcm_reset.rs", "generic/crc16_ccitt.rs"]);
+    } else if on("CONFIG_MACH_AVR") {
+        // src/avr/Makefile
+        out.extend(["avr/internal.rs", "avr/main.rs", "avr/timer.rs"]);
+        let opt: &[(&str, &[&'static str])] = &[
+            ("CONFIG_HAVE_GPIO", &["avr/gpio.rs"]),
+            ("CONFIG_WANT_GPIO_ADC", &["avr/adc.rs"]),
+            ("CONFIG_WANT_GPIO_SPI", &["avr/spi.rs"]),
+            ("CONFIG_WANT_GPIO_I2C", &["avr/i2c.rs"]),
+            ("CONFIG_WANT_HARD_PWM", &["avr/hard_pwm.rs"]),
+            ("CONFIG_AVR_WATCHDOG", &["avr/watchdog.rs"]),
+            ("CONFIG_USBSERIAL", &["avr/usbserial.rs", "generic/usb_cdc.rs"]),
+            ("CONFIG_SERIAL", &["avr/serial.rs", "generic/serial_irq.rs"]),
+        ];
+        for (c, files) in opt {
+            if on(c) {
+                out.extend(*files);
+            }
+        }
     } else if on("CONFIG_MACH_SIMU") {
         // src/simulator/Makefile
         out.extend(["simulator/main.rs", "simulator/gpio.rs", "simulator/timer.rs", "simulator/serial.rs"]);
         out.extend(["generic/crc16_ccitt.rs", "generic/alloc.rs"]);
         out.extend(["generic/timer_irq.rs", "generic/serial_irq.rs"]);
     } else {
-        panic!("only the linux, stm32, rp2040, lpc176x, atsam, atsamd, hc32f460 and simulator boards are ported");
+        panic!("only the linux, stm32, rp2040, lpc176x, atsam, atsamd, hc32f460, avr and simulator boards are ported");
     }
     // src/indx/Makefile (its c++ objects link after all the c ones)
     if on("CONFIG_WANT_INDX_HEATER") {
@@ -352,6 +370,9 @@ fn chip_header(root: &Path, config: &kconfig::Config) -> Option<(PathBuf, BTreeS
     } else if config.enabled("CONFIG_MACH_HC32F460") {
         // (hc32f460.h and the driver headers)
         ("hc32f460", "hc32f460".to_string())
+    } else if config.enabled("CONFIG_MACH_AVR") {
+        // (avr-libc's <avr/io.h>, made by tools/gen_avr_regs.py)
+        ("avr", mcu.to_string())
     } else {
         return None;
     };
@@ -486,13 +507,21 @@ fn main() {
     println!("cargo:rerun-if-changed=src");
     let config = kconfig::Config::load(&config_dir);
 
-    // cfg flags for the enabled bool options; check-cfg for all of them
+    // cfg flags for the enabled bool options, `NAME = "value"` cfgs for the
+    // int options (the C `#if CONFIG_X == 2`); check-cfg for all of them
     for (name, v) in &config.values {
-        if let kconfig::Value::Bool(_) = v {
-            println!("cargo::rustc-check-cfg=cfg({})", name);
-        }
-        if *v == kconfig::Value::Bool(true) {
-            println!("cargo:rustc-cfg={}", name);
+        match v {
+            kconfig::Value::Bool(on) => {
+                println!("cargo::rustc-check-cfg=cfg({})", name);
+                if *on {
+                    println!("cargo:rustc-cfg={}", name);
+                }
+            }
+            kconfig::Value::Int(n) => {
+                println!("cargo::rustc-check-cfg=cfg({}, values(any()))", name);
+                println!("cargo:rustc-cfg={}=\"{}\"", name, n);
+            }
+            kconfig::Value::Str(_) => {}
         }
     }
     // and for the symbols the sources name that this config lacks
@@ -500,6 +529,7 @@ fn main() {
     for name in config_names(&root.join("src"), "CONFIG_") {
         if !config.values.contains_key(&name) {
             println!("cargo::rustc-check-cfg=cfg({})", name);
+            println!("cargo::rustc-check-cfg=cfg({}, values(any()))", name);
         }
     }
     std::fs::write(out.join("config.rs"), config.rust_consts()).unwrap();
@@ -513,9 +543,17 @@ fn main() {
             println!("cargo:rustc-cfg={}", name);
         }
     }
-    let has = |n: &str| config.enabled(n) || n.strip_prefix("has_").is_some_and(|c| chip_names.contains(c));
+    let has = |n: &str| match n.split_once('=') {
+        // (an int option's value: `CONFIG_X = "2"`)
+        Some((name, v)) => config.int(name.trim()).is_some_and(|i| i.to_string() == v.trim().trim_matches('"')),
+        None => config.enabled(n) || n.strip_prefix("has_").is_some_and(|c| chip_names.contains(c)),
+    };
     if let Some((path, _)) = &chip {
         std::fs::write(out.join("chip.rs"), format!("include!({:?});\n", path.display().to_string())).unwrap();
+    }
+    // (avr: avr-gcc's default linker script and avr-libc's startup code,
+    // as in the C build)
+    if chip.is_some() && !config.enabled("CONFIG_MACH_AVR") {
         let script = if config.enabled("CONFIG_MACH_RPXXXX") {
             "rpxxxx_link.lds.S"
         } else if config.enabled("CONFIG_MACH_SAME70") {

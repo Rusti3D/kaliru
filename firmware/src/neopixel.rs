@@ -24,11 +24,12 @@ use core::mem::size_of;
  * Timing
  ****************************************************************/
 
-type NeopixelTime = u32;
+// (the C `unsigned int`: 16 bits on avr)
+type NeopixelTime = core::ffi::c_uint;
 
 #[inline(always)]
 fn nsecs_to_ticks(ns: u32) -> NeopixelTime {
-    timer_from_us(ns.wrapping_mul(1000)).div_ceil(1000000)
+    timer_from_us(ns.wrapping_mul(1000)).div_ceil(1000000) as NeopixelTime
 }
 
 #[inline]
@@ -36,10 +37,22 @@ fn neopixel_check_elapsed(t1: NeopixelTime, t2: NeopixelTime, ticks: NeopixelTim
     t2.wrapping_sub(t1) >= ticks
 }
 
+// The AVR micro-controllers require specialized timing
+#[cfg(CONFIG_MACH_AVR)]
+fn neopixel_get_time() -> NeopixelTime {
+    unsafe { (*crate::board::chip::TCNT1).read() }
+}
+
+#[cfg(CONFIG_MACH_AVR)]
+#[inline]
+fn neopixel_delay(_start: NeopixelTime, _ticks: NeopixelTime) {}
+
+#[cfg(not(CONFIG_MACH_AVR))]
 fn neopixel_get_time() -> NeopixelTime {
     timer_read_time()
 }
 
+#[cfg(not(CONFIG_MACH_AVR))]
 #[inline]
 fn neopixel_delay(start: NeopixelTime, ticks: NeopixelTime) {
     while !neopixel_check_elapsed(start, neopixel_get_time(), ticks) {}
@@ -91,7 +104,7 @@ pub fn command_config_neopixel(args: &[u32]) -> R {
     let n = unsafe { &mut *(oid_alloc(args[0] as u8, oid_type(), (size_of::<Neopixel>() + data_size as usize) as u16)? as *mut Neopixel) };
     n.pin = pin;
     n.data_size = data_size;
-    n.bit_max_ticks = args[3];
+    n.bit_max_ticks = args[3] as NeopixelTime;
     n.reset_min_ticks = args[4];
     Ok(())
 }

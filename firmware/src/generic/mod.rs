@@ -18,6 +18,9 @@ pub mod canbus_h;
 #[cfg(any(CONFIG_CANSERIAL, CONFIG_USBCANBUS))]
 pub mod canserial;
 pub mod crc16_ccitt;
+// (generic/pgm.h; the avr boards have their own pgm.h)
+#[cfg(not(CONFIG_MACH_AVR))]
+pub mod pgm;
 #[cfg(CONFIG_MACH_SIMU)]
 pub mod gpio_h;
 #[cfg(any(CONFIG_CANSERIAL, CONFIG_USBCANBUS))]

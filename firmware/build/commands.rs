@@ -390,6 +390,7 @@ pub fn generate(requests: &[Request], eval: &Eval, versions: &Versions, kconfig:
     }
     let max_cmd_encid = *cmd_by_encid.keys().max().unwrap();
     let mut index = vec![];
+    let mut max_num_args = 0;
     for enc in 0..=max_cmd_encid {
         let Some((func, flags, msg)) = cmd_by_encid.get(&enc) else {
             index.push("    CommandParser::EMPTY,\n".to_string());
@@ -397,6 +398,7 @@ pub fn generate(requests: &[Request], eval: &Eval, versions: &Versions, kconfig:
         };
         let types = lookup_params(msg);
         let num_args = types.len() + types.iter().filter(|t| t.0 == "PT_progmem_buffer" || t.0 == "PT_buffer").count();
+        max_num_args = max_num_args.max(num_args);
         index.push(format!(
             "    // {}\n    CommandParser {{ encoded_msgid: {}, num_args: {}, flags: {}, num_params: {}, param_types: {}, func: Some({}) }},\n",
             msg,
@@ -408,10 +410,14 @@ pub fn generate(requests: &[Request], eval: &Eval, versions: &Versions, kconfig:
             func
         ));
     }
+    // (the args array of command_dispatch(): C sizes it per command)
+    code += &format!("pub const MAX_COMMAND_ARGS: usize = {};\n", max_num_args);
+    // (the tables buildcommands.py makes PROGMEM: in the avr flash)
+    const PGM: &str = "#[cfg_attr(CONFIG_MACH_AVR, link_section = \".progmem.data\")]\n";
     for (i, p) in param_ids.iter().enumerate() {
-        code += &format!("static COMMAND_PARAMETERS{}: [u8; {}] = [{}];\n", i, p.len(), p.join(", "));
+        code += &format!("{}static COMMAND_PARAMETERS{}: [u8; {}] = [{}];\n", PGM, i, p.len(), p.join(", "));
     }
-    code += &format!("\npub static ENCODERS: [CommandEncoder; {}] = [\n{}];\n", encoder_defs.len(), encoder_defs.concat());
+    code += &format!("\n{}pub static ENCODERS: [CommandEncoder; {}] = [\n{}];\n", PGM, encoder_defs.len(), encoder_defs.concat());
     code += &format!(
         "\npub const fn ctr_lookup_encoder(_s: &str) -> usize {{\n{}    panic!(\"undeclared message\")\n}}\n",
         encoder_lookup.concat()
@@ -425,7 +431,7 @@ pub fn generate(requests: &[Request], eval: &Eval, versions: &Versions, kconfig:
         statics += &format!("    if streq(_s, {:?}) {{\n        return {};\n    }}\n", s, i + STATIC_STRING_MIN);
     }
     code += &format!("\npub const fn ctr_lookup_static_string(_s: &str) -> u8 {{\n{}    0xff\n}}\n", statics);
-    code += &format!("\npub static COMMAND_INDEX: [CommandParser; {}] = [\n{}];\n", index.len(), index.concat());
+    code += &format!("\n{}pub static COMMAND_INDEX: [CommandParser; {}] = [\n{}];\n", PGM, index.len(), index.concat());
     // call lists (HandleCallList)
     for (name, funcs) in call_lists.iter() {
         let calls: Vec<String> = funcs
@@ -455,7 +461,7 @@ pub fn generate(requests: &[Request], eval: &Eval, versions: &Versions, kconfig:
             pins_code.push(format!("    InitialPin {{ pin: {}, flags: {} }}, // {}\n", pin, flag, p));
         }
     }
-    code += &format!("\npub static INITIAL_PINS: [InitialPin; {}] = [\n{}];\n", pins_code.len(), pins_code.concat());
+    code += &format!("\n{}pub static INITIAL_PINS: [InitialPin; {}] = [\n{}];\n", PGM, pins_code.len(), pins_code.concat());
     // the vector table (Handle_arm_irq.generate_code), when there is a
     // ResetHandler
     let armcm_offset = 16;
@@ -484,9 +490,10 @@ pub fn generate(requests: &[Request], eval: &Eval, versions: &Versions, kconfig:
     };
     let bytes: Vec<String> = z.iter().map(|b| format!("0x{:02x}", b)).collect();
     code += &format!(
-        "\n// Identify size = {} ({} uncompressed)\npub static COMMAND_IDENTIFY_DATA: [u8; {}] = [{}];\n",
+        "\n// Identify size = {} ({} uncompressed)\n{}pub static COMMAND_IDENTIFY_DATA: [u8; {}] = [{}];\n",
         z.len(),
         dict.len(),
+        PGM,
         z.len(),
         bytes.join(", ")
     );

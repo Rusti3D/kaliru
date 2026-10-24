@@ -5,12 +5,16 @@
 // This file may be distributed under the terms of the GNU GPLv3 license.
 use crate::board::{
     usb_read_bulk_out, usb_read_ep0, usb_read_ep0_setup, usb_send_bulk_in, usb_send_ep0, usb_set_address, usb_set_configure,
-    usb_stall_ep0, usbserial_get_serialid,
+    usb_stall_ep0,
 };
+// (C: a compile time `if` keeps these out where the option is off)
+#[cfg(CONFIG_USB_SERIAL_NUMBER_CHIPID)]
+use crate::board::usbserial_get_serialid;
+use crate::board::pgm::{readp, NEED_PROGMEM};
 use crate::command::{command_encode_and_frame, command_find_and_dispatch, CommandEncoder, SendArg};
 use crate::config::{
     CONFIG_HAVE_BOOTLOADER_REQUEST, CONFIG_USB_DEVICE_ID, CONFIG_USB_MANUFACTURER, CONFIG_USB_PRODUCT, CONFIG_USB_SERIAL_NUMBER,
-    CONFIG_USB_SERIAL_NUMBER_CHIPID, CONFIG_USB_VENDOR_ID,
+    CONFIG_USB_VENDOR_ID,
 };
 use crate::ctr::Global;
 use crate::generic::usb_cdc_ep::{
@@ -68,7 +72,7 @@ decl_task!(usb_bulk_in_task);
 pub fn console_sendf(ce: &CommandEncoder, args: &[SendArg]) -> R {
     // Verify space for message
     let tpos = *TRANSMIT_POS.get() as usize;
-    let max_size = ce.max_size as usize;
+    let max_size = readp(&ce.max_size) as usize;
     let buf = TRANSMIT_BUF.get();
     if tpos + max_size > buf.len() {
         // Not enough space for message
@@ -154,18 +158,21 @@ const SIZE_CDC_STRING_MANUFACTURER: u8 = string_size::<MANUFACTURER_LEN>();
 const SIZE_CDC_STRING_PRODUCT: u8 = string_size::<PRODUCT_LEN>();
 const SIZE_CDC_STRING_SERIAL: u8 = string_size::<SERIAL_LEN>();
 
+#[cfg_attr(CONFIG_MACH_AVR, link_section = ".progmem.data")]
 static CDC_STRING_LANGIDS: UsbStringDescriptor<1> = UsbStringDescriptor {
     bLength: SIZE_CDC_STRING_LANGIDS,
     bDescriptorType: USB_DT_STRING,
     data: [USB_LANGID_ENGLISH_US],
 };
 
+#[cfg_attr(CONFIG_MACH_AVR, link_section = ".progmem.data")]
 static CDC_STRING_MANUFACTURER: UsbStringDescriptor<MANUFACTURER_LEN> = UsbStringDescriptor {
     bLength: SIZE_CDC_STRING_MANUFACTURER,
     bDescriptorType: USB_DT_STRING,
     data: utf16(CONFIG_USB_MANUFACTURER),
 };
 
+#[cfg_attr(CONFIG_MACH_AVR, link_section = ".progmem.data")]
 static CDC_STRING_PRODUCT: UsbStringDescriptor<PRODUCT_LEN> = UsbStringDescriptor {
     bLength: SIZE_CDC_STRING_PRODUCT,
     bDescriptorType: USB_DT_STRING,
@@ -173,6 +180,7 @@ static CDC_STRING_PRODUCT: UsbStringDescriptor<PRODUCT_LEN> = UsbStringDescripto
 };
 
 #[allow(dead_code)]
+#[cfg_attr(CONFIG_MACH_AVR, link_section = ".progmem.data")]
 static CDC_STRING_SERIAL: UsbStringDescriptor<SERIAL_LEN> = UsbStringDescriptor {
     bLength: SIZE_CDC_STRING_SERIAL,
     bDescriptorType: USB_DT_STRING,
@@ -180,6 +188,7 @@ static CDC_STRING_SERIAL: UsbStringDescriptor<SERIAL_LEN> = UsbStringDescriptor 
 };
 
 // Device descriptor
+#[cfg_attr(CONFIG_MACH_AVR, link_section = ".progmem.data")]
 static CDC_DEVICE_DESCRIPTOR: UsbDeviceDescriptor = UsbDeviceDescriptor {
     bLength: size_of::<UsbDeviceDescriptor>() as u8,
     bDescriptorType: USB_DT_DEVICE,
@@ -211,6 +220,7 @@ struct ConfigS {
     ep3: UsbEndpointDescriptor,
 }
 
+#[cfg_attr(CONFIG_MACH_AVR, link_section = ".progmem.data")]
 static CDC_CONFIG_DESCRIPTOR: ConfigS = ConfigS {
     config: UsbConfigDescriptor {
         bLength: size_of::<UsbConfigDescriptor>() as u8,
@@ -304,6 +314,7 @@ macro_rules! desc {
     };
 }
 
+#[cfg_attr(CONFIG_MACH_AVR, link_section = ".progmem.data")]
 static CDC_DESCRIPTORS_BASE: [DescriptorS; 5] = [
     desc!((USB_DT_DEVICE as u16) << 8, 0x0000, CDC_DEVICE_DESCRIPTOR, size_of::<UsbDeviceDescriptor>() as u8),
     desc!((USB_DT_CONFIG as u16) << 8, 0x0000, CDC_CONFIG_DESCRIPTOR, size_of::<ConfigS>() as u8),
@@ -317,6 +328,7 @@ static CDC_DESCRIPTORS_BASE: [DescriptorS; 5] = [
     desc!(((USB_DT_STRING as u16) << 8) | USB_STR_ID_PRODUCT, USB_LANGID_ENGLISH_US, CDC_STRING_PRODUCT, SIZE_CDC_STRING_PRODUCT),
 ];
 #[cfg(not(CONFIG_USB_SERIAL_NUMBER_CHIPID))]
+#[cfg_attr(CONFIG_MACH_AVR, link_section = ".progmem.data")]
 static CDC_DESCRIPTORS_SERIAL: [DescriptorS; 1] = [desc!(
     ((USB_DT_STRING as u16) << 8) | USB_STR_ID_SERIAL,
     USB_LANGID_ENGLISH_US,
@@ -324,6 +336,7 @@ static CDC_DESCRIPTORS_SERIAL: [DescriptorS; 1] = [desc!(
     SIZE_CDC_STRING_SERIAL
 )];
 #[cfg(CONFIG_USB_SERIAL_NUMBER_CHIPID)]
+#[cfg_attr(CONFIG_MACH_AVR, link_section = ".progmem.data")]
 static CDC_DESCRIPTORS_SERIAL: [DescriptorS; 0] = [];
 
 // Fill in a USB serial string descriptor from a chip id
@@ -347,7 +360,6 @@ pub fn usb_fill_serial<const N: usize>(desc: &mut UsbStringDescriptor<N>, strlen
 // State tracking
 const UX_READ: u8 = 1 << 0;
 const UX_SEND: u8 = 1 << 1;
-#[allow(dead_code)]
 const UX_SEND_PROGMEM: u8 = 1 << 2;
 const UX_SEND_ZLP: u8 = 1 << 3;
 
@@ -361,16 +373,29 @@ fn usb_do_stall() {
     *USB_XFER_FLAGS.get() = 0;
 }
 
+// usb_send_ep0_progmem(): the board's, where the descriptors are in
+// program memory (avr); not reached elsewhere (NEED_PROGMEM is false)
+#[cfg(CONFIG_MACH_AVR)]
+use crate::board::usb_send_ep0_progmem;
+#[cfg(not(CONFIG_MACH_AVR))]
+fn usb_send_ep0_progmem(data: *const u8, len: u8) -> i8 {
+    usb_send_ep0(data, len)
+}
+
 // Transfer data on the usb endpoint 0
-// (the UX_SEND_PROGMEM / usb_send_ep0_progmem() path is for AVR only:
-// NEED_PROGMEM)
 fn usb_do_xfer(mut data: *mut u8, mut size: u8, mut flags: u8) {
     loop {
         let mut xs = size;
         if xs as usize > USB_CDC_EP0_SIZE {
             xs = USB_CDC_EP0_SIZE as u8;
         }
-        let ret = if flags & UX_READ != 0 { usb_read_ep0(data, xs) } else { usb_send_ep0(data, xs) };
+        let ret = if flags & UX_READ != 0 {
+            usb_read_ep0(data, xs)
+        } else if NEED_PROGMEM && flags & UX_SEND_PROGMEM != 0 {
+            usb_send_ep0_progmem(data, xs)
+        } else {
+            usb_send_ep0(data, xs)
+        };
         if ret as i32 == xs as i32 {
             // Success
             data = data.wrapping_add(xs as usize);
@@ -413,14 +438,14 @@ fn usb_req_get_descriptor(req: &UsbCtrlRequest) {
         let mut desc: *const u8 = core::ptr::null();
         let (mut flags, mut size) = (0u8, 0u8);
         for d in CDC_DESCRIPTORS_BASE.iter().chain(CDC_DESCRIPTORS_SERIAL.iter()) {
-            if d.w_value == { req.wValue } && d.w_index == { req.wIndex } {
-                flags = UX_SEND;
-                size = d.size;
-                desc = d.desc;
+            if readp(&d.w_value) == { req.wValue } && readp(&d.w_index) == { req.wIndex } {
+                flags = if NEED_PROGMEM { UX_SEND_PROGMEM } else { UX_SEND };
+                size = readp(&d.size);
+                desc = readp(&d.desc);
             }
         }
-        if CONFIG_USB_SERIAL_NUMBER_CHIPID
-            && { req.wValue } == ((USB_DT_STRING as u16) << 8) | USB_STR_ID_SERIAL
+        #[cfg(CONFIG_USB_SERIAL_NUMBER_CHIPID)]
+        if { req.wValue } == ((USB_DT_STRING as u16) << 8) | USB_STR_ID_SERIAL
             && { req.wIndex } == USB_LANGID_ENGLISH_US
         {
             let usbserial_serialid = usbserial_get_serialid();
@@ -468,6 +493,7 @@ fn check_reboot() {
     if !CONFIG_HAVE_BOOTLOADER_REQUEST {
         return;
     }
+    #[cfg(CONFIG_HAVE_BOOTLOADER_REQUEST)]
     if { LINE_CODING.get().dwDTERate } == 1200 && *LINE_CONTROL_STATE.get() & 0x01 == 0 {
         // A baud of 1200 is an Arduino style request to enter the bootloader
         crate::board::bootloader_request();

@@ -4,8 +4,11 @@
 //
 // This file may be distributed under the terms of the GNU GPLv3 license.
 #![allow(non_upper_case_globals)]
+use crate::board::pgm::{readp, NEED_PROGMEM};
 use crate::board::{console_sendf, crc16_ccitt, irq_poll};
-use crate::ctr::{Global, COMMAND_INDEX};
+use crate::ctr::{Global, COMMAND_INDEX, MAX_COMMAND_ARGS};
+use core::ffi::{c_int, c_uint};
+use core::mem::size_of;
 use crate::sched::{sched_is_shutdown, sched_report_shutdown, R};
 use crate::{decl_shutdown, shutdown};
 
@@ -210,11 +213,13 @@ pub fn command_parse_msgid(buf: &[u8], pp: &mut usize) -> u16 {
 pub fn command_parsef(buf: &[u8], mut p: usize, maxend: usize, cp: &CommandParser, args: &mut [u32]) -> R<usize> {
     'error: {
         let mut a = 0;
-        for &t in &cp.param_types[..cp.num_params as usize] {
+        let num_params = readp(&cp.num_params) as usize;
+        let param_types = readp(&cp.param_types);
+        for t in &param_types[..num_params] {
             if p > maxend {
                 break 'error;
             }
-            match t {
+            match readp(t) {
                 PT_uint32 | PT_int32 | PT_uint16 | PT_int16 | PT_byte => {
                     args[a] = parse_int(buf, &mut p);
                     a += 1;
@@ -243,22 +248,35 @@ pub fn command_parsef(buf: &[u8], mut p: usize, maxend: usize, cp: &CommandParse
 
 // Encode a message
 fn command_encodef(buf: &mut [u8], ce: &CommandEncoder, args: &[SendArg]) -> R<usize> {
-    let max_size = ce.max_size as usize;
+    let max_size = readp(&ce.max_size) as usize;
     if max_size <= MESSAGE_MIN {
         // Ack/Nak message
         return Ok(max_size);
     }
     let mut p = MESSAGE_HEADER_SIZE;
     let maxend = p + max_size - MESSAGE_MIN;
-    p = encode_msgid(buf, p, ce.encoded_msgid);
+    let num_params = readp(&ce.num_params) as usize;
+    let param_types = readp(&ce.param_types);
+    p = encode_msgid(buf, p, readp(&ce.encoded_msgid));
     'error: {
-        for (i, &t) in ce.param_types[..ce.num_params as usize].iter().enumerate() {
+        for (i, t) in param_types[..num_params].iter().enumerate() {
+            let t = readp(t);
             if p > maxend {
                 break 'error;
             }
             match (t, args.get(i)) {
                 (PT_uint32 | PT_int32 | PT_uint16 | PT_int16 | PT_byte, Some(SendArg::Int(v))) => {
-                    p = encode_int(buf, p, *v);
+                    // (a 16bit int board passes these as an int / unsigned int)
+                    let v = if size_of::<u32>() > size_of::<c_int>() && t >= PT_uint16 {
+                        if t == PT_int16 {
+                            *v as c_int as i32 as u32
+                        } else {
+                            *v as c_uint as u32
+                        }
+                    } else {
+                        *v
+                    };
+                    p = encode_int(buf, p, v);
                 }
                 (PT_string, Some(SendArg::Str(s))) => {
                     let lenp = p;
@@ -276,7 +294,14 @@ fn command_encodef(buf: &mut [u8], ce: &CommandEncoder, args: &[SendArg]) -> R<u
                     let v = s.len().min(maxend - p);
                     buf[p] = v as u8;
                     p += 1;
-                    buf[p..p + v].copy_from_slice(&s[..v]);
+                    if t == PT_progmem_buffer && NEED_PROGMEM {
+                        // memcpy_P()
+                        for (d, b) in buf[p..p + v].iter_mut().zip(&s[..v]) {
+                            *d = readp(b);
+                        }
+                    } else {
+                        buf[p..p + v].copy_from_slice(&s[..v]);
+                    }
                     p += v;
                 }
                 _ => break 'error,
@@ -341,6 +366,7 @@ fn command_lookup_parser(cmdid: u16) -> R<&'static CommandParser> {
 }
 
 // Empty message (for ack/nak transmission)
+#[cfg_attr(CONFIG_MACH_AVR, link_section = ".progmem.data")]
 pub static ENCODE_ACKNAK: CommandEncoder = CommandEncoder { encoded_msgid: 0, max_size: MESSAGE_MIN as u8, num_params: 0, param_types: &[] };
 
 const CF_NEED_SYNC: u8 = 1 << 0;
@@ -422,15 +448,16 @@ pub fn command_dispatch(buf: &[u8], msglen: usize) -> R {
     while p < msgend {
         let cmdid = command_parse_msgid(buf, &mut p);
         let cp = command_lookup_parser(cmdid)?;
-        let mut args = [0u32; 64];
-        let args = &mut args[..cp.num_args as usize];
+        // (C: a variable length array of READP(cp->num_args))
+        let mut args = [0u32; MAX_COMMAND_ARGS];
+        let args = &mut args[..readp(&cp.num_args) as usize];
         p = command_parsef(buf, p, msgend, cp, args)?;
-        if sched_is_shutdown() && cp.flags & HF_IN_SHUTDOWN == 0 {
+        if sched_is_shutdown() && readp(&cp.flags) & HF_IN_SHUTDOWN == 0 {
             sched_report_shutdown()?;
             continue;
         }
         irq_poll()?;
-        (cp.func.unwrap())(args)?;
+        (readp(&cp.func).unwrap())(args)?;
     }
     Ok(())
 }

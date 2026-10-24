@@ -84,3 +84,4 @@ pub use usbserial::{
     usb_read_bulk_out, usb_read_ep0, usb_read_ep0_setup, usb_send_bulk_in, usb_send_ep0, usb_set_address, usb_set_configure,
     usb_stall_ep0,
 };
+pub use crate::generic::pgm;

@@ -17,3 +17,4 @@ pub use gpio::{
 };
 pub use serial::{console_receive_buffer, serial_enable_tx_irq};
 pub use timer::{irq_disable, irq_enable, irq_poll, irq_restore, irq_save, irq_wait, timer_kick, timer_read_time, IrqStatus};
+pub use crate::generic::pgm;

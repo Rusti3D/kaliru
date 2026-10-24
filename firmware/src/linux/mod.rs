@@ -27,3 +27,4 @@ pub use timer::{
     irq_disable, irq_enable, irq_poll, irq_restore, irq_save, irq_wait, timer_from_us, timer_is_before, timer_kick,
     timer_read_time, IrqStatus,
 };
+pub use crate::generic::pgm;
