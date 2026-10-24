@@ -1052,6 +1052,8 @@ impl Parser {
             self.end_token_stack.pop();
         }
         res?;
+        // (templates live as long as the config: no spare capacity)
+        body.shrink_to_fit();
         Ok(body)
     }
 
