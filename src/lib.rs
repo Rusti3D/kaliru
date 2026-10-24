@@ -12,7 +12,6 @@ pub mod kinematics;
 pub mod logging;
 pub mod mathutil;
 pub mod numpy_fft;
-pub mod pcprof;
 pub mod scipy_signal;
 pub mod mcu;
 pub mod msgproto;
