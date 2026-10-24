@@ -1,0 +1,8 @@
+17c17
+< < config is_config=1 crc=7 is_shutdown=0 move_count=139
+---
+> < config is_config=1 crc=7 is_shutdown=0 move_count=149
+83c83
+< < config is_config=1 crc=7 is_shutdown=1 move_count=139
+---
+> < config is_config=1 crc=7 is_shutdown=1 move_count=149

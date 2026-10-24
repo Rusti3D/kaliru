@@ -193,6 +193,23 @@ class Stm32TimTime:
 # ---- boards
 
 
+class Ported:
+    """a board whose serial port is a `port` object (a uart or a usb device
+    with its host)"""
+
+    def uart_read(self, emu, addr):
+        return self.port.read(emu, addr)
+
+    def uart_write(self, emu, addr, value):
+        return self.port.write(emu, addr, value)
+
+    def uart_irq(self, emu):
+        return self.port.irq(emu)
+
+    def host(self, emu):
+        return self.port.host(emu)
+
+
 class Stm32:
     """the stm32 parts of the model: clock setup status bits, the usart"""
 
@@ -299,8 +316,6 @@ class UsbHost:
     `reset()`, `setup(data)`, `out(ep, data)` and `in_(ep)` ("ack", "nak" or
     "stall"). What the device answers is written to the access log."""
 
-    # (generic/usb_cdc_ep.h)
-    EP0_SIZE, BULK_IN, BULK_OUT, BULK_OUT_SIZE = 16, 1, 2, 64
     LINE_CODING = struct.pack("<IBBB", 250000, 0, 0, 8)
     REQUESTS = [
         # (bmRequestType, bRequest, wValue, wIndex, wLength, out data)
@@ -320,10 +335,17 @@ class UsbHost:
         (0x21, 0x22, 0x0003, 0, 0, b""),     # SET_CONTROL_LINE_STATE dtr rts
     ]
 
-    def __init__(self, dev):
+    def __init__(self, dev, board="generic"):
         self.dev = dev
         self.steps = self.enumerate()
         self.enumerated = False
+        # (the endpoints: Kalico's src/<board>/usb_cdc_ep.h, or the generic one)
+        path = os.path.join(mcu_run.KALICO, "src", board, "usb_cdc_ep.h")
+        if not os.path.exists(path):
+            path = os.path.join(mcu_run.KALICO, "src", "generic", "usb_cdc_ep.h")
+        ep = {m.group(1): int(m.group(2)) for m in re.finditer(r"(USB_CDC_\w+) = (\d+)", open(path).read())}
+        self.EP0_SIZE, self.BULK_IN = ep["USB_CDC_EP0_SIZE"], ep["USB_CDC_EP_BULK_IN"]
+        self.BULK_OUT, self.BULK_OUT_SIZE = ep["USB_CDC_EP_BULK_OUT"], ep["USB_CDC_EP_BULK_OUT_SIZE"]
 
     def step(self, emu):
         """what the host can do now; True if it did something"""
@@ -774,9 +796,9 @@ class UsbOtg:
         return "ack", data
 
 
-class Lpc176x:
-    """lpc176x: the uart (serial.c: LSR THRE, IIR, IER), DWT time; its gpio
-    block sits at 0x2009c000"""
+class Lpc176x(Ported):
+    """lpc176x: the uart or the usb device, DWT time; its gpio block sits at
+    0x2009c000"""
 
     def __init__(self, cfg):
         chip = self.chip = Chip(os.path.join(ROOT, "src", "lpc176x", "chip", "lpc17xx.rs"))
@@ -784,14 +806,36 @@ class Lpc176x:
         self.time = DwtTime(chip)
         self.mmio = [(chip.ptr["LPC_GPIO0"] & ~0xFFFF, 0x10000)]
         self.read_rules = {}
+        self.port = LpcUsb(chip) if cfg.get("CONFIG_USBSERIAL") else LpcUart(cfg, chip)
+
+    # (the boot rom's in application programming entry, chipid.c's serial
+    # number read: CMD_SUCCESS, zeros)
+    IAP = 0x1FFF1FF0
+
+    def setup(self, uc):
+        uc.mem_map(self.IAP & ~0xFFFF, 0x10000, unicorn.UC_PROT_READ | unicorn.UC_PROT_EXEC)
+        uc.hook_add(unicorn.UC_HOOK_CODE, self.iap, begin=self.IAP, end=self.IAP)
+
+    def iap(self, uc, address, size, user):
+        uc.mem_write(uc.reg_read(A.UC_ARM_REG_R1), bytes(5 * 4))
+        uc.reg_write(A.UC_ARM_REG_PC, uc.reg_read(A.UC_ARM_REG_LR))
+
+
+class LpcUart:
+    """lpc176x/serial.c: the uart (LSR THRE, IIR, IER)"""
+
+    def __init__(self, cfg, chip):
         uart = "UART0" if cfg.get("CONFIG_LPC_SERIAL_UART0_P03_P02") else "UART3"
-        self.irq = chip.const[uart + "_IRQn"]
+        self.irq_num = chip.const[uart + "_IRQn"]
         p = "LPC_" + uart
         self.rbr = chip.at(p, "RBR")
         self.ier, self.iir = chip.at(p, "IER"), chip.at(p, "IIR")
         self.lcr, self.lsr = chip.at(p, "LCR"), chip.at(p, "LSR")
 
-    def uart_read(self, emu, addr):
+    def host(self, emu):
+        return False
+
+    def read(self, emu, addr):
         if addr == self.lsr:
             # (THRE, and RDR when a byte is there)
             return (1 << 5) | (1 if emu.rx else 0)
@@ -802,18 +846,205 @@ class Lpc176x:
             return emu.rx_byte()
         return None
 
-    def uart_write(self, emu, addr, value):
+    def write(self, emu, addr, value):
         # (offset 0 is THR, or DLL with the DLAB bit set)
         if addr == self.rbr and not emu.get(self.lcr, 1) & 0x80:
             emu.tx += bytes([value & 0xFF])
             return True
         return False
 
-    def uart_irq(self, emu):
+    def irq(self, emu):
         ier = emu.get(self.ier, 4)
         if (emu.rx and ier & 1) or ier & 2:
-            return self.irq
+            return self.irq_num
         return None
+
+
+class LpcUsb:
+    """lpc176x/usbserial.c: the usb device controller, driven through its
+    serial interface engine commands (USBCmdCode / USBCmdData with the
+    CCEMPTY / CDFULL handshake: select, select and clear, set endpoint
+    status, clear / validate buffer, ...), endpoint realisation, the USBCtrl
+    selected USBRx / USBTx data and length registers and the endpoint
+    interrupts (EP_SLOW), for the UsbHost. Physical endpoint 2n is endpoint
+    n out, 2n + 1 endpoint n in."""
+
+    EP_SLOW, DEV_STAT, CCEMPTY, CDFULL, EP_RLZED = 1 << 2, 1 << 3, 1 << 4, 1 << 5, 1 << 8
+    RD_EN, WR_EN = 1 << 0, 1 << 1
+
+    def __init__(self, chip):
+        u = lambda f: chip.at("LPC_USB", f)  # noqa: E731
+        self.devintst, self.devinten = u("USBDevIntSt"), u("USBDevIntEn")
+        self.devintclr, self.devintset = u("USBDevIntClr"), u("USBDevIntSet")
+        self.cmdcode, self.cmddata = u("USBCmdCode"), u("USBCmdData")
+        self.rxdata, self.txdata, self.rxplen, self.txplen = u("USBRxData"), u("USBTxData"), u("USBRxPLen"), u("USBTxPLen")
+        self.ctrl = u("USBCtrl")
+        self.epintst, self.epinten, self.epintclr = u("USBEpIntSt"), u("USBEpIntEn"), u("USBEpIntClr")
+        self.maxpsize = u("USBMaxPSize")
+        self.clkctrl, self.clkst = u("USBClkCtrl"), u("USBClkSt")
+        self.irq_num = chip.const["USB_IRQn"]
+        self.flags = 0
+        self.epint = 0
+        self.cmd = 0
+        self.selected = 0
+        self.data = 0
+        self.connected = False
+        # (per physical endpoint: its buffer's packet (or None), stalled)
+        self.buf = [None] * 32
+        self.stall = [False] * 32
+        self.rx_packet = b""
+        self.rx = []
+        self.tx = []
+        self.host_side = UsbHost(self, "lpc176x")
+
+    # ---- the cpu's registers
+
+    def read(self, emu, addr):
+        if addr == self.devintst:
+            return self.flags | (self.EP_SLOW if self.epint & emu.get(self.epinten, 4) else 0)
+        if addr == self.epintst:
+            return self.epint
+        if addr == self.cmddata:
+            self.flags &= ~self.CDFULL
+            return self.data
+        if addr == self.clkst:
+            return emu.get(self.clkctrl, 4)
+        if addr == self.rxplen:
+            # (PKT_RDY, DV, the length)
+            return (1 << 11) | (1 << 10) | len(self.rx_packet)
+        if addr == self.rxdata:
+            return self.rx.pop(0) if self.rx else 0
+        return None
+
+    def write(self, emu, addr, value):
+        if addr == self.devintclr:
+            self.flags &= ~value
+            return True
+        if addr == self.devintset:
+            self.flags |= value
+            return True
+        if addr == self.maxpsize:
+            self.flags |= self.EP_RLZED
+            return False
+        if addr == self.epintclr:
+            # (also selects the endpoint: its status in USBCmdData)
+            for n in range(32):
+                if value >> n & 1:
+                    self.epint &= ~(1 << n)
+                    self.data = self.select_status(n)
+            self.flags |= self.CDFULL
+            return True
+        if addr == self.cmdcode:
+            self.command(emu, (value >> 8) & 0xFF, (value >> 16) & 0xFF)
+            return True
+        if addr == self.ctrl:
+            ep = ((value >> 2) & 0xF) * 2
+            if value & self.RD_EN:
+                self.rx_packet = self.buf[ep] or b""
+                words = self.rx_packet + bytes(-len(self.rx_packet) % 4)
+                self.rx = [struct.unpack_from("<I", words, i)[0] for i in range(0, len(words), 4)]
+            if value & self.WR_EN:
+                self.tx = []
+            emu.put(addr, 4, value)
+            return True
+        if addr == self.txdata:
+            self.tx.append(value)
+            return True
+        return False
+
+    def used_bits(self, emu, addr):
+        # (a USBTxData word's bytes past USBTxPLen are not sent; usbserial.c
+        # copies whole words from its buffer)
+        if addr == self.txdata:
+            left = (emu.get(self.txplen, 4) & 0x3FF) - 4 * len(self.tx)
+            if 0 <= left < 4:
+                return (1 << (8 * left)) - 1
+        return 0xFFFFFFFF
+
+    def select_status(self, ep):
+        # (FE: buffer full, ST: stalled)
+        return (1 if self.buf[ep] is not None else 0) | (2 if self.stall[ep] else 0)
+
+    def command(self, emu, phase, code):
+        if phase == 0x05:
+            # (the command phase)
+            self.cmd = code
+            if code == 0xFA:
+                # validate buffer: the selected in endpoint's packet written
+                n = emu.get(self.txplen, 4) & 0x3FF
+                self.buf[self.selected] = b"".join(struct.pack("<I", w) for w in self.tx)[:n]
+                self.tx = []
+            elif code < 0x20:
+                self.selected = code
+        elif phase == 0x01:
+            # (a command's data written)
+            cmd = self.cmd
+            if cmd & 0xE0 == 0x40:
+                # set endpoint status: ST, or bit 7 (ep0's conditional stall)
+                ep = cmd & 0x1F
+                st = bool(code & 0x81)
+                for e in ((0, 1) if code & 0x80 else (ep,)):
+                    self.stall[e] = st
+            elif cmd == 0xFE:
+                self.connected = bool(code & 1)
+        elif phase == 0x02:
+            # (a command's data read)
+            cmd = self.cmd
+            if cmd < 0x20:
+                self.data = self.select_status(cmd)
+            elif cmd == 0xF2:
+                # clear buffer: the selected out endpoint's packet read
+                self.buf[self.selected] = None
+                self.data = 0
+            else:
+                self.data = 0
+            self.flags |= self.CDFULL
+            return
+        self.flags |= self.CCEMPTY
+
+    def irq(self, emu):
+        st = self.flags | (self.EP_SLOW if self.epint & emu.get(self.epinten, 4) else 0)
+        if st & emu.get(self.devinten, 4):
+            return self.irq_num
+        return None
+
+    def host(self, emu):
+        self.host_side.emu = emu
+        return self.host_side.step(emu)
+
+    # ---- the host's transactions
+
+    def ready(self, emu):
+        return self.connected and emu.get(self.devinten, 4) & self.EP_SLOW
+
+    def reset(self, emu):
+        self.flags |= self.DEV_STAT
+
+    def setup(self, emu, data):
+        self.buf[0] = bytes(data)
+        self.stall[0] = self.stall[1] = False
+        self.epint |= 1 << 0
+        return True
+
+    def out(self, emu, ep, data):
+        p = ep * 2
+        if self.stall[p]:
+            return "stall"
+        if self.buf[p] is not None:
+            return "nak"
+        self.buf[p] = bytes(data)
+        self.epint |= 1 << p
+        return "ack"
+
+    def in_(self, emu, ep):
+        p = ep * 2 + 1
+        if self.stall[p]:
+            return "stall", b""
+        if self.buf[p] is None:
+            return "nak", b""
+        data, self.buf[p] = self.buf[p], None
+        self.epint |= 1 << p
+        return "ack", data
 
 
 class Atsam:
@@ -898,17 +1129,28 @@ class TcTime:
         self.due = None
 
 
-class Atsamd:
-    """atsamd: the SERCOM0 usart (serial.c: INTFLAG DRE / RXC, INTENSET /
-    INTENCLR mask), the TC (samd21, samc21) or DWT (samd51, same5x) time"""
+class Atsamd(Ported):
+    """atsamd: the SERCOM0 usart or the usb device, the TC (samd21, samc21)
+    or DWT (samd51, same5x) time; the nvm calibration rows (GET_FUSE: 0)"""
 
     def __init__(self, cfg):
         chip = self.chip = Chip(os.path.join(ROOT, "src", "atsamd", "chip", cfg["CONFIG_MCU"] + ".rs"))
-        c = chip.const
         samx5 = cfg.get("CONFIG_MACH_SAMX5")
         self.cpu = A.UC_CPU_ARM_CORTEX_M4 if samx5 else A.UC_CPU_ARM_CORTEX_M0
         self.time = DwtTime(chip) if samx5 else TcTime(chip, "TC0" if cfg.get("CONFIG_MACH_SAMC21") else "TC4")
         self.read_rules = {}
+        self.mmio = [(0x00800000, 0x10000)]
+        self.port = SamdUsb(cfg, chip) if cfg.get("CONFIG_USBSERIAL") else AtsamdUsart(cfg, chip)
+        self.pointer_regs = {self.port.descadd} if cfg.get("CONFIG_USBSERIAL") else set()
+
+
+class AtsamdUsart:
+    """atsamd/serial.c: the SERCOM0 usart (INTFLAG DRE / RXC, INTENSET /
+    INTENCLR mask)"""
+
+    def __init__(self, cfg, chip):
+        c = chip.const
+        samx5 = cfg.get("CONFIG_MACH_SAMX5")
         u = lambda f: chip.ptr["SERCOM0"] + chip.off[("SercomUsart", f)]  # noqa: E731
         self.intflag, self.data = u("INTFLAG"), u("DATA")
         self.intenset, self.intenclr = u("INTENSET"), u("INTENCLR")
@@ -918,7 +1160,7 @@ class Atsamd:
         self.rxc_irq = c["SERCOM0_2_IRQn"] if samx5 else c["SERCOM0_IRQn"]
         self.mask = 0
 
-    def uart_read(self, emu, addr):
+    def read(self, emu, addr):
         if addr == self.intflag:
             return self.DRE | self.TXC | (self.RXC if emu.rx else 0)
         if addr == self.data:
@@ -927,7 +1169,7 @@ class Atsamd:
             return self.mask
         return None
 
-    def uart_write(self, emu, addr, value):
+    def write(self, emu, addr, value):
         if addr == self.data:
             emu.tx += bytes([value & 0xFF])
             return True
@@ -939,12 +1181,172 @@ class Atsamd:
             return True
         return False
 
-    def uart_irq(self, emu):
+    def irq(self, emu):
         if emu.rx and self.mask & self.RXC:
             return self.rxc_irq
         if self.mask & self.DRE:
             return self.dre_irq
         return None
+
+    def host(self, emu):
+        return False
+
+
+class SamdUsb:
+    """atsamd/usbserial.c: the usb device controller (the endpoint
+    descriptor table in ram with each bank's ADDR / PCKSIZE; EPSTATUS BKnRDY
+    and STALLRQn, EPINTFLAG TRCPTn / RXSTP, EPINTSMRY; bank 0 out, bank 1
+    in) for the UsbHost"""
+
+    def __init__(self, cfg, chip):
+        c = chip.const
+        base = chip.ptr["USB"]
+        d = lambda f: base + chip.off[("UsbDevice", f)]  # noqa: E731
+        self.ctrla, self.intenset, self.intenclr = d("CTRLA"), d("INTENSET"), d("INTENCLR")
+        self.intflag, self.epintsmry, self.descadd = d("INTFLAG"), d("EPINTSMRY"), d("DESCADD")
+        self.ep = d("DeviceEndpoint")
+        e = lambda f: chip.off[("UsbDeviceEndpoint", f)]  # noqa: E731
+        self.EPSTATUSCLR, self.EPSTATUSSET, self.EPSTATUS = e("EPSTATUSCLR"), e("EPSTATUSSET"), e("EPSTATUS")
+        self.EPINTFLAG, self.EPINTENCLR, self.EPINTENSET = e("EPINTFLAG"), e("EPINTENCLR"), e("EPINTENSET")
+        self.EPSIZE = 32
+        self.ADDR, self.PCKSIZE = chip.off[("UsbDeviceDescBank", "ADDR")], chip.off[("UsbDeviceDescBank", "PCKSIZE")]
+        self.BANKSIZE = 16
+        self.ENABLE, self.EORST = c["USB_CTRLA_ENABLE"], c["USB_DEVICE_INTFLAG_EORST"]
+        self.BK0RDY, self.BK1RDY = c["USB_DEVICE_EPSTATUS_BK0RDY"], c["USB_DEVICE_EPSTATUS_BK1RDY"]
+        self.STALLRQ0, self.STALLRQ1 = c["USB_DEVICE_EPSTATUS_STALLRQ0"], c["USB_DEVICE_EPSTATUS_STALLRQ1"]
+        self.TRCPT0, self.TRCPT1 = c["USB_DEVICE_EPINTFLAG_TRCPT0"], c["USB_DEVICE_EPINTFLAG_TRCPT1"]
+        self.RXSTP = c["USB_DEVICE_EPINTFLAG_RXSTP"]
+        self.COUNT = c["USB_DEVICE_PCKSIZE_BYTE_COUNT_Msk"]
+        # (samd51: an irq per kind of event, usbserial.c enables them all)
+        samx5 = cfg.get("CONFIG_MACH_SAMX5")
+        self.irqs = [c["USB_%d_IRQn" % i] for i in range(4)] if samx5 else [c["USB_IRQn"]] * 4
+        self.dev_mask = 0
+        self.status = [0] * 8
+        self.flags = [0] * 8
+        self.masks = [0] * 8
+        self.host_side = UsbHost(self)
+
+    def ep_reg(self, addr):
+        if self.ep <= addr < self.ep + 8 * self.EPSIZE:
+            return (addr - self.ep) // self.EPSIZE, (addr - self.ep) % self.EPSIZE
+        return None
+
+    # ---- the cpu's registers
+
+    def read(self, emu, addr):
+        if addr == self.intflag:
+            return emu.get(addr, 2)
+        if addr in (self.intenset, self.intenclr):
+            return self.dev_mask
+        if addr == self.epintsmry:
+            return sum(1 << n for n in range(8) if self.flags[n] & self.masks[n])
+        r = self.ep_reg(addr)
+        if r:
+            n, off = r
+            if off == self.EPSTATUS:
+                return self.status[n]
+            if off == self.EPINTFLAG:
+                return self.flags[n]
+            if off in (self.EPINTENSET, self.EPINTENCLR):
+                return self.masks[n]
+        return None
+
+    def write(self, emu, addr, value):
+        if addr == self.intflag:
+            emu.put(addr, 2, emu.get(addr, 2) & ~value)
+            return True
+        if addr == self.intenset:
+            self.dev_mask |= value
+            return True
+        if addr == self.intenclr:
+            self.dev_mask &= ~value
+            return True
+        r = self.ep_reg(addr)
+        if r:
+            n, off = r
+            if off == self.EPSTATUSSET:
+                self.status[n] |= value
+                return True
+            if off == self.EPSTATUSCLR:
+                self.status[n] &= ~value
+                return True
+            if off == self.EPINTFLAG:
+                self.flags[n] &= ~value
+                return True
+            if off == self.EPINTENSET:
+                self.masks[n] |= value
+                return True
+            if off == self.EPINTENCLR:
+                self.masks[n] &= ~value
+                return True
+        return False
+
+    def irq(self, emu):
+        if emu.get(self.intflag, 2) & self.dev_mask:
+            return self.irqs[0]
+        for n in range(8):
+            f = self.flags[n] & self.masks[n]
+            if f & self.RXSTP:
+                return self.irqs[0]
+            if f & self.TRCPT0:
+                return self.irqs[2]
+            if f & self.TRCPT1:
+                return self.irqs[3]
+        return None
+
+    def host(self, emu):
+        self.host_side.emu = emu
+        return self.host_side.step(emu)
+
+    # ---- the host's transactions
+
+    def bank(self, emu, ep, b):
+        """(buffer address, PCKSIZE address) of an endpoint bank, from the
+        descriptor table in ram"""
+        desc = emu.get(self.descadd, 4) + ep * 2 * self.BANKSIZE + b * self.BANKSIZE
+        addr = struct.unpack("<I", emu.uc.mem_read(desc + self.ADDR, 4))[0]
+        return addr, desc + self.PCKSIZE
+
+    def ready(self, emu):
+        return emu.get(self.ctrla, 1) & self.ENABLE and self.dev_mask & self.EORST
+
+    def reset(self, emu):
+        emu.put(self.intflag, 2, emu.get(self.intflag, 2) | self.EORST)
+
+    def setup(self, emu, data):
+        buf, pck = self.bank(emu, 0, 0)
+        emu.uc.mem_write(buf, data)
+        size = struct.unpack("<I", emu.uc.mem_read(pck, 4))[0]
+        emu.uc.mem_write(pck, struct.pack("<I", (size & ~self.COUNT) | len(data)))
+        # (a setup ends a stall)
+        self.status[0] = (self.status[0] & ~(self.STALLRQ0 | self.STALLRQ1)) | self.BK0RDY
+        self.flags[0] |= self.RXSTP
+        return True
+
+    def out(self, emu, ep, data):
+        if self.status[ep] & self.STALLRQ0:
+            return "stall"
+        if self.status[ep] & self.BK0RDY:
+            return "nak"
+        buf, pck = self.bank(emu, ep, 0)
+        emu.uc.mem_write(buf, data)
+        size = struct.unpack("<I", emu.uc.mem_read(pck, 4))[0]
+        emu.uc.mem_write(pck, struct.pack("<I", (size & ~self.COUNT) | len(data)))
+        self.status[ep] |= self.BK0RDY
+        self.flags[ep] |= self.TRCPT0
+        return "ack"
+
+    def in_(self, emu, ep):
+        if self.status[ep] & self.STALLRQ1:
+            return "stall", b""
+        if not self.status[ep] & self.BK1RDY:
+            return "nak", b""
+        buf, pck = self.bank(emu, ep, 1)
+        n = struct.unpack("<I", emu.uc.mem_read(pck, 4))[0] & self.COUNT
+        data = bytes(emu.uc.mem_read(buf, n))
+        self.status[ep] &= ~self.BK1RDY
+        self.flags[ep] |= self.TRCPT1
+        return "ack", data
 
 
 class Hc32f460:
@@ -1369,13 +1771,23 @@ class Emu(mcu_run.Mcu):
             else:
                 self.poll_addr, self.poll_count = addr, 1
         v &= (1 << (8 * size)) - 1
-        self.log.write("R %08x %d %x\n" % (addr, size, v))
+        self.log.write("R %08x %d %s\n" % (addr, size, self.logged(addr, v)))
         return v
+
+    def logged(self, addr, value):
+        # (a register holding a ram address: the images' ram layouts differ)
+        if addr in getattr(self.board, "pointer_regs", ()):
+            return "(ram address)"
+        # (the bytes a port does not use: past a packet's end)
+        port = getattr(self.board, "port", None)
+        if hasattr(port, "used_bits"):
+            value &= port.used_bits(self, addr)
+        return "%x" % value
 
     def mmio_write(self, uc, offset, size, value, base):
         addr = base + offset
         b = self.board
-        self.log.write("W %08x %d %x\n" % (addr, size, value))
+        self.log.write("W %08x %d %s\n" % (addr, size, self.logged(addr, value)))
         self.poll_addr = None
         if b.uart_write(self, addr, value) or b.time.write(self, addr, value):
             return

@@ -1,0 +1,8 @@
+24c24
+< < config is_config=1 crc=1 is_shutdown=0 move_count=598
+---
+> < config is_config=1 crc=1 is_shutdown=0 move_count=639
+46c46
+< < config is_config=1 crc=1 is_shutdown=0 move_count=598
+---
+> < config is_config=1 crc=1 is_shutdown=0 move_count=639

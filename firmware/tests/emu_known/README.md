@@ -31,6 +31,16 @@ says, with volatile register accesses in source order.
   two identical toggles with only (volatile) timer reads between them, so gcc
   keeps one store and the C firmware sends no pulse for a 0 bit. Rust makes
   both toggles (a C defect, not reproduced).
+- `samd21g18-usb/*.diff`, `samd51j19-usb/*.diff`, `samd21e15-usb/*.diff`
+  (every script): `atsamd/internal.h` `GET_FUSE()` reads the calibration rows
+  through a non-volatile `*((uint32_t*)ADDR)`; gcc moves `clock.c`'s DFLL
+  fuse reads before the `SYSCTRL->DFLLCTRL = 0` write (samd21) and reads
+  `usbserial.c`'s three USB trim fields of the same word once. Rust reads
+  them in source order, once per field. Same values.
+- `samd21e15-usb/{config,gpio,stepper}.txt.diff`: `move_count`. The Rust
+  image's ram (.data + .bss) is smaller, so its dynamic memory pool, and the
+  moves it holds, are larger; on this 4KB ram chip the count stays below its
+  1024 cap, so the answers show it (see NOTES "Kaliru MCU firmware", size).
 - `stm32f072-serial/stepper.txt.diff`, `stepper.diff`: the C image's stack
   (CONFIG_STACK_SIZE 512) overflows. With LTO `run_tasks` has a 300 byte frame,
   the idle loop already uses 416 bytes, and `config_stepper` -> `oid_alloc` ->
