@@ -72,8 +72,12 @@ heater (Kalico's C++ `src/indx`) with newlib's powf / sqrtf / sin ported (`src/l
 builds every config in `firmware/configs/` (54: serial, USB, CAN / FDCAN, USB-to-CAN bridge, angle sensors, INDX
 toolboard) and compares `compile_time_request.txt` (identical) and the data dictionary (byte-identical apart from the
 version fields) with the C build's (`firmware/tests/ref/`): 54/54. The rp2040 boot2 block and `tools/elf2uf2` output
-are byte-identical to the C build's; `src/libm.rs` gives newlib's bits on 700k inputs (qemu-arm). Behaviour on a chip
-/ emulator: not checked yet. Images (profile `mcu`): about 1.25-1.4x the C size (F401 53KB vs 42KB, INDX 72KB vs
+are byte-identical to the C build's; `src/libm.rs` gives newlib's bits on 700k inputs (qemu-arm). Emulator
+(`firmware/tests/emu_cmp.sh`, Unicorn, deterministic board models): every serial config (16, all board families
+but the simulator) runs the 7 scripts with identical answers and identical peripheral register accesses, apart from
+the documented C-side differences in `firmware/tests/emu_known/` (non-volatile register pointers gcc reorders, an
+HC32 neopixel store gcc merges away, an F072 stack overflow). USB / CAN transports: not emulated yet. Real chips: not
+run. Images (profile `mcu`): about 1.25-1.4x the C size (F401 53KB vs 42KB, INDX 72KB vs
 58KB).
 
 Not ported: avr, ar100 (or1k), pru. Kalico's `src/extras` (user firmware plugins found by

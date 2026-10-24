@@ -207,11 +207,18 @@ def run_script(mcu, script):
                 mcu.send_raw(bytes.fromhex(line.split()[1]))
                 blocks = mcu.read_blocks(False, quiet=0.2)
             else:
-                mcu.send(mcu.parser.create_command(mcu.prepare(line)))
+                try:
+                    cmd = mcu.parser.create_command(mcu.prepare(line))
+                except msgproto.error as e:
+                    # (a command or value this mcu does not have)
+                    out.append("< host error: %s" % e)
+                    continue
+                mcu.send(cmd)
                 blocks = mcu.read_blocks(True)
             for kind, b in blocks:
-                if kind == "garbage":
-                    out.append("< garbage %s" % b)
+                if kind != "block":
+                    # ("garbage", or emu_run.py's "crash")
+                    out.append("< %s %s" % (kind, b))
                     continue
                 f = mcu.format(b)
                 if f.startswith("stats "):

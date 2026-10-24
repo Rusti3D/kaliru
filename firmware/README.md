@@ -85,5 +85,12 @@ application address.
   answers and the hardware logs. All scripts are identical.
 - `src/libm.rs` against newlib: 700k powf / sqrtf / sin inputs (temperatures, radiances, random bit patterns,
   huge and NaN arguments) give identical bits to the arm-none-eabi libm under qemu-arm.
+- `tests/emu_cmp.sh <config>` runs the C and the Rust image of a micro-controller config in an emulator
+  (`tests/emu_run.py`: Unicorn with a small deterministic model of each board family's clock, timer and serial
+  port) on the `tests/scripts` and compares the answers and every peripheral register read and write. All 16
+  serial configs (stm32 f0 / f1 / f4 / g0 / g4 / h7, AT32, N32, lpc176x, sam3x, samd21, samd51, hc32f460,
+  rp2040): 7/7 scripts identical; the few known differences (`tests/emu_known/README.md`) are Kalico C code
+  whose effect gcc chooses (non-volatile register pointers) or C defects (an HC32 neopixel store merged away,
+  an F072 stack overflow). USB and CAN transports are not modelled yet.
 - Behaviour on a chip is not checked for any micro-controller board yet (no hardware run; the Renode set-up in `tests/renode/` does not yet run
   Kalico's own image, see NOTES "Kaliru MCU firmware").

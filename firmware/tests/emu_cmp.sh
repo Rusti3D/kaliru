@@ -2,7 +2,9 @@
 # Runs each script of tests/scripts on the C build (~/rk/fw_<config>/klipper.elf,
 # tools/mkref.sh) and the Rust build (~/rk/fwtarget-ctr-<config>, ctr_check.sh)
 # of a micro-controller config in the emulator (emu_run.py) and diffs the
-# answers and the peripheral register accesses.
+# answers and the peripheral register accesses. A register access difference
+# recorded in emu_known/<config>/<script>.diff (see emu_known/README.md) is
+# expected.
 # usage: emu_cmp.sh <config> [script...]
 cd "$(dirname "$0")"
 c=$1
@@ -25,13 +27,26 @@ for s in "${scripts[@]}"; do
         tail -n 3 $out/c_$name.txt $out/rs_$name.txt
         continue
     fi
-    if diff -q $out/c_$name.txt $out/rs_$name.txt > /dev/null && diff -q $out/c_$name.log $out/rs_$name.log > /dev/null; then
-        echo "SAME $c $name"
-        same=$((same + 1))
-    else
+    # (the answers' and the register accesses' differences: none, or the
+    # known ones)
+    diff $out/c_$name.txt $out/rs_$name.txt > $out/$name.txt.diff
+    diff $out/c_$name.log $out/rs_$name.log > $out/$name.diff
+    known=
+    bad=
+    for d in $name.txt.diff $name.diff; do
+        [ -s $out/$d ] || continue
+        if [ -f emu_known/$c/$d ] && diff -q $out/$d emu_known/$c/$d > /dev/null; then
+            known="$known emu_known/$c/$d"
+        else
+            bad="$bad $d"
+        fi
+    done
+    if [ -n "$bad" ]; then
         echo "DIFF $c $name"
-        diff $out/c_$name.txt $out/rs_$name.txt | head -20
-        diff $out/c_$name.log $out/rs_$name.log | head -20
+        for d in $bad; do head -20 $out/$d; done
+    else
+        echo "SAME $c $name${known:+ (known differences:$known)}"
+        same=$((same + 1))
     fi
 done
 echo "$same/${#scripts[@]} identical"

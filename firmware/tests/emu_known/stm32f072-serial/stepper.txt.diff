@@ -1,0 +1,132 @@
+15c15
+< < crash (see the log)
+---
+> < ack seq=17
+17c17,18
+< < crash (see the log)
+---
+> < config is_config=1 crc=7 is_shutdown=0 move_count=932
+> < ack seq=18
+19c20,21
+< < crash (see the log)
+---
+> < clock clock=3840720
+> < ack seq=19
+21c23
+< < crash (see the log)
+---
+> < ack seq=1a
+23c25
+< < crash (see the log)
+---
+> < ack seq=1b
+25c27
+< < crash (see the log)
+---
+> < ack seq=1c
+27c29
+< < crash (see the log)
+---
+> < ack seq=1d
+29c31
+< < crash (see the log)
+---
+> < ack seq=1e
+31c33
+< < crash (see the log)
+---
+> < ack seq=1f
+33c35
+< < crash (see the log)
+---
+> < ack seq=10
+35c37
+< < crash (see the log)
+---
+> < ack seq=11
+37c39
+< < crash (see the log)
+---
+> < ack seq=12
+39d40
+< < crash (see the log)
+41c42,43
+< < crash (see the log)
+---
+> < stepper_position oid=0 pos=2
+> < ack seq=13
+43c45,46
+< < crash (see the log)
+---
+> < stepper_position oid=1 pos=-4
+> < ack seq=14
+45c48,49
+< < crash (see the log)
+---
+> < stepper_position oid=2 pos=-2
+> < ack seq=15
+47c51,52
+< < crash (see the log)
+---
+> < clock clock=86881696
+> < ack seq=16
+49c54
+< < crash (see the log)
+---
+> < ack seq=17
+51c56
+< < crash (see the log)
+---
+> < ack seq=18
+53c58
+< < crash (see the log)
+---
+> < ack seq=19
+55c60
+< < crash (see the log)
+---
+> < ack seq=1a
+57c62
+< < crash (see the log)
+---
+> < ack seq=1b
+59c64
+< < crash (see the log)
+---
+> < trsync_state oid=3 can_trigger=0 trigger_reason=1 clock=139384744
+61c66,67
+< < crash (see the log)
+---
+> < endstop_state oid=4 homing=1 next_clock=139391696 pin_value=0
+> < ack seq=1c
+63c69,70
+< < crash (see the log)
+---
+> < stepper_position oid=1 pos=-6
+> < ack seq=1d
+65c72,73
+< < crash (see the log)
+---
+> < trsync_state oid=3 can_trigger=0 trigger_reason=1 clock=0
+> < ack seq=1e
+67c75
+< < crash (see the log)
+---
+> < ack seq=1f
+69d76
+< < crash (see the log)
+71c78,79
+< < crash (see the log)
+---
+> < stepper_position oid=1 pos=-6
+> < ack seq=10
+73c81
+< < crash (see the log)
+---
+> < shutdown clock=168962416 static_string_id=Command request
+75c83,85
+< < crash (see the log)
+---
+> < ack seq=11
+> < config is_config=1 crc=7 is_shutdown=1 move_count=932
+> < ack seq=12
