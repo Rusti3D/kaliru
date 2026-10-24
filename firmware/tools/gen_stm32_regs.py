@@ -15,7 +15,7 @@
 #   gen_stm32_regs.py --pico <kalico>/lib <mcu> <out.rs>
 #
 # or another vendor's CMSIS device header (with cmsis-core), optionally with a -D of the build:
-#   gen_stm32_regs.py --cmsis <kalico>/lib <family> <header, from lib/> <out.rs> [define]
+#   gen_stm32_regs.py --cmsis <kalico>/lib <family> <header, from lib/> <out.rs> [define [include dir ...]]
 #   e.g. gen_stm32_regs.py --cmsis ~/kalico/lib lpc176x lpc176x/device/LPC17xx.h src/lpc176x/chip/lpc17xx.rs
 import os, re, subprocess, sys, tempfile
 
@@ -49,6 +49,9 @@ elif sys.argv[1] == '--cmsis':
     define = sys.argv[6] if len(sys.argv) > 6 else None
     header_path = os.path.join(lib, rel)
     incs = ['-I', os.path.dirname(header_path), '-I', os.path.join(lib, 'cmsis-core')]
+    # (more include directories, from lib/: samd51's component headers are same54's)
+    for d in sys.argv[7:]:
+        incs += ['-I', os.path.join(lib, d)]
     top = os.path.basename(rel)
 else:
     lib, family, mcu, out = sys.argv[1:5]
@@ -61,7 +64,8 @@ defs = ['-D' + define] if define else []
 MCPU = {'rp2040': 'cortex-m0plus', 'rp2350': 'cortex-m33', 'stm32f0': 'cortex-m0', 'stm32f1': 'cortex-m3', 'stm32f2': 'cortex-m3', 'stm32f4': 'cortex-m4',
         'stm32f7': 'cortex-m7', 'stm32g0': 'cortex-m0plus', 'stm32g4': 'cortex-m4', 'stm32h7': 'cortex-m7',
         'stm32l4': 'cortex-m4', 'lpc176x': 'cortex-m3', 'sam3x': 'cortex-m3', 'sam4s': 'cortex-m4', 'sam4e': 'cortex-m4',
-        'same70b': 'cortex-m7'}[family]
+        'same70b': 'cortex-m7', 'samd21': 'cortex-m0plus', 'samc21': 'cortex-m0plus', 'samd51': 'cortex-m4',
+        'same51': 'cortex-m4', 'same54': 'cortex-m4'}[family]
 CTYPES = {'uint32_t': 'u32', 'uint16_t': 'u16', 'uint8_t': 'u8', 'int32_t': 'i32',
           # pico-sdk hardware/address_mapped.h
           'io_rw_32': 'u32', 'io_ro_32': 'u32', 'io_wo_32': 'u32',
@@ -142,6 +146,13 @@ aliases = {}      # struct: [(type, name, dims)] (the other union members)
 
 # Structs: only plain register lists; anything else (bitfields, ...) is left out
 structs = {}
+# (Atmel ASF: a register type `typedef union { struct {..} bit; uintN_t reg; } X_Type;` is a
+# struct of its `reg` register)
+for m in re.finditer(r'typedef\s+union\s*\{((?:[^{}]|\{[^{}]*\})*)\}\s*(\w+)\s*;', text):
+    utop = re.sub(r'struct\s*\{[^{}]*\}\s*\w*\s*;', '', m.group(1))
+    r = re.search(r'(?:__IO|__I|__O|volatile|const|\s)*\b(uint(?:8|16|32)_t)\s+reg\s*;', utop)
+    if r:
+        structs[m.group(2)] = [(r.group(1), 'reg', ())]
 for m in re.finditer(r'typedef\s+struct\s*\{([^{}]*)\}\s*(\w+)\s*;', text):
     body, sname = m.groups()
     fields = []
@@ -179,6 +190,15 @@ for m in re.finditer(r'typedef\s+struct\s*\{([^{}]*)\}\s*(\w+)\s*;', text):
         structs[sname] = fields
     else:
         aliases.pop(sname, None)
+# (Atmel ASF: a union of struct views of a peripheral, `typedef union { SercomI2cm I2CM;
+# SercomSpi SPI; ... } Sercom;`: the widest view is the field, all views are accessors)
+union_views = []
+for m in re.finditer(r'typedef\s+union\s*\{([^{}]*)\}\s*(\w+)\s*;', text):
+    views = [parse_decl(x) for x in m.group(1).split(';') if x.strip()]
+    if views and all(v and v[0] in structs and not v[2] for v in views) and m.group(2) not in structs:
+        structs[m.group(2)] = [views[0]]
+        aliases[m.group(2)] = views
+        union_views.append(m.group(2))
 enums = []
 for m in re.finditer(r'typedef\s+enum\s*\w*\s*\{([^{}]*)\}\s*IRQn_Type\s*;', text):
     enums += [e.split('=')[0].strip() for e in m.group(1).split(',') if e.strip()]
@@ -280,6 +300,12 @@ def evaluate():
 
 
 vals = evaluate()
+# (a union of views: its field is the view as wide as the union)
+for u in union_views:
+    if u in structs:
+        wide = [v for v in aliases[u] if vals.get(('S', v[0])) == vals.get(('S', u))]
+        # (named apart from the views, which are all accessors)
+        structs[u] = [(wide[0][0] if wide else structs[u][0][0], '_view', ())]
 ptrs = {n: s for n, s in ptrs.items() if ('P', n) in vals and s in structs}
 
 if pico:
@@ -316,7 +342,8 @@ for s, fl in structs.items():
     for t, f, dim in fl:
         o.append('    pub %s: %s,' % (rust_name(f), rust_type(s, t, f, dim, plain)))
     o.append('}')
-    al = [(t, f, d) for t, f, d in aliases.get(s, []) if ('A', s + '.' + f) in vals and rust_type(s, t, f, d)]
+    al = [(t, f, d) for t, f, d in aliases.get(s, [])
+          if ('A', s + '.' + f) in vals and rust_type(s, t, f, d) and f not in [x[1] for x in fl]]
     if al:
         # (the other members of the anonymous unions)
         o.append('impl %s {' % s)

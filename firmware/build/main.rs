@@ -261,6 +261,37 @@ fn sources(config: &kconfig::Config) -> Vec<&'static str> {
                 out.extend(files.iter().copied());
             }
         }
+    } else if on("CONFIG_MACH_ATSAMD") {
+        // src/atsamd/Makefile
+        out.extend(["atsamd/internal.rs", "atsamd/main.rs", "atsamd/gpio.rs", "generic/crc16_ccitt.rs"]);
+        out.extend(["generic/armcm_boot.rs", "generic/armcm_irq.rs", "generic/armcm_reset.rs"]);
+        // (canbus.h: no requests, its constants are used in theirs)
+        if on("CONFIG_CANSERIAL") || on("CONFIG_USBCANBUS") {
+            out.push("generic/canbus_h.rs");
+        }
+        let canbus: &[&'static str] = &["generic/canserial.rs", "generic/fasthash.rs", "atsamd/fdcan.rs", "atsamd/chipid.rs"];
+        let opt: &[(&str, Vec<&'static str>)] = &[
+            ("CONFIG_USBSERIAL", vec!["atsamd/usbserial.rs", "atsamd/chipid.rs", "generic/usb_cdc.rs"]),
+            ("CONFIG_SERIAL", vec!["atsamd/serial.rs", "generic/serial_irq.rs"]),
+            ("CONFIG_USBCANBUS", [canbus, &["atsamd/usbserial.rs", "generic/usb_canbus.rs"]].concat()),
+            ("CONFIG_CANSERIAL", [canbus, &["generic/canbus.rs"]].concat()),
+            ("CONFIG_WANT_GPIO_ADC", vec!["atsamd/adc.rs"]),
+            ("CONFIG_WANT_GPIO_I2C", vec!["atsamd/i2c.rs"]),
+            ("CONFIG_WANT_GPIO_SPI", vec!["atsamd/spi.rs"]),
+            ("CONFIG_HAVE_SERCOM", vec!["atsamd/sercom.rs"]),
+            ("CONFIG_HAVE_GPIO_HARD_PWM", vec!["atsamd/hard_pwm.rs"]),
+            ("CONFIG_MACH_SAMC21", vec!["atsamd/samd51_watchdog.rs"]),
+            ("CONFIG_MACH_SAMC21", vec!["atsamd/samc21_clock.rs", "atsamd/timer.rs", "generic/timer_irq.rs"]),
+            ("CONFIG_MACH_SAMD21", vec!["atsamd/watchdog.rs"]),
+            ("CONFIG_MACH_SAMD21", vec!["atsamd/clock.rs", "atsamd/timer.rs", "generic/timer_irq.rs"]),
+            ("CONFIG_MACH_SAMX5", vec!["atsamd/samd51_watchdog.rs"]),
+            ("CONFIG_MACH_SAMX5", vec!["atsamd/samd51_clock.rs", "generic/armcm_timer.rs"]),
+        ];
+        for (c, files) in opt {
+            if on(c) {
+                out.extend(files.iter().copied());
+            }
+        }
     } else if on("CONFIG_MACH_SIMU") {
         // src/simulator/Makefile
         out.extend(["simulator/main.rs", "simulator/gpio.rs", "simulator/timer.rs", "simulator/serial.rs"]);
@@ -284,8 +315,8 @@ fn chip_header(root: &Path, config: &kconfig::Config) -> Option<(PathBuf, BTreeS
         ("stm32", mcu.to_string())
     } else if config.enabled("CONFIG_MACH_RPXXXX") {
         ("rp2040", mcu.to_string())
-    } else if config.enabled("CONFIG_MACH_ATSAM") {
-        ("atsam", mcu.to_string())
+    } else if config.enabled("CONFIG_MACH_ATSAM") || config.enabled("CONFIG_MACH_ATSAMD") {
+        (if config.enabled("CONFIG_MACH_ATSAMD") { "atsamd" } else { "atsam" }, mcu.to_string())
     } else if config.enabled("CONFIG_MACH_LPC176X") {
         // (LPC17xx.h, for both lpc1768 and lpc1769)
         ("lpc176x", "lpc17xx".to_string())

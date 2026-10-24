@@ -105,6 +105,10 @@ pub use lpc176x as board;
 pub mod atsam;
 #[cfg(CONFIG_MACH_ATSAM)]
 pub use atsam as board;
+#[cfg(CONFIG_MACH_ATSAMD)]
+pub mod atsamd;
+#[cfg(CONFIG_MACH_ATSAMD)]
+pub use atsamd as board;
 #[cfg(CONFIG_MACH_SIMU)]
 pub mod simulator;
 #[cfg(CONFIG_MACH_SIMU)]
