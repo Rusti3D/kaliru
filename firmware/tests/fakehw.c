@@ -4,8 +4,12 @@
 // MCU under it and compare the logs (mcu_run.py --fakehw).
 //
 // Inputs: FAKEHW_LOG=<file> (the event log), FAKEHW_GPIO_IN=<value>
-// (what every input line reads, default 0). SPI/I2C reads return a byte
-// pattern that counts up per device and transfer, ADC files read "2048".
+// (what every input line reads, default 0), FAKEHW_SPI_RX=<byte> (what
+// every SPI read returns), FAKEHW_SPI_TMC=1 (every SPI device is a TMC
+// stepper driver: 5 byte datagrams, a write (address bit 7) stores the
+// register, a reply carries the register the previous datagram addressed).
+// Otherwise SPI and I2C reads return a byte pattern that counts up per
+// device and transfer, ADC files read "2048".
 //
 // gcc -shared -fPIC -O2 -o fakehw.so fakehw.c -ldl
 #define _GNU_SOURCE
@@ -25,7 +29,7 @@
 #include <unistd.h>
 
 enum { F_NONE, F_CHIP, F_LINE, F_SPI, F_I2C, F_ADC };
-struct fake { int kind, chip, line, bus, dev, addr, counter; };
+struct fake { int kind, chip, line, bus, dev, addr, counter, tmc_addr; uint32_t tmc_regs[128]; };
 static struct fake fakes[4096];
 static FILE *logf;
 
@@ -137,6 +141,29 @@ hexlog(const char *what, struct fake *f, const unsigned char *d, int len)
     logev("%s bus=%d dev=%d addr=%d %s", what, f->bus, f->dev, f->addr, buf);
 }
 
+// FAKEHW_SPI_TMC: a TMC driver datagram (tx), its reply into rx (if any)
+static int
+tmc_datagram(struct fake *f, const unsigned char *tx, unsigned char *rx, size_t len)
+{
+    if (!getenv("FAKEHW_SPI_TMC") || len != 5)
+        return 0;
+    // (DRV_STATUS, 0x6f on the TMC2130 / 5160: a running driver's
+    // cs_actual, bits 16-20, is not 0)
+    f->tmc_regs[0x6f] = 16 << 16;
+    uint32_t reply = f->tmc_regs[f->tmc_addr], v = 0;
+    for (int i = 1; i < 5; i++)
+        v = (v << 8) | tx[i];
+    if (tx[0] & 0x80)
+        f->tmc_regs[tx[0] & 0x7f] = v;
+    f->tmc_addr = tx[0] & 0x7f;
+    if (rx) {
+        rx[0] = 0;
+        for (int i = 1; i < 5; i++)
+            rx[i] = reply >> (8 * (4 - i));
+    }
+    return 1;
+}
+
 int
 ioctl(int fd, unsigned long req, ...)
 {
@@ -176,8 +203,11 @@ ioctl(int fd, unsigned long req, ...)
         unsigned char *d = (void *)(uintptr_t)t->tx_buf;
         hexlog("spi_tx", f, d, t->len);
         unsigned char *rx = (void *)(uintptr_t)t->rx_buf;
+        const char *fill = getenv("FAKEHW_SPI_RX");
+        if (tmc_datagram(f, d, rx, t->len))
+            return t->len;
         for (unsigned i = 0; i < t->len; i++)
-            rx[i] = f->counter + i;
+            rx[i] = fill ? atoi(fill) : f->counter + i;
         f->counter++;
         return t->len;
     }
@@ -219,6 +249,8 @@ write(int fd, const void *buf, size_t len)
         return real_write(fd, buf, len);
     if (f->kind == F_SPI || f->kind == F_I2C)
         hexlog(f->kind == F_SPI ? "spi_write" : "i2c_write_raw", f, buf, len);
+    if (f->kind == F_SPI)
+        tmc_datagram(f, buf, NULL, len);
     return len;
 }
 

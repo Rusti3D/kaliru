@@ -1002,4 +1002,37 @@ mod tests {
         assert_eq!(lookup_output_params("x %%u").unwrap(), vec![BaseType::Uint32]);
         assert_eq!(lookup_output_params("debug %u %s").unwrap(), vec![BaseType::Uint32, BaseType::String]);
     }
+
+    // Kalico test/test_msgproto_kconfig.py: the firmware's kconfig text from
+    // the identify data, None without one
+    fn identify_payload(kconfig: Option<&str>) -> Vec<u8> {
+        use std::io::Write;
+        let mut data = serde_json::json!({"enumerations": {}, "commands": {}, "responses": {}, "output": {},
+                                          "app": "Kalico", "version": "v0.13.0-241-g5fdf0dd3e"});
+        if let Some(k) = kconfig {
+            data["kconfig"] = serde_json::json!(k);
+        }
+        let mut z = flate2::write::ZlibEncoder::new(vec![], flate2::Compression::default());
+        z.write_all(data.to_string().as_bytes()).unwrap();
+        z.finish().unwrap()
+    }
+
+    #[test]
+    fn get_kconfig_before_identify_returns_none() {
+        assert_eq!(MessageParser::new("").get_kconfig(), &Value::Null);
+    }
+
+    #[test]
+    fn process_identify_without_kconfig_key_stays_none() {
+        let mut mp = MessageParser::new("");
+        mp.process_identify(&identify_payload(None), true).unwrap();
+        assert_eq!(mp.get_kconfig(), &Value::Null);
+    }
+
+    #[test]
+    fn process_identify_with_kconfig_key() {
+        let mut mp = MessageParser::new("");
+        mp.process_identify(&identify_payload(Some("CONFIG_MACH_STM32=y\n")), true).unwrap();
+        assert_eq!(mp.get_kconfig(), &Value::String("CONFIG_MACH_STM32=y\n".into()));
+    }
 }

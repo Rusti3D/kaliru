@@ -48,7 +48,7 @@ use crate::pyfmt::{py_max, py_min};
 
 /// "%x" % value for the PID_PROFILE placeholders
 fn placeholder_fmt(placeholder: &str, v: &PyVal) -> KResult<String> {
-    crate::pyformat::percent_format(placeholder, v).map_err(|(_, m)| KError::Other(m))
+    crate::pyformat::percent_format(placeholder, v).map_err(|(class, m)| KError::Py(class.into(), m))
 }
 
 pub fn lookup_dual_loop_pid_inner_target_temp(config: &ConfigWrapper) -> KResult<f64> {

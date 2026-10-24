@@ -1,0 +1,62 @@
+# A non-critical toolboard MCU (Kalico): its endstop and leds while it is
+# disconnected, then its reconnect (test_mcu_endstop.py, test_mcu_recon.py,
+# test_neopixel.py)
+[mcu]
+serial: {mcu}
+
+[mcu toolboard]
+serial: {mcu:toolboard}
+is_non_critical: True
+reconnect_interval: 1
+
+[printer]
+kinematics: cartesian
+max_velocity: 300
+max_accel: 3000
+max_z_velocity: 5
+max_z_accel: 100
+
+[stepper_x]
+step_pin: gpio2
+dir_pin: gpio3
+endstop_pin: ^gpio5
+position_endstop: 0
+position_max: 200
+microsteps: 16
+rotation_distance: 40
+
+[stepper_y]
+step_pin: gpio6
+dir_pin: gpio7
+endstop_pin: ^gpio9
+position_endstop: 0
+position_max: 200
+microsteps: 16
+rotation_distance: 40
+
+[stepper_z]
+step_pin: gpio10
+dir_pin: gpio11
+endstop_pin: ^toolboard:gpio13
+position_endstop: 0
+position_max: 200
+microsteps: 16
+rotation_distance: 8
+
+[neopixel led]
+pin: toolboard:gpio20
+chain_count: 2
+initial_RED: 0.2
+---
+QUERY_ENDSTOPS
+@stop toolboard
+@wait_log toolboard 20
+@sleep 1
+QUERY_ENDSTOPS
+SET_LED LED=led RED=0.5 GREEN=0.1
+@start toolboard
+@wait_log reconnect 30
+@sleep 2
+QUERY_ENDSTOPS
+SET_LED LED=led BLUE=0.3
+@log ^(?!Stats |Sent |Receive: |Args: |Config [0-9]|Dumping |\s|MCU '[a-z]+' shutdown: ).*toolboard

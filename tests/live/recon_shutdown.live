@@ -1,0 +1,59 @@
+# A non-critical toolboard MCU that is in shutdown when the host reconnects
+# (it was paused: its timers are in the past when it runs again): the host
+# resets it and tries again (test_mcu_recon.py)
+[mcu]
+serial: {mcu}
+
+[mcu toolboard]
+serial: {mcu:toolboard}
+is_non_critical: True
+reconnect_interval: 1
+
+[printer]
+kinematics: cartesian
+max_velocity: 300
+max_accel: 3000
+max_z_velocity: 5
+max_z_accel: 100
+
+[stepper_x]
+step_pin: gpio2
+dir_pin: gpio3
+endstop_pin: ^gpio5
+position_endstop: 0
+position_max: 200
+microsteps: 16
+rotation_distance: 40
+
+[stepper_y]
+step_pin: gpio6
+dir_pin: gpio7
+endstop_pin: ^gpio9
+position_endstop: 0
+position_max: 200
+microsteps: 16
+rotation_distance: 40
+
+[stepper_z]
+step_pin: gpio10
+dir_pin: gpio11
+endstop_pin: ^toolboard:gpio13
+position_endstop: 0
+position_max: 200
+microsteps: 16
+rotation_distance: 8
+
+[neopixel led]
+pin: toolboard:gpio20
+chain_count: 2
+initial_RED: 0.2
+---
+QUERY_ENDSTOPS
+@pause toolboard
+@wait_log disconnected 30
+@resume toolboard
+@wait_log reconnected 60
+@sleep 3
+QUERY_ENDSTOPS
+STATUS
+@log ^(?!Stats |Sent |Receive: |Args: |Config [0-9]|Dumping |\s|MCU '[a-z]+' shutdown: ).*(toolboard|eset|hutdown|econnect)

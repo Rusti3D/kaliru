@@ -1,0 +1,20 @@
+# Sensorless homing details (Kalico test/test_tmc_homing.py)
+CONFIG tmc_homing.cfg
+DICTIONARY atmega2560.dict
+SHOULD_FAIL
+
+; Z first: no virtual endstop in the move
+G28 Z
+G28 X
+G28 Y
+DUMP_TMC STEPPER=stepper_x
+DUMP_TMC STEPPER=stepper_y
+; a new home current (x: its maximum), then homing again
+SET_TMC_CURRENT STEPPER=stepper_y CURRENT=.6 HOMECURRENT=.4
+SET_TMC_CURRENT STEPPER=stepper_x HOMECURRENT=2
+G28 X Y
+SET_TMC_CURRENT STEPPER=stepper_x
+SET_TMC_CURRENT STEPPER=stepper_y
+G1 X10 Y10 F6000
+; above the maximum: an error (the last command: an error ends a batch run)
+SET_TMC_CURRENT STEPPER=stepper_x HOMECURRENT=5

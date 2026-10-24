@@ -1,0 +1,19 @@
+# PID_PROFILE with dual loop pid, mpc and watermark heaters (Kalico
+# test/test_pid_profile.py)
+CONFIG pid_profile_ext.cfg
+DICTIONARY atmega2560.dict
+
+; dual loop: the inner loop's gains (kept, or set)
+PID_PROFILE SET_VALUES=default HEATER=heater_bed TARGET=60 TOLERANCE=0.02 KP=50 KI=1 KD=1000
+PID_PROFILE GET_VALUES=default HEATER=heater_bed
+PID_PROFILE SET_VALUES=default HEATER=heater_bed TARGET=60 TOLERANCE=0.02 KP=50 KI=1 KD=1000 INNER_KP=70 INNER_KI=3 INNER_KD=400
+PID_PROFILE SAVE=bedprofile HEATER=heater_bed
+PID_PROFILE LOAD=bedprofile HEATER=heater_bed VERBOSE=high
+PID_PROFILE GET_VALUES=bedprofile HEATER=heater_bed
+; watermark
+PID_PROFILE GET_VALUES=default HEATER=chamber
+PID_PROFILE SAVE=cooler HEATER=chamber
+PID_PROFILE LOAD=cooler HEATER=chamber VERBOSE=high
+; mpc: no profiles
+PID_PROFILE GET_VALUES=default HEATER=extruder
+PID_PROFILE SAVE=mpcprofile HEATER=extruder

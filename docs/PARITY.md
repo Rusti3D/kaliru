@@ -108,7 +108,33 @@ data, eddy homing, tap analysis) - python hangs on queries in file-output mode. 
 
 ## Kalico pytest suite (`test/test_*.py`)
 
-Reference: 194 passed, 2 xfailed. Rust equivalents: not started.
+Reference: 194 passed, 2 xfailed (incl. the 67 `test/klippy/*.test` printer runs, compared by `tools/suite_cmp.sh`).
+The unit tests poke python internals with fakes; kaliru checks the same behaviour end to end against the python host
+(file-output cases, `tools/case_cmp.sh`; live runs with linux MCU processes, `tools/live_cmp.sh`) or with Rust unit
+tests:
+
+| pytest file | kaliru check |
+|---|---|
+| test_autosave | `tools/save_cmp.sh` (test_configs/autosave, SAVE_CONFIG with includes) |
+| test_buildcommands_kconfig | `firmware/tests/ctr_check.sh`: the data dictionary's `kconfig` (64 configs, atmega2560's empty) |
+| test_canbus_stats | reviewed: query_event keeps the stats on a serial / command error (no CAN on the linux MCU) |
+| test_configfile_include_vars | `tools/config_cmp.sh` (test_configs/include_vars*) |
+| test_extruder_overrides_simple | `tests/cases/extruder_smooth*.test` |
+| test_gcode_shell_command | stock `gcode_shell_command.test` (PARAMS with `$HOME ~/x`) |
+| test_imports | python imports: n/a |
+| test_kconfig_defconfig_roundtrip | kconfiglib (menuconfig tooling, a vendored python library): not ported, configs are inputs |
+| test_mcu_endstop, test_neopixel | `tests/live/noncritical.live` (endstop and leds on a disconnected toolboard, its reconnect) |
+| test_mcu_recon | `tests/live/noncritical.live`, `tmc_noncritical.live` (disconnect, reconnect), `recon_shutdown.live` (an MCU in shutdown at reconnect: reset, retry) |
+| test_msgproto_kconfig | `src/msgproto.rs` unit tests |
+| test_pid_profile | `tests/cases/pid_profile_ext.test` (dual loop inner gains, watermark, mpc) |
+| test_spi_temperature_clarify | `tests/live/thermocouple.live` (fault bits; the out-of-range path needs other fake readings) |
+| test_tmc_homing | stock `tmc.test`, `tests/cases/tmc_homing.test` (TCOOLTHRS, home current, its maximum) |
+| test_tmc_noncritical | `tests/live/tmc_noncritical.live`, `tmc_fault.live` |
+| test_tools_calibrate | reviewed: every Kalico kinematics reports its axis limits, so the error is unreachable from a config |
+
+Found this way: kaliru hung on a query to a non-critical MCU after its reconnect (a serialqueue's command queues kept
+the messages queued before the disconnect: C frees them in `serialqueue_free`), and a `%` format error in PID_PROFILE
+lost its python class (TypeError).
 
 ## Firmware (data dictionary / responses)
 

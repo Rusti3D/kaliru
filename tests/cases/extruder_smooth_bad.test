@@ -1,0 +1,4 @@
+# pressure_advance_smooth_time above the default maximum without the override
+CONFIG extruder_smooth_bad.cfg
+DICTIONARY atmega2560.dict
+SHOULD_FAIL

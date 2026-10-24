@@ -1018,8 +1018,15 @@ impl Drop for SerialQueue {
         if !self.is_exit() {
             self.exit();
         }
+        // (the messages still queued in each pending command queue are
+        // freed: the queue is empty for the next serialqueue it is used
+        // with, a non-critical mcu's after a reconnect)
         let mut st = self.shared.lock.lock().unwrap();
-        st.pending_queues.clear();
+        for cq in st.pending_queues.drain(..) {
+            let mut lists = cq.lists.lock().unwrap();
+            lists.ready_queue.clear();
+            lists.upcoming_queue.clear();
+        }
         drop(st);
         unsafe {
             libc::close(self.shared.pipe_fds[0]);

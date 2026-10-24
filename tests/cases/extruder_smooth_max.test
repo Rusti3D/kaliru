@@ -1,0 +1,6 @@
+# SET_PRESSURE_ADVANCE above the override maximum
+CONFIG extruder_smooth.cfg
+DICTIONARY atmega2560.dict
+SHOULD_FAIL
+
+SET_PRESSURE_ADVANCE SMOOTH_TIME=1.1

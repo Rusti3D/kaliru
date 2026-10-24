@@ -1,0 +1,7 @@
+# danger_options override_pressure_advance_smooth_time_max (Kalico
+# test/test_extruder_overrides_simple.py)
+CONFIG extruder_smooth.cfg
+DICTIONARY atmega2560.dict
+
+SET_PRESSURE_ADVANCE SMOOTH_TIME=0.9
+SET_PRESSURE_ADVANCE ADVANCE=0.03 SMOOTH_TIME=0.5

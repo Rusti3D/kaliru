@@ -1,0 +1,21 @@
+# A MAX31855 on the linux MCU's spidev: the fake hardware's reads count up,
+# so the chip reports faults and the MCU shuts down; the shutdown message
+# names the sensor and the fault (test_spi_temperature_clarify.py)
+[mcu]
+serial: {mcu}
+
+[printer]
+kinematics: none
+max_velocity: 300
+max_accel: 3000
+
+[temperature_sensor tc]
+sensor_type: MAX31855
+sensor_pin: None
+spi_bus: spidev0.0
+min_temp: 0
+max_temp: 300
+---
+@sleep 3
+STATUS
+@log ^(?!Stats |Sent |Receive: |Args: |Config [0-9]|Dumping |\s|MCU '[a-z]+' shutdown: ).*(Thermocouple|fault|Sensor|shutdown)

@@ -1,0 +1,43 @@
+# A TMC2130 on a non-critical toolboard (test_tmc_noncritical.py): its
+# periodic driver checks while the toolboard is gone and after it is back
+# (a healthy driver: the fake spi devices are TMC register files)
+@env FAKEHW_SPI_TMC=1
+[mcu]
+serial: {mcu}
+
+[mcu toolboard]
+serial: {mcu:toolboard}
+is_non_critical: True
+reconnect_interval: 1
+
+[printer]
+kinematics: none
+max_velocity: 300
+max_accel: 3000
+
+[manual_stepper ext]
+step_pin: toolboard:gpio2
+dir_pin: toolboard:gpio3
+enable_pin: !toolboard:gpio4
+microsteps: 16
+rotation_distance: 8
+
+[tmc2130 manual_stepper ext]
+cs_pin: toolboard:None
+spi_bus: spidev0.0
+run_current: 0.5
+sense_resistor: 0.110
+---
+MANUAL_STEPPER STEPPER=ext ENABLE=1
+@sleep 2
+@stop toolboard
+@wait_log disconnected 20
+@sleep 3
+STATUS
+@start toolboard
+@wait_log reconnected 30
+@sleep 3
+STATUS
+MANUAL_STEPPER STEPPER=ext ENABLE=1
+@sleep 2
+@log ^(?!Stats |Sent |Receive: |Args: |Config [0-9]|Dumping |\s|MCU '[a-z]+' shutdown: ).*(tmc|TMC|toolboard|hutdown)
