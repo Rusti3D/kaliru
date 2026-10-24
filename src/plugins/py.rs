@@ -446,11 +446,24 @@ pub fn dict_keys(o: &PyRef) -> KResult<Vec<String>> {
     Ok(out)
 }
 
+// the str objects of status field names (the subscription poll looks the
+// same few hundred names up four times a second)
+static KEYS: Gil<RefCell<HashMap<String, PyRef>>> = Gil::new(|| RefCell::new(HashMap::new()));
+
+fn key_object(key: &str) -> PyRef {
+    if let Some(k) = KEYS.with(|m| m.borrow().get(key).cloned()) {
+        return k;
+    }
+    let k = py_str(key);
+    KEYS.with(|m| m.borrow_mut().insert(key.to_string(), k.clone()));
+    k
+}
+
 /// d.get(key) of a dict with str keys (None when missing)
 pub fn dict_get(o: &PyRef, key: &str) -> KResult<PyRef> {
-    let k = std::ffi::CString::new(key).map_err(|e| KError::Py("ValueError".into(), e.to_string()))?;
+    let k = key_object(key);
     let mut out = std::ptr::null_mut();
-    match unsafe { PyDict_GetItemStringRef(o.as_ptr(), k.as_ptr(), &mut out) } {
+    match unsafe { PyDict_GetItemRef(o.as_ptr(), k.as_ptr(), &mut out) } {
         1 => Ok(unsafe { PyRef::owned(out) }.unwrap_or_else(py_none)),
         0 => Ok(py_none()),
         _ => Err(fetch_error()),

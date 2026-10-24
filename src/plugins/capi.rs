@@ -121,6 +121,7 @@ capi! {
     fn PyDict_SetItem(d: *mut PyObject, k: *mut PyObject, v: *mut PyObject) -> c_int;
     fn PyDict_SetItemString(d: *mut PyObject, k: *const c_char, v: *mut PyObject) -> c_int;
     fn PyDict_GetItemStringRef(d: *mut PyObject, k: *const c_char, result: *mut *mut PyObject) -> c_int;
+    fn PyDict_GetItemRef(d: *mut PyObject, k: *mut PyObject, result: *mut *mut PyObject) -> c_int;
     fn PyDict_Next(d: *mut PyObject, pos: *mut Py_ssize_t, k: *mut *mut PyObject, v: *mut *mut PyObject) -> c_int;
 
     fn PyCapsule_New(ptr: *mut c_void, name: *const c_char, destructor: Option<unsafe extern "C" fn(*mut PyObject)>) -> *mut PyObject;
