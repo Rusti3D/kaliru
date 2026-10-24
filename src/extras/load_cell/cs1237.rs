@@ -87,7 +87,7 @@ impl CS1237 {
         *self.attach_probe_cmd.borrow_mut() =
             Some(self.mcu.lookup_command("cs1237_attach_load_cell_probe oid=%c load_cell_probe_oid=%c", Some(cmd_queue.clone()))?);
         self.ffreader.setup_query_command("query_cs1237_status oid=%c", self.oid, Some(cmd_queue))?;
-        let errors = self.mcu.get_enumerations().get("cs1237_error:").cloned().unwrap_or_default();
+        let errors = self.mcu.get_enumerations().get("cs1237_error:").map(|t| t.enums.clone()).unwrap_or_default();
         *self.sensor_errors.borrow_mut() = errors.into_iter().map(|(k, v)| (v, k)).collect();
         Ok(())
     }

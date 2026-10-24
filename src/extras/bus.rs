@@ -27,7 +27,7 @@ fn hex(data: &[u8]) -> String {
 pub fn resolve_bus_name(mcu: &Mcu, param: &str, bus: Option<&str>) -> KResult<String> {
     // Find enumerations for the given bus
     let enumerations = mcu.get_enumerations();
-    let Some(enums) = enumerations.get(param).or_else(|| enumerations.get("bus")) else {
+    let Some(enums) = enumerations.get(param).or_else(|| enumerations.get("bus")).map(|t| &t.enums) else {
         return Ok(bus.unwrap_or("0").to_string());
     };
     // Verify bus is a valid enumeration

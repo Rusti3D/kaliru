@@ -129,6 +129,15 @@ class Host:
         except OSError:
             return []
 
+    def resources(self):
+        """the host process's peak and current memory (VmHWM, VmRSS) and cpu
+        time (not part of the transcript: workdir/resources.txt)"""
+        status = open("/proc/%d/status" % self.proc.pid).read()
+        mem = {k: v.split()[0] for k, v in re.findall(r"^(VmHWM|VmRSS):\s+(.*)$", status, re.M)}
+        stat = open("/proc/%d/stat" % self.proc.pid).read().rsplit(")", 1)[1].split()
+        cpu = (int(stat[11]) + int(stat[12])) / os.sysconf("SC_CLK_TCK")
+        return "peak_rss_kb=%s rss_kb=%s cpu_s=%.2f" % (mem["VmHWM"], mem["VmRSS"], cpu)
+
     def close(self):
         os.close(self.fd)
         self.proc.send_signal(signal.SIGINT)
@@ -205,6 +214,8 @@ def main():
             else:
                 out += host.command(line)
     finally:
+        with open(os.path.join(workdir, "resources.txt"), "w") as f:
+            f.write(host.resources() + "\n")
         host.close()
         for m in mcus.values():
             m.stop()

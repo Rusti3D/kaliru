@@ -124,6 +124,14 @@ pub enum BaseType {
 pub struct Enumeration {
     pub pt: BaseType,
     pub enum_name: String,
+    pub table: Rc<EnumTable>,
+}
+
+/// An enumeration's values, both ways: python's enums dict (which every
+/// Enumeration shares) and the reverse_enums each Enumeration builds from it
+/// (the same for all of them: built once here)
+#[derive(Clone, Debug, Default)]
+pub struct EnumTable {
     pub enums: IndexMap<String, i64>,
     pub reverse_enums: HashMap<i64, String>,
 }
@@ -233,7 +241,7 @@ impl ParamType {
             ParamType::Base(b) => b.encode(out, v),
             ParamType::Enum(e) => {
                 let tv = match v {
-                    Val::Str(s) => e.enums.get(s),
+                    Val::Str(s) => e.table.enums.get(s),
                     _ => None,
                 };
                 match tv {
@@ -249,7 +257,7 @@ impl ParamType {
             ParamType::Enum(e) => {
                 let (v, pos) = e.pt.parse(s, pos)?;
                 let i = v.as_int().unwrap_or(0);
-                let tv = match e.reverse_enums.get(&i) {
+                let tv = match e.table.reverse_enums.get(&i) {
                     Some(name) => name.clone(),
                     None => format!("?{}", i),
                 };
@@ -273,7 +281,7 @@ pub fn message_type(fmt: &str) -> Option<BaseType> {
     })
 }
 
-pub type Enumerations = IndexMap<String, IndexMap<String, i64>>;
+pub type Enumerations = IndexMap<String, Rc<EnumTable>>;
 
 // Lookup the message types for a format string
 pub fn lookup_params(msgformat: &str, enumerations: &Enumerations) -> Result<Vec<(String, ParamType)>> {
@@ -290,18 +298,9 @@ pub fn lookup_params(msgformat: &str, enumerations: &Enumerations) -> Result<Vec
         // python: KeyError, str() of it is the quoted key
         let base = message_type(fmt).ok_or_else(|| Error::new(format!("'{}'", fmt)))?;
         let mut pt = ParamType::Base(base);
-        for (enum_name, enums) in enumerations {
+        for (enum_name, table) in enumerations {
             if name == enum_name || name.ends_with(&format!("_{}", enum_name)) {
-                let mut reverse_enums = HashMap::new();
-                for (k, v) in enums {
-                    reverse_enums.insert(*v, k.clone());
-                }
-                pt = ParamType::Enum(Rc::new(Enumeration {
-                    pt: base,
-                    enum_name: enum_name.clone(),
-                    enums: enums.clone(),
-                    reverse_enums,
-                }));
+                pt = ParamType::Enum(Rc::new(Enumeration { pt: base, enum_name: enum_name.clone(), table: table.clone() }));
                 break;
             }
         }
@@ -744,7 +743,7 @@ impl MessageParser {
             let add_enums = add_enums
                 .as_object()
                 .ok_or_else(|| Error::new(format!("'{}' object has no attribute 'items'", py_type(add_enums))))?;
-            let enums = self.enumerations.entry(add_name.clone()).or_default();
+            let enums = &mut Rc::make_mut(self.enumerations.entry(add_name.clone()).or_default()).enums;
             for (enum_, value) in add_enums {
                 if let Some(v) = value.as_i64().filter(|_| !value.is_f64()) {
                     // Simple enumeration
@@ -768,6 +767,11 @@ impl MessageParser {
                     enums.insert(format!("{}{}", enum_root, start_enum + i), start_value + i);
                 }
             }
+        }
+        // (reverse_enums = {v: k}: the last name of a value wins)
+        for table in self.enumerations.values_mut() {
+            let t = Rc::make_mut(table);
+            t.reverse_enums = t.enums.iter().map(|(k, v)| (*v, k.clone())).collect();
         }
         Ok(())
     }
