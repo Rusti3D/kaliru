@@ -201,13 +201,43 @@ fn sources(config: &kconfig::Config) -> Vec<&'static str> {
                 out.extend(*files);
             }
         }
+    } else if on("CONFIG_MACH_LPC176X") {
+        // src/lpc176x/Makefile
+        out.extend(["lpc176x/internal.rs", "lpc176x/main.rs", "lpc176x/gpio.rs"]);
+        out.extend(["generic/armcm_boot.rs", "generic/armcm_irq.rs", "generic/armcm_timer.rs"]);
+        out.extend(["generic/armcm_reset.rs", "generic/crc16_ccitt.rs"]);
+        out.push("lpc176x/system_LPC17xx.rs");
+        // (canbus.h: no requests, its constants are used in theirs)
+        if on("CONFIG_CANSERIAL") || on("CONFIG_USBCANBUS") {
+            out.push("generic/canbus_h.rs");
+        }
+        let canbus: &[&'static str] = &["lpc176x/can.rs", "lpc176x/chipid.rs", "generic/canserial.rs", "generic/fasthash.rs"];
+        let opt: &[(&str, &[&'static str])] = &[
+            ("CONFIG_WANT_ADC", &["lpc176x/adc.rs"]),
+            ("CONFIG_WANT_GPIO_I2C", &["lpc176x/i2c.rs"]),
+            ("CONFIG_WANT_GPIO_SPI", &["lpc176x/spi.rs"]),
+            ("CONFIG_USBSERIAL", &["lpc176x/usbserial.rs", "lpc176x/chipid.rs"]),
+            ("CONFIG_USBSERIAL", &["generic/usb_cdc.rs"]),
+            ("CONFIG_SERIAL", &["lpc176x/serial.rs", "generic/serial_irq.rs"]),
+            ("CONFIG_CANSERIAL", canbus),
+            ("CONFIG_CANSERIAL", &["generic/canbus.rs"]),
+            ("CONFIG_USBCANBUS", canbus),
+            ("CONFIG_USBCANBUS", &["lpc176x/usbserial.rs"]),
+            ("CONFIG_USBCANBUS", &["generic/usb_canbus.rs"]),
+            ("CONFIG_WANT_HARD_PWM", &["lpc176x/hard_pwm.rs"]),
+        ];
+        for (c, files) in opt {
+            if on(c) {
+                out.extend(*files);
+            }
+        }
     } else if on("CONFIG_MACH_SIMU") {
         // src/simulator/Makefile
         out.extend(["simulator/main.rs", "simulator/gpio.rs", "simulator/timer.rs", "simulator/serial.rs"]);
         out.extend(["generic/crc16_ccitt.rs", "generic/alloc.rs"]);
         out.extend(["generic/timer_irq.rs", "generic/serial_irq.rs"]);
     } else {
-        panic!("only the linux, stm32, rp2040 and simulator boards are ported");
+        panic!("only the linux, stm32, rp2040, lpc176x and simulator boards are ported");
     }
     // (make: a source listed twice is built once, at its first place)
     let mut seen = BTreeSet::new();
@@ -215,19 +245,22 @@ fn sources(config: &kconfig::Config) -> Vec<&'static str> {
     out
 }
 
-/// The device header of an stm32 / rp2040 build (src/<board>/chip/<mcu>.rs,
+/// The device header of an stm32 / rp2040 / lpc176x build (src/<board>/chip/<mcu>.rs,
 /// made by tools/gen_stm32_regs.py): its path and the names it defines
 /// (the C `#ifdef NAME`, here `#[cfg(has_NAME)]`)
 fn chip_header(root: &Path, config: &kconfig::Config) -> Option<(PathBuf, BTreeSet<String>)> {
-    let board = if config.enabled("CONFIG_MACH_STM32") {
-        "stm32"
+    let mcu = config.string("CONFIG_MCU").unwrap();
+    let (board, file) = if config.enabled("CONFIG_MACH_STM32") {
+        ("stm32", mcu.to_string())
     } else if config.enabled("CONFIG_MACH_RPXXXX") {
-        "rp2040"
+        ("rp2040", mcu.to_string())
+    } else if config.enabled("CONFIG_MACH_LPC176X") {
+        // (LPC17xx.h, for both lpc1768 and lpc1769)
+        ("lpc176x", "lpc17xx".to_string())
     } else {
         return None;
     };
-    let mcu = config.string("CONFIG_MCU").unwrap();
-    let path = root.join("src").join(board).join("chip").join(format!("{}.rs", mcu));
+    let path = root.join("src").join(board).join("chip").join(format!("{}.rs", file));
     if !path.exists() {
         panic!("no {}: make it with tools/gen_stm32_regs.py", path.display());
     }

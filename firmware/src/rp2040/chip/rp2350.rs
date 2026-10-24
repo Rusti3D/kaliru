@@ -402,6 +402,46 @@ const _: () = assert!(core::mem::offset_of!(TPI_Type, RESERVED7) == 4008);
 const _: () = assert!(core::mem::offset_of!(TPI_Type, DEVID) == 4040);
 const _: () = assert!(core::mem::offset_of!(TPI_Type, DEVTYPE) == 4044);
 #[repr(C)]
+pub struct MPU_Type {
+    pub TYPE: Reg<u32>,
+    pub CTRL: Reg<u32>,
+    pub RNR: Reg<u32>,
+    pub RBAR: Reg<u32>,
+    pub RLAR: Reg<u32>,
+    pub RBAR_A1: Reg<u32>,
+    pub RLAR_A1: Reg<u32>,
+    pub RBAR_A2: Reg<u32>,
+    pub RLAR_A2: Reg<u32>,
+    pub RBAR_A3: Reg<u32>,
+    pub RLAR_A3: Reg<u32>,
+    pub RESERVED0: [Reg<u32>; 1],
+    pub MAIR: [Reg<u32>; 2],
+}
+impl MPU_Type {
+    #[inline(always)]
+    pub fn MAIR0(&self) -> &Reg<u32> {
+        unsafe { &*((self as *const Self as *const u8).add(48) as *const Reg<u32>) }
+    }
+    #[inline(always)]
+    pub fn MAIR1(&self) -> &Reg<u32> {
+        unsafe { &*((self as *const Self as *const u8).add(52) as *const Reg<u32>) }
+    }
+}
+const _: () = assert!(core::mem::size_of::<MPU_Type>() == 56);
+const _: () = assert!(core::mem::offset_of!(MPU_Type, TYPE) == 0);
+const _: () = assert!(core::mem::offset_of!(MPU_Type, CTRL) == 4);
+const _: () = assert!(core::mem::offset_of!(MPU_Type, RNR) == 8);
+const _: () = assert!(core::mem::offset_of!(MPU_Type, RBAR) == 12);
+const _: () = assert!(core::mem::offset_of!(MPU_Type, RLAR) == 16);
+const _: () = assert!(core::mem::offset_of!(MPU_Type, RBAR_A1) == 20);
+const _: () = assert!(core::mem::offset_of!(MPU_Type, RLAR_A1) == 24);
+const _: () = assert!(core::mem::offset_of!(MPU_Type, RBAR_A2) == 28);
+const _: () = assert!(core::mem::offset_of!(MPU_Type, RLAR_A2) == 32);
+const _: () = assert!(core::mem::offset_of!(MPU_Type, RBAR_A3) == 36);
+const _: () = assert!(core::mem::offset_of!(MPU_Type, RLAR_A3) == 40);
+const _: () = assert!(core::mem::offset_of!(MPU_Type, RESERVED0) == 44);
+const _: () = assert!(core::mem::offset_of!(MPU_Type, MAIR) == 48);
+#[repr(C)]
 pub struct FPU_Type {
     pub RESERVED0: [Reg<u32>; 1],
     pub FPCCR: Reg<u32>,
@@ -8128,6 +8168,7 @@ pub const I2C0: *mut I2C0_Type = 0x40090000 as *mut I2C0_Type;
 pub const I2C1: *mut I2C0_Type = 0x40098000 as *mut I2C0_Type;
 pub const IO_BANK0: *mut IO_BANK0_Type = 0x40028000 as *mut IO_BANK0_Type;
 pub const IO_QSPI: *mut IO_QSPI_Type = 0x40030000 as *mut IO_QSPI_Type;
+pub const MPU: *mut MPU_Type = 0xe000ed90 as *mut MPU_Type;
 pub const NVIC: *mut NVIC_Type = 0xe000e100 as *mut NVIC_Type;
 pub const OTP: *mut OTP_Type = 0x40120000 as *mut OTP_Type;
 pub const OTP_DATA: *mut OTP_DATA_Type = 0x40130000 as *mut OTP_DATA_Type;
@@ -35795,7 +35836,6 @@ pub const M33_VTOR_TBLOFF_BITS: u32 = 0xffffff80;
 pub const M33_VTOR_TBLOFF_LSB: u32 = 0x7;
 pub const M33_VTOR_TBLOFF_MSB: u32 = 0x1f;
 pub const M33_VTOR_TBLOFF_RESET: u32 = 0x0;
-pub const MPU: u32 = 0xe000ed90;
 pub const MPU_BASE: u32 = 0xe000ed90;
 pub const MPU_CTRL_ENABLE_Msk: u32 = 0x1;
 pub const MPU_CTRL_ENABLE_Pos: u32 = 0x0;

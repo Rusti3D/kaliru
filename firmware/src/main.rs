@@ -97,6 +97,10 @@ pub use stm32 as board;
 pub mod rp2040;
 #[cfg(CONFIG_MACH_RPXXXX)]
 pub use rp2040 as board;
+#[cfg(CONFIG_MACH_LPC176X)]
+pub mod lpc176x;
+#[cfg(CONFIG_MACH_LPC176X)]
+pub use lpc176x as board;
 #[cfg(CONFIG_MACH_SIMU)]
 pub mod simulator;
 #[cfg(CONFIG_MACH_SIMU)]

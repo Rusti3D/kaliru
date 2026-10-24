@@ -13,6 +13,10 @@
 # or the pico-sdk headers of an rp2040 / rp2350 build (the cmsis device header and every
 # hardware/structs and hardware/regs header; also every enum, not only IRQn_Type):
 #   gen_stm32_regs.py --pico <kalico>/lib <mcu> <out.rs>
+#
+# or another vendor's CMSIS device header (with cmsis-core), optionally with a -D of the build:
+#   gen_stm32_regs.py --cmsis <kalico>/lib <family> <header, from lib/> <out.rs> [define]
+#   e.g. gen_stm32_regs.py --cmsis ~/kalico/lib lpc176x lpc176x/device/LPC17xx.h src/lpc176x/chip/lpc17xx.rs
 import os, re, subprocess, sys, tempfile
 
 pico = sys.argv[1] == '--pico'
@@ -40,6 +44,12 @@ elif pico:
             # (the rom api constants of rp2040/rp2350_bootrom.c)
             f.write('#include "boot/bootrom_constants.h"\n#include "boot/picoboot_constants.h"\n')
     header_path = top
+elif sys.argv[1] == '--cmsis':
+    lib, family, rel, out = sys.argv[2:6]
+    define = sys.argv[6] if len(sys.argv) > 6 else None
+    header_path = os.path.join(lib, rel)
+    incs = ['-I', os.path.dirname(header_path), '-I', os.path.join(lib, 'cmsis-core')]
+    top = os.path.basename(rel)
 else:
     lib, family, mcu, out = sys.argv[1:5]
     define = mcu.upper().replace('X', 'x')          # as the stm32 Makefile's MCU_UPPER
@@ -50,7 +60,7 @@ defs = ['-D' + define] if define else []
 # the -mcpu of Kalico's src/stm32/Makefile (the CMSIS headers test the target)
 MCPU = {'rp2040': 'cortex-m0plus', 'rp2350': 'cortex-m33', 'stm32f0': 'cortex-m0', 'stm32f1': 'cortex-m3', 'stm32f2': 'cortex-m3', 'stm32f4': 'cortex-m4',
         'stm32f7': 'cortex-m7', 'stm32g0': 'cortex-m0plus', 'stm32g4': 'cortex-m4', 'stm32h7': 'cortex-m7',
-        'stm32l4': 'cortex-m4'}[family]
+        'stm32l4': 'cortex-m4', 'lpc176x': 'cortex-m3'}[family]
 CTYPES = {'uint32_t': 'u32', 'uint16_t': 'u16', 'uint8_t': 'u8', 'int32_t': 'i32',
           # pico-sdk hardware/address_mapped.h
           'io_rw_32': 'u32', 'io_ro_32': 'u32', 'io_wo_32': 'u32',
@@ -104,7 +114,29 @@ if pico:
         text = t
     text = '\n'.join(hoisted) + '\n' + text
 
-# Structs: only plain register lists; anything else (unions, bitfields) is left out
+# An anonymous union in a struct (`union { __I uint8_t RBR; __O uint8_t THR; uint32_t RESERVED0; };`,
+# `union { __IO uint32_t SR; stc_usart_sr_field_t SR_f; };`): its widest plain register is the
+# struct field, its other plain registers (also those of anonymous structs in it) are accessor
+# methods at their own offsets; bitfield struct members are left out.
+unions = []
+text = re.sub(r'union\s*\{((?:[^{}]|\{[^{}]*\})*)\}\s*;',
+              lambda m: unions.append(m.group(1)) or '__union_%d __union_%d;' % (len(unions) - 1, len(unions) - 1), text)
+DECL = r'(?:__IOM|__IM|__OM|__IO|__I|__O|volatile|const|\s)*(\w+)\s+(\w+)((?:\s*\[[^\]]+\])*)'
+CSIZE = {'u8': 1, 'u16': 2, 'u32': 4, 'i32': 4}
+
+
+def parse_decl(decl):
+    f = re.fullmatch(DECL, decl.strip())
+    if not f:
+        return None
+    # (the array dimensions, outermost first)
+    dims = tuple(d.strip() for d in re.findall(r'\[([^\]]+)\]', f.group(3)))
+    return f.group(1), f.group(2), dims
+
+
+aliases = {}      # struct: [(type, name, dims)] (the other union members)
+
+# Structs: only plain register lists; anything else (bitfields, ...) is left out
 structs = {}
 for m in re.finditer(r'typedef\s+struct\s*\{([^{}]*)\}\s*(\w+)\s*;', text):
     body, sname = m.groups()
@@ -113,17 +145,38 @@ for m in re.finditer(r'typedef\s+struct\s*\{([^{}]*)\}\s*(\w+)\s*;', text):
         decl = decl.strip()
         if not decl:
             continue
-        f = re.fullmatch(r'(?:__IOM|__IM|__OM|__IO|__I|__O|volatile|const|\s)*(\w+)\s+(\w+)((?:\s*\[[^\]]+\])*)', decl)
-        if not f or (f.group(1) not in CTYPES and f.group(1) not in structs):
+        u = re.fullmatch(r'__union_(\d+)\s+__union_\d+', decl)
+        if u:
+            ubody = unions[int(u.group(1))]
+            plain = [d for d in (parse_decl(x) for x in re.sub(r'struct\s*\{[^{}]*\}\s*;', '', ubody).split(';') if x.strip())
+                     if d and d[0] in CTYPES]
+            inner_decls = [d for s_ in re.findall(r'struct\s*\{([^{}]*)\}\s*;', ubody)
+                           for d in (parse_decl(x) for x in s_.split(';') if x.strip()) if d and d[0] in CTYPES]
+
+            def size(d):
+                n = CSIZE[CTYPES[d[0]]]
+                for x in d[2]:
+                    lit = re.fullmatch(r'(\d+|0x[0-9a-fA-F]+)[uUlL]*', x)
+                    n *= int(lit.group(1), 0) if lit else 1
+                return n
+            if not plain:
+                fields = None
+                break
+            primary = max(plain, key=size)         # (the first of the widest)
+            fields.append(primary)
+            aliases.setdefault(sname, []).extend(d for d in plain + inner_decls if d is not primary)
+            continue
+        f = parse_decl(decl)
+        if not f or (f[0] not in CTYPES and f[0] not in structs):
             fields = None
             break
-        # (the array dimensions, outermost first)
-        dims = tuple(d.strip() for d in re.findall(r'\[([^\]]+)\]', f.group(3)))
-        fields.append((f.group(1), f.group(2), dims))
+        fields.append(f)
     if fields:
         structs[sname] = fields
+    else:
+        aliases.pop(sname, None)
 enums = []
-for m in re.finditer(r'typedef\s+enum\s*\{([^{}]*)\}\s*IRQn_Type\s*;', text):
+for m in re.finditer(r'typedef\s+enum\s*\w*\s*\{([^{}]*)\}\s*IRQn_Type\s*;', text):
     enums += [e.split('=')[0].strip() for e in m.group(1).split(',') if e.strip()]
 # (pico: the other enums too, as u32 values: gpio_function_t, ...)
 uenums = []
@@ -172,6 +225,8 @@ def evaluate():
                 if f not in macros and not re.fullmatch(r'\w+', d):
                     a = '((%s *)0)->%s' % (cs, f) + '[0]' * k
                     items.append(('D', '%s.%s.%d' % (s, f, k), 'sizeof(%s) / sizeof(%s[0])' % (a, a)))
+        # (the offsets of the other union members)
+        items += [('A', s + '.' + f, 'offsetof(%s, %s)' % (cs, f)) for t, f, dims in aliases.get(s, []) if f not in macros]
     while True:
         pre = ['#include <stddef.h>', '#include <stdint.h>', '#include "%s"' % top]
         src = pre + ['__attribute__((used)) const uint32_t v%d = %s;' % (i, e) for i, (k, n, e) in enumerate(items)]
@@ -197,11 +252,11 @@ def evaluate():
             bad = {i for i in bad if 0 <= i < len(items)}
             if not bad:
                 sys.exit(r.stderr[:3000])
-            drop = {items[i][1].split('.')[0] for i in bad if items[i][0] in 'SFD'}
+            drop = {items[i][1].split('.')[0] for i in bad if items[i][0] in 'SFDA'}
             for s in drop:
                 del structs[s]
             items = [it for i, it in enumerate(items)
-                     if i not in bad and not (it[0] in 'SFD' and it[1].split('.')[0] in drop)]
+                     if i not in bad and not (it[0] in 'SFDA' and it[1].split('.')[0] in drop)]
 
 
 vals = evaluate()
@@ -211,6 +266,8 @@ if pico:
     src = 'pico-sdk/%s (%s.h, hardware/regs/*.h, hardware/structs/*.h, -D%s)' % (mcu, mcu.upper(), define)
 elif define is None:
     src = os.path.relpath(header_path, lib)
+elif sys.argv[1] == '--cmsis':
+    src = '%s, -D%s' % (os.path.relpath(header_path, lib), define)
 else:
     src = '%s (%s, -D%s)' % (family, top, define)
 o = ['// Generated by tools/gen_stm32_regs.py from Kalico lib/%s: do not edit.' % src,
@@ -219,20 +276,37 @@ o = ['// Generated by tools/gen_stm32_regs.py from Kalico lib/%s: do not edit.' 
 if define:
     o += ['// the -D%s of the build (the headers test it)' % define, 'pub const %s: u32 = 1;' % define]
 o.append('')
+def rust_type(s, t, f, dim, plain=False):
+    ty = CTYPES[t] if plain and t in CTYPES else 'Reg<%s>' % CTYPES[t] if t in CTYPES else t
+    for k, d in reversed(list(enumerate(dim))):
+        lit = re.fullmatch(r'(\d+|0x[0-9a-fA-F]+)[uUlL]*', d)
+        n = int(lit.group(1), 0) if lit else vals.get(('I', d), vals.get(('D', '%s.%s.%d' % (s, f, k))))
+        if n is None:
+            return None
+        ty = '[%s; %d]' % (ty, n)
+    return ty
+
+
 for s, fl in structs.items():
     # (a stand alone header's struct that no peripheral points at is a plain
     # value: ADC_InitType)
-    plain = define is None and s not in ptrs.values()
+    plain = sys.argv[1] == '--header' and s not in ptrs.values()
     o.append('#[repr(C)]')
     o.append('pub struct %s {' % s)
     for t, f, dim in fl:
-        ty = CTYPES[t] if plain and t in CTYPES else 'Reg<%s>' % CTYPES[t] if t in CTYPES else t
-        for k, d in reversed(list(enumerate(dim))):
-            lit = re.fullmatch(r'(\d+|0x[0-9a-fA-F]+)[uUlL]*', d)
-            n = int(lit.group(1), 0) if lit else vals.get(('I', d), vals.get(('D', '%s.%s.%d' % (s, f, k))))
-            ty = '[%s; %d]' % (ty, n)
-        o.append('    pub %s: %s,' % (rust_name(f), ty))
+        o.append('    pub %s: %s,' % (rust_name(f), rust_type(s, t, f, dim, plain)))
     o.append('}')
+    al = [(t, f, d) for t, f, d in aliases.get(s, []) if ('A', s + '.' + f) in vals and rust_type(s, t, f, d)]
+    if al:
+        # (the other members of the anonymous unions)
+        o.append('impl %s {' % s)
+        for t, f, d in al:
+            ty = rust_type(s, t, f, d)
+            o.append('    #[inline(always)]')
+            o.append('    pub fn %s(&self) -> &%s {' % (rust_name(f), ty))
+            o.append('        unsafe { &*((self as *const Self as *const u8).add(%d) as *const %s) }' % (vals[('A', s + '.' + f)], ty))
+            o.append('    }')
+        o.append('}')
     o.append('const _: () = assert!(core::mem::size_of::<%s>() == %d);' % (s, vals[('S', s)]))
     for t, f, dim in fl:
         if ('F', s + '.' + f) in vals:
