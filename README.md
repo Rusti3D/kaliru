@@ -2,8 +2,8 @@
 
 > **Work in progress.** Kaliru is not ready for a printer yet. It is verified
 > only against Kalico's own test suite and file-output test runs, not on real
-> hardware; the MCU firmware's STM32 boards build and match Kalico's data
-> dictionary but have not run on a chip yet. Do not run it on a printer.
+> hardware; the MCU firmware's micro-controller boards build and match Kalico's
+> data dictionary but have not run on a chip yet. Do not run it on a printer.
 
 Kaliru is a port of [Kalico](https://github.com/KalicoCrew/kalico) (a Klipper
 fork) to Rust, aimed at small printer hosts with little RAM (the first target
@@ -41,16 +41,17 @@ Reference: Kalico `5b59427`.
   and runtime error messages follow CPython 3.13 (`vendor/` holds the patched
   RustPython crates). Known gap: no `match` statement.
 - MCU firmware (`firmware/`, the `kaliru-mcu` crate): the generic core, every
-  command module and sensor driver, the Linux-process board and every STM32
-  family (F0, F1, F2, F4, F7, G0, G4, H7, L4, plus AT32F403 and N32G45x) with
-  USART serial, USB, CAN / FDCAN and the USB-to-CAN bridge. For all 27 build
-  configurations in `firmware/configs/` the data dictionary is byte-identical
-  to Kalico's C build (version fields aside). For the linux board, scripted
-  sessions against both, with fake gpio/spi/i2c/adc hardware, give the same
-  answers and the same pin and bus activity; the STM32 builds have not run on
-  a chip or an emulator yet. See [`firmware/README.md`](firmware/README.md).
-- Not ported yet: the other micro-controller boards (AVR, RP2040, SAM, LPC,
-  HC32F460, AR100, PRU, simulator) and the indx C++ code.
+  command module and sensor driver, and the Linux-process, simulator, STM32
+  (F0, F1, F2, F4, F7, G0, G4, H7, L4, AT32F403, N32G45x), RP2040 / RP2350,
+  LPC176x, SAM3/SAM4/SAME70 and SAMD21/SAMC21/SAMD51/SAME5x boards with
+  serial, USB, CAN / FDCAN and the USB-to-CAN bridge, plus the Bondtech INDX
+  heater code. For all 52 build configurations in `firmware/configs/` the data
+  dictionary is byte-identical to Kalico's C build (version fields aside). For
+  the linux board, scripted sessions against both, with fake gpio/spi/i2c/adc
+  hardware, give the same answers and the same pin and bus activity; the
+  micro-controller builds have not run on a chip or an emulator yet. See
+  [`firmware/README.md`](firmware/README.md).
+- Not ported yet: the HC32F460, AVR, AR100 and PRU boards.
 
 ## Building
 

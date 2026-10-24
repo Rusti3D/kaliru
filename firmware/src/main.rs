@@ -84,6 +84,12 @@ pub mod load_cell_probe;
 #[cfg(CONFIG_WANT_SOFTWARE_I2C)]
 pub mod i2c_software;
 
+#[cfg(CONFIG_WANT_INDX_HEATER)]
+pub mod indx;
+// (newlib's math functions, which the INDX heater uses)
+#[cfg(CONFIG_WANT_INDX_HEATER)]
+pub mod libm;
+
 pub mod generic;
 #[cfg(CONFIG_MACH_LINUX)]
 pub mod linux;

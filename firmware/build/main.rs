@@ -300,6 +300,18 @@ fn sources(config: &kconfig::Config) -> Vec<&'static str> {
     } else {
         panic!("only the linux, stm32, rp2040, lpc176x, atsam and simulator boards are ported");
     }
+    // src/indx/Makefile (its c++ objects link after all the c ones)
+    if on("CONFIG_WANT_INDX_HEATER") {
+        out.extend([
+            "indx/ir_sensor.rs",
+            "indx/heater.rs",
+            "indx/coil_driver.rs",
+            "indx/pid.rs",
+            "indx/i2c_bus.rs",
+            "indx/status_led_driver.rs",
+            "indx/external_clocks.rs",
+        ]);
+    }
     // (make: a source listed twice is built once, at its first place)
     let mut seen = BTreeSet::new();
     out.retain(|f| seen.insert(*f));
@@ -537,12 +549,17 @@ fn main() {
 
 /// a compile_time_request.txt line as a request
 fn parse_request(line: &str) -> commands::Request {
+    commands::Request { decl: parse_decl(line), module: "crate".into() }
+}
+
+/// a compile_time_request.txt line as the request it makes
+fn parse_decl(line: &str) -> scan::Decl {
     use scan::Decl;
     let (cmd, rest) = line.split_once(' ').unwrap_or((line, ""));
     let words: Vec<&str> = rest.split_whitespace().collect();
     // CTR_INT values back to expressions the evaluator reads
     let int = |w: &str| w.replace("+0x", "0x").replace("-0x", "-0x");
-    let decl = match cmd {
+    match cmd {
         "DECL_COMMAND_FLAGS" => {
             let mut p = rest.splitn(3, ' ');
             Decl::Command { func: p.next().unwrap().into(), flags: p.next().unwrap().into(), msg: p.next().unwrap().into() }
@@ -571,9 +588,9 @@ fn parse_request(line: &str) -> commands::Request {
             count: int(words[3]),
         },
         "DECL_INITIAL_PINS" => Decl::InitialPins("CONFIG_INITIAL_PINS".into()),
+        "DECL_ARMCM_IRQ" => Decl::ArmcmIrq { func: words[0].into(), expr: int(words[1]) },
         other => panic!("Unknown build time command '{}'", other),
-    };
-    commands::Request { decl, module: "crate".into() }
+    }
 }
 
 /// the names starting with `prefix` (CONFIG_*, has_*) in the sources

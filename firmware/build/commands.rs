@@ -173,7 +173,12 @@ pub fn generate(requests: &[Request], eval: &Eval, versions: &Versions, kconfig:
     };
 
     for r in requests {
-        let line = match &r.decl {
+        // (DECL_CTR: the line as written, the request it makes)
+        let (decl, raw) = match &r.decl {
+            Decl::Raw(s) => (crate::parse_decl(s), Some(s)),
+            d => (d.clone(), None),
+        };
+        let line = match &decl {
             Decl::Command { func, flags, msg } => {
                 let msgname = msg.split_whitespace().next().unwrap().to_string();
                 if commands.get(&msgname).is_some() {
@@ -254,8 +259,9 @@ pub fn generate(requests: &[Request], eval: &Eval, versions: &Versions, kconfig:
                 irqs.insert(num, (func.clone(), format!("{}::{}", r.module, func)));
                 format!("DECL_ARMCM_IRQ {}{}", func, ctr_int(num))
             }
+            Decl::Raw(_) => unreachable!(),
         };
-        txt += &line;
+        txt += raw.unwrap_or(&line);
         txt.push('\n');
     }
 

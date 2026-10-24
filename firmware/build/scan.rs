@@ -17,6 +17,8 @@ pub enum Decl {
     EnumerationRange { enumeration: String, name: String, expr: String, count: String },
     InitialPins(String),
     ArmcmIrq { func: String, expr: String },
+    /// DECL_CTR: a compile_time_request.txt line as written
+    Raw(String),
 }
 
 #[derive(Default)]
@@ -48,6 +50,7 @@ const MACROS: &[&str] = &[
     "shutdown",
     "try_shutdown",
     "static_string",
+    "decl_ctr",
 ];
 
 /// the text with comments replaced by spaces (string literals kept)
@@ -333,6 +336,7 @@ pub fn scan(src: &str, consts: &mut Consts, enabled: &dyn Fn(&str) -> bool) -> S
             "decl_armcm_irq" | "armcm_enable_irq" => Decl::ArmcmIrq { func: args[0].clone(), expr: args[1].clone() },
             "sendf" => Decl::Encoder(lit(0)),
             "output" => Decl::Output(lit(0)),
+            "decl_ctr" => Decl::Raw(lit(0)),
             _ => Decl::StaticStr(lit(0)),
         };
         decls.push(d);

@@ -66,15 +66,18 @@ data dictionary byte-identical apart from `version` / `build_versions` (`firmwar
 gpio/spi/i2c/adc event logs): all identical (basecmd, config + move_count, error paths, steppers + homing, gpio,
 buses + sensors, drivers + load cell probe).
 
-STM32 boards (Kalico `src/stm32`, all families, + `src/generic/armcm_*`, `usb_cdc`, `serial_irq`, `canbus`,
-`canserial`, `usb_canbus`): `firmware/tests/ctr_check.sh` builds every config in `firmware/configs/` (26 stm32:
-F0 F1 F2 F4 F7 G0 G4 H7 L4, AT32F403, N32G45x; serial, USB fs/otg, bxCAN, FDCAN, USB-to-CAN bridge, angle
-sensors) and compares `compile_time_request.txt` (identical) and the data dictionary (byte-identical apart from the
-version fields) with the C build's (`firmware/tests/ref/`): 27/27. Behaviour on a chip / emulator: not checked yet.
-Images (profile `mcu`): about 1.25x the C size (F401 53KB vs 42KB, F103 47KB vs 38KB).
+Micro-controller boards: stm32 (all families, AT32F403, N32G45x), rp2040 / rp2350 (incl. can2040), lpc176x,
+atsam (sam3x, sam4s, sam4e, same70), atsamd (samd21, samc21, samd51, same51, same54), the simulator, and the INDX
+heater (Kalico's C++ `src/indx`) with newlib's powf / sqrtf / sin ported (`src/libm.rs`). `firmware/tests/ctr_check.sh`
+builds every config in `firmware/configs/` (52: serial, USB, CAN / FDCAN, USB-to-CAN bridge, angle sensors, INDX
+toolboard) and compares `compile_time_request.txt` (identical) and the data dictionary (byte-identical apart from the
+version fields) with the C build's (`firmware/tests/ref/`): 52/52. The rp2040 boot2 block and `tools/elf2uf2` output
+are byte-identical to the C build's; `src/libm.rs` gives newlib's bits on 700k inputs (qemu-arm). Behaviour on a chip
+/ emulator: not checked yet. Images (profile `mcu`): about 1.25-1.4x the C size (F401 53KB vs 42KB, INDX 72KB vs
+58KB).
 
-Not ported: the other boards (avr, rp2040, atsam/atsamd, lpc176x, hc32f460, ar100, pru, simulator), the indx C++
-code.
+Not ported: hc32f460, avr, ar100 (or1k), pru. Kalico's `src/extras` (user firmware plugins found by
+`scripts/find-firmware-extras.sh`) is empty in Kalico itself.
 
 ## Custom cases (`tests/cases/*.test`, `tools/case_cmp.sh`)
 

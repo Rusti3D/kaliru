@@ -148,6 +148,11 @@ macro_rules! decl_initial_pins {
 macro_rules! decl_armcm_irq {
     ($($t:tt)*) => {};
 }
+// A compile time request line as written (DECL_CTR)
+#[macro_export]
+macro_rules! decl_ctr {
+    ($($t:tt)*) => {};
+}
 // Statically declare an IRQ handler and run-time enable it
 #[macro_export]
 macro_rules! armcm_enable_irq {

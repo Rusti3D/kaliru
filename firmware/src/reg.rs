@@ -6,6 +6,10 @@ use core::cell::UnsafeCell;
 pub struct Reg<T: Copy>(UnsafeCell<T>);
 
 impl<T: Copy> Reg<T> {
+    // (a C volatile variable)
+    pub const fn new(v: T) -> Self {
+        Reg(UnsafeCell::new(v))
+    }
     #[inline(always)]
     pub fn read(&self) -> T {
         unsafe { core::ptr::read_volatile(self.0.get()) }

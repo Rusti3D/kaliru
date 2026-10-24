@@ -39,7 +39,7 @@ fn gen_clock(clkgen_id: u32, flags: u32) {
 }
 
 // Route a peripheral clock to a given clkgen
-fn route_pclock(pclk_id: u32, clkgen_id: u32) {
+pub fn route_pclock(pclk_id: u32, clkgen_id: u32) {
     let val = GCLK_PCHCTRL_GEN(clkgen_id) | GCLK_PCHCTRL_CHEN;
     gclk().PCHCTRL[pclk_id as usize].reg.write(val);
     while gclk().PCHCTRL[pclk_id as usize].reg.read() != val {}
