@@ -59,6 +59,13 @@ mod nvic {
         }
     }
 
+    #[allow(dead_code)]
+    pub fn NVIC_ClearPendingIRQ(irqn: IRQn_Type) {
+        if irqn >= 0 {
+            unsafe { &*NVIC }.ICPR[(irqn as u32 >> 5) as usize].write(1 << (irqn as u32 & 0x1F));
+        }
+    }
+
     pub fn NVIC_SetPriority(irqn: IRQn_Type, priority: u32) {
         let v = ((priority << (8 - __NVIC_PRIO_BITS)) & 0xFF) as u8;
         if irqn >= 0 {

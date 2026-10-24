@@ -115,6 +115,10 @@ pub use atsam as board;
 pub mod atsamd;
 #[cfg(CONFIG_MACH_ATSAMD)]
 pub use atsamd as board;
+#[cfg(CONFIG_MACH_HC32F460)]
+pub mod hc32f460;
+#[cfg(CONFIG_MACH_HC32F460)]
+pub use hc32f460 as board;
 #[cfg(CONFIG_MACH_SIMU)]
 pub mod simulator;
 #[cfg(CONFIG_MACH_SIMU)]

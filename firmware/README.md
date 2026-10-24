@@ -11,11 +11,13 @@ command parsing, all command modules and sensor drivers) and these boards:
   boot2 stage (`tools/gen_rp2040_stage2.py`) and `tools/elf2uf2` (byte-identical `.uf2` files);
 - **lpc176x** (`src/lpc176x`), **atsam** (`src/atsam`: sam3x, sam4s, sam4e, same70) and **atsamd**
   (`src/atsamd`: samd21, samc21, samd51, same51, same54): USB, serial, CAN, spi, i2c, adc, pwm;
+- **hc32f460** (`src/hc32f460`): serial, adc, pwm, with the Huada driver library functions it calls
+  (`src/hc32f460/lib/`);
 - the ARM Cortex-M code of `src/generic/armcm_*`, `usb_cdc`, `serial_irq`, `canbus`, `canserial`, `usb_canbus`;
 - the **INDX heater** (`src/indx`, C++ in Kalico: the Bondtech INDX induction heater on a SAME51J19 toolboard), with
   the newlib math it uses (`src/libm.rs`: powf, sqrtf, sin, bit for bit newlib 4.4.0's).
 
-Not ported: hc32f460, avr, ar100, pru.
+Not ported: avr, ar100, pru.
 
 ## Building
 
@@ -39,11 +41,12 @@ twice the C one and does not fit a 64KB STM32F103 (`CARGO_PROFILE_MCU_OPT_LEVEL=
 
 Targets: `thumbv6m-none-eabi` (Cortex-M0/M0+: stm32 F0 / G0, rp2040, samd21, samc21), `thumbv7m-none-eabi` (M3:
 stm32 F1 / F2, sam3x, lpc176x), `thumbv7em-none-eabi` (M4 / M7: the other stm32, AT32, N32, sam4, same70, samd51 /
-same5x), `thumbv8m.main-none-eabi` (M33: rp2350); linux and the simulator build for the host.
+same5x, hc32f460), `thumbv8m.main-none-eabi` (M33: rp2350); linux and the simulator build for the host.
 
 A chip needs its device header as Rust, `src/<board>/chip/<mcu>.rs`, made from Kalico's `lib/` with
 `tools/gen_stm32_regs.py` (modes: stm32 CMSIS headers, `--pico` for the pico-sdk, `--cmsis` for other vendors'
-CMSIS headers incl. Atmel's ASF unions, `--header` for one header); register values come from gcc, struct offsets
+CMSIS headers incl. Atmel's ASF unions, `--hc32` for the Huada header and driver headers with the bit
+positions of its `REG_f` bitfields as `reg::Field`s, `--header` for one header); register values come from gcc, struct offsets
 are asserted.
 
 Run (linux): `kaliru-mcu -I /tmp/klipper_host_mcu` (same options as Kalico's `klipper.elf`: `-w` watchdog, `-r`
@@ -72,8 +75,8 @@ application address.
 
 ## Checks
 
-- `tests/ctr_check.sh [config ...]` builds every configuration in `configs/` (52: linux, simulator, 25 stm32 incl. AT32 / N32, 5
-  rp2040 / rp2350, 4 lpc176x, 7 atsam, 9 atsamd incl. the INDX toolboard) and compares
+- `tests/ctr_check.sh [config ...]` builds every configuration in `configs/` (54: linux, simulator, 25 stm32 incl. AT32 / N32, 5
+  rp2040 / rp2350, 4 lpc176x, 7 atsam, 9 atsamd incl. the INDX toolboard, 2 hc32f460) and compares
   `$OUT_DIR/compile_time_request.txt` with the C build's (`tests/ref/<config>_compile_time_request.txt`) and the
   data dictionary with `tests/ref/<config>_klipper.dict` apart from `version` / `build_versions`. New configs:
   `configs/src/<name>.in` (Kconfig choices), `../tools/mkref.sh <name>` builds the C reference.

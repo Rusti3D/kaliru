@@ -43,15 +43,15 @@ Reference: Kalico `5b59427`.
 - MCU firmware (`firmware/`, the `kaliru-mcu` crate): the generic core, every
   command module and sensor driver, and the Linux-process, simulator, STM32
   (F0, F1, F2, F4, F7, G0, G4, H7, L4, AT32F403, N32G45x), RP2040 / RP2350,
-  LPC176x, SAM3/SAM4/SAME70 and SAMD21/SAMC21/SAMD51/SAME5x boards with
+  LPC176x, SAM3/SAM4/SAME70, SAMD21/SAMC21/SAMD51/SAME5x and HC32F460 boards with
   serial, USB, CAN / FDCAN and the USB-to-CAN bridge, plus the Bondtech INDX
-  heater code. For all 52 build configurations in `firmware/configs/` the data
+  heater code. For all 54 build configurations in `firmware/configs/` the data
   dictionary is byte-identical to Kalico's C build (version fields aside). For
   the linux board, scripted sessions against both, with fake gpio/spi/i2c/adc
   hardware, give the same answers and the same pin and bus activity; the
   micro-controller builds have not run on a chip or an emulator yet. See
   [`firmware/README.md`](firmware/README.md).
-- Not ported yet: the HC32F460, AVR, AR100 and PRU boards.
+- Not ported yet: the AVR, AR100 and PRU boards.
 
 ## Building
 

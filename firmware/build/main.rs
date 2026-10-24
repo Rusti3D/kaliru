@@ -292,13 +292,30 @@ fn sources(config: &kconfig::Config) -> Vec<&'static str> {
                 out.extend(files.iter().copied());
             }
         }
+    } else if on("CONFIG_MACH_HC32F460") {
+        // src/hc32f460/Makefile (the lib/hc32f460 driver files: no requests)
+        // (internal.h: no requests, its GPIO() is used in theirs)
+        out.push("hc32f460/internal.rs");
+        out.extend(["hc32f460/main.rs", "hc32f460/interrupts.rs", "hc32f460/gpio.rs"]);
+        let opt: &[(&str, &[&'static str])] = &[
+            ("CONFIG_WANT_ADC", &["hc32f460/adc.rs"]),
+            ("CONFIG_SERIAL", &["hc32f460/serial.rs", "generic/serial_irq.rs"]),
+            ("CONFIG_WANT_HARD_PWM", &["hc32f460/hard_pwm.rs"]),
+        ];
+        for (c, files) in opt {
+            if on(c) {
+                out.extend(*files);
+            }
+        }
+        out.extend(["generic/armcm_boot.rs", "generic/armcm_irq.rs", "generic/armcm_timer.rs"]);
+        out.extend(["generic/armcm_reset.rs", "generic/crc16_ccitt.rs"]);
     } else if on("CONFIG_MACH_SIMU") {
         // src/simulator/Makefile
         out.extend(["simulator/main.rs", "simulator/gpio.rs", "simulator/timer.rs", "simulator/serial.rs"]);
         out.extend(["generic/crc16_ccitt.rs", "generic/alloc.rs"]);
         out.extend(["generic/timer_irq.rs", "generic/serial_irq.rs"]);
     } else {
-        panic!("only the linux, stm32, rp2040, lpc176x, atsam and simulator boards are ported");
+        panic!("only the linux, stm32, rp2040, lpc176x, atsam, atsamd, hc32f460 and simulator boards are ported");
     }
     // src/indx/Makefile (its c++ objects link after all the c ones)
     if on("CONFIG_WANT_INDX_HEATER") {
@@ -332,6 +349,9 @@ fn chip_header(root: &Path, config: &kconfig::Config) -> Option<(PathBuf, BTreeS
     } else if config.enabled("CONFIG_MACH_LPC176X") {
         // (LPC17xx.h, for both lpc1768 and lpc1769)
         ("lpc176x", "lpc17xx".to_string())
+    } else if config.enabled("CONFIG_MACH_HC32F460") {
+        // (hc32f460.h and the driver headers)
+        ("hc32f460", "hc32f460".to_string())
     } else {
         return None;
     };

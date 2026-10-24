@@ -17,9 +17,14 @@
 # or another vendor's CMSIS device header (with cmsis-core), optionally with a -D of the build:
 #   gen_stm32_regs.py --cmsis <kalico>/lib <family> <header, from lib/> <out.rs> [define [include dir ...]]
 #   e.g. gen_stm32_regs.py --cmsis ~/kalico/lib lpc176x lpc176x/device/LPC17xx.h src/lpc176x/chip/lpc17xx.rs
+#
+# or the Huada hc32f460 device header with the driver headers Kalico's hc32f460 code uses (also every
+# enum, and the bit positions of the `stc_*_field_t` bitfield structs):
+#   gen_stm32_regs.py --hc32 <kalico>/lib <out.rs> <driver header> ...
 import os, re, subprocess, sys, tempfile
 
 pico = sys.argv[1] == '--pico'
+hc32 = sys.argv[1] == '--hc32'
 if sys.argv[1] == '--header':
     lib, family, header, out = sys.argv[2:6]
     define = None
@@ -44,6 +49,19 @@ elif pico:
             # (the rom api constants of rp2040/rp2350_bootrom.c)
             f.write('#include "boot/bootrom_constants.h"\n#include "boot/picoboot_constants.h"\n')
     header_path = top
+elif hc32:
+    lib, out = sys.argv[2:4]
+    family = 'hc32f460'
+    define = 'HC32F460'                             # as the hc32f460 Makefile's -DHC32F460
+    base = os.path.join(lib, 'hc32f460')
+    incs = ['-I', os.path.join(base, 'driver', 'inc'), '-I', os.path.join(base, 'mcu', 'common'),
+            '-I', os.path.join(lib, 'cmsis-core')]
+    top = os.path.abspath(out) + '.h'
+    with open(top, 'w') as f:
+        f.write('#include "hc32f460.h"\n#include "system_hc32f460.h"\n')
+        for h in sys.argv[4:]:
+            f.write('#include "%s"\n' % h)
+    header_path = top
 elif sys.argv[1] == '--cmsis':
     lib, family, rel, out = sys.argv[2:6]
     define = sys.argv[6] if len(sys.argv) > 6 else None
@@ -65,7 +83,7 @@ MCPU = {'rp2040': 'cortex-m0plus', 'rp2350': 'cortex-m33', 'stm32f0': 'cortex-m0
         'stm32f7': 'cortex-m7', 'stm32g0': 'cortex-m0plus', 'stm32g4': 'cortex-m4', 'stm32h7': 'cortex-m7',
         'stm32l4': 'cortex-m4', 'lpc176x': 'cortex-m3', 'sam3x': 'cortex-m3', 'sam4s': 'cortex-m4', 'sam4e': 'cortex-m4',
         'same70b': 'cortex-m7', 'samd21': 'cortex-m0plus', 'samc21': 'cortex-m0plus', 'samd51': 'cortex-m4',
-        'same51': 'cortex-m4', 'same54': 'cortex-m4'}[family]
+        'same51': 'cortex-m4', 'same54': 'cortex-m4', 'hc32f460': 'cortex-m4'}[family]
 CTYPES = {'uint32_t': 'u32', 'uint16_t': 'u16', 'uint8_t': 'u8', 'int32_t': 'i32',
           # pico-sdk hardware/address_mapped.h
           'io_rw_32': 'u32', 'io_ro_32': 'u32', 'io_wo_32': 'u32',
@@ -204,10 +222,20 @@ for m in re.finditer(r'typedef\s+enum\s*\w*\s*\{([^{}]*)\}\s*IRQn_Type\s*;', tex
     enums += [e.split('=')[0].strip() for e in m.group(1).split(',') if e.strip()]
 # (pico: the other enums too, as u32 values: gpio_function_t, ...)
 uenums = []
-if pico:
+if pico or hc32:
     for m in re.finditer(r'\benum\s*\w*\s*\{([^{}]*)\}', text):
         uenums += [e.split('=')[0].strip() for e in m.group(1).split(',')
                    if e.strip() and e.split('=')[0].strip() not in enums]
+
+# (hc32: the bitfield structs `typedef struct { __IO uint32_t NAME:1; ... } stc_x_field_t;`, the
+# `REG_f` view of a register: their fields' bit positions, from gcc)
+bitstructs = {}
+if hc32:
+    for m in re.finditer(r'typedef\s+struct\s*\{([^{}]*)\}\s*(\w+)\s*;', text):
+        decls = [re.fullmatch(r'(?:__IO|__I|__O|volatile|const|\s)*(\w+)\s+(\w+)\s*:\s*\d+', d.strip())
+                 for d in m.group(1).split(';') if d.strip()]
+        if decls and all(decls) and all(d.group(1) in CTYPES for d in decls):
+            bitstructs[m.group(2)] = [d.group(2) for d in decls if not d.group(2).startswith('RESERVED')]
 
 # Macro expansions (object-like only)
 dm = run(gcc + ['-E', '-dM', '-x', 'c', header_path])
@@ -300,6 +328,45 @@ def evaluate():
 
 
 vals = evaluate()
+
+
+# (hc32: a bitfield's mask is the data gcc emits for `const stc_x_field_t bN = {.F = ~0u};`, its
+# struct's size the register width)
+def evaluate_bits():
+    items = [(s, f) for s, fl in bitstructs.items() for f in fl]
+    src = ['#include <stdint.h>', '#include "%s"' % top]
+    src += ['__attribute__((used)) const %s b%d = {.%s = ~0u};' % (s, i, f) for i, (s, f) in enumerate(items)]
+    with tempfile.TemporaryDirectory() as d:
+        c = os.path.join(d, 'b.c')
+        open(c, 'w').write('\n'.join(src) + '\n')
+        r = run(['arm-none-eabi-gcc', '-w', '-mcpu=' + MCPU, '-mthumb', '-S'] + defs + incs
+                + ['-o', os.path.join(d, 'b.s'), c])
+        if r.returncode:
+            sys.exit(r.stderr[:3000])
+        asm = open(os.path.join(d, 'b.s')).read()
+    size = {'.byte': 1, '.short': 2, '.2byte': 2, '.word': 4, '.4byte': 4}
+    out = {}
+    for m in re.finditer(r'^b(\d+):\s*\n((?:\s+\.(?:byte|short|2byte|word|4byte|space)\s+\S+\s*\n)+)', asm, re.M):
+        data = b''
+        for line in m.group(2).strip().splitlines():
+            op, v = line.split()
+            if op == '.space':
+                data += bytes(int(v))
+            else:
+                data += (int(v, 0) & ((1 << 8 * size[op]) - 1)).to_bytes(size[op], 'little')
+        mask = int.from_bytes(data, 'little')
+        pos = (mask & -mask).bit_length() - 1
+        width = bin(mask).count('1')
+        if mask != ((1 << width) - 1) << pos:
+            sys.exit('not one bitfield: %s.%s %x' % (items[int(m.group(1))] + (mask,)))
+        s, f = items[int(m.group(1))]
+        out.setdefault(s, [len(data), []])[1].append((f, pos, width))
+    if sum(len(fl) for _, fl in out.values()) != len(items):
+        sys.exit('bitfields: %d of %d evaluated' % (sum(len(fl) for _, fl in out.values()), len(items)))
+    return out
+
+
+bitvals = evaluate_bits() if bitstructs else {}
 # (a union of views: its field is the view as wide as the union)
 for u in union_views:
     if u in structs:
@@ -310,6 +377,8 @@ ptrs = {n: s for n, s in ptrs.items() if ('P', n) in vals and s in structs}
 
 if pico:
     src = 'pico-sdk/%s (%s.h, hardware/regs/*.h, hardware/structs/*.h, -D%s)' % (mcu, mcu.upper(), define)
+elif hc32:
+    src = 'hc32f460 (hc32f460.h, system_hc32f460.h, %s, -D%s)' % (', '.join(sys.argv[4:]), define)
 elif define is None:
     src = os.path.relpath(header_path, lib)
 elif sys.argv[1] == '--cmsis':
@@ -358,6 +427,14 @@ for s, fl in structs.items():
     for t, f, dim in fl:
         if ('F', s + '.' + f) in vals:
             o.append('const _: () = assert!(core::mem::offset_of!(%s, %s) == %d);' % (s, rust_name(f), vals[('F', s + '.' + f)]))
+for s, (n, fl) in bitvals.items():
+    # (a `REG_f` view: its register width and the position of each field)
+    o.append('pub mod %s {' % s)
+    o.append('    use crate::reg::Field;')
+    o.append('    pub type T = u%d;' % (8 * n))
+    for f, pos, width in fl:
+        o.append('    pub const %s: Field = Field { pos: %d, width: %d };' % (f, pos, width))
+    o.append('}')
 o.append('')
 for n in enums:
     v = vals[('E', n)]
@@ -391,7 +468,7 @@ for n in ints:
         else:
             o.append('pub const %s: u32 = 0x%x;' % (n, v))
 open(out, 'w').write('\n'.join(o) + '\n')
-if pico:
+if pico or hc32:
     os.remove(top)
 print('%s: %d structs, %d irqs, %d pointers, %d values' % (out, len(structs), len(enums), len(ptrs),
                                                          sum(1 for n in ints if ('I', n) in vals)))
