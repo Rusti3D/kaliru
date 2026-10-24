@@ -133,16 +133,22 @@ class Host:
         """the host process's peak and current memory (VmHWM, VmRSS) and cpu
         time (not part of the transcript: workdir/resources.txt)"""
         status = open("/proc/%d/status" % self.proc.pid).read()
-        mem = {k: v.split()[0] for k, v in re.findall(r"^(VmHWM|VmRSS):\s+(.*)$", status, re.M)}
+        mem = {k: v.split()[0] for k, v in re.findall(r"^(VmHWM|VmRSS|RssAnon|RssFile):\s+(.*)$", status, re.M)}
+        # (own memory as Moonruster's benchmarks count it: anonymous pages;
+        # program code and data mapped from files can be dropped by the kernel)
+        rollup = open("/proc/%d/smaps_rollup" % self.proc.pid).read()
+        pss_anon = re.search(r"^Pss_Anon:\s+(\d+)", rollup, re.M).group(1)
         stat = open("/proc/%d/stat" % self.proc.pid).read().rsplit(")", 1)[1].split()
         cpu = (int(stat[11]) + int(stat[12])) / os.sysconf("SC_CLK_TCK")
-        return "peak_rss_kb=%s rss_kb=%s cpu_s=%.2f" % (mem["VmHWM"], mem["VmRSS"], cpu)
+        return "peak_rss_kb=%s rss_kb=%s rss_anon_kb=%s rss_file_kb=%s pss_anon_kb=%s cpu_s=%.2f" % (
+            mem["VmHWM"], mem["VmRSS"], mem["RssAnon"], mem["RssFile"], pss_anon, cpu)
 
     def close(self):
         os.close(self.fd)
         self.proc.send_signal(signal.SIGINT)
         try:
-            self.proc.wait(5)
+            # (LIVE_CLOSE_WAIT: longer for a host under valgrind)
+            self.proc.wait(float(os.environ.get("LIVE_CLOSE_WAIT", 5)))
         except subprocess.TimeoutExpired:
             self.proc.kill()
             self.proc.wait()

@@ -62,7 +62,10 @@ default = ["python"]
 python = ["dep:rustpython-vm", "dep:rustpython-stdlib", "dep:rustpython-pylib"]
 
 [profile.release]
-# small binaries for printer hosts with little storage
+# small binaries for printer hosts with little storage: opt-level s is 5.5 MB
+# smaller than 3 (24.3 vs 29.7 MB) for the same cpu time over the stock suite
+# (5.08 vs 5.04 s); z saves 1.3 MB more for 20% more cpu
+opt-level = "s"
 strip = true
 lto = true
 codegen-units = 1
