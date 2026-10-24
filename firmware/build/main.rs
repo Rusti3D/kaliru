@@ -201,8 +201,13 @@ fn sources(config: &kconfig::Config) -> Vec<&'static str> {
                 out.extend(*files);
             }
         }
+    } else if on("CONFIG_MACH_SIMU") {
+        // src/simulator/Makefile
+        out.extend(["simulator/main.rs", "simulator/gpio.rs", "simulator/timer.rs", "simulator/serial.rs"]);
+        out.extend(["generic/crc16_ccitt.rs", "generic/alloc.rs"]);
+        out.extend(["generic/timer_irq.rs", "generic/serial_irq.rs"]);
     } else {
-        panic!("only the linux, stm32 and rp2040 boards are ported");
+        panic!("only the linux, stm32, rp2040 and simulator boards are ported");
     }
     // (make: a source listed twice is built once, at its first place)
     let mut seen = BTreeSet::new();

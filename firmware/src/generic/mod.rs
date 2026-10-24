@@ -1,5 +1,5 @@
 // src/generic: code shared by the boards
-#[cfg(CONFIG_MACH_LINUX)]
+#[cfg(any(CONFIG_MACH_LINUX, CONFIG_MACH_SIMU))]
 pub mod alloc;
 #[cfg(any(CONFIG_MACH_STM32, CONFIG_MACH_RPXXXX))]
 pub mod armcm_boot;
@@ -18,11 +18,13 @@ pub mod canbus_h;
 #[cfg(any(CONFIG_CANSERIAL, CONFIG_USBCANBUS))]
 pub mod canserial;
 pub mod crc16_ccitt;
+#[cfg(CONFIG_MACH_SIMU)]
+pub mod gpio_h;
 #[cfg(any(CONFIG_CANSERIAL, CONFIG_USBCANBUS))]
 pub mod fasthash;
 #[cfg(CONFIG_SERIAL)]
 pub mod serial_irq;
-#[cfg(any(CONFIG_MACH_STM32F0, CONFIG_MACH_STM32G0, CONFIG_MACH_RP2040))]
+#[cfg(any(CONFIG_MACH_STM32F0, CONFIG_MACH_STM32G0, CONFIG_MACH_RP2040, CONFIG_MACH_SIMU))]
 pub mod timer_irq;
 #[cfg(CONFIG_USBSERIAL)]
 pub mod usb_cdc;

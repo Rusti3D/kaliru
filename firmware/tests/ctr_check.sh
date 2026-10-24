@@ -11,7 +11,7 @@ pass=0; total=0
 for c in $configs; do
     total=$((total + 1))
     a=configs/$c/autoconf.h
-    if grep -q "CONFIG_MACH_LINUX 1" $a; then
+    if grep -q "CONFIG_MACH_LINUX 1\|CONFIG_MACH_SIMU 1" $a; then
         target=""; tdir=release; profile=--release
     elif grep -q "CONFIG_MACH_STM32F4 1\|CONFIG_MACH_STM32F7 1\|CONFIG_MACH_STM32G4 1\|CONFIG_MACH_STM32L4 1\|CONFIG_MACH_STM32H7 1\|CONFIG_MACH_N32G45x 1" $a; then
         target=thumbv7em-none-eabi; tdir=$target/mcu; profile="--profile mcu"

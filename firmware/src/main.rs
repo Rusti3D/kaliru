@@ -3,7 +3,7 @@
 // This file may be distributed under the terms of the GNU GPLv3 license.
 #![allow(clippy::missing_safety_doc, clippy::new_without_default)]
 // the micro-controller boards: no operating system
-#![cfg_attr(not(CONFIG_MACH_LINUX), no_std, no_main)]
+#![cfg_attr(not(any(CONFIG_MACH_LINUX, CONFIG_MACH_SIMU)), no_std, no_main)]
 
 #[allow(non_upper_case_globals, dead_code)]
 pub mod config {
@@ -12,7 +12,7 @@ pub mod config {
 }
 pub mod ctr;
 // (the volatile register type of the micro-controller boards)
-#[cfg(not(CONFIG_MACH_LINUX))]
+#[cfg(not(any(CONFIG_MACH_LINUX, CONFIG_MACH_SIMU)))]
 pub mod reg;
 
 pub mod basecmd;
@@ -97,15 +97,19 @@ pub use stm32 as board;
 pub mod rp2040;
 #[cfg(CONFIG_MACH_RPXXXX)]
 pub use rp2040 as board;
+#[cfg(CONFIG_MACH_SIMU)]
+pub mod simulator;
+#[cfg(CONFIG_MACH_SIMU)]
+pub use simulator as board;
 
-#[cfg(CONFIG_MACH_LINUX)]
+#[cfg(any(CONFIG_MACH_LINUX, CONFIG_MACH_SIMU))]
 fn main() {
     std::process::exit(board::main::main());
 }
 
 // A Rust panic (an index out of bounds, ...; the C code has none of
 // these checks): stop with irqs off, so the watchdog resets the chip
-#[cfg(not(CONFIG_MACH_LINUX))]
+#[cfg(not(any(CONFIG_MACH_LINUX, CONFIG_MACH_SIMU)))]
 #[panic_handler]
 fn panic(_info: &core::panic::PanicInfo) -> ! {
     board::irq_disable();

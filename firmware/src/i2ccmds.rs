@@ -36,6 +36,7 @@ pub struct I2cDev {
 }
 
 const IF_SOFTWARE: u8 = 1;
+#[cfg_attr(not(CONFIG_WANT_GPIO_I2C), allow(dead_code))]
 const IF_HARDWARE: u8 = 2;
 
 // i2c_write / i2c_read: the board's, or (no hardware I2C) none

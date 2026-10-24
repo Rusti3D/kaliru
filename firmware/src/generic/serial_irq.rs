@@ -5,7 +5,6 @@
 // This file may be distributed under the terms of the GNU GPLv3 license.
 use crate::board::{irq_restore, irq_save, serial_enable_tx_irq};
 use crate::command::{command_dispatch, command_encode_and_frame, command_find_block, command_send_ack, CommandEncoder, SendArg, MESSAGE_SYNC};
-use crate::config::CONFIG_HAVE_BOOTLOADER_REQUEST;
 use crate::ctr::Global;
 use crate::sched::{sched_wake_tasks, R};
 use crate::{decl_constant, decl_task};
@@ -89,7 +88,10 @@ pub fn console_task() -> R {
         command_dispatch(buf, pop_count)?;
     }
     if ret != 0 {
-        if CONFIG_HAVE_BOOTLOADER_REQUEST && ret < 0 && pop_count == 32 && buf[..32] == *b" \x1c Request Serial Bootloader!! ~" {
+        // (C: if (CONFIG_HAVE_BOOTLOADER_REQUEST && ...); boards without
+        // it have no bootloader_request())
+        #[cfg(CONFIG_HAVE_BOOTLOADER_REQUEST)]
+        if ret < 0 && pop_count == 32 && buf[..32] == *b" \x1c Request Serial Bootloader!! ~" {
             crate::board::bootloader_request();
         }
         console_pop_input(pop_count);
