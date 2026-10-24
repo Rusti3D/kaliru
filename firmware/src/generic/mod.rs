@@ -11,12 +11,14 @@ pub mod armcm_reset;
 pub mod armcm_timer;
 #[cfg(CONFIG_MACH_STM32)]
 pub mod cmsis;
-#[cfg(CONFIG_CANSERIAL)]
+#[cfg(any(CONFIG_CANSERIAL, CONFIG_USBCANBUS))]
 pub mod canbus;
-#[cfg(CONFIG_CANSERIAL)]
+#[cfg(any(CONFIG_CANSERIAL, CONFIG_USBCANBUS))]
+pub mod canbus_h;
+#[cfg(any(CONFIG_CANSERIAL, CONFIG_USBCANBUS))]
 pub mod canserial;
 pub mod crc16_ccitt;
-#[cfg(CONFIG_CANSERIAL)]
+#[cfg(any(CONFIG_CANSERIAL, CONFIG_USBCANBUS))]
 pub mod fasthash;
 #[cfg(CONFIG_SERIAL)]
 pub mod serial_irq;
@@ -24,9 +26,14 @@ pub mod serial_irq;
 pub mod timer_irq;
 #[cfg(CONFIG_USBSERIAL)]
 pub mod usb_cdc;
-#[cfg(CONFIG_USBSERIAL)]
+#[cfg(CONFIG_USBCANBUS)]
+pub mod usb_canbus;
+// (usb_canbus.c provides the usb_cdc.c functions in that mode)
+#[cfg(CONFIG_USBCANBUS)]
+pub use usb_canbus as usb_cdc;
+#[cfg(any(CONFIG_USBSERIAL, CONFIG_USBCANBUS))]
 pub mod usb_cdc_ep;
-#[cfg(CONFIG_USBSERIAL)]
+#[cfg(any(CONFIG_USBSERIAL, CONFIG_USBCANBUS))]
 pub mod usbstd;
 #[cfg(CONFIG_USBSERIAL)]
 pub mod usbstd_cdc;

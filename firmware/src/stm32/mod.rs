@@ -84,11 +84,11 @@ pub mod stm32f0_serial;
 pub use stm32f0_serial as serial;
 #[cfg(CONFIG_SERIAL)]
 pub use serial::serial_enable_tx_irq;
-#[cfg(all(CONFIG_USBSERIAL, CONFIG_HAVE_STM32_USBFS))]
+#[cfg(all(any(CONFIG_USBSERIAL, CONFIG_USBCANBUS), CONFIG_HAVE_STM32_USBFS))]
 pub mod usbfs;
-#[cfg(all(CONFIG_USBSERIAL, CONFIG_HAVE_STM32_USBOTG))]
+#[cfg(all(any(CONFIG_USBSERIAL, CONFIG_USBCANBUS), CONFIG_HAVE_STM32_USBOTG))]
 pub mod usbotg;
-#[cfg(any(CONFIG_USBSERIAL, CONFIG_CANSERIAL))]
+#[cfg(any(CONFIG_USBSERIAL, CONFIG_CANSERIAL, CONFIG_USBCANBUS))]
 pub mod chipid;
 #[cfg(all(any(CONFIG_CANSERIAL, CONFIG_USBCANBUS), CONFIG_HAVE_STM32_CANBUS))]
 pub mod can;
@@ -98,7 +98,7 @@ pub mod fdcan;
 pub use fdcan as can;
 #[cfg(any(CONFIG_CANSERIAL, CONFIG_USBCANBUS))]
 pub use can::{canhw_get_status, canhw_send, canhw_set_filter};
-#[cfg(CONFIG_CANSERIAL)]
+#[cfg(any(CONFIG_CANSERIAL, CONFIG_USBCANBUS))]
 pub use crate::generic::canserial::console_sendf;
 #[cfg(CONFIG_WANT_HARD_PWM)]
 pub mod hard_pwm;
@@ -120,7 +120,7 @@ pub use crate::generic::serial_irq::console_sendf;
 pub use crate::generic::usb_cdc::console_sendf;
 #[cfg(CONFIG_WANT_ADC)]
 pub use adc::{gpio_adc_cancel_sample, gpio_adc_read, gpio_adc_sample, gpio_adc_setup};
-#[cfg(CONFIG_USBSERIAL)]
+#[cfg(any(CONFIG_USBSERIAL, CONFIG_USBCANBUS))]
 pub use chipid::usbserial_get_serialid;
 pub use gpio::{
     gpio_in_read, gpio_in_reset, gpio_in_setup, gpio_out_reset, gpio_out_setup, gpio_out_toggle, gpio_out_toggle_noirq, gpio_out_write,
@@ -150,12 +150,12 @@ pub use stm32h7::{armcm_main, bootloader_request};
 pub use stm32f1::{armcm_main, bootloader_request};
 #[cfg(any(CONFIG_MACH_STM32F2, CONFIG_MACH_STM32F4))]
 pub use stm32f4::{armcm_main, bootloader_request};
-#[cfg(all(CONFIG_USBSERIAL, CONFIG_HAVE_STM32_USBFS))]
+#[cfg(all(any(CONFIG_USBSERIAL, CONFIG_USBCANBUS), CONFIG_HAVE_STM32_USBFS))]
 pub use usbfs::{
     usb_read_bulk_out, usb_read_ep0, usb_read_ep0_setup, usb_send_bulk_in, usb_send_ep0, usb_set_address, usb_set_configure,
     usb_stall_ep0,
 };
-#[cfg(all(CONFIG_USBSERIAL, CONFIG_HAVE_STM32_USBOTG))]
+#[cfg(all(any(CONFIG_USBSERIAL, CONFIG_USBCANBUS), CONFIG_HAVE_STM32_USBOTG))]
 pub use usbotg::{
     usb_read_bulk_out, usb_read_ep0, usb_read_ep0_setup, usb_send_bulk_in, usb_send_ep0, usb_set_address, usb_set_configure,
     usb_stall_ep0,

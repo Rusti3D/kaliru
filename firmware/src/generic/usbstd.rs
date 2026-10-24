@@ -124,3 +124,53 @@ pub struct UsbStringDescriptor<const N: usize> {
 }
 
 pub const USB_LANGID_ENGLISH_US: u16 = 0x0409;
+
+// the number of UTF-16 units of a string (the u"" literal, without its 0)
+pub const fn utf16_len(s: &str) -> usize {
+    let b = s.as_bytes();
+    let (mut i, mut n) = (0, 0);
+    while i < b.len() {
+        let c = b[i];
+        let (len, units) = if c < 0x80 {
+            (1, 1)
+        } else if c < 0xe0 {
+            (2, 1)
+        } else if c < 0xf0 {
+            (3, 1)
+        } else {
+            (4, 2)
+        };
+        i += len;
+        n += units;
+    }
+    n
+}
+
+// a u"" literal: the UTF-16 units of a string and its terminating 0
+pub const fn utf16<const N: usize>(s: &str) -> [u16; N] {
+    let b = s.as_bytes();
+    let mut out = [0u16; N];
+    let (mut i, mut n) = (0, 0);
+    while i < b.len() {
+        let c = b[i] as u32;
+        let (cp, len) = if c < 0x80 {
+            (c, 1)
+        } else if c < 0xe0 {
+            (((c & 0x1f) << 6) | (b[i + 1] as u32 & 0x3f), 2)
+        } else if c < 0xf0 {
+            (((c & 0x0f) << 12) | ((b[i + 1] as u32 & 0x3f) << 6) | (b[i + 2] as u32 & 0x3f), 3)
+        } else {
+            (((c & 0x07) << 18) | ((b[i + 1] as u32 & 0x3f) << 12) | ((b[i + 2] as u32 & 0x3f) << 6) | (b[i + 3] as u32 & 0x3f), 4)
+        };
+        if cp >= 0x10000 {
+            out[n] = (0xd800 + ((cp - 0x10000) >> 10)) as u16;
+            out[n + 1] = (0xdc00 + ((cp - 0x10000) & 0x3ff)) as u16;
+            n += 2;
+        } else {
+            out[n] = cp as u16;
+            n += 1;
+        }
+        i += len;
+    }
+    out
+}

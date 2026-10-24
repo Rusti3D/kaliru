@@ -7,25 +7,25 @@
 use super::internal::UID_BASE;
 use crate::decl_init;
 use crate::sched::R;
-#[cfg(CONFIG_USBSERIAL)]
+#[cfg(any(CONFIG_USBSERIAL, CONFIG_USBCANBUS))]
 use crate::{config::CONFIG_USB_SERIAL_NUMBER_CHIPID, ctr::Global, generic::usb_cdc::usb_fill_serial, generic::usbstd::UsbStringDescriptor};
 
 const CHIP_UID_LEN: usize = 12;
 
 // (struct { struct usb_string_descriptor desc; uint16_t data[CHIP_UID_LEN * 2]; })
-#[cfg(CONFIG_USBSERIAL)]
+#[cfg(any(CONFIG_USBSERIAL, CONFIG_USBCANBUS))]
 static CDC_CHIPID: Global<UsbStringDescriptor<{ CHIP_UID_LEN * 2 }>> =
     Global::new(UsbStringDescriptor { bLength: 0, bDescriptorType: 0, data: [0; CHIP_UID_LEN * 2] });
 
 // the serial string descriptor (its first byte is its bLength)
-#[cfg(CONFIG_USBSERIAL)]
+#[cfg(any(CONFIG_USBSERIAL, CONFIG_USBCANBUS))]
 pub fn usbserial_get_serialid() -> *const u8 {
     CDC_CHIPID.ptr() as *const u8
 }
 
 pub fn chipid_init() -> R {
     // (usb_fill_serial() is part of the usb code)
-    #[cfg(CONFIG_USBSERIAL)]
+    #[cfg(any(CONFIG_USBSERIAL, CONFIG_USBCANBUS))]
     if CONFIG_USB_SERIAL_NUMBER_CHIPID {
         usb_fill_serial(CDC_CHIPID.get(), CHIP_UID_LEN * 2, UID_BASE as usize as *const u8);
     }

@@ -1,7 +1,3 @@
-cd ~/rk/renode/renode_1.15.3_portable
-rm -f /tmp/renode_fn.log
-grep -v "^start$" /mnt/d/RustyKlipper/kaliru/firmware/tests/renode/stm32f103.resc | sed 's/^logLevel 3$/logLevel 1/' > /tmp/dbg.resc
-printf 'logFile @/tmp/renode_fn.log\nsysbus.cpu LogFunctionNames true false\nstart\n' >> /tmp/dbg.resc
-(sleep 20; echo quit) | timeout 40 ./renode --disable-xwt --console -e '$elf=@/root/rk/fw_stm32f103-serial/klipper.elf; $uart="/tmp/uart_x"; include @/tmp/dbg.resc' > /dev/null 2>&1
-grep -o "Entering function [^ ]*" /tmp/renode_fn.log | sort | uniq -c | sort -rn | head -20
-grep -o "Entering function [^ ]*" /tmp/renode_fn.log | tail -8
+cd /mnt/d/RustyKlipper/kaliru/firmware
+bash ../tools/mkref.sh at32f403-serial n32g455-serial 2>&1 | grep "==\|fail\|error" | head
+grep "CONFIG_MCU=\|MACH_STM32F1=\|N32G45x=" configs/at32f403-serial/config configs/n32g455-serial/config

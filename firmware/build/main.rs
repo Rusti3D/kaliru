@@ -139,6 +139,10 @@ fn sources(config: &kconfig::Config) -> Vec<&'static str> {
         } else {
             &["generic/canserial.rs", "generic/fasthash.rs"]
         };
+        // (canbus.h: no requests, its constants are used in theirs)
+        if on("CONFIG_CANSERIAL") || on("CONFIG_USBCANBUS") {
+            out.push("generic/canbus_h.rs");
+        }
         let mut opt: Vec<(&str, Vec<&'static str>)> = vec![
             ("CONFIG_WANT_ADC", vec![adc]),
             ("CONFIG_WANT_GPIO_SPI", vec![spi]),
