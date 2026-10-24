@@ -1,0 +1,10 @@
+[package]
+name = "elf2uf2"
+version = "0.1.0"
+edition = "2021"
+description = "Kalico's lib/elf2uf2 (the rp2040 build's klipper.uf2 converter) in Rust"
+license = "BSD-3-Clause"
+
+[[bin]]
+name = "elf2uf2"
+path = "src/main.rs"
