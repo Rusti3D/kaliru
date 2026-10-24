@@ -40,6 +40,9 @@ RENODE = os.environ.get("RENODE", os.path.expanduser("~/rk/renode/renode_1.15.3_
 
 
 class Mcu:
+    # (the emulator's clock is deterministic: emu_run.py turns this off)
+    mask_clocks = True
+
     def __init__(self, binary, fakehw=None, renode=None):
         self.tty = "/tmp/kaliru_mcu_test_%d" % os.getpid()
         env = dict(os.environ)
@@ -124,6 +127,14 @@ class Mcu:
                     acked = True
         return out
 
+    def prepare(self, line):
+        """a script command as sent"""
+        return expand(self, line)
+
+    def wait(self, seconds):
+        time.sleep(seconds)
+        return self.read_blocks(False)
+
     def format(self, block):
         if len(block) == msgproto.MESSAGE_MIN:
             return "ack seq=%02x" % block[msgproto.MESSAGE_POS_SEQ]
@@ -135,7 +146,7 @@ class Mcu:
         for k, v in params.items():
             if k.startswith("#"):
                 continue
-            if k in MASKED:
+            if k in MASKED and self.mask_clocks:
                 v = "*"
             elif isinstance(v, bytes):
                 v = v.hex()
@@ -174,11 +185,9 @@ def expand(mcu, line):
     return line
 
 
-def main():
-    binary, script = sys.argv[1], sys.argv[2]
-    fakehw = sys.argv[sys.argv.index("--fakehw") + 1] if "--fakehw" in sys.argv else None
-    renode = sys.argv[sys.argv.index("--renode") + 1] if "--renode" in sys.argv else None
-    mcu = Mcu(binary, fakehw, renode)
+def run_script(mcu, script):
+    """the script's commands and the answers, as lines; then the close()
+    output of the mcu"""
     out = []
     try:
         # the commands are only known after an identify
@@ -193,13 +202,12 @@ def main():
                 out.append("< dictionary %d bytes sha=%s" % (len(dictionary), sha))
                 continue
             if line.startswith("#wait"):
-                time.sleep(float(line.split()[1]))
-                blocks = mcu.read_blocks(False)
+                blocks = mcu.wait(float(line.split()[1]))
             elif line.startswith("#raw"):
                 mcu.send_raw(bytes.fromhex(line.split()[1]))
                 blocks = mcu.read_blocks(False, quiet=0.2)
             else:
-                mcu.send(mcu.parser.create_command(expand(mcu, line)))
+                mcu.send(mcu.parser.create_command(mcu.prepare(line)))
                 blocks = mcu.read_blocks(True)
             for kind, b in blocks:
                 if kind == "garbage":
@@ -211,6 +219,15 @@ def main():
                 out.append("< " + f)
     finally:
         err = mcu.close()
+    return out, err
+
+
+def main():
+    binary, script = sys.argv[1], sys.argv[2]
+    fakehw = sys.argv[sys.argv.index("--fakehw") + 1] if "--fakehw" in sys.argv else None
+    renode = sys.argv[sys.argv.index("--renode") + 1] if "--renode" in sys.argv else None
+    mcu = Mcu(binary, fakehw, renode)
+    out, err = run_script(mcu, script)
     if mcu.hwlog:
         out.append("hardware:")
         for ev in open(mcu.hwlog):
