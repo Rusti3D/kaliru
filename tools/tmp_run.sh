@@ -1,3 +1,4 @@
 cd /mnt/d/RustyKlipper/kaliru/firmware
-bash ../tools/mkref.sh at32f403-serial n32g455-serial 2>&1 | grep "==\|fail\|error" | head
-grep "CONFIG_MCU=\|MACH_STM32F1=\|N32G45x=" configs/at32f403-serial/config configs/n32g455-serial/config
+touch src/main.rs
+KALIRU_MCU_CONFIG=configs/n32g455-serial CARGO_TARGET_DIR=~/rk/fwtarget-ctr-n32g455-serial ~/.cargo/bin/cargo build --profile mcu --target thumbv7em-none-eabi 2>&1 | grep -E "^warning|^error" -A4 | head -30
+arm-none-eabi-size ~/rk/fwtarget-ctr-n32g455-serial/thumbv7em-none-eabi/mcu/kaliru-mcu

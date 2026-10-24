@@ -54,8 +54,24 @@ pub mod stm32f4;
 #[cfg(CONFIG_MACH_STM32F4)]
 pub mod system_stm32f4xx;
 pub mod watchdog;
-#[cfg(all(CONFIG_WANT_ADC, any(CONFIG_MACH_STM32F1, CONFIG_MACH_STM32F2, CONFIG_MACH_STM32F4, CONFIG_MACH_STM32F7)))]
+#[cfg(all(
+    CONFIG_WANT_ADC,
+    not(CONFIG_MACH_N32G45x),
+    any(CONFIG_MACH_STM32F1, CONFIG_MACH_STM32F2, CONFIG_MACH_STM32F4, CONFIG_MACH_STM32F7)
+))]
 pub mod adc;
+#[cfg(all(CONFIG_WANT_ADC, CONFIG_MACH_N32G45x))]
+#[allow(non_snake_case)]
+pub mod n32g45x_adc;
+#[cfg(all(CONFIG_WANT_ADC, CONFIG_MACH_N32G45x))]
+pub use n32g45x_adc as adc;
+// (lib/n32g45x/include/n32g45x_adc.h, made by tools/gen_stm32_regs.py)
+#[cfg(all(CONFIG_WANT_ADC, CONFIG_MACH_N32G45x))]
+#[allow(non_upper_case_globals, non_camel_case_types, non_snake_case, dead_code, clippy::all)]
+pub mod n32g45x_adc_h;
+#[cfg(all(CONFIG_WANT_ADC, CONFIG_MACH_N32G45x))]
+#[allow(non_snake_case)]
+pub mod n32g45x_adc_lib;
 #[cfg(all(CONFIG_WANT_ADC, any(CONFIG_MACH_STM32F0, CONFIG_MACH_STM32G0)))]
 pub mod stm32f0_adc;
 #[cfg(all(CONFIG_WANT_ADC, any(CONFIG_MACH_STM32F0, CONFIG_MACH_STM32G0)))]

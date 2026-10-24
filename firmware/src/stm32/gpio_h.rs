@@ -42,7 +42,11 @@ pub struct GpioPwm {
 #[repr(C)]
 #[derive(Clone, Copy)]
 pub struct GpioAdc {
+    // (C: void *)
+    #[cfg(not(CONFIG_MACH_N32G45x))]
     pub adc: *mut ADC_TypeDef,
+    #[cfg(CONFIG_MACH_N32G45x)]
+    pub adc: *mut super::n32g45x_adc_h::ADC_Module,
     pub chan: u32,
 }
 

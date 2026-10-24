@@ -114,12 +114,15 @@ fn sources(config: &kconfig::Config) -> Vec<&'static str> {
         } else {
             out.extend(["stm32/gpio.rs", "stm32/gpioperiph.rs"]);
         }
-        let adc: &'static str = if fam("F0") || fam("G0") {
-            "stm32/stm32f0_adc.rs"
+        let adc: &[&'static str] = if fam("F0") || fam("G0") {
+            &["stm32/stm32f0_adc.rs"]
+        } else if on("CONFIG_MACH_N32G45x") {
+            // (../lib/n32g45x/n32g45x_adc.c, its header and stm32/n32g45x_adc.c)
+            &["stm32/n32g45x_adc_lib.rs", "stm32/n32g45x_adc.rs"]
         } else if fam("G4") || fam("H7") || fam("L4") {
-            "stm32/stm32h7_adc.rs"
+            &["stm32/stm32h7_adc.rs"]
         } else {
-            "stm32/adc.rs"
+            &["stm32/adc.rs"]
         };
         let spi: &'static str = if fam("H7") { "stm32/stm32h7_spi.rs" } else { "stm32/spi.rs" };
         let i2c: &'static str = if fam("F1") || fam("F2") || fam("F4") { "stm32/i2c.rs" } else { "stm32/stm32f0_i2c.rs" };
@@ -144,7 +147,7 @@ fn sources(config: &kconfig::Config) -> Vec<&'static str> {
             out.push("generic/canbus_h.rs");
         }
         let mut opt: Vec<(&str, Vec<&'static str>)> = vec![
-            ("CONFIG_WANT_ADC", vec![adc]),
+            ("CONFIG_WANT_ADC", adc.to_vec()),
             ("CONFIG_WANT_GPIO_SPI", vec![spi]),
             ("CONFIG_WANT_GPIO_I2C", vec![i2c]),
             ("CONFIG_SERIAL", vec![serial, "generic/serial_irq.rs"]),
