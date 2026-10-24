@@ -116,6 +116,10 @@ static HANDLERS: Gil<RefCell<Vec<Option<Handler>>>> = Gil::new(|| RefCell::new(V
 // (class qualname or "@<object handle>", name) a plugin replaced
 static PATCHED: Gil<RefCell<HashSet<(String, String)>>> = Gil::new(|| RefCell::new(HashSet::new()));
 static EXT: Gil<RefCell<HashMap<&'static str, Method>>> = Gil::new(|| RefCell::new(HashMap::new()));
+// (kaliru object address, method ID, greenlet) of the mirrored calls running:
+// a plugin's replacement calling the original reaches kaliru's method, which
+// must not dispatch to the replacement again
+static BYPASS: Gil<RefCell<Vec<(usize, usize, usize)>>> = Gil::new(|| RefCell::new(Vec::new()));
 
 /// Resolve the registry against the generated IDs; names that are not
 /// Kalico's are a bug in the impls
@@ -147,10 +151,21 @@ fn handler(id: usize) -> KResult<Handler> {
         .ok_or_else(|| KError::Py("NotImplementedError".into(), format!("kaliru: {} is not mirrored yet", IDS.get(id).unwrap_or(&"?"))))
 }
 
-/// Whether a plugin replaced `name` on this object's class (or a subclass)
-/// or on the object (hook points consult this; docs/PLUGINS.md)
-pub fn is_patched(class_qualname: &str, name: &str) -> bool {
-    PATCHED.with(|p| p.borrow().contains(&(class_qualname.to_string(), name.to_string())))
+/// Whether any plugin replaced any mirrored method (dispatch's fast path)
+pub fn any_patched() -> bool {
+    PATCHED.with(|p| !p.borrow().is_empty())
+}
+
+fn greenlet_key() -> usize {
+    crate::greenlet::getcurrent().map(|g| std::rc::Rc::as_ptr(&g) as usize).unwrap_or(0)
+}
+
+/// Whether this method of this object is being called from python as the
+/// original (a replacement calling it)
+pub fn bypassing(addr: usize, qualname: &str) -> bool {
+    let Some(id) = IDS.iter().position(|n| *n == qualname) else { return false };
+    let g = greenlet_key();
+    BYPASS.with(|b| b.borrow().iter().any(|e| *e == (addr, id, g)))
 }
 
 // ------------------------------------------------------------------ module
@@ -190,9 +205,24 @@ fn id_of(o: &PyRef) -> KResult<usize> {
 
 // call(obj, id, *args)
 native!(k_call, |a| {
-    let h = handler(id_of(&a[1])?)?;
+    let id = id_of(&a[1])?;
+    let h = handler(id)?;
     let Handler::Method(f) = h else { return Err(KError::Other("kaliru: not a method".into())) };
-    f(&Args { slf: Some(a[0].clone()), args: a[2..].to_vec() })
+    let entry = objects::unwrap(&a[0]).ok().map(|r| (std::rc::Rc::as_ptr(&r) as *const () as usize, id, greenlet_key()));
+    if let Some(e) = entry {
+        BYPASS.with(|b| b.borrow_mut().push(e));
+    }
+    let res = f(&Args { slf: Some(a[0].clone()), args: a[2..].to_vec() });
+    if let Some(e) = entry {
+        // (by identity: the call may have paused while others came and went)
+        BYPASS.with(|b| {
+            let mut b = b.borrow_mut();
+            if let Some(pos) = b.iter().rposition(|x| *x == e) {
+                b.remove(pos);
+            }
+        });
+    }
+    res
 });
 
 // fcall(id, *args)

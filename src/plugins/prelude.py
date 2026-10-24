@@ -37,6 +37,10 @@ fcall = _n.fcall
 new = _n.new
 
 
+# (mirrored class, name) a plugin assigned on the class itself
+_patched = set()
+
+
 class Meta(type):
     def __init__(cls, name, bases, ns):
         super().__init__(name, bases, ns)
@@ -47,7 +51,24 @@ class Meta(type):
 
     def __setattr__(cls, name, value):
         super().__setattr__(name, value)
+        if cls.__dict__.get("__kaliru_mirror__"):
+            _patched.add((cls, name))
         _n.patched_class(cls, name)
+
+
+def overridden(obj, name):
+    """What obj.<name> is when a plugin replaced it (on the object, on
+    the mirrored class, or in a subclass), else None: python's own lookup
+    order"""
+    d = getattr(obj, "__dict__", None)
+    if d is not None and name in d:
+        return d[name]
+    for c in type(obj).__mro__:
+        if name in c.__dict__:
+            if not c.__dict__.get("__kaliru_mirror__") or (c, name) in _patched:
+                return getattr(obj, name)
+            return None
+    return None
 
 
 class Object(metaclass=Meta):

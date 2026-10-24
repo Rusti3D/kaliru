@@ -264,10 +264,19 @@ pub fn to_pyval(o: &PyRef) -> KResult<PyVal> {
             PyVal::Dict(d)
         }
         _ => {
-            // namedtuples and other tuple subclasses come out as tuples
-            if o.is_instance(&lookup("builtins", "tuple")?)? {
-                let t = lookup("builtins", "tuple")?.call(&[o])?;
-                return to_pyval(&t);
+            // subclasses of the basic types (namedtuples, OrderedDict,
+            // str / int enums: AFC's State) as their base value - what
+            // json.dumps sends; a str enum's str() is not kept (docs/PLUGINS.md)
+            for (base, conv) in [("bool", "bool"), ("int", "int"), ("float", "float"), ("str", "str"), ("tuple", "tuple"), ("list", "list"), ("dict", "dict")] {
+                if o.is_instance(&lookup("builtins", base)?)? {
+                    let plain = if base == "str" {
+                        // the string itself, not str() (an enum's would be 'State.IDLE')
+                        return Ok(PyVal::Str(o.as_string()?));
+                    } else {
+                        lookup("builtins", conv)?.call(&[o])?
+                    };
+                    return to_pyval(&plain);
+                }
             }
             return Err(KError::Py("TypeError".into(), format!("kaliru: cannot pass a '{}' object here", tname)));
         }

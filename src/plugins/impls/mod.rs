@@ -2,19 +2,23 @@
 // kaliru, one file per klippy module. Registered by qualified name
 // (native::Registry); argument order is Kalico's signature with its
 // defaults filled in by the generated python.
+mod buttons;
 mod configfile;
+mod extras_state;
+mod extruder;
+mod filament_switch_sensor;
 mod gcode;
 mod heaters;
 mod pins;
 mod printer;
 mod reactor;
+mod toolhead;
 mod webhooks;
 
 use crate::plugins::gil::Gil;
 use super::native::Registry;
 use super::py::*;
 use super::{objects, pobj_to_py};
-use crate::configfile::{Dflt, Lim};
 use crate::error::{KError, KResult};
 use crate::printer::{PObj, Printer};
 use crate::pyval::PyVal;
@@ -24,11 +28,16 @@ use std::rc::{Rc, Weak};
 
 pub fn register(r: &mut Registry) {
     printer::register(r);
+    buttons::register(r);
+    extras_state::register(r);
+    extruder::register(r);
     configfile::register(r);
+    filament_switch_sensor::register(r);
     gcode::register(r);
     heaters::register(r);
     pins::register(r);
     reactor::register(r);
+    toolhead::register(r);
     webhooks::register(r);
 }
 
@@ -87,34 +96,6 @@ pub fn report_unhandled(e: &KError) {
     }
 }
 
-/// `default=sentinel` handling of the config / gcode getters: Required, or
-/// the default as kaliru's Dflt plus the python object to return as is
-pub fn dflt(default: &PyRef, sentinel: &PyRef) -> KResult<(Dflt, Option<PyRef>)> {
-    if default.is(sentinel.as_ptr()) {
-        return Ok((Dflt::Required, None));
-    }
-    if default.is_none() {
-        return Ok((Dflt::None, Some(default.clone())));
-    }
-    Ok((Dflt::Val(to_pyval(default)?), Some(default.clone())))
-}
-
-/// minval / maxval / above / below as kaliru's Lim (None: no bound)
-pub fn lim(bounds: [&PyRef; 4], note_valid: bool) -> KResult<Lim> {
-    let v = |o: &PyRef| -> KResult<Option<PyVal>> { if o.is_none() { Ok(None) } else { to_pyval(o).map(Some) } };
-    Ok(Lim { minval: v(bounds[0])?, maxval: v(bounds[1])?, above: v(bounds[2])?, below: v(bounds[3])?, note_valid })
-}
-
-/// A value from a kaliru getter, or the python default it fell back to
-pub fn value_or_default(v: Option<PyVal>, missing: bool, default: Option<PyRef>) -> PyRef {
-    if missing {
-        if let Some(d) = default {
-            return d;
-        }
-    }
-    v.map(|v| from_pyval(&v)).unwrap_or_else(py_none)
-}
-
 /// An event / callback argument as python sees it
 pub fn any_to_py(a: &dyn Any) -> KResult<PyRef> {
     if let Some(v) = a.downcast_ref::<PyRef>() {
@@ -141,10 +122,17 @@ pub fn any_to_py(a: &dyn Any) -> KResult<PyRef> {
     if let Some(v) = a.downcast_ref::<PObj>() {
         return pobj_to_py(v);
     }
+    if let Some(v) = a.downcast_ref::<Option<bool>>() {
+        return Ok(v.map(py_bool).unwrap_or_else(py_none));
+    }
+    if let Some(v) = a.downcast_ref::<Option<f64>>() {
+        return Ok(v.map(py_float).unwrap_or_else(py_none));
+    }
+    if let Some(v) = a.downcast_ref::<Option<i64>>() {
+        return Ok(v.map(py_int).unwrap_or_else(py_none));
+    }
+    if let Some(v) = a.downcast_ref::<Option<String>>() {
+        return Ok(v.as_deref().map(py_str).unwrap_or_else(py_none));
+    }
     Err(KError::Py("TypeError".into(), format!("kaliru: event argument of type {:?} is not mirrored yet", a.type_id())))
-}
-
-/// The python object of a kaliru object that is not a printer object
-pub fn wrap<T: 'static>(rc: Rc<T>) -> KResult<PyRef> {
-    objects::wrap(rc)
 }

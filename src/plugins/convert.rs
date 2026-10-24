@@ -180,10 +180,10 @@ impl FromPy for PObj {
 macro_rules! method {
     ($r:expr, $class:literal, $ty:ty, $name:ident($s:ident $(, $arg:ident: $at:ty)*) => $body:expr) => {
         $r.method(concat!($class, ".", stringify!($name)), |a: &$crate::plugins::native::Args| {
-            #[allow(unused_mut, unused_variables, unused_assignments)]
-            let mut i = 0usize;
+            #[allow(unused_mut, unused_variables)]
+            let mut args = a.args.iter();
             let $s = a.this::<$ty>()?;
-            $( let $arg: $at = $crate::plugins::convert::FromPy::from_py(a.arg(i))?; i += 1; )*
+            $( let $arg: $at = $crate::plugins::convert::FromPy::from_py(args.next().expect("mirrored signature"))?; )*
             $crate::plugins::convert::ToPy::to_py($body)
         })
     };
@@ -193,10 +193,67 @@ macro_rules! method {
 macro_rules! function {
     ($r:expr, $module:literal, $name:ident($($arg:ident: $at:ty),*) => $body:expr) => {
         $r.method(concat!($module, ".", stringify!($name)), |a: &$crate::plugins::native::Args| {
-            #[allow(unused_mut, unused_variables, unused_assignments)]
-            let mut i = 0usize;
-            $( let $arg: $at = $crate::plugins::convert::FromPy::from_py(a.arg(i))?; i += 1; )*
+            #[allow(unused_mut, unused_variables)]
+            let mut args = a.args.iter();
+            $( let $arg: $at = $crate::plugins::convert::FromPy::from_py(args.next().expect("mirrored signature"))?; )*
             $crate::plugins::convert::ToPy::to_py($body)
         })
+    };
+}
+
+/// A Cell field as an attribute python reads and writes:
+///   cell_attr!(r, "klippy.extras.idle_timeout.IdleTimeout.idle_timeout", IdleTimeout, idle_timeout);
+#[macro_export]
+macro_rules! cell_attr {
+    ($r:expr, $qual:literal, $ty:ty, $field:ident) => {
+        $r.attr(
+            $qual,
+            |o| $crate::plugins::convert::ToPy::to_py($crate::plugins::objects::unwrap_as::<$ty>(o)?.$field.get()),
+            Some(|o, v| {
+                $crate::plugins::objects::unwrap_as::<$ty>(o)?.$field.set($crate::plugins::convert::FromPy::from_py(v)?);
+                Ok(())
+            }),
+        )
+    };
+}
+
+/// A read-only attribute computed from the object:
+///   ro_attr!(r, "klippy.extras.idle_timeout.IdleTimeout.state", IdleTimeout, |s| s.state.borrow().to_string());
+#[macro_export]
+macro_rules! ro_attr {
+    ($r:expr, $qual:literal, $ty:ty, |$s:ident| $body:expr) => {
+        $r.attr(
+            $qual,
+            |o| {
+                let $s = $crate::plugins::objects::unwrap_as::<$ty>(o)?;
+                let v = $body;
+                $crate::plugins::convert::ToPy::to_py(v)
+            },
+            None,
+        )
+    };
+}
+
+/// A RefCell<Vec<_>> field as a list attribute (prelude.py ListView: item
+/// assignment writes through, as on python's list)
+#[macro_export]
+macro_rules! vec_attr {
+    ($r:expr, $qual:literal, $ty:ty, $field:ident) => {
+        $r.list(
+            $qual,
+            $crate::plugins::native::ListField {
+                get: |o, _f| {
+                    let s = $crate::plugins::objects::unwrap_as::<$ty>(o)?;
+                    let items = s.$field.borrow().clone();
+                    items.into_iter().map($crate::plugins::convert::ToPy::to_py).collect()
+                },
+                set: |o, _f, items| {
+                    let s = $crate::plugins::objects::unwrap_as::<$ty>(o)?;
+                    let v = items.iter().map($crate::plugins::convert::FromPy::from_py).collect::<$crate::error::KResult<Vec<_>>>()?;
+                    *s.$field.borrow_mut() = v;
+                    Ok(())
+                },
+            },
+        )
     };
 }

@@ -29,6 +29,9 @@ struct Table {
     by_addr: HashMap<usize, usize>,
     // Rust type -> mirrored class (module, class name)
     classes: HashMap<TypeId, (&'static str, &'static str)>,
+    // printer object types that also travel as plain Rc (a heater as
+    // extruder.heater): how to see one as a printer object
+    pobj_casts: HashMap<TypeId, fn(Rc<dyn Any>) -> Option<PObj>>,
 }
 
 static TABLE: Gil<RefCell<Table>> = Gil::new(|| RefCell::new(Table::default()));
@@ -41,6 +44,15 @@ fn addr(rust: &Rc<dyn Any>) -> usize {
 /// ("klippy.mcu", "MCU" for kaliru::mcu::Mcu); others are found by path
 pub fn register_class<T: 'static>(module: &'static str, class: &'static str) {
     TABLE.with(|t| t.borrow_mut().classes.insert(TypeId::of::<T>(), (module, class)));
+}
+
+/// A printer object type that kaliru also hands out as a plain Rc<T>: its
+/// python object stays usable where kaliru wants the printer object
+pub fn register_pobj<T: crate::printer::PrinterObject + 'static>() {
+    fn cast<T: crate::printer::PrinterObject + 'static>(a: Rc<dyn Any>) -> Option<PObj> {
+        a.downcast::<T>().ok().map(|t| t as PObj)
+    }
+    TABLE.with(|t| t.borrow_mut().pobj_casts.insert(TypeId::of::<T>(), cast::<T>));
 }
 
 /// The Kalico class of a Rust type: registered, else by its path
@@ -82,9 +94,19 @@ pub fn wrap_pobj(pobj: PObj) -> KResult<PyRef> {
 }
 
 fn wrap_impl(rust: Rc<dyn Any>, type_name: &str, pobj: Option<PObj>) -> KResult<PyRef> {
+    let pobj = pobj.or_else(|| {
+        let cast = TABLE.with(|t| t.borrow().pobj_casts.get(&(*rust).type_id()).copied());
+        cast.and_then(|c| c(rust.clone()))
+    });
     if let Some(py) = TABLE.with(|t| {
-        let t = t.borrow();
-        t.by_addr.get(&addr(&rust)).and_then(|h| t.entries[*h].as_ref().map(|e| e.py.clone()))
+        let mut t = t.borrow_mut();
+        let h = *t.by_addr.get(&addr(&rust))?;
+        let e = t.entries[h].as_mut()?;
+        // first met as a plain object, now known as a printer object too
+        if e.pobj.is_none() {
+            e.pobj = pobj.clone();
+        }
+        Some(e.py.clone())
     }) {
         return Ok(py);
     }
@@ -139,6 +161,14 @@ pub fn unwrap_as<T: 'static>(py: &PyRef) -> KResult<Rc<T>> {
 pub fn bound_pobj(py: &PyRef) -> Option<PObj> {
     let h = py.getattr("_k_h").ok()?.as_i64().ok()? as usize;
     TABLE.with(|t| t.borrow().entries.get(h).and_then(|e| e.as_ref().and_then(|e| e.pobj.clone())))
+}
+
+/// The python object bound to the kaliru object at this address, if any
+pub fn existing_addr(addr: usize) -> Option<PyRef> {
+    TABLE.with(|t| {
+        let t = t.borrow();
+        t.by_addr.get(&addr).and_then(|h| t.entries[*h].as_ref().map(|e| e.py.clone()))
+    })
 }
 
 /// The python object already bound to a Rust object, if any

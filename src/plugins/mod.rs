@@ -228,6 +228,38 @@ pub fn load_config(config: &ConfigWrapper, section: &str, package: &Package) -> 
 
 pub use impls::set_printer;
 
+/// Kaliru's method `qualname` of `obj` about to run: if a python plugin
+/// replaced it (on the object, its class, or a subclass), call the
+/// replacement instead - what python's dynamic dispatch does in Kalico. The
+/// check sits in kaliru's method, so every kaliru caller honours it; a
+/// replacement calling the original goes through `_k.call` and is let
+/// through (native.rs BYPASS).
+pub fn dispatch<T: 'static>(obj: &T, qualname: &str, args: &[&dyn Any]) -> Option<KResult<PyVal>> {
+    if !started() || !native::any_patched() {
+        return None;
+    }
+    let addr = obj as *const T as *const () as usize;
+    if native::bypassing(addr, qualname) {
+        return None;
+    }
+    let py = objects::existing_addr(addr)?;
+    let name = qualname.rsplit('.').next().unwrap_or(qualname);
+    let res = (|| {
+        let f = py::lookup("_k", "overridden")?.call(&[&py, &py::py_str(name)])?;
+        if f.is_none() {
+            return Ok(None);
+        }
+        let py_args = args.iter().map(|a| impls::any_to_py(*a)).collect::<KResult<Vec<_>>>()?;
+        let refs: Vec<&PyRef> = py_args.iter().collect();
+        py::to_pyval(&f.call(&refs)?).map(Some)
+    })();
+    match res {
+        Ok(None) => None,
+        Ok(Some(v)) => Some(Ok(v)),
+        Err(e) => Some(Err(e)),
+    }
+}
+
 /// The end of a printer instance: drop the bindings to its objects
 pub fn teardown() {
     if started() {
