@@ -275,6 +275,26 @@ printer, configfile, gcode, reactor, webhooks, pins (Python pin chips), buttons,
 | `PinChip::register_config_callback` / `python_object` | `pins.rs` |
 | `pub(crate)` fields | gcode_move, idle_timeout, Heater, ToolHead, PrinterExtruder |
 
+### Additions (2026-10-24, found on the CC1)
+
+- **Python g-code macros on the host CPython.** A kaliru built without the `python` feature (no RustPython: the armv7
+  binary drops from 23 MB to 7.6 MB) runs a python macro as Kalico's own `TemplateWrapperPython`,
+  `GetStatusWrapperPython` / `GetStatusWrapperJinja`, `TemplateVariableWrapperPython`, `create_template_context` and
+  `_action_*`, emitted verbatim in the mirror (`plugins/macros.rs`). `tests/cases/pymacro*` are identical this way.
+- **Template values by reference** (`plugins/values.rs`). A macro variable's list / dict reaches python as a `list` /
+  `dict` subclass (prelude `ValueList` / `ValueDict`) paired with the `Rc`'d Value through the object table: `is`
+  holds, json / isinstance / repr see a real list, each python mutation writes the contents back, each handover
+  refreshes them, and copies (`copy.deepcopy`) are plain lists / dicts.
+- **Object table sweep** (`objects.rs`). Bindings nothing else can reach (Rc only in the table, python refcount only
+  the table's) are released each time the table doubles; handles are never reused. Before, every per-call object (a
+  `GCodeCommand` per python-handled command) stayed until restart. `tests/cases/plugins/objects_release`.
+- **Handle probe.** The prelude reads `_k_h` through `Object`'s slot descriptor: a Kalico class's own `__getattr__`
+  (GetStatusWrapperPython) recursed on `getattr(obj, "_k_h")`.
+- **Kalico classes of kaliru printer objects** whose Rust path does not name them: `impls/classes.rs` (a plugin
+  iterating `lookup_objects()` meets them all).
+- **knock**: LIS2DW / ADXL345 registers and `batch_bulk.is_started` (`impls/accel.rs`); MCU clock methods
+  (`impls/mcu.rs`).
+
 ### Known gaps, all of which fail loudly
 
 - **Coverage.** Most of the 7,489 IDs still raise "kaliru: X is not mirrored yet". The work list is the surface tool plus a trace per corpus plugin.
