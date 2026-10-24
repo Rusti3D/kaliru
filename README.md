@@ -49,9 +49,10 @@ Reference: Kalico `5b59427`.
   dictionary is byte-identical to Kalico's C build (version fields aside). For
   the linux board, scripted sessions against both, with fake gpio/spi/i2c/adc
   hardware, give the same answers and the same pin and bus activity. In an
-  emulator the C and Rust images of every serial config and of 19 of the 20
-  USB configs give the same answers and the same peripheral register accesses
-  (CAN not emulated yet); no micro-controller build has run on a chip yet. See
+  emulator the C and Rust images of 50 of the 54 configs (every serial and
+  USB config, the CAN and USB-to-CAN configs but the rp2040 ones) give the
+  same answers and the same peripheral register accesses; no
+  micro-controller build has run on a chip yet. See
   [`firmware/README.md`](firmware/README.md).
 - Not ported yet: the AVR, AR100 and PRU boards.
 

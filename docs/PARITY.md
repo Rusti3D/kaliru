@@ -73,12 +73,14 @@ builds every config in `firmware/configs/` (54: serial, USB, CAN / FDCAN, USB-to
 toolboard) and compares `compile_time_request.txt` (identical) and the data dictionary (byte-identical apart from the
 version fields) with the C build's (`firmware/tests/ref/`): 54/54. The rp2040 boot2 block and `tools/elf2uf2` output
 are byte-identical to the C build's; `src/libm.rs` gives newlib's bits on 700k inputs (qemu-arm). Emulator
-(`firmware/tests/emu_cmp.sh`, Unicorn, deterministic board models): every serial config (16, all board families
-but the simulator) and every USB config but rp2350-usb (19: stm32 usbfs / otg, rp2040, samd, lpc176x, sam3x / sam4 /
-same70, each with a usb host that enumerates the device and carries the serial data) run the 7 scripts with identical
-answers and identical peripheral register accesses, apart from the documented C-side differences in
-`firmware/tests/emu_known/` (non-volatile register pointers gcc reorders, an HC32 neopixel store gcc merges away, an
-F072 stack overflow). Not emulated yet: rp2350, CAN / FDCAN / can2040 and the USB-to-CAN bridge. Real chips: not
+(`firmware/tests/emu_cmp.sh`, Unicorn, deterministic board models): 50 of the 54 configs run the 7 scripts with
+identical answers and identical peripheral register accesses: every serial config (16), every USB config (20: stm32
+usbfs / otg, rp2040, rp2350, samd, lpc176x, sam3x / sam4 / same70, with a usb host that enumerates the device), the
+INDX toolboard, the CAN configs (8: bxcan, stm32 fdcan, atsam / atsamd M_CAN, lpc176x, with a can host that assigns
+the node id) and the USB-to-CAN bridges (5: gs_usb on the usb side), apart from the documented C-side differences in
+`firmware/tests/emu_known/` (non-volatile register pointers gcc reorders, a volatile read gcc moves past a call, an
+HC32 neopixel store gcc merges away, an F072 stack overflow, uninitialised CAN frame bytes the bridge sends). Not
+emulated yet: rp2040-can and rp2040-usbcan (can2040 drives the bus through PIO state machines). Real chips: not
 run. Images (profile `mcu`): about 1.25-1.4x the C size (F401 53KB vs 42KB, INDX 72KB vs
 58KB).
 

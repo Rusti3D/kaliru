@@ -37,6 +37,7 @@ import mcu_run  # noqa: E402
 
 TICK = 16  # cycles per clock read
 POLL = 1000  # reads of a register in a row that end a wait for it
+SPIN = 1000  # reads of a register without a wait that give the host a turn
 EXC_RETURN = 0xFFFFFFF9
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
@@ -196,6 +197,12 @@ class Stm32TimTime:
 # ---- boards
 
 
+def transport(usb, can):
+    """a board's usb device or can controller model, or both: a usb to can
+    bridge"""
+    return UsbCanBridge(usb, can) if usb and can else usb or can
+
+
 class Ported:
     """a board whose serial port is a `port` object (a uart or a usb device
     with its host)"""
@@ -241,16 +248,13 @@ class Stm32:
         self.h7 = cfg.get("CONFIG_MACH_STM32H7")
         if cfg.get("CONFIG_SERIAL"):
             self.port = Stm32Usart(cfg, chip)
-        elif cfg.get("CONFIG_USBSERIAL") and cfg.get("CONFIG_HAVE_STM32_USBFS"):
-            self.port = UsbFs(cfg, chip)
-        elif cfg.get("CONFIG_USBSERIAL") and cfg.get("CONFIG_HAVE_STM32_USBOTG"):
-            self.port = UsbOtg(cfg, chip)
-        elif cfg.get("CONFIG_CANSERIAL") and cfg.get("CONFIG_HAVE_STM32_CANBUS"):
-            self.port = BxCan(cfg, chip)
-        elif cfg.get("CONFIG_CANSERIAL") and cfg.get("CONFIG_HAVE_STM32_FDCANBUS"):
-            self.port = FdCan(cfg, chip)
         else:
-            sys.exit("only the stm32 usart, usbfs, usbotg, bxcan and fdcan ports are modelled")
+            usb = can = None
+            if cfg.get("CONFIG_USB"):
+                usb = UsbFs(cfg, chip) if cfg.get("CONFIG_HAVE_STM32_USBFS") else UsbOtg(cfg, chip)
+            if cfg.get("CONFIG_CANBUS"):
+                can = BxCan(cfg, chip) if cfg.get("CONFIG_HAVE_STM32_CANBUS") else FdCan(cfg, chip)
+            self.port = transport(usb, can)
 
     def setup(self, uc):
         # (the system memory with the unique device id, chipid.c: 0 here; a
@@ -350,11 +354,24 @@ class UsbHost:
         (0xA1, 0x21, 0, 0, 7, b""),          # GET_LINE_CODING
         (0x21, 0x22, 0x0003, 0, 0, b""),     # SET_CONTROL_LINE_STATE dtr rts
     ]
+    # (a usb to can bridge, generic/usb_canbus.c: the standard requests, then
+    # the gs_usb ones Linux's gs_usb driver makes: host format, device
+    # config, bit timing constants, bit timing, start)
+    GS_REQUESTS = REQUESTS[:11] + [
+        (0x41, 0, 1, 0, 4, struct.pack("<I", 0x0000BEEF)),
+        (0xC1, 5, 1, 0, 12, b""),
+        (0xC1, 4, 0, 0, 40, b""),
+        (0x41, 1, 0, 0, 20, struct.pack("<5I", 1, 12, 2, 1, 3)),
+        (0x41, 2, 0, 0, 8, struct.pack("<II", 1, 0)),
+    ]
 
     def __init__(self, dev, board="generic"):
         self.dev = dev
         self.steps = self.enumerate()
         self.enumerated = False
+        # (a usb to can bridge: its GsUsb carries the bulk data, not the
+        # serial data)
+        self.gs = None
         # (the endpoints: Kalico's src/<board>/usb_cdc_ep.h, or the generic one)
         path = os.path.join(mcu_run.KALICO, "src", board, "usb_cdc_ep.h")
         if not os.path.exists(path):
@@ -374,6 +391,8 @@ class UsbHost:
                 return did
             else:
                 did = True
+        if self.gs:
+            return self.gs.bulk(emu) or did
         dev = self.dev
         while emu.rx:
             if dev.out(emu, self.BULK_OUT, emu.rx[: self.BULK_OUT_SIZE]) != "ack":
@@ -394,7 +413,7 @@ class UsbHost:
             yield False
         self.dev.reset(self.emu)
         yield True
-        for req in self.REQUESTS:
+        for req in self.GS_REQUESTS if self.gs else self.REQUESTS:
             yield from self.control(*req)
 
     def control(self, rtype, request, value, index, length, data):
@@ -514,6 +533,98 @@ class CanHost:
         while not self.admin:
             yield False
         self.admin.pop(0)
+
+
+class GsUsb:
+    """the host's gs_usb side of a usb to can bridge (generic/usb_canbus.c):
+    a `struct gs_host_frame` per bulk packet each way; the frames the node or
+    the bus send come with echo_id 0xffffffff, the host's own frames are
+    echoed back with theirs. To the CanHost it is the controller."""
+
+    FRAME = struct.Struct("<IIBBBB8s")
+    ECHO_NONE = 0xFFFFFFFF
+
+    def __init__(self, usb_host):
+        self.usb = usb_host
+        usb_host.gs = self
+        self.out = []
+        self.frames = []
+        self.echo_id = 0
+
+    def bulk(self, emu):
+        """the bulk packets the host can move now; True if it moved one"""
+        dev, h = self.usb.dev, self.usb
+        did = False
+        while self.out and dev.out(emu, h.BULK_OUT, self.out[0]) == "ack":
+            self.out.pop(0)
+            did = True
+        while True:
+            r, data = dev.in_(emu, h.BULK_IN)
+            if r != "ack":
+                break
+            echo_id, fid, dlc, _, _, _, payload = self.FRAME.unpack(data)
+            if echo_id == self.ECHO_NONE:
+                self.frames.append((fid, payload[:dlc]))
+            else:
+                emu.log.write("# gs_usb echo %d %x %s\n" % (echo_id, fid, payload[:dlc].hex()))
+            did = True
+        return did
+
+    # ---- the CanHost's controller
+
+    def ready(self, emu):
+        return self.usb.enumerated
+
+    def send(self, emu, fid, data):
+        if self.out:
+            return False
+        self.out.append(self.FRAME.pack(self.echo_id, fid, len(data), 0, 0, 0, bytes(data)))
+        self.echo_id += 1
+        return True
+
+    def recv(self, emu):
+        frames, self.frames = self.frames, []
+        return frames
+
+
+class UsbCanBridge:
+    """a usb to can bridge (CONFIG_USBCANBUS): the usb device controller
+    model, which the host enumerates as a gs_usb device, and the can
+    controller model, whose frames on the bus are logged; the CanHost talks
+    to the bridge's own node through the gs_usb frames"""
+
+    def __init__(self, usb, can):
+        self.usb, self.can = usb, can
+        self.gs = GsUsb(usb.host_side)
+        self.can_host = CanHost(self.gs)
+        self.memory = getattr(usb, "memory", []) + getattr(can, "memory", [])
+        self.pointer_regs = getattr(usb, "pointer_regs", set()) | getattr(can, "pointer_regs", set())
+
+    def read(self, emu, addr):
+        v = self.usb.read(emu, addr)
+        return self.can.read(emu, addr) if v is None else v
+
+    def write(self, emu, addr, value):
+        return self.usb.write(emu, addr, value) or self.can.write(emu, addr, value)
+
+    def used_bits(self, emu, addr):
+        bits = 0xFFFFFFFF
+        for m in (self.usb, self.can):
+            if hasattr(m, "used_bits"):
+                bits &= m.used_bits(emu, addr)
+        return bits
+
+    def irq(self, emu):
+        irq = self.usb.irq(emu)
+        return self.can.irq(emu) if irq is None else irq
+
+    def host(self, emu):
+        did = self.usb.host(emu)
+        did = self.can_host.step(emu) or did
+        for fid, data in self.can.recv(emu):
+            emu.log.write("# can bus frame %x %s\n" % (fid, data.hex()))
+            did = True
+        return did
 
 
 class BxCan:
@@ -1145,12 +1256,11 @@ class Lpc176x(Ported):
         self.time = DwtTime(chip)
         self.mmio = [(chip.ptr["LPC_GPIO0"] & ~0xFFFF, 0x10000)]
         self.read_rules = {}
-        if cfg.get("CONFIG_USBSERIAL"):
-            self.port = LpcUsb(chip)
-        elif cfg.get("CONFIG_CANSERIAL"):
-            self.port = LpcCan(cfg, chip)
-        else:
+        if cfg.get("CONFIG_SERIAL"):
             self.port = LpcUart(cfg, chip)
+        else:
+            self.port = transport(LpcUsb(chip) if cfg.get("CONFIG_USB") else None,
+                                  LpcCan(cfg, chip) if cfg.get("CONFIG_CANBUS") else None)
 
     # (the boot rom's in application programming entry, chipid.c's serial
     # number read: CMD_SUCCESS, zeros)
@@ -1487,19 +1597,21 @@ class Atsam(Ported):
             A.UC_CPU_ARM_CORTEX_M7 if cfg.get("CONFIG_MACH_SAME70") else A.UC_CPU_ARM_CORTEX_M4)
         self.time = DwtTime(chip)
         self.read_rules = {}
-        self.pointer_regs = set()
-        if cfg.get("CONFIG_CANSERIAL"):
-            # (fdcan.c: MCAN0 on PB3 / PB2, MCAN1 on PC12 / PD12)
-            n = "MCAN0" if cfg.get("CONFIG_ATSAM_CANBUS_PB3_PB2") else "MCAN1"
-            self.port = Mcan(cfg, chip, n, n + "_INT0_IRQn")
-            self.pointer_regs = self.port.pointer_regs
-        elif not cfg.get("CONFIG_USBSERIAL"):
+        if cfg.get("CONFIG_SERIAL"):
             self.port = AtsamUart(cfg, chip)
-        elif cfg.get("CONFIG_MACH_SAM4"):
-            self.port = SamUdp(chip)
         else:
-            self.port = SamUotghs(cfg, chip)
-            self.mmio = [(self.port.ram, 10 * 0x8000)]
+            usb = can = None
+            if cfg.get("CONFIG_USB") and cfg.get("CONFIG_MACH_SAM4"):
+                usb = SamUdp(chip)
+            elif cfg.get("CONFIG_USB"):
+                usb = SamUotghs(cfg, chip)
+                self.mmio = [(usb.ram, 10 * 0x8000)]
+            if cfg.get("CONFIG_CANBUS"):
+                # (fdcan.c: MCAN0 on PB3 / PB2, MCAN1 on PC12 / PD12)
+                n = "MCAN0" if cfg.get("CONFIG_ATSAM_CANBUS_PB3_PB2") else "MCAN1"
+                can = Mcan(cfg, chip, n, n + "_INT0_IRQn")
+            self.port = transport(usb, can)
+        self.pointer_regs = getattr(self.port, "pointer_regs", set())
         self.eefc = Eefc(chip)
         self.e70 = cfg.get("CONFIG_MACH_SAME70")
         # (same70_sysinit.c: the dma copy of the code to the itcm, its length)
@@ -1934,17 +2046,16 @@ class Atsamd(Ported):
         self.time = DwtTime(chip) if samx5 else TcTime(chip, "TC0" if cfg.get("CONFIG_MACH_SAMC21") else "TC4")
         self.read_rules = {}
         self.mmio = []
-        if cfg.get("CONFIG_USBSERIAL"):
-            self.port = SamdUsb(cfg, chip)
-            self.pointer_regs = {self.port.descadd}
-        elif cfg.get("CONFIG_CANSERIAL"):
-            # (fdcan.c: CAN0 on PA23 / PA22, PA25 / PA24, else CAN1)
-            n = "CAN0" if cfg.get("CONFIG_ATSAMD_CANBUS_PA23_PA22") or cfg.get("CONFIG_ATSAMD_CANBUS_PA25_PA24") else "CAN1"
-            self.port = Mcan(cfg, chip, n, n + "_IRQn")
-            self.pointer_regs = self.port.pointer_regs
-        else:
+        if cfg.get("CONFIG_SERIAL"):
             self.port = AtsamdUsart(cfg, chip)
-            self.pointer_regs = set()
+        else:
+            can = None
+            if cfg.get("CONFIG_CANBUS"):
+                # (fdcan.c: CAN0 on PA23 / PA22, PA25 / PA24, else CAN1)
+                n = "CAN0" if cfg.get("CONFIG_ATSAMD_CANBUS_PA23_PA22") or cfg.get("CONFIG_ATSAMD_CANBUS_PA25_PA24") else "CAN1"
+                can = Mcan(cfg, chip, n, n + "_IRQn")
+            self.port = transport(SamdUsb(cfg, chip) if cfg.get("CONFIG_USB") else None, can)
+        self.pointer_regs = getattr(self.port, "pointer_regs", set())
 
     def setup(self, uc):
         # (the nvm calibration rows (GET_FUSE) and serial number words: 0
@@ -2013,6 +2124,8 @@ class SamdUsb:
         d = lambda f: base + chip.off[("UsbDevice", f)]  # noqa: E731
         self.ctrla, self.intenset, self.intenclr = d("CTRLA"), d("INTENSET"), d("INTENCLR")
         self.intflag, self.epintsmry, self.descadd = d("INTFLAG"), d("EPINTSMRY"), d("DESCADD")
+        # (DESCADD holds the descriptor table's ram address)
+        self.pointer_regs = {self.descadd}
         self.ep = d("DeviceEndpoint")
         e = lambda f: chip.off[("UsbDeviceEndpoint", f)]  # noqa: E731
         self.EPSTATUSCLR, self.EPSTATUSSET, self.EPSTATUS = e("EPSTATUSCLR"), e("EPSTATUSSET"), e("EPSTATUS")
@@ -2549,6 +2662,7 @@ class Emu(mcu_run.Mcu):
         self.rx = b""
         self.tx = b""
         self.poll_addr, self.poll_count = None, 0
+        self.spin = {}
         self.stopped = None
         self.crashed = None
         c = b.chip
@@ -2588,6 +2702,7 @@ class Emu(mcu_run.Mcu):
         b = self.board
         v = b.time.read(self, addr)
         if v is None:
+            self.spun(addr)
             v = b.uart_read(self, addr)
         if v is not None:
             pass
@@ -2702,10 +2817,22 @@ class Emu(mcu_run.Mcu):
         self.stopped = address
         uc.emu_stop()
 
+    def spun(self, addr):
+        """(the firmware busy without a wait: tasks waking each other until
+        the usb host takes a packet, which a real host does at once; after
+        SPIN reads of one register the host has its turn, as at a wait)"""
+        n = self.spin.get(addr, 0) + 1
+        self.spin[addr] = n
+        if n >= SPIN:
+            self.spin = {}
+            if hasattr(self.board, "host"):
+                self.board.host(self)
+
     def pending(self, advance_until):
         """the exception to take now, if any (advancing the time to the next
         timer expiry if it is not after `advance_until`)"""
         b = self.board
+        self.spin = {}
         # (the usb host's transactions with the device)
         if hasattr(b, "host"):
             b.host(self)

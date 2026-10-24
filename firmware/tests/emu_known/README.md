@@ -42,6 +42,15 @@ can models log.
   image's ram (.data + .bss) is smaller, so its dynamic memory pool, and the
   moves it holds, are larger; on this 4KB ram chip the count stays below its
   1024 cap, so the answers show it (see NOTES "Kaliru MCU firmware", size).
+- `lpc1768-usbcan/*.diff`, `same70q20b-usbcan/*.diff`,
+  `stm32f446-usbcan/*.diff`, `stm32h723-usbcan/*.diff` (every script, the
+  usb bulk in data register only): `generic/canserial.c`
+  `canserial_tx_task()` fills only `dlc` bytes of its uninitialised
+  `struct canbus_msg msg`, and `usb_canbus.c` `send_frame()` copies both
+  `data32` words into the `gs_host_frame` it sends, so the C frames' bytes
+  past the DLC are stack contents. Rust's message starts zeroed. The host
+  ignores those bytes; the answers are identical. (same54p20-usbcan sends
+  through usb dma descriptors in ram, which is not logged: identical.)
 - `rp2350-usb/drivers.txt.diff`, `drivers.diff` (the I2C timeout and all
   times after it): `sensor_lis2dw.c` `command_query_lis2dw_status()` reads
   `time2 = timer_read_time()` (the volatile `DWT->CYCCNT`) before

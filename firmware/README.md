@@ -87,12 +87,14 @@ application address.
   huge and NaN arguments) give identical bits to the arm-none-eabi libm under qemu-arm.
 - `tests/emu_cmp.sh <config>` runs the C and the Rust image of a micro-controller config in an emulator
   (`tests/emu_run.py`: Unicorn with a small deterministic model of each board family's clock, timer and serial
-  port or usb device controller, with a usb host that enumerates the device) on the `tests/scripts` and compares
-  the answers and every peripheral register read and write. All 16 serial configs (stm32 f0 / f1 / f4 / g0 / g4 /
-  h7, AT32, N32, lpc176x, sam3x, samd21, samd51, hc32f460, rp2040) and 19 of the 20 USB configs (stm32 usbfs and
-  otg, rp2040, samd21 / samd51, lpc176x, sam3x / sam4s / sam4e / same70; not rp2350): 7/7 scripts identical; the
-  few known differences (`tests/emu_known/README.md`) are Kalico C code whose effect gcc chooses (non-volatile
-  register pointers) or C defects (an HC32 neopixel store merged away, an F072 stack overflow). Not modelled yet:
-  rp2350, CAN / FDCAN / can2040 and the USB-to-CAN bridge.
+  port, usb device controller (with a usb host that enumerates it) or can controller (with a can host that assigns
+  the node id)) on the `tests/scripts` and compares the answers and every peripheral register read and write. 50
+  of the 54 configs give 7/7 identical scripts: all 16 serial configs (stm32 f0 / f1 / f4 / g0 / g4 / h7, AT32,
+  N32, lpc176x, sam3x, samd21, samd51, hc32f460, rp2040), all 20 USB configs (stm32 usbfs and otg, rp2040, rp2350,
+  samd21 / samd51, lpc176x, sam3x / sam4s / sam4e / same70), the INDX toolboard, 8 CAN configs (bxcan, stm32
+  fdcan, samc21 / same51 / same70 M_CAN, lpc176x) and 5 USB-to-CAN bridges (gs_usb). The known differences
+  (`tests/emu_known/README.md`) are Kalico C code whose effect gcc chooses (non-volatile register pointers, a
+  volatile read moved past a call, uninitialised frame bytes) or C defects (an HC32 neopixel store merged away,
+  an F072 stack overflow). Not modelled yet: can2040 (rp2040-can, rp2040-usbcan), which needs the rp2040 PIO.
 - Behaviour on a chip is not checked for any micro-controller board yet (no hardware run; the Renode set-up in `tests/renode/` does not yet run
   Kalico's own image, see NOTES "Kaliru MCU firmware").
