@@ -1036,23 +1036,69 @@ class Rp2040:
         c = chip.const
         self.cpu = A.UC_CPU_ARM_CORTEX_M0
         self.time = RpTime(chip)
-        self.mmio = [(chip.ptr["sio_hw"], 0x1000)]
-        self.read_rules = {}
-        n = 1 if any(k.startswith("CONFIG_RPXXXX_SERIAL_UART1") and v == 1 for k, v in cfg.items()) else 0
-        p = "uart%d_hw" % n
-        self.dr, self.fr = chip.at(p, "dr"), chip.at(p, "fr")
-        self.imsc, self.mis = chip.at(p, "imsc"), chip.at(p, "mis")
-        self.irq = c["UART%d_IRQ_IRQn" % n]
-        self.RXFE = c["UART_UARTFR_RXFE_BITS"]
-        self.RX = c["UART_UARTIMSC_RXIM_BITS"] | c["UART_UARTIMSC_RTIM_BITS"]
+        self.mmio = [(chip.ptr["sio_hw"], 0x1000), (chip.ptr["ssi_hw"], 0x1000)]
+        # (the flash interface, bootrom.c's unique id read and the image's
+        # boot2: transmit fifo not full and empty, receive fifo not empty)
+        ready = c["SSI_SR_TFNF_BITS"] | c["SSI_SR_TFE_BITS"] | c["SSI_SR_RFNE_BITS"]
+        # (and the flash's answers: 0, its status not busy)
+        self.read_rules = {chip.at("ssi_hw", "sr"): lambda v: ready, chip.at("ssi_hw", "dr0"): lambda v: 0}
+        self.port = RpUsb(chip) if cfg.get("CONFIG_USBSERIAL") else Rp2040Uart(cfg, chip)
+
+    # (the boot rom bootrom.c uses: at 0x14 / 0x18 the halfword pointers to
+    # the function table and the lookup function; the functions it gives
+    # (connect_internal_flash, flash_exit_xip, flash_flush_cache,
+    # reset_usb_boot) return at once)
+    ROM_TABLE, ROM_LOOKUP, ROM_STUBS = 0x100, 0x200, 0x300
+
+    def setup(self, uc):
+        uc.mem_map(0, 0x4000, unicorn.UC_PROT_READ | unicorn.UC_PROT_EXEC)
+        uc.mem_write(0x14, struct.pack("<H", self.ROM_TABLE))
+        uc.mem_write(0x18, struct.pack("<H", self.ROM_LOOKUP | 1))
+        uc.mem_write(self.ROM_STUBS, struct.pack("<H", 0x4770) * 64)  # bx lr
+        uc.hook_add(unicorn.UC_HOOK_CODE, self.rom_lookup, begin=self.ROM_LOOKUP, end=self.ROM_LOOKUP)
+
+    def rom_lookup(self, uc, address, size, user):
+        # (rom_table_lookup(table, code): a stub per code)
+        code = uc.reg_read(A.UC_ARM_REG_R1) & 0xFFFF
+        uc.reg_write(A.UC_ARM_REG_R0, (self.ROM_STUBS + 2 * (code % 64)) | 1)
+        uc.reg_write(A.UC_ARM_REG_PC, uc.reg_read(A.UC_ARM_REG_LR))
 
     def alias(self, addr):
         """(the register and operation of an alias address)"""
-        if 0x40000000 <= addr < 0x60000000 and addr & 0x3000:
+        if 0x40000000 <= addr < 0x60000000 and addr & 0x3000 and not 0x50100000 <= addr < 0x50110000:
             return addr & ~0x3000, (addr >> 12) & 3
         return None
 
     def uart_read(self, emu, addr):
+        return self.port.read(emu, addr)
+
+    def uart_write(self, emu, addr, value):
+        return self.port.write(emu, addr, value)
+
+    def uart_irq(self, emu):
+        return self.port.irq(emu)
+
+    def host(self, emu):
+        return self.port.host(emu)
+
+
+class Rp2040Uart:
+    """rp2040/serial.c: the PL011 uart (fr RXFE, imsc, mis)"""
+
+    def __init__(self, cfg, chip):
+        c = chip.const
+        n = 1 if any(k.startswith("CONFIG_RPXXXX_SERIAL_UART1") and v == 1 for k, v in cfg.items()) else 0
+        p = "uart%d_hw" % n
+        self.dr, self.fr = chip.at(p, "dr"), chip.at(p, "fr")
+        self.imsc, self.mis = chip.at(p, "imsc"), chip.at(p, "mis")
+        self.irq_num = c["UART%d_IRQ_IRQn" % n]
+        self.RXFE = c["UART_UARTFR_RXFE_BITS"]
+        self.RX = c["UART_UARTIMSC_RXIM_BITS"] | c["UART_UARTIMSC_RTIM_BITS"]
+
+    def host(self, emu):
+        return False
+
+    def read(self, emu, addr):
         if addr == self.fr:
             return 0 if emu.rx else self.RXFE
         if addr == self.dr:
@@ -1061,16 +1107,154 @@ class Rp2040:
             return emu.get(self.imsc, 4) & (self.RX if emu.rx else 0)
         return None
 
-    def uart_write(self, emu, addr, value):
+    def write(self, emu, addr, value):
         if addr == self.dr:
             emu.tx += bytes([value & 0xFF])
             return True
         return False
 
-    def uart_irq(self, emu):
+    def irq(self, emu):
         if emu.rx and emu.get(self.imsc, 4) & self.RX:
-            return self.irq
+            return self.irq_num
         return None
+
+
+class RpUsb:
+    """rp2040/usbserial.c: the usb device controller (the dual port ram's
+    setup packet, endpoint buffer controls FULL / AVAIL / LEN / STALL and
+    buffers, double buffered bulk endpoints; sie_status, buf_status, intr /
+    inte / ints) for the UsbHost"""
+
+    def __init__(self, chip):
+        c = chip.const
+        h = lambda f: chip.at("usb_hw", f)  # noqa: E731
+        self.intr, self.inte, self.ints = h("intr"), h("inte"), h("ints")
+        self.buf_status, self.sie_status = h("buf_status"), h("sie_status")
+        self.main_ctrl, self.sie_ctrl = h("main_ctrl"), h("sie_ctrl")
+        self.ep_stall_arm = h("ep_stall_arm")
+        dp = chip.ptr["usb_dpram"]
+        self.setup_packet = dp + chip.off[("usb_device_dpram_t", "setup_packet")]
+        self.ep_ctrl = dp + chip.off[("usb_device_dpram_t", "ep_ctrl")]
+        self.ep_buf_ctrl = dp + chip.off[("usb_device_dpram_t", "ep_buf_ctrl")]
+        self.out_off = chip.off[("usb_device_dpram_ep_buf_ctrl", "out")]
+        self.dpram = dp
+        self.irq_num = c["USBCTRL_IRQ_IRQn"]
+        self.SETUP_REQ, self.BUFF_STATUS = c["USB_INTR_SETUP_REQ_BITS"], c["USB_INTR_BUFF_STATUS_BITS"]
+        self.BUS_RESET = c["USB_INTR_BUS_RESET_BITS"]
+        self.SETUP_REC, self.SIE_BUS_RESET = c["USB_SIE_STATUS_SETUP_REC_BITS"], c["USB_SIE_STATUS_BUS_RESET_BITS"]
+        self.FULL, self.AVAIL, self.STALL = c["USB_BUF_CTRL_FULL"], c["USB_BUF_CTRL_AVAIL"], c["USB_BUF_CTRL_STALL"]
+        self.LEN = c["USB_BUF_CTRL_LEN_MASK"]
+        self.CONTROLLER_EN, self.PULLUP_EN = c["USB_MAIN_CTRL_CONTROLLER_EN_BITS"], c["USB_SIE_CTRL_PULLUP_EN_BITS"]
+        self.DBUF = c["EP_CTRL_DOUBLE_BUFFERED_BITS"]
+        # (the buffer the controller uses next, per endpoint and direction)
+        self.next_buf = {}
+        self.host_side = UsbHost(self)
+
+    def bufctrl(self, ep, out):
+        return self.ep_buf_ctrl + ep * 8 + (self.out_off if out else 0)
+
+    # ---- the cpu's registers
+
+    def read(self, emu, addr):
+        if addr == self.intr:
+            return self.intr_value(emu)
+        if addr == self.ints:
+            return self.intr_value(emu) & emu.get(self.inte, 4)
+        return None
+
+    def intr_value(self, emu):
+        v = 0
+        sie = emu.get(self.sie_status, 4)
+        if sie & self.SETUP_REC:
+            v |= self.SETUP_REQ
+        if sie & self.SIE_BUS_RESET:
+            v |= self.BUS_RESET
+        if emu.get(self.buf_status, 4):
+            v |= self.BUFF_STATUS
+        return v
+
+    def write(self, emu, addr, value):
+        if addr in (self.sie_status, self.buf_status):
+            # (cleared by writing 1)
+            emu.put(addr, 4, emu.get(addr, 4) & ~value)
+            return True
+        if self.ep_buf_ctrl <= addr < self.ep_buf_ctrl + 16 * 8 and not addr & 3:
+            # (a whole buffer control word: the controller starts at buffer 0)
+            self.next_buf[(addr - self.ep_buf_ctrl) // 4] = 0
+        return False
+
+    def irq(self, emu):
+        if self.intr_value(emu) & emu.get(self.inte, 4):
+            return self.irq_num
+        return None
+
+    def host(self, emu):
+        self.host_side.emu = emu
+        return self.host_side.step(emu)
+
+    # ---- the host's transactions
+
+    def buffer(self, emu, ep, out):
+        """(buffer control address, data address) of the endpoint's next buffer"""
+        key = ep * 2 + (1 if out else 0)
+        b = self.next_buf.get(key, 0)
+        ctl = emu.get(self.ep_ctrl + (ep - 1) * 8 + (4 if out else 0), 4) if ep else 0
+        if ep == 0:
+            data = self.dpram + 0x100
+        else:
+            data = self.dpram + (ctl & 0xFFC0) + b * 64
+        return self.bufctrl(ep, out) + 2 * b, data, key, ctl & self.DBUF
+
+    def done(self, emu, key, dbuf):
+        if dbuf:
+            self.next_buf[key] = self.next_buf.get(key, 0) ^ 1
+        emu.put(self.buf_status, 4, emu.get(self.buf_status, 4) | (1 << key))
+
+    def ready(self, emu):
+        return emu.get(self.main_ctrl, 4) & self.CONTROLLER_EN and emu.get(self.sie_ctrl, 4) & self.PULLUP_EN
+
+    def reset(self, emu):
+        emu.put(self.sie_status, 4, emu.get(self.sie_status, 4) | self.SIE_BUS_RESET)
+
+    def setup(self, emu, data):
+        for i, b in enumerate(data):
+            emu.put(self.setup_packet + i, 1, b)
+        emu.put(self.sie_status, 4, emu.get(self.sie_status, 4) | self.SETUP_REC)
+        # (a setup disarms the ep0 stall)
+        emu.put(self.ep_stall_arm, 4, 0)
+        return True
+
+    def stalled(self, emu, ep, out, epb):
+        # (ep0 stalls only while armed: ep_stall_arm bit 0 in, bit 1 out)
+        if ep == 0 and not emu.get(self.ep_stall_arm, 4) & (2 if out else 1):
+            return False
+        return epb & self.STALL
+
+    def out(self, emu, ep, data):
+        a, buf, key, dbuf = self.buffer(emu, ep, True)
+        epb = emu.get(a, 2)
+        if self.stalled(emu, ep, True, epb):
+            return "stall"
+        if not epb & self.AVAIL or epb & self.FULL:
+            return "nak"
+        for i, b in enumerate(data):
+            emu.put(buf + i, 1, b)
+        emu.put(a, 2, (epb & ~(self.AVAIL | self.LEN)) | self.FULL | len(data))
+        self.done(emu, key, dbuf)
+        return "ack"
+
+    def in_(self, emu, ep):
+        a, buf, key, dbuf = self.buffer(emu, ep, False)
+        epb = emu.get(a, 2)
+        if self.stalled(emu, ep, False, epb):
+            return "stall", b""
+        if not (epb & self.AVAIL and epb & self.FULL):
+            return "nak", b""
+        n = epb & self.LEN
+        data = bytes(emu.get(buf + i, 1) for i in range(n))
+        emu.put(a, 2, epb & ~(self.AVAIL | self.FULL))
+        self.done(emu, key, dbuf)
+        return "ack", data
 
 
 BOARDS = {"CONFIG_MACH_STM32": Stm32, "CONFIG_MACH_LPC176X": Lpc176x, "CONFIG_MACH_ATSAM": Atsam,
@@ -1101,6 +1285,9 @@ class Emu(mcu_run.Mcu):
             uc.mem_write(a, d)
         for a, n in [(0x40000000, 0x20000000), (0xE0000000, 0x00100000)] + getattr(b, "mmio", []):
             uc.mmio_map(a, n, self.mmio_read, a, self.mmio_write, a)
+        # (a board's other memory: the rp2040 boot rom)
+        if hasattr(b, "setup"):
+            b.setup(uc)
         vt = cfg["CONFIG_FLASH_APPLICATION_ADDRESS"]
         sp, reset = struct.unpack("<II", uc.mem_read(vt, 8))
         self.vectors = vt
