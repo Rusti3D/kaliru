@@ -56,6 +56,13 @@ pub trait PrinterObject: Any {
     fn get_status(&self, _eventtime: f64) -> Option<PyVal> {
         None
     }
+    /// get_status(eventtime) of a python plugin's object as the python dict
+    /// itself (None: not one; Some(Err): it raised): the subscription poll
+    /// compares and converts only the fields that changed
+    #[cfg(feature = "plugins")]
+    fn get_status_py(&self, _eventtime: f64) -> Option<KResult<crate::plugins::py::PyRef>> {
+        None
+    }
     /// get_status(eventtime) where it can raise (an AttributeError and the
     /// like); callers that report exceptions use this one
     fn try_get_status(&self, eventtime: f64) -> KResult<Option<PyVal>> {

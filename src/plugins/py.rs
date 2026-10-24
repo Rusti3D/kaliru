@@ -435,3 +435,36 @@ fn namedtuple_class(name: &'static str, fields: &'static [&'static str]) -> crat
     NAMEDTUPLES.with(|m| m.borrow_mut().insert(name, cls.clone()));
     Ok(cls)
 }
+
+/// The str keys of a dict (a python plugin's status), in its order
+pub fn dict_keys(o: &PyRef) -> KResult<Vec<String>> {
+    let mut out = vec![];
+    let (mut pos, mut k, mut v) = (0, std::ptr::null_mut(), std::ptr::null_mut());
+    while unsafe { PyDict_Next(o.as_ptr(), &mut pos, &mut k, &mut v) } != 0 {
+        out.push(unsafe { PyRef::borrowed(k) }.str()?);
+    }
+    Ok(out)
+}
+
+/// d.get(key) of a dict with str keys (None when missing)
+pub fn dict_get(o: &PyRef, key: &str) -> KResult<PyRef> {
+    let k = std::ffi::CString::new(key).map_err(|e| KError::Py("ValueError".into(), e.to_string()))?;
+    let mut out = std::ptr::null_mut();
+    match unsafe { PyDict_GetItemStringRef(o.as_ptr(), k.as_ptr(), &mut out) } {
+        1 => Ok(unsafe { PyRef::owned(out) }.unwrap_or_else(py_none)),
+        0 => Ok(py_none()),
+        _ => Err(fetch_error()),
+    }
+}
+
+/// python's a != b (the operator: no identity shortcut)
+pub fn py_ne(a: &PyRef, b: &PyRef) -> KResult<bool> {
+    // Py_NE
+    let r = unsafe { PyRef::owned_or_err(PyObject_RichCompare(a.as_ptr(), b.as_ptr(), 3))? };
+    r.is_true()
+}
+
+/// Whether an object is exactly a dict
+pub fn is_dict(o: &PyRef) -> bool {
+    type_name(o).map(|t| t == "dict").unwrap_or(false)
+}

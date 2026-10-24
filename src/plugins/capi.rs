@@ -95,6 +95,7 @@ capi! {
     fn PyObject_Vectorcall(callable: *mut PyObject, args: *const *mut PyObject, nargsf: usize, kwnames: *mut PyObject) -> *mut PyObject;
     fn PyObject_CallNoArgs(callable: *mut PyObject) -> *mut PyObject;
     fn PyObject_IsTrue(o: *mut PyObject) -> c_int;
+    fn PyObject_RichCompare(a: *mut PyObject, b: *mut PyObject, op: c_int) -> *mut PyObject;
     fn PyObject_Str(o: *mut PyObject) -> *mut PyObject;
     fn PyObject_Repr(o: *mut PyObject) -> *mut PyObject;
     fn PyObject_IsInstance(o: *mut PyObject, cls: *mut PyObject) -> c_int;

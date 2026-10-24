@@ -149,6 +149,14 @@ impl PrinterObject for PyPrinterObject {
     fn get_status(&self, eventtime: f64) -> Option<PyVal> {
         self.try_get_status(eventtime).ok().flatten()
     }
+    fn get_status_py(&self, eventtime: f64) -> Option<KResult<py::PyRef>> {
+        match self.call("get_status", eventtime) {
+            Ok(Some(v)) if py::is_dict(&v) => Some(Ok(v)),
+            // (not a plain dict: the converting path)
+            Ok(_) => None,
+            Err(e) => Some(Err(e)),
+        }
+    }
     fn try_get_status(&self, eventtime: f64) -> KResult<Option<PyVal>> {
         match self.call("get_status", eventtime)? {
             Some(v) => Ok(Some(py::to_pyval(&v)?)),

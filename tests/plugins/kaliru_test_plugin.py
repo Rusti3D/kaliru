@@ -21,6 +21,7 @@ class TestPlugin:
         )
         gcode.register_command("TEST_PLUGIN_COUNT", self.cmd_TEST_PLUGIN_COUNT)
         gcode.register_command("TEST_PLUGIN_CHECK", self.cmd_TEST_PLUGIN_CHECK)
+        gcode.register_command("TEST_PLUGIN_SET", self.cmd_TEST_PLUGIN_SET)
         self.counted = 0
         self.printer.register_event_handler("klippy:ready", self._ready)
         logging.info(
@@ -59,8 +60,14 @@ class TestPlugin:
             raise gcmd.error("kaliru object table grew: %d" % (_kaliru.ext("objects_len"),))
         gcmd.respond_info("counted %d" % (self.counted,))
 
+    def cmd_TEST_PLUGIN_SET(self, gcmd):
+        # changes the status (webhooks subscriptions: tests/live_api/plugin.live)
+        self.label = gcmd.get("LABEL", self.label)
+        self.value = gcmd.get_float("V", self.value)
+
     def get_status(self, eventtime):
-        return {"value": self.value, "label": self.label}
+        return {"value": self.value, "label": self.label,
+                "nested": {"a": [1, 2.5, {"b": None}], "t": (1, "x")}}
 
 
 def load_config(config):

@@ -27,6 +27,7 @@ import select
 import signal
 import subprocess
 import sys
+import json
 import time
 
 RK = os.path.expanduser("~/rk")
@@ -71,13 +72,15 @@ class Mcu:
 
 
 class Host:
-    def __init__(self, kind, cfg, workdir):
+    def __init__(self, kind, cfg, workdir, api=False):
         self.tty = os.path.join(workdir, "printer")
         self.logfile = os.path.join(workdir, "klippy.log")
-        for f in (self.tty, self.logfile):
+        self.apisock = os.path.join(workdir, "api.sock")
+        for f in (self.tty, self.logfile, self.apisock):
             if os.path.lexists(f):
                 os.unlink(f)
-        self.proc = subprocess.Popen(HOSTS[kind] + [cfg, "-I", self.tty, "-l", self.logfile], cwd=KALICO,
+        extra = ["-a", self.apisock] if api else []
+        self.proc = subprocess.Popen(HOSTS[kind] + [cfg, "-I", self.tty, "-l", self.logfile] + extra, cwd=KALICO,
                                      stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
         for _ in range(1000):
             if os.path.exists(self.tty):
@@ -154,6 +157,62 @@ class Host:
             self.proc.wait()
 
 
+class Api:
+    """a client of the host's API socket (webhooks): requests and the
+    status notifications of subscriptions"""
+
+    def __init__(self, path):
+        import socket
+        for _ in range(500):
+            try:
+                self.sock = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
+                self.sock.connect(path)
+                break
+            except OSError:
+                time.sleep(0.01)
+        else:
+            sys.exit("no api socket %s" % path)
+        self.buf = b""
+        self.next_id = 1
+        self.notes = []
+
+    def _read(self, end):
+        """the next message (raw json text) before `end`, or None"""
+        while b"" not in self.buf:
+            left = end - time.monotonic()
+            if left <= 0 or not select.select([self.sock], [], [], left)[0]:
+                return None
+            data = self.sock.recv(65536)
+            if not data:
+                return None
+            self.buf += data
+        msg, self.buf = self.buf.split(b"", 1)
+        return msg.decode(errors="replace")
+
+    def request(self, method, params, timeout=CMD_TIMEOUT):
+        rid = self.next_id
+        self.next_id += 1
+        self.sock.sendall(json.dumps({"id": rid, "method": method, "params": params}).encode() + b"")
+        end = time.monotonic() + timeout
+        while (m := self._read(end)) is not None:
+            if json.loads(m).get("id") == rid:
+                return m
+            self.notes.append(m)
+        return "(no answer in %.0f s)" % timeout
+
+    def notifications(self, timeout):
+        end = time.monotonic() + timeout
+        while (m := self._read(end)) is not None:
+            self.notes.append(m)
+        out, self.notes = self.notes, []
+        return out
+
+
+def mask_api(text):
+    # (times differ run to run)
+    return re.sub(r'"eventtime": ?[-0-9.e]+', '"eventtime": X', text)
+
+
 def wait_ready(host):
     """poll STATUS until the host is past its startup (ready, or a config
     error or shutdown it stays in): the answer once two in a row, a second
@@ -190,8 +249,10 @@ def main():
     open(cfg, "w").write(cfg_text)
     for m in mcus.values():
         m.start()
-    host = Host(kind, cfg, workdir)
+    use_api = re.search(r"^@(api|sub|notify) ", commands, re.M) is not None
+    host = Host(kind, cfg, workdir, api=use_api)
     out = ["= state"] + wait_ready(host)
+    api = Api(host.apisock) if use_api else None
     try:
         for line in commands.splitlines():
             line = line.strip()
@@ -215,6 +276,16 @@ def main():
                         out.append("(no log line %s)" % regex)
                         break
                     out += host.lines(0.1)
+            elif word == "@api":
+                # @api <method> <json params>
+                method, _, params = arg.partition(" ")
+                out.append("api: " + mask_api(api.request(method, json.loads(params or "{}"))))
+            elif word == "@sub":
+                # @sub <json objects>: objects/subscribe
+                out.append("api: " + mask_api(api.request("objects/subscribe", {"objects": json.loads(arg), "response_template": {}})))
+            elif word == "@notify":
+                # @notify <seconds>: the status notifications that arrived
+                out += ["notify: " + mask_api(n) for n in api.notifications(float(arg))]
             elif word == "@log":
                 out += ["log: " + l for l in host.log_lines() if re.search(arg, l)]
             else:

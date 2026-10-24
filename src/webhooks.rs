@@ -787,12 +787,92 @@ enum SendFunc {
     Conn(Rc<ClientConnection>),
 }
 
+/// One printer object's status in a subscription poll: kaliru's value, or a
+/// python plugin's dict as python returned it. Only the fields that changed
+/// (python's own != for a python one, as Kalico compares) are converted.
+enum Status {
+    Val(PyVal),
+    #[cfg(feature = "plugins")]
+    Py(crate::plugins::py::PyRef),
+}
+
+impl Status {
+    fn of(po: &dyn PrinterObject, eventtime: f64) -> Status {
+        #[cfg(feature = "plugins")]
+        if let Some(r) = po.get_status_py(eventtime) {
+            // (a get_status that raises reads as {}, as on the converting path)
+            return r.map(Status::Py).unwrap_or_else(|_| Status::Val(PyVal::dict()));
+        }
+        Status::Val(po.get_status(eventtime).unwrap_or_else(PyVal::dict))
+    }
+
+    fn keys(&self) -> Vec<String> {
+        match self {
+            Status::Val(PyVal::Dict(d)) => d.keys().cloned().collect(),
+            Status::Val(_) => vec![],
+            #[cfg(feature = "plugins")]
+            Status::Py(d) => crate::plugins::py::dict_keys(d).unwrap_or_default(),
+        }
+    }
+
+    /// res[key] != last.get(key)
+    fn changed(&self, key: &str, last: Option<&Status>) -> bool {
+        match self {
+            Status::Val(v) => {
+                let none = PyVal::None;
+                let field = |s: &'_ PyVal| -> Option<PyVal> {
+                    match s {
+                        PyVal::Dict(d) => d.get(key).cloned(),
+                        _ => None,
+                    }
+                };
+                let a = match v {
+                    PyVal::Dict(d) => d.get(key).unwrap_or(&none),
+                    _ => &none,
+                };
+                match last {
+                    Some(Status::Val(PyVal::Dict(l))) => !a.py_eq(l.get(key).unwrap_or(&none)),
+                    Some(Status::Val(l)) => !a.py_eq(&field(l).unwrap_or(PyVal::None)),
+                    #[cfg(feature = "plugins")]
+                    Some(Status::Py(_)) => true,
+                    None => !a.py_eq(&none),
+                }
+            }
+            #[cfg(feature = "plugins")]
+            Status::Py(d) => {
+                use crate::plugins::py;
+                let b = match last {
+                    Some(Status::Py(l)) => py::dict_get(l, key),
+                    Some(Status::Val(_)) => return true,
+                    None => Ok(py::py_none()),
+                };
+                match (py::dict_get(d, key), b) {
+                    (Ok(a), Ok(b)) => py::py_ne(&a, &b).unwrap_or(true),
+                    _ => true,
+                }
+            }
+        }
+    }
+
+    /// res[key] as a value (None when missing)
+    fn value(&self, key: &str) -> PyVal {
+        match self {
+            Status::Val(PyVal::Dict(d)) => d.get(key).cloned().unwrap_or(PyVal::None),
+            Status::Val(_) => PyVal::None,
+            #[cfg(feature = "plugins")]
+            Status::Py(d) => crate::plugins::py::dict_get(d, key)
+                .and_then(|v| crate::plugins::py::to_pyval(&v))
+                .unwrap_or(PyVal::None),
+        }
+    }
+}
+
 struct QueryStatusHelper {
     printer: Rc<Printer>,
     clients: RefCell<IndexMap<usize, (Rc<ClientConnection>, Subscription, PyVal)>>,
     pending_queries: RefCell<Vec<(Option<Rc<ClientConnection>>, Subscription, SendFunc, PyVal)>>,
     query_timer: RefCell<Option<Timer>>,
-    last_query: RefCell<IndexMap<String, PyVal>>,
+    last_query: RefCell<IndexMap<String, Status>>,
 }
 
 impl QueryStatusHelper {
@@ -831,7 +911,7 @@ impl QueryStatusHelper {
 
     fn do_query(self: &Rc<Self>, eventtime: f64) -> f64 {
         let last_query = std::mem::take(&mut *self.last_query.borrow_mut());
-        let mut query: IndexMap<String, PyVal> = IndexMap::new();
+        let mut query: IndexMap<String, Status> = IndexMap::new();
         let mut msglist = std::mem::take(&mut *self.pending_queries.borrow_mut());
         for (_, (cconn, sub, template)) in self.clients.borrow().iter() {
             msglist.push((Some(cconn.clone()), sub.clone(), SendFunc::Conn(cconn.clone()), template.clone()));
@@ -851,16 +931,13 @@ impl QueryStatusHelper {
             for obj_name in names {
                 if !query.contains_key(&obj_name) {
                     let res = match self.printer.lookup_object_opt(&obj_name) {
-                        Some(po) if po.has_status() => po.get_status(eventtime).unwrap_or_else(PyVal::dict),
-                        _ => PyVal::dict(),
+                        Some(po) if po.has_status() => Status::of(&*po, eventtime),
+                        _ => Status::Val(PyVal::dict()),
                     };
                     query.insert(obj_name.clone(), res);
                 }
                 let res = &query[&obj_name];
-                let res_keys: Vec<String> = match res {
-                    PyVal::Dict(d) => d.keys().cloned().collect(),
-                    _ => vec![],
-                };
+                let res_keys: Vec<String> = res.keys();
                 let mut req_items = subscription.borrow()[&obj_name].clone();
                 if req_items == PyVal::None {
                     req_items = PyVal::List(res_keys.iter().map(|k| PyVal::Str(k.clone())).collect());
@@ -868,20 +945,13 @@ impl QueryStatusHelper {
                         subscription.borrow_mut().insert(obj_name.clone(), req_items.clone());
                     }
                 }
-                let empty = IndexMap::new();
-                let lres = match last_query.get(&obj_name) {
-                    Some(PyVal::Dict(d)) => d,
-                    _ => &empty,
-                };
+                let lres = last_query.get(&obj_name);
                 let mut cres = IndexMap::new();
                 for ri in req_items.items().unwrap_or(&[]) {
                     let ri = ri.str();
-                    let rd = match res {
-                        PyVal::Dict(d) => d.get(&ri).unwrap_or(&PyVal::None),
-                        _ => &PyVal::None,
-                    };
-                    if is_query || !rd.py_eq(lres.get(&ri).unwrap_or(&PyVal::None)) {
-                        cres.insert(ri, rd.clone());
+                    if is_query || res.changed(&ri, lres) {
+                        let v = res.value(&ri);
+                        cres.insert(ri, v);
                     }
                 }
                 if !cres.is_empty() || is_query {
