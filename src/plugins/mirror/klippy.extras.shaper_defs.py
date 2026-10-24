@@ -27,5 +27,6 @@ def get_2hump_ei_shaper(shaper_freq, damping_ratio):
 def get_3hump_ei_shaper(shaper_freq, damping_ratio):
     return _k.fcall(4631, shaper_freq, damping_ratio)
 
+INPUT_SHAPERS = [InputShaperCfg('zv', get_zv_shaper, min_freq=21.0), InputShaperCfg('mzv', get_mzv_shaper, min_freq=23.0), InputShaperCfg('zvd', get_zvd_shaper, min_freq=29.0), InputShaperCfg('ei', get_ei_shaper, min_freq=29.0), InputShaperCfg('2hump_ei', get_2hump_ei_shaper, min_freq=39.0), InputShaperCfg('3hump_ei', get_3hump_ei_shaper, min_freq=48.0)]
 
 __getattr__ = _k.module_getattr(__name__)

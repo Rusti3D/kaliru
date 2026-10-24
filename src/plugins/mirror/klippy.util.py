@@ -32,5 +32,6 @@ def _get_repo_info(gitdir):
 def get_git_version(from_file=True):
     return _k.fcall(7393, from_file)
 
+fix_sigint()
 
 __getattr__ = _k.module_getattr(__name__)

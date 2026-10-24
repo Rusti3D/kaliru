@@ -84,10 +84,9 @@ class BedMesh(_k.Object):
     toolhead = _k.Attr(471, 'toolhead')
     z_mesh = _k.Attr(472, 'z_mesh')
 
-class ZrefMode(_k.Object):
-    __kaliru_mirror__ = True
-    DISABLED = 0
-    IN_MESH = 1
+class ZrefMode:
+    DISABLED = 0  # Zero reference disabled
+    IN_MESH = 1  # Zero reference position within mesh
     PROBE = 2
 
 class BedMeshCalibrate(_k.Object):

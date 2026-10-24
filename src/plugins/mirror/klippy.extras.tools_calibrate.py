@@ -118,5 +118,6 @@ class ProbeEndstopWrapper(_k.Object):
 def load_config(config):
     return _k.fcall(5468, config)
 
+Directions = {'x+': [Axis.X, +1], 'x-': [Axis.X, -1], 'y+': [Axis.Y, +1], 'y-': [Axis.Y, -1], 'z+': [Axis.Z, +1], 'z-': [Axis.Z, -1]}
 
 __getattr__ = _k.module_getattr(__name__)

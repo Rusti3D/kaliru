@@ -49,5 +49,6 @@ class CS1237(_k.Object):
     sclk_pin = _k.Attr(2969, 'sclk_pin')
     sps = _k.Attr(2970, 'sps')
 
+CS1237_SENSOR_TYPE = {'cs1237': CS1237}
 
 __getattr__ = _k.module_getattr(__name__)

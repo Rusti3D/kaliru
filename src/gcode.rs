@@ -38,6 +38,17 @@ pub fn coord_pyval(values: &[f64]) -> PyVal {
 }
 
 pub type Handler = Rc<dyn Fn(&GCodeCommand) -> KResult<()>>;
+
+thread_local! {
+    // the commands being handled; python plugins keep
+    // references to the command object itself (src/plugins)
+    static RUNNING_COMMANDS: RefCell<Vec<Rc<GCodeCommand>>> = const { RefCell::new(Vec::new()) };
+}
+
+/// The Rc of a command being handled, if `cmd` is one (python plugins)
+pub fn running_command(cmd: &GCodeCommand) -> Option<Rc<GCodeCommand>> {
+    RUNNING_COMMANDS.with(|r| r.borrow().iter().rev().find(|c| std::ptr::eq(c.as_ref(), cmd)).cloned())
+}
 pub type OutputCallback = Rc<dyn Fn(&str)>;
 
 pub struct GCodeCommand {
@@ -527,21 +538,24 @@ impl GCodeDispatch {
                 params.insert(parts[i].clone(), py_strip(parts.get(i + 1).map(|s| s.as_str()).unwrap_or("")).to_string());
                 i += 2;
             }
-            let gcmd = GCodeCommand {
+            let gcmd = Rc::new(GCodeCommand {
                 command: RefCell::new(cmd.clone()),
                 commandline: origline,
                 params: RefCell::new(params),
                 need_ack: Cell::new(need_ack),
                 gcode: self.clone(),
-            };
+            });
             // Invoke handler for command
             if self.script_context.get() > 0 && cmd == "RETURN" {
                 return Ok(());
             }
+            RUNNING_COMMANDS.with(|r| r.borrow_mut().push(gcmd.clone()));
             let res = match self.handlers_get(&cmd) {
                 Some(handler) => handler(&gcmd),
                 None => self.cmd_default(&gcmd),
             };
+            // (handlers pause: another greenlet's commands may have come and gone)
+            RUNNING_COMMANDS.with(|r| r.borrow_mut().retain(|c| !Rc::ptr_eq(c, &gcmd)));
             if let Err(e) = res {
                 if e.is_command_error() {
                     self.respond_error(&e.to_string());

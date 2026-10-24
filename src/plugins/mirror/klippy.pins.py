@@ -24,6 +24,7 @@ class PinResolver(_k.Object):
 
 class PrinterPins(_k.Object):
     __kaliru_mirror__ = True
+    error = error
     def __init__(self):
         _k.new(self, 6961)
     def parse_pin(self, pin_desc, can_invert=False, can_pullup=False):

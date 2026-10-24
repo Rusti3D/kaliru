@@ -16,6 +16,8 @@ pub mod scipy_signal;
 pub mod mcu;
 pub mod msgproto;
 pub mod pins;
+#[cfg(feature = "plugins")]
+pub mod plugins;
 pub mod printer;
 pub mod pyfmt;
 pub mod pyformat;

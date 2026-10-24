@@ -129,8 +129,8 @@ class ProbeDistanceCollector(Protocol):
     # than this will result in missing samples.
     def sample_rate(self) -> float: ...
 
-class sentinel(_k.Object):
-    __kaliru_mirror__ = True
+class sentinel:
+    pass
 
 class ProbeList(_k.Object):
     __kaliru_mirror__ = True

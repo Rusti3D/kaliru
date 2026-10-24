@@ -106,5 +106,7 @@ def load_config(config):
 def load_config_prefix(config):
     return _k.fcall(190, config)
 
+DefaultVoltageSensors = [('AD595', AD595), ('AD597', AD597), ('AD8494', AD8494), ('AD8495', AD8495), ('AD8496', AD8496), ('AD8497', AD8497), ('PT100 INA826', calc_ina826_pt100())]
+DefaultResistanceSensors = [('PT1000', calc_pt100(1000.0))]
 
 __getattr__ = _k.module_getattr(__name__)

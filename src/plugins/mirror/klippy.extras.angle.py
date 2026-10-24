@@ -66,6 +66,7 @@ class HelperA1333(_k.Object):
 class HelperAS5047D(_k.Object):
     __kaliru_mirror__ = True
     SPI_MODE = 1
+    SPI_SPEED = int(1.0 / 3.5e-07)
     def __init__(self, config, spi, oid):
         _k.new(self, 294, config, spi, oid)
     def get_static_delay(self):

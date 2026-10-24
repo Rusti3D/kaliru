@@ -166,5 +166,6 @@ class MAX31865(SensorBase):
 def load_config(config):
     return _k.fcall(4756, config)
 
+Sensors = {'MAX6675': MAX6675, 'MAX31855': MAX31855, 'MAX31856': MAX31856, 'MAX31865': MAX31865}
 
 __getattr__ = _k.module_getattr(__name__)

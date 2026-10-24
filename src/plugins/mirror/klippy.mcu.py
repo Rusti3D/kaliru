@@ -432,6 +432,7 @@ class MCUConfigHelper(_k.Object):
 
 class MCU(_k.Object):
     __kaliru_mirror__ = True
+    error = error
     def __init__(self, config, clocksync):
         _k.new(self, 6818, config, clocksync)
     def handle_non_critical_disconnect(self):

@@ -24,6 +24,8 @@
 import ast
 import builtins
 import pathlib
+import struct
+import zlib
 import subprocess
 import sys
 
@@ -33,6 +35,36 @@ EXC_ROOTS = {"Exception", "BaseException", "configparser.Error", "error", "Comma
 
 
 BUILTINS = set(dir(builtins))
+
+
+def is_main_guard(node):
+    return isinstance(node, ast.If) and "__main__" in ast.unparse(node.test)
+
+
+def is_docstring(node):
+    return isinstance(node, ast.Expr) and isinstance(node.value, ast.Constant)
+
+
+def bound_names(node):
+    """names a statement binds (plain assignment targets, also inside try/if)"""
+    out = set()
+    for sub in ast.walk(node):
+        if isinstance(sub, ast.Name) and isinstance(sub.ctx, ast.Store):
+            out.add(sub.id)
+    return out
+
+
+def statement_loads(node):
+    """free names a statement loads"""
+    loads = {n.id for n in ast.walk(node) if isinstance(n, ast.Name) and isinstance(n.ctx, ast.Load)}
+    for sub in ast.walk(node):
+        if isinstance(sub, ast.Lambda):
+            loads -= {a.arg for a in sub.args.args + sub.args.kwonlyargs + sub.args.posonlyargs}
+        elif isinstance(sub, ast.comprehension):
+            loads -= {n.id for n in ast.walk(sub.target) if isinstance(n, ast.Name)}
+        elif isinstance(sub, ast.ExceptHandler) and sub.name:
+            loads.discard(sub.name)
+    return loads - bound_names(node)
 
 
 class Ids:
@@ -193,7 +225,9 @@ class ModuleGen:
 
     def emit_class(self, cls, exc_names):
         stdlib_base = any(ast.unparse(b).split(".")[0] in self.stdlib_classes for b in cls.bases)
-        if is_exception_class(cls, exc_names) or stdlib_base:
+        # marker / data classes without methods (configfile's `class sentinel`)
+        plain = not cls.bases and not any(isinstance(n, (ast.FunctionDef, ast.AsyncFunctionDef)) for n in cls.body)
+        if is_exception_class(cls, exc_names) or stdlib_base or plain:
             exc_names.add(cls.name)
             self.out.append(ast.get_source_segment(self.src, cls))
             self.needed |= names_in(cls)
@@ -227,7 +261,8 @@ class ModuleGen:
                 self.needed |= names_in(node)
                 local.add(node.name)
             elif isinstance(node, (ast.Assign, ast.AnnAssign)) and node.value is not None \
-                    and (is_literal(node.value) or names_in(node.value) <= self.bound | local):
+                    and (is_literal(node.value)
+                         or names_in(node.value) <= self.bound | local | self.stdlib_names | BUILTINS):
                 self.out.append("    " + ast.unparse(node))
                 self.needed |= names_in(node.value)
                 for t in (node.targets if isinstance(node, ast.Assign) else [node.target]):
@@ -242,6 +277,7 @@ class ModuleGen:
         exc_names = set()
         body = []
         consts = []
+        later = []
         for node in self.tree.body:
             if isinstance(node, ast.ClassDef):
                 body.append(node)
@@ -253,6 +289,9 @@ class ModuleGen:
                 consts.append(node)
                 if not isinstance(node, ast.Expr):
                     self.bound |= set(self.assigned_names(node))
+            elif isinstance(node, (ast.Assign, ast.AnnAssign, ast.AugAssign, ast.Expr, ast.Try, ast.If)) \
+                    and not is_main_guard(node) and not is_docstring(node):
+                later.append(node)
         for c in consts:
             self.out.append(ast.unparse(c))
             self.needed |= names_in(c)
@@ -263,7 +302,16 @@ class ModuleGen:
             else:
                 self.emit_function(node, "", f"{self.modname}.{node.name}", False)
                 self.out.append("")
+            # later class attributes may name it (GCodeCommand's error = CommandError)
+            self.bound.add(node.name)
         defined = {n.name for n in body}
+        # statements that use the module's classes (reactor's
+        # `try: select.poll; Reactor = PollReactor`), in source order
+        for node in later:
+            if statement_loads(node) <= BUILTINS | self.stdlib_names | self.bound | defined:
+                self.out.append(ast.unparse(node))
+                self.needed |= names_in(node)
+                self.bound |= set(bound_names(node))
         for c in consts:
             if not isinstance(c, ast.Expr):
                 defined |= set(self.assigned_names(c))
@@ -299,6 +347,14 @@ def main():
         compile(text, modname, "exec")
         (mdir / (modname + ".py")).write_text(text)
         modules.append((modname, is_pkg))
+    # mirror.bin: u32 count, then per module (u16 name length, name, u32
+    # compressed length, u32 source length, zlib stream); little endian
+    with open(out / "mirror.bin", "wb") as f:
+        f.write(struct.pack("<I", len(modules)))
+        for m, _ in modules:
+            src = (mdir / (m + ".py")).read_bytes()
+            z = zlib.compress(src, 9)
+            f.write(struct.pack("<H", len(m)) + m.encode() + struct.pack("<II", len(z), len(src)) + z)
     with open(out / "mirror_ids.rs", "w") as f:
         f.write(f"// generated by tools/gen_mirror.py from Kalico {rev}: do not edit\n")
         f.write("/// mirrored module names; true = a package\n")

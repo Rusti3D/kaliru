@@ -110,5 +110,6 @@ class TMC5262(_k.Object):
 def load_config_prefix(config):
     return _k.fcall(5345, config)
 
+FieldFormatters.update({'ov': lambda v: '1(Overvoltage!)' if v else '', 's2vsa': lambda v: '1(ShortToSupply_A!)' if v else '', 's2vsb': lambda v: '1(ShortToSupply_B!)' if v else '', 'vm_uvlo': lambda v: '1(VMUndervoltage!)' if v else '', 'vccio_uv': lambda v: '1(VCCIOUndervoltage!)' if v else '', 'register_reset': lambda v: '1(RegisterReset!)' if v else '', 'ext_clk': lambda v: '1(ExternalClock)' if v else '0(Internal16MHz)', 'ext_res_det': lambda v: '1' if v else '0(MissingRREF!)', 'drv_enn': lambda v: '1(Disabled)' if v else '0(Enabled)', 'silicon_rv': lambda v: '%d' % (v,), 'clk_loss': lambda v: '1(ClockLoss!)' if v else '', 'clk_is_stuck': lambda v: '1(ClockStuck!)' if v else '', 'clk_1m0_tmo': lambda v: '1(ClockTimeout!)' if v else '', 'adc_temp': lambda v: '0x%03x(%.1fC)' % (v, _adc_to_celsius(v)), 'adc_vsupply': lambda v: '0x%03x(%.3fV)' % (v, _adc_to_volts(v)), 'angle_meas': lambda v: '%d(%.1fdeg)' % (v, v * 360.0 / 1024.0), 'overvoltage_vth': lambda v: '0x%03x(%.3fV)' % (v, _adc_to_volts(v)), 'overtempprewarning_vth': lambda v: '0x%03x(%.1fC)' % (v, _adc_to_celsius(v))})
 
 __getattr__ = _k.module_getattr(__name__)

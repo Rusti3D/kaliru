@@ -8,8 +8,8 @@ PYTHON_SCRIPT_PREFIX = '!'
 _INCLUDERE = re.compile('!!include (?P<file>.*)')
 AUTOSAVE_HEADER = '\n#*# <---------------------- SAVE_CONFIG ---------------------->\n#*# DO NOT EDIT THIS BLOCK OR BELOW. The contents are auto-generated.\n#*#\n'
 
-class sentinel(_k.Object):
-    __kaliru_mirror__ = True
+class sentinel:
+    pass
 
 def _fix_include_path(source_file, match):
     return _k.fcall(53, source_file, match)
@@ -49,6 +49,7 @@ class SectionInterpolation(configparser.Interpolation):
 
 class ConfigWrapper(_k.Object):
     __kaliru_mirror__ = True
+    error = configparser.Error
     def __init__(self, printer, fileconfig, access_tracking, section):
         _k.new(self, 54, printer, fileconfig, access_tracking, section)
     def get_printer(self):
@@ -102,6 +103,8 @@ class PrinterConfig(_k.Object):
         return _k.call(self, 79, filename)
     def _find_autosave_data(self, data):
         return _k.call(self, 80, data)
+    comment_r = re.compile('[#;].*$')
+    value_r = re.compile('[^A-Za-z0-9_].*$')
     def _strip_duplicates(self, data, config):
         return _k.call(self, 81, data, config)
     def _parse_config_buffer(self, buffer, filename, fileconfig):

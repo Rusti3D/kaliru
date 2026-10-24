@@ -145,6 +145,7 @@ class UnknownFormat(_k.Object):
 
 class MessageParser(_k.Object):
     __kaliru_mirror__ = True
+    error = error
     def __init__(self, warn_prefix=""):
         _k.new(self, 6913, warn_prefix)
     def _error(self, msg, *params):
@@ -210,5 +211,6 @@ class MessageParser(_k.Object):
     version = _k.Attr(6949, 'version')
     warn_prefix = _k.Attr(6950, 'warn_prefix')
 
+MessageTypes = {'%u': PT_uint32(), '%i': PT_int32(), '%hu': PT_uint16(), '%hi': PT_int16(), '%c': PT_byte(), '%s': PT_string(), '%.*s': PT_progmem_buffer(), '%*s': PT_buffer()}
 
 __getattr__ = _k.module_getattr(__name__)

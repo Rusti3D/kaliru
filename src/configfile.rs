@@ -382,7 +382,7 @@ impl ConfigWrapper {
         Ok(("gcode", value.to_string()))
     }
 
-    fn getint_value(&self, option: &str, default: &Dflt, lim: &Lim) -> Result<Option<PyVal>> {
+    pub fn getint_value(&self, option: &str, default: &Dflt, lim: &Lim) -> Result<Option<PyVal>> {
         let section = self.section.clone();
         self.get_wrapper(|fc| Ok(PyVal::from(fc.getint(&section, option)?)), option, default, lim)
     }
@@ -413,7 +413,7 @@ impl ConfigWrapper {
         Ok(self.getfloat_value(option, &Dflt::None, &lim)?.map(|v| num(&v)))
     }
 
-    fn getboolean_value(&self, option: &str, default: &Dflt, note_valid: bool) -> Result<Option<PyVal>> {
+    pub fn getboolean_value(&self, option: &str, default: &Dflt, note_valid: bool) -> Result<Option<PyVal>> {
         let lim = Lim { note_valid, ..Lim::default() };
         let section = self.section.clone();
         self.get_wrapper(|fc| Ok(PyVal::from(fc.getboolean(&section, option)?)), option, default, &lim)

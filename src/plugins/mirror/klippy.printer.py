@@ -49,6 +49,8 @@ class PrinterModule(_k.Object):
 
 class Printer(_k.Object):
     __kaliru_mirror__ = True
+    config_error = configfile.error
+    command_error = gcode.CommandError
     def __init__(self, main_reactor, bglogger, start_args):
         _k.new(self, 6991, main_reactor, bglogger, start_args)
     @staticmethod
@@ -101,6 +103,7 @@ class Printer(_k.Object):
         return _k.call(self, 7014, event, params)
     def request_exit(self, result):
         return _k.call(self, 7015, result)
+    wait_interrupted = WaitInterruption
     def wait_while(self, condition_cb, error_on_cancel=True, interval=1.0):
         return _k.call(self, 7016, condition_cb, error_on_cancel, interval)
     bglogger = _k.Attr(7017, 'bglogger')

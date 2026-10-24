@@ -122,6 +122,9 @@ capi! {
     fn PyDict_GetItemStringRef(d: *mut PyObject, k: *const c_char, result: *mut *mut PyObject) -> c_int;
     fn PyDict_Next(d: *mut PyObject, pos: *mut Py_ssize_t, k: *mut *mut PyObject, v: *mut *mut PyObject) -> c_int;
 
+    fn PyCapsule_New(ptr: *mut c_void, name: *const c_char, destructor: Option<unsafe extern "C" fn(*mut PyObject)>) -> *mut PyObject;
+    fn PyCapsule_GetPointer(capsule: *mut PyObject, name: *const c_char) -> *mut c_void;
+
     fn PyErr_Occurred() -> *mut PyObject;
     fn PyErr_SetString(exc: *mut PyObject, msg: *const c_char);
     fn PyErr_SetObject(exc: *mut PyObject, v: *mut PyObject);
@@ -187,6 +190,15 @@ pub fn load() -> Result<(), String> {
     }
     errors.insert(0, format!("no CPython {}.{}+ shared library found (libpython3.N.so)", MIN_VERSION.0, MIN_VERSION.1));
     Err(errors.join("; "))
+}
+
+/// A `PyExc_*` exception class (a data symbol of libpython)
+pub fn exc_class(name: &str) -> *mut PyObject {
+    let c = CString::new(name).unwrap();
+    unsafe {
+        let p = libc::dlsym(libc::RTLD_DEFAULT, c.as_ptr()) as *const *mut PyObject;
+        if p.is_null() { std::ptr::null_mut() } else { *p }
+    }
 }
 
 pub fn none() -> *mut PyObject {

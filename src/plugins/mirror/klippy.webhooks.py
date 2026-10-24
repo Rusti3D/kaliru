@@ -13,11 +13,12 @@ class WebRequestError(gcode.CommandError):
     def to_dict(self):
         return _k.call(self, 7395)
 
-class Sentinel(_k.Object):
-    __kaliru_mirror__ = True
+class Sentinel:
+    pass
 
 class WebRequest(_k.Object):
     __kaliru_mirror__ = True
+    error = WebRequestError
     def __init__(self, client_conn, request):
         _k.new(self, 7396, client_conn, request)
     def get_client_connection(self):

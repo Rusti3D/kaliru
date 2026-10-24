@@ -5,8 +5,8 @@ import re
 RE_GLYPHS = re.compile('~\\w+~')
 TIMER_DELAY = 1.0
 
-class sentinel(_k.Object):
-    __kaliru_mirror__ = True
+class sentinel:
+    pass
 
 class error(Exception):
     pass
@@ -412,5 +412,6 @@ class MenuManager(_k.Object):
     timer = _k.Attr(1419, 'timer')
     virtual_sdcard = _k.Attr(1420, 'virtual_sdcard')
 
+menu_items = {'disabled': MenuDisabled, 'command': MenuCommand, 'input': MenuInput, 'list': MenuList, 'dialog': MenuDialog, 'vsdlist': MenuVSDList, 'file_browser': MenuFileBrowser}
 
 __getattr__ = _k.module_getattr(__name__)

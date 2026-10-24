@@ -5,50 +5,42 @@ LINE_LENGTH_DEFAULT = 20
 LINE_LENGTH_OPTIONS = {16: 16, 20: 20}
 TextGlyphs = {'right_arrow': b'~'}
 
-class CMND(_k.Object):
-    __kaliru_mirror__ = True
-    CLR = 1
-    HOME = 2
-    ENTERY_MODE = 2 ** 2
-    DISPLAY = 2 ** 3
-    SHIFT = 2 ** 4
-    FUNCTION = 2 ** 5
-    CGRAM = 2 ** 6
-    DDRAM = 2 ** 7
-    WRITE_RAM = 2 ** 8
+class CMND:
+    CLR = 1  # Clear display
+    HOME = 2  # Return home
+    ENTERY_MODE = 2**2  # Entry mode set
+    DISPLAY = 2**3  # Display on/off control
+    SHIFT = 2**4  # Cursor or display shift
+    FUNCTION = 2**5  # Function set
+    CGRAM = 2**6  # Character Generator RAM
+    DDRAM = 2**7  # Display Data RAM
+    WRITE_RAM = 2**8
 
-class flg_ENTERY_MODE(_k.Object):
-    __kaliru_mirror__ = True
-    INC = 2 ** 1
-    SHIFT = 2 ** 0
+class flg_ENTERY_MODE:
+    INC = 2**1  # Increment
+    SHIFT = 2**0
 
-class flg_DISPLAY(_k.Object):
-    __kaliru_mirror__ = True
-    ON = 2 ** 2
-    CURSOR = 2 ** 1
-    BLINK = 2 ** 0
+class flg_DISPLAY:
+    ON = 2**2  # Display ON
+    CURSOR = 2**1  # Cursor ON
+    BLINK = 2**0
 
-class flg_SHIFT(_k.Object):
-    __kaliru_mirror__ = True
-    WHOLE_DISPLAY = 2 ** 3
-    RIGHT = 2 ** 2
+class flg_SHIFT:
+    WHOLE_DISPLAY = 2**3  # Shift whole display
+    RIGHT = 2**2
 
-class flg_FUNCTION(_k.Object):
-    __kaliru_mirror__ = True
-    TWO_LINES = 2 ** 3
-    FIVE_BY_ELEVEN = 2 ** 2
+class flg_FUNCTION:
+    TWO_LINES = 2**3  # 2-line display mode
+    FIVE_BY_ELEVEN = 2**2
 
-class flg_CGRAM(_k.Object):
-    __kaliru_mirror__ = True
-    MASK = 63
+class flg_CGRAM:
+    MASK = 0b00111111
 
-class flg_DDRAM(_k.Object):
-    __kaliru_mirror__ = True
-    MASK = 127
+class flg_DDRAM:
+    MASK = 0b01111111
 
-class flg_WRITE_RAM(_k.Object):
-    __kaliru_mirror__ = True
-    MASK = 255
+class flg_WRITE_RAM:
+    MASK = 0b11111111
 
 class aip31068_spi(_k.Object):
     __kaliru_mirror__ = True
@@ -84,5 +76,6 @@ class aip31068_spi(_k.Object):
     spi = _k.Attr(1118, 'spi')
     text_framebuffers = _k.Attr(1119, 'text_framebuffers')
 
+DISPLAY_INIT_CMNDS = [CMND.HOME, CMND.ENTERY_MODE | flg_ENTERY_MODE.INC, CMND.DISPLAY | flg_DISPLAY.ON, CMND.SHIFT | flg_SHIFT.RIGHT, CMND.FUNCTION | flg_FUNCTION.TWO_LINES]
 
 __getattr__ = _k.module_getattr(__name__)

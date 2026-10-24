@@ -35,5 +35,6 @@ def get_danger_options():
 def load_config(config):
     return _k.fcall(1064, config)
 
+DANGER_OPTIONS: DangerOptions = None
 
 __getattr__ = _k.module_getattr(__name__)

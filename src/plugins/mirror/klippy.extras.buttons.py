@@ -71,6 +71,7 @@ class FullStepRotaryEncoder(BaseRotaryEncoder):
     R_CCW_BEGIN = 4
     R_CCW_FINAL = 5
     R_CCW_NEXT = 6
+    ENCODER_STATES = ((BaseRotaryEncoder.R_START, R_CW_BEGIN, R_CCW_BEGIN, BaseRotaryEncoder.R_START), (R_CW_NEXT, BaseRotaryEncoder.R_START, R_CW_FINAL, BaseRotaryEncoder.R_START | BaseRotaryEncoder.R_DIR_CW), (R_CW_NEXT, R_CW_BEGIN, BaseRotaryEncoder.R_START, BaseRotaryEncoder.R_START), (R_CW_NEXT, R_CW_BEGIN, R_CW_FINAL, BaseRotaryEncoder.R_START), (R_CCW_NEXT, BaseRotaryEncoder.R_START, R_CCW_BEGIN, BaseRotaryEncoder.R_START), (R_CCW_NEXT, R_CCW_FINAL, BaseRotaryEncoder.R_START, BaseRotaryEncoder.R_START | BaseRotaryEncoder.R_DIR_CCW), (R_CCW_NEXT, R_CCW_FINAL, R_CCW_BEGIN, BaseRotaryEncoder.R_START))
 
 class HalfStepRotaryEncoder(BaseRotaryEncoder):
     __kaliru_mirror__ = True
@@ -79,6 +80,7 @@ class HalfStepRotaryEncoder(BaseRotaryEncoder):
     R_START_M = 3
     R_CW_BEGIN_M = 4
     R_CCW_BEGIN_M = 5
+    ENCODER_STATES = ((R_START_M, R_CW_BEGIN, R_CCW_BEGIN, BaseRotaryEncoder.R_START), (R_START_M | BaseRotaryEncoder.R_DIR_CCW, BaseRotaryEncoder.R_START, R_CCW_BEGIN, BaseRotaryEncoder.R_START), (R_START_M | BaseRotaryEncoder.R_DIR_CW, R_CW_BEGIN, BaseRotaryEncoder.R_START, BaseRotaryEncoder.R_START), (R_START_M, R_CCW_BEGIN_M, R_CW_BEGIN_M, BaseRotaryEncoder.R_START), (R_START_M, R_START_M, R_CW_BEGIN_M, BaseRotaryEncoder.R_START | BaseRotaryEncoder.R_DIR_CW), (R_START_M, R_CCW_BEGIN_M, R_START_M, BaseRotaryEncoder.R_START | BaseRotaryEncoder.R_DIR_CCW))
 
 class DebounceButton(_k.Object):
     __kaliru_mirror__ = True

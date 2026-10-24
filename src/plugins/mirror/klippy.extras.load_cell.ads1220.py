@@ -76,5 +76,6 @@ class ADS1220(LoadCellSensor):
     vref = _k.Attr(2889, 'vref')
     vref_options = _k.Attr(2890, 'vref_options')
 
+ADS1220_SENSOR_TYPE = {'ads1220': ADS1220}
 
 __getattr__ = _k.module_getattr(__name__)

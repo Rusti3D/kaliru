@@ -149,5 +149,9 @@ class Palette2(_k.Object):
 def load_config(config):
     return _k.fcall(3925, config)
 
+try:
+    from queue import Empty, Queue
+except ImportError:
+    from Queue import Empty, Queue
 
 __getattr__ = _k.module_getattr(__name__)

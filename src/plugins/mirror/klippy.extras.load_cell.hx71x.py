@@ -58,5 +58,6 @@ class HX717(HX71xBase):
     def __init__(self, config):
         _k.new(self, 2999, config)
 
+HX71X_SENSOR_TYPES = {'hx711': HX711, 'hx717': HX717}
 
 __getattr__ = _k.module_getattr(__name__)

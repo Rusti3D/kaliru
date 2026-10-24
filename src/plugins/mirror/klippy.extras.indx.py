@@ -16,5 +16,6 @@ def register_factories(config):
 def load_config(config):
     return _k.fcall(2504, config)
 
+_ensure_klippy_package()
 
 __getattr__ = _k.module_getattr(__name__)

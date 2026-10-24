@@ -118,5 +118,6 @@ class ADS131M04(ADS131MxBase):
     def __init__(self, config):
         _k.new(self, 2941, config)
 
+ADS131M0X_SENSOR_TYPES = {'ads131m02': ADS131M02, 'ads131m04': ADS131M04}
 
 __getattr__ = _k.module_getattr(__name__)

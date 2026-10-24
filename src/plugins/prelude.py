@@ -11,6 +11,8 @@
 #  - Attr: an instance attribute that lives in kaliru (data descriptor)
 #  - module_getattr: module names that are not copied into a mirror module
 #    resolve on first access (PEP 562)
+#  - logging: python's root logger writes to kaliru's log (klippy.log), as
+#    Kalico's QueueHandler does (the formatted record, tracebacks included)
 #  - MirrorFinder: `klippy.*` imports come from the mirror modules, except
 #    modules a mirror does not exist for (third-party extras and plugins),
 #    which are files under the klippy directory; plus Kalico's compat aliases
@@ -18,6 +20,7 @@
 import importlib.abc
 import importlib.machinery
 import importlib.util
+import logging
 import os
 import sys
 
@@ -123,5 +126,16 @@ class _AliasLoader(importlib.abc.Loader):
         pass
 
 
-def install(klippy_dir, modules):
+class LogHandler(logging.Handler):
+    def emit(self, record):
+        try:
+            _n.log(record.levelno, self.format(record))
+        except Exception:
+            self.handleError(record)
+
+
+def install(klippy_dir, modules, log_level):
     sys.meta_path.insert(0, MirrorFinder(klippy_dir, dict(modules)))
+    root = logging.getLogger()
+    root.addHandler(LogHandler())
+    root.setLevel(log_level)
