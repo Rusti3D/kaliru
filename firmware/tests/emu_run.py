@@ -22,6 +22,7 @@
 #   setup waits for set; a register read POLL times in a row (a wait for
 #   status bits the model does not set) then reads inverted, then each single
 #   bit, then 0, so the wait ends the same way for any image.
+import fractions
 import json
 import os
 import re
@@ -33,6 +34,7 @@ import unicorn
 import unicorn.arm_const as A
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+import emu_pio  # noqa: E402
 import mcu_run  # noqa: E402
 
 TICK = 16  # cycles per clock read
@@ -617,6 +619,13 @@ class UsbCanBridge:
     def irq(self, emu):
         irq = self.usb.irq(emu)
         return self.can.irq(emu) if irq is None else irq
+
+    def run_until(self, emu, until):
+        if hasattr(self.can, "run_until"):
+            self.can.run_until(emu, until)
+
+    def urgent(self, emu):
+        return self.can.urgent(emu) if hasattr(self.can, "urgent") else None
 
     def host(self, emu):
         did = self.usb.host(emu)
@@ -2357,6 +2366,7 @@ class Rp2040:
 
     def __init__(self, cfg):
         self.rp2350 = bool(cfg.get("CONFIG_MACH_RP2350"))
+        self.flash_app = cfg["CONFIG_FLASH_APPLICATION_ADDRESS"]
         chip = self.chip = Chip(os.path.join(ROOT, "src", "rp2040", "chip", cfg["CONFIG_MCU"] + ".rs"))
         c = chip.const
         self.mmio = [(chip.ptr["sio_hw"], 0x1000)]
@@ -2373,7 +2383,11 @@ class Rp2040:
             ready = c["SSI_SR_TFNF_BITS"] | c["SSI_SR_TFE_BITS"] | c["SSI_SR_RFNE_BITS"]
             # (and the flash's answers: 0, its status not busy)
             self.read_rules = {chip.at("ssi_hw", "sr"): lambda v: ready, chip.at("ssi_hw", "dr0"): lambda v: 0}
-        self.port = RpUsb(chip) if cfg.get("CONFIG_USBSERIAL") else Rp2040Uart(cfg, chip)
+        if cfg.get("CONFIG_SERIAL"):
+            self.port = Rp2040Uart(cfg, chip)
+        else:
+            self.port = transport(RpUsb(chip) if cfg.get("CONFIG_USB") else None,
+                                  Can2040(cfg, chip) if cfg.get("CONFIG_CANBUS") else None)
 
     # (the boot rom bootrom.c / rp2350_bootrom.c use: the halfword pointer to
     # the lookup function (pico-sdk boot/bootrom_constants.h
@@ -2383,10 +2397,15 @@ class Rp2040:
     # reset_usb_boot, reboot) return at once, but the rp2350's get_sys_info,
     # which fills its buffer)
     ROM_TABLE, ROM_LOOKUP, ROM_STUBS, ROM_SYS_INFO = 0x100, 0x200, 0x300, 0x400
+    XIP_BASE = 0x10000000
     GET_SYS_INFO = ord("G") | ord("S") << 8
     SYS_INFO = struct.pack("<9I", *range(0x11111111, 0x9999999A, 0x11111111))
 
     def setup(self, uc):
+        # (an image behind a bootloader: bootrom.c copies and calls the
+        # bootloader's boot2 at the start of the flash; it returns at once)
+        if self.flash_app != self.XIP_BASE:
+            uc.mem_write(self.XIP_BASE, struct.pack("<H", 0x4770))  # bx lr
         uc.mem_map(0, 0x4000, unicorn.UC_PROT_READ | unicorn.UC_PROT_EXEC)
         if self.rp2350:
             uc.mem_write(0x16, struct.pack("<H", self.ROM_LOOKUP | 1))
@@ -2466,6 +2485,107 @@ class Rp2040Uart:
         if emu.rx and emu.get(self.imsc, 4) & self.RX:
             return self.irq_num
         return None
+
+
+class Can2040:
+    """rp2040/can.c with lib/can2040: the PIO0 block running can2040's
+    program and the CAN bus with the host's controller (emu_pio), the
+    PIO0_IRQ_0 interrupt, for the CanHost. The PIO runs with the clock:
+    FREQ_SYS (rp2040/main.c) / CONFIG_CLOCK_FREQ / its clkdiv PIO cycles per
+    tick; a PIO interrupt can end a wait (`run_until`)."""
+
+    def __init__(self, cfg, chip):
+        self.pio = emu_pio.Pio(chip, chip.ptr["pio0_hw"], None)
+        self.bus = emu_pio.CanBus(self.pio, cfg["CONFIG_RPXXXX_CANBUS_GPIO_RX"], cfg["CONFIG_RPXXXX_CANBUS_GPIO_TX"],
+                                  self.log)
+        self.irq_num = chip.const["PIO0_IRQ_0_IRQn"]
+        main = open(os.path.join(mcu_run.KALICO, "src", "rp2040", "main.c")).read()
+        freq_sys = int(re.search(r"#define FREQ_SYS \(CONFIG_MACH_RP2040 \? (\d+)", main).group(1))
+        self.sys_per_tick = fractions.Fraction(freq_sys, cfg["CONFIG_CLOCK_FREQ"])
+        # (the clock read so far, unwrapped)
+        self.ticks, self.last = 0, 0
+        self.emu = None
+        self.host_side = CanHost(self)
+
+    def log(self, text):
+        self.emu.log.write(text)
+
+    def per_tick(self):
+        # (clkdiv: integer 31:16, fraction 15:8; 0 is 65536)
+        div = self.pio.sms[0].clkdiv
+        return self.sys_per_tick / (fractions.Fraction((div >> 16) or 65536) + fractions.Fraction(div >> 8 & 0xFF, 256))
+
+    def sync(self, emu):
+        """(the PIO and the bus run up to the clock)"""
+        self.emu = emu
+        self.ticks += (emu.time - self.last) & 0xFFFFFFFF
+        self.last = emu.time
+        self.bus.run(int(self.ticks * self.per_tick()))
+
+    # ---- the cpu's registers
+
+    def read(self, emu, addr):
+        if not self.pio.owns(addr):
+            return None
+        self.sync(emu)
+        return self.pio.read(addr)
+
+    def write(self, emu, addr, value):
+        if not self.pio.owns(addr):
+            return False
+        self.sync(emu)
+        if self.bus.trace:
+            emu.log.write("# bus %d cpu write\n" % self.bus.cycle)
+        self.pio.write(addr, value)
+        return True
+
+    def irq(self, emu):
+        return self.irq_num if self.pio.irq_pending() else None
+
+    def urgent(self, emu):
+        # (can2040 must answer its PIO interrupts within a few bits: the ACK
+        # of a frame is set up while its CRC goes by)
+        self.sync(emu)
+        return self.irq(emu)
+
+    def host(self, emu):
+        self.sync(emu)
+        return self.host_side.step(emu)
+
+    def run_until(self, emu, until):
+        """run the PIO up to the clock `until` (None: now); at a PIO
+        interrupt before it, the clock moves to it"""
+        self.sync(emu)
+        if self.bus.trace:
+            emu.log.write("# pio run_until now %x until %s cycle %d pending %d\n" % (
+                emu.time, None if until is None else "%x" % until, self.bus.cycle, self.pio.irq_pending()))
+        if until is None or not wrapped_before(emu.time, until):
+            return
+        rate = self.per_tick()
+        end = self.ticks + ((until - emu.time) & 0xFFFFFFFF)
+        c = self.bus.run(int(end * rate), self.pio.irq_pending)
+        if self.pio.irq_pending():
+            t = max(self.ticks, -(-c // rate))
+            emu.time = (emu.time + int(t - self.ticks)) & 0xFFFFFFFF
+            self.ticks, self.last = int(t), emu.time
+
+    # ---- the host's frames
+
+    def ready(self, emu):
+        return self.pio.enabled and self.pio.inte
+
+    def send(self, emu, fid, data):
+        if self.bus.queue:
+            return False
+        emu.log.write("# can frame in %x %s\n" % (fid, bytes(data).hex()))
+        self.bus.send(fid, data)
+        return True
+
+    def recv(self, emu):
+        frames, self.bus.received = self.bus.received, []
+        for fid, data in frames:
+            emu.log.write("# can frame out %x %s\n" % (fid, data.hex()))
+        return frames
 
 
 class RpUsb:
@@ -2663,6 +2783,7 @@ class Emu(mcu_run.Mcu):
         self.tx = b""
         self.poll_addr, self.poll_count = None, 0
         self.spin = {}
+        self.preempt = None
         self.stopped = None
         self.crashed = None
         c = b.chip
@@ -2701,7 +2822,9 @@ class Emu(mcu_run.Mcu):
         addr = base + offset
         b = self.board
         v = b.time.read(self, addr)
-        if v is None:
+        if v is not None:
+            self.preempt_check()
+        else:
             self.spun(addr)
             v = b.uart_read(self, addr)
         if v is not None:
@@ -2817,6 +2940,19 @@ class Emu(mcu_run.Mcu):
         self.stopped = address
         uc.emu_stop()
 
+    def preempt_check(self):
+        """(a port whose interrupt cannot wait for the cpu's next wait, the
+        rp2040 PIO for can2040: at a read of the clock, with interrupts
+        enabled and no handler running, its pending interrupt is taken after
+        this instruction)"""
+        port = getattr(self.board, "port", None)
+        if not hasattr(port, "urgent") or self.active or self.uc.reg_read(A.UC_ARM_REG_PRIMASK) & 1:
+            return
+        irq = port.urgent(self)
+        if irq is not None and irq in self.nvic_enabled:
+            self.preempt = 16 + irq
+            self.uc.emu_stop()
+
     def spun(self, addr):
         """(the firmware busy without a wait: tasks waking each other until
         the usb host takes a packet, which a real host does at once; after
@@ -2836,6 +2972,16 @@ class Emu(mcu_run.Mcu):
         # (the usb host's transactions with the device)
         if hasattr(b, "host"):
             b.host(self)
+        # (a port that runs with the clock (the rp2040 PIO): through the time
+        # this wait advances, to the end of the quiet period or the timer's
+        # expiry before it, stopping at its interrupt)
+        port = getattr(b, "port", None)
+        if hasattr(port, "run_until"):
+            e = b.time.expiry(self)
+            limit = advance_until
+            if e is not None and limit is not None and wrapped_before(e[0], limit):
+                limit = e[0]
+            port.run_until(self, limit)
         irq = b.uart_irq(self)
         if irq is not None and irq in self.nvic_enabled:
             return 16 + irq
@@ -2867,6 +3013,10 @@ class Emu(mcu_run.Mcu):
                 self.crashed = "%s%s" % (e, " at %08x" % self.bad_access if self.bad_access is not None else "")
                 self.log.write("# crash %s\n" % self.crashed)
                 return
+            if self.preempt is not None:
+                num, self.preempt = self.preempt, None
+                self.pc = self.enter(num, uc.reg_read(A.UC_ARM_REG_PC) | 1) & ~1
+                continue
             if self.stopped is None:
                 sys.exit("no wait for interrupts in 50M instructions (pc %x)" % uc.reg_read(A.UC_ARM_REG_PC))
             self.pc = self.stopped

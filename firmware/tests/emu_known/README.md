@@ -42,9 +42,9 @@ can models log.
   image's ram (.data + .bss) is smaller, so its dynamic memory pool, and the
   moves it holds, are larger; on this 4KB ram chip the count stays below its
   1024 cap, so the answers show it (see NOTES "Kaliru MCU firmware", size).
-- `lpc1768-usbcan/*.diff`, `same70q20b-usbcan/*.diff`,
+- `lpc1768-usbcan/*.diff`, `rp2040-usbcan/*.diff`, `same70q20b-usbcan/*.diff`,
   `stm32f446-usbcan/*.diff`, `stm32h723-usbcan/*.diff` (every script, the
-  usb bulk in data register only): `generic/canserial.c`
+  usb bulk in data register or buffer only): `generic/canserial.c`
   `canserial_tx_task()` fills only `dlc` bytes of its uninitialised
   `struct canbus_msg msg`, and `usb_canbus.c` `send_frame()` copies both
   `data32` words into the `gs_host_frame` it sends, so the C frames' bytes
