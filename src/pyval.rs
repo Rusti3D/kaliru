@@ -18,9 +18,26 @@ pub enum PyVal {
     /// a collections.namedtuple instance: (type name, field names, values)
     NamedTuple(&'static str, &'static [&'static str], Vec<PyVal>),
     Dict(IndexMap<String, PyVal>),
+    /// a value handed out by reference, as python hands out its objects:
+    /// a big status dict kept by its owner (configfile, gcode commands);
+    /// copies share it and py_eq of the same object is immediate
+    Shared(std::rc::Rc<PyVal>),
 }
 
 impl PyVal {
+    /// the value itself (through Shared)
+    pub fn get(&self) -> &PyVal {
+        match self {
+            PyVal::Shared(v) => v.get(),
+            v => v,
+        }
+    }
+
+    /// a Shared value
+    pub fn shared(v: PyVal) -> PyVal {
+        PyVal::Shared(std::rc::Rc::new(v))
+    }
+
     /// python repr()
     pub fn repr(&self) -> String {
         match self {
@@ -47,12 +64,13 @@ impl PyVal {
                 "{{{}}}",
                 d.iter().map(|(k, v)| format!("{}: {}", py_str_repr(k), v.repr())).collect::<Vec<_>>().join(", ")
             ),
+            PyVal::Shared(v) => v.repr(),
         }
     }
 
     /// python str()
     pub fn str(&self) -> String {
-        match self {
+        match self.get() {
             PyVal::Str(s) => s.clone(),
             v => v.repr(),
         }
@@ -94,12 +112,13 @@ impl PyVal {
                 }
                 out.push('}');
             }
+            PyVal::Shared(v) => v.json_into(out),
         }
     }
 
     /// float(v) for numbers and bools
     pub fn as_f64(&self) -> Option<f64> {
-        match self {
+        match self.get() {
             PyVal::Bool(b) => Some(*b as i64 as f64),
             PyVal::Int(i) => Some(*i as f64),
             PyVal::Float(f) => Some(*f),
@@ -109,7 +128,7 @@ impl PyVal {
 
     /// int(v) for numbers and bools (floats truncate)
     pub fn as_i64(&self) -> Option<i64> {
-        match self {
+        match self.get() {
             PyVal::Bool(b) => Some(*b as i64),
             PyVal::Int(i) => Some(*i),
             PyVal::Float(f) => Some(f.trunc() as i64),
@@ -118,14 +137,14 @@ impl PyVal {
     }
 
     pub fn as_str(&self) -> Option<&str> {
-        match self {
+        match self.get() {
             PyVal::Str(s) => Some(s),
             _ => None,
         }
     }
 
     pub fn items(&self) -> Option<&[PyVal]> {
-        match self {
+        match self.get() {
             PyVal::List(a) | PyVal::Tuple(a) | PyVal::NamedTuple(_, _, a) => Some(a),
             _ => None,
         }
@@ -141,6 +160,7 @@ impl PyVal {
             PyVal::Str(s) => !s.is_empty(),
             PyVal::List(a) | PyVal::Tuple(a) | PyVal::NamedTuple(_, _, a) => !a.is_empty(),
             PyVal::Dict(d) => !d.is_empty(),
+            PyVal::Shared(v) => v.truthy(),
         }
     }
 
@@ -179,6 +199,7 @@ impl PyVal {
                 }
                 out.push('}');
             }
+            PyVal::Shared(v) => v.json_sep(out, item, key),
             v => v.json_into(out),
         }
     }
@@ -186,15 +207,22 @@ impl PyVal {
     /// python ==
     pub fn py_eq(&self, other: &PyVal) -> bool {
         use PyVal::*;
-        match (self, other) {
+        if let (Shared(a), Shared(b)) = (self, other) {
+            // python compares the same object without looking inside
+            if std::rc::Rc::ptr_eq(a, b) {
+                return true;
+            }
+        }
+        let (this, other) = (self.get(), other.get());
+        match (this, other) {
             (None, None) => true,
             (Str(a), Str(b)) => a == b,
             (List(a), List(b)) | (Tuple(a) | NamedTuple(_, _, a), Tuple(b) | NamedTuple(_, _, b)) => {
                 a.len() == b.len() && a.iter().zip(b).all(|(x, y)| x.py_eq(y))
             }
             (Dict(a), Dict(b)) => a.len() == b.len() && a.iter().all(|(k, v)| b.get(k).map(|w| v.py_eq(w)).unwrap_or(false)),
-            (Bool(_) | Int(_), Bool(_) | Int(_)) => self.as_i64() == other.as_i64(),
-            (Bool(_) | Int(_) | Float(_), Bool(_) | Int(_) | Float(_)) => self.as_f64() == other.as_f64(),
+            (Bool(_) | Int(_), Bool(_) | Int(_)) => this.as_i64() == other.as_i64(),
+            (Bool(_) | Int(_) | Float(_), Bool(_) | Int(_) | Float(_)) => this.as_f64() == other.as_f64(),
             _ => false,
         }
     }

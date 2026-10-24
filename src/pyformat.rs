@@ -28,6 +28,7 @@ pub fn type_name(v: &PyVal) -> &'static str {
         PyVal::Tuple(_) => "tuple",
         PyVal::NamedTuple(n, _, _) => n,
         PyVal::Dict(_) => "dict",
+        PyVal::Shared(v) => type_name(v),
     }
 }
 

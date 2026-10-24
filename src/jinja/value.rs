@@ -838,6 +838,7 @@ impl Value {
             PyVal::Dict(d) => {
                 Value::dict(d.iter().map(|(k, v)| (Key(Value::from(k.as_str())), Value::from_pyval(v))).collect())
             }
+            PyVal::Shared(v) => Value::from_pyval(v),
         }
     }
 
