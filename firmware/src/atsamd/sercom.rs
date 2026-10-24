@@ -5,6 +5,7 @@
 //
 // This file may be distributed under the terms of the GNU GPLv3 license.
 use super::internal::*;
+use crate::command::Args;
 use crate::ctr::{concat, concat_len, Global};
 use crate::sched::R;
 use crate::{decl_command, decl_enumeration, decl_enumeration_range, shutdown};
@@ -315,7 +316,7 @@ struct SercomPin {
 
 static SERCOM_PINS: Global<[SercomPin; NUM_SERCOMS]> = Global::new([SercomPin { pins: [0; 3] }; NUM_SERCOMS]);
 
-pub fn command_set_sercom_pin(args: &[u32]) -> R {
+pub fn command_set_sercom_pin(args: &Args) -> R {
     let (sercom_id, pin_type, pin) = (args[0] as u8 as usize, args[1] as u8 as usize, args[2] as u8);
     let sercom_pins = SERCOM_PINS.get();
     if sercom_id >= sercom_pins.len() || pin_type >= sercom_pins[0].pins.len() {

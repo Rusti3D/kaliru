@@ -75,17 +75,21 @@ toolboard) and compares `compile_time_request.txt` (identical) and the data dict
 version fields) with the C build's (`firmware/tests/ref/`): 64/64. The rp2040 boot2 block and `tools/elf2uf2` output
 are byte-identical to the C build's; `src/libm.rs` gives newlib's bits on 700k inputs (qemu-arm). Emulator
 (`firmware/tests/emu_cmp.sh`, Unicorn, deterministic board models): every config but linux (checked by
-`mcu_cmp.sh`) and the simulator, 52 of the 54 ARM configs, runs the 7 scripts with identical answers and identical peripheral
+`mcu_cmp.sh`) and the simulator, 52 of the 54 ARM configs (62 with the AVR ones below), runs the 7 scripts with identical answers and identical peripheral
 register accesses: every serial config (16), every USB config (20: stm32 usbfs / otg, rp2040, rp2350, samd, lpc176x,
 sam3x / sam4 / same70, with a usb host that enumerates the device), the INDX toolboard, the CAN configs (9: bxcan,
 stm32 fdcan, atsam / atsamd M_CAN, lpc176x, and can2040 on the rp2040 PIO, run instruction by instruction against a
 bit-level CAN bus, with a can host that assigns the node id) and the USB-to-CAN bridges (6: gs_usb on the usb side),
 apart from the documented C-side differences in `firmware/tests/emu_known/` (non-volatile register pointers gcc
 reorders, a volatile read gcc moves past a call, an HC32 neopixel store gcc merges away, an F072 stack overflow,
-uninitialised CAN frame bytes the bridge sends). Real chips: not run. Images (profile `mcu`): about 1.25-1.4x the C size (F401 53KB vs 42KB, INDX 72KB vs
-58KB). AVR images (opt-level z) are about 1.5x the C size: atmega168's (22.7KB) does not fit its 16KB flash.
+uninitialised CAN frame bytes the bridge sends). Real chips: not run. Images (profile `mcu`): about 1.05-1.15x the C size (F103 43.4KB vs 37.8KB, rp2040 44.2KB vs
+42.4KB); AVR (opt-level z) 1.07-1.09x (atmega168 16.3KB vs 15.3KB, in its 16KB flash).
 
-Not ported: ar100 (or1k), pru (no Rust target). AVR configs are not yet run in an emulator. Kalico's `src/extras` (user firmware plugins found by
+AVR (`firmware/tests/emu_avr.py`, simavr's core with the same kind of deterministic model: timer1, usart, the
+at90usb usb controller with the usb host): all 10 AVR configs give 7/7 identical scripts (it found
+neopixel's AVR delay evaluating an argument C's macro drops, and C's jmp_buf in .bss, which sets the move_count).
+
+Not ported: ar100 (or1k), pru (no Rust target). Kalico's `src/extras` (user firmware plugins found by
 `scripts/find-firmware-extras.sh`) is empty in Kalico itself.
 
 ## Custom cases (`tests/cases/*.test`, `tools/case_cmp.sh`)

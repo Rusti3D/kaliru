@@ -6,15 +6,33 @@
 //
 // sched_shutdown() longjmps to sched_main() in C. Here it returns the
 // Shutdown error that every caller passes up with `?` to sched_main(),
-// which then runs the shutdown handlers: the same frames are left.
+// which then runs the shutdown handlers: the same frames are left. On AVR
+// it does not return: the board restarts sched_main_loop() on a fresh stack
+// (as C's longjmp), so no Shutdown value exists and `?` costs no code.
 use crate::board::{irq_disable, irq_enable, irq_poll, irq_restore, irq_save, irq_wait, timer_from_us, timer_is_before, timer_kick, timer_read_time};
 use crate::ctr::Global;
 use crate::{sendf, shutdown, try_shutdown};
 use core::ptr::{addr_of_mut, null_mut};
 
 /// an emergency stop with its static string id (sched_shutdown)
+#[cfg(not(CONFIG_MACH_AVR))]
 #[derive(Clone, Copy, Debug)]
 pub struct Shutdown(pub u8);
+
+/// (AVR: none, sched_shutdown() does not return)
+#[cfg(CONFIG_MACH_AVR)]
+#[derive(Clone, Copy, Debug)]
+pub enum Shutdown {}
+
+impl Shutdown {
+    /// its static string id
+    pub fn reason(self) -> u8 {
+        #[cfg(not(CONFIG_MACH_AVR))]
+        return self.0;
+        #[cfg(CONFIG_MACH_AVR)]
+        match self {}
+    }
+}
 
 pub type R<T = ()> = Result<T, Shutdown>;
 
@@ -365,10 +383,15 @@ pub fn sched_try_shutdown(reason: u8) -> R {
     Ok(())
 }
 
-// Force the machine to immediately run the shutdown handlers
+// Force the machine to immediately run the shutdown handlers (AVR: a call,
+// as C's, not the stack jump at every shutdown!())
+#[cfg_attr(CONFIG_MACH_AVR, inline(never))]
 pub fn sched_shutdown(reason: u8) -> Shutdown {
     irq_disable();
-    Shutdown(reason)
+    #[cfg(not(CONFIG_MACH_AVR))]
+    return Shutdown(reason);
+    #[cfg(CONFIG_MACH_AVR)]
+    crate::board::shutdown_jump(reason)
 }
 
 /****************************************************************
@@ -382,23 +405,23 @@ pub fn sched_main() -> ! {
     let res = crate::ctr::ctr_run_initfuncs().and_then(|_| sendf!("starting"));
 
     irq_disable();
-    sched_main_loop(res)
+    sched_main_loop(res.err().map(Shutdown::reason))
 }
 
-// The loop of sched_main() after its setjmp: `res` is a Shutdown when
-// entered from a longjmp (a shutdown inside an irq handler on boards with
-// irqs, see generic/armcm_irq.rs)
-pub fn sched_main_loop(mut res: R) -> ! {
+// The loop of sched_main() after its setjmp: `shutdown` is the reason of a
+// shutdown when entered from a longjmp (a shutdown inside an irq handler,
+// see generic/armcm_irq.rs, or any shutdown on AVR, avr/irq.rs)
+pub fn sched_main_loop(mut shutdown: Option<u8>) -> ! {
     loop {
-        if let Err(Shutdown(reason)) = res {
+        if let Some(reason) = shutdown {
             // setjmp returned from a longjmp: run the shutdown, then
             // the tasks again
-            res = run_shutdown(reason);
-            if res.is_err() {
+            shutdown = run_shutdown(reason).err().map(Shutdown::reason);
+            if shutdown.is_some() {
                 continue;
             }
         }
         irq_enable();
-        res = run_tasks();
+        shutdown = run_tasks().err().map(Shutdown::reason);
     }
 }

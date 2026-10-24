@@ -4,6 +4,7 @@
 //
 // This file may be distributed under the terms of the GNU GPLv3 license.
 use crate::board::{dynmem_end, dynmem_start, irq_disable, irq_enable, irq_restore, irq_save, timer_from_us, timer_read_time};
+use crate::command::Args;
 use crate::ctr::{Global, COMMAND_IDENTIFY_DATA};
 use crate::sched::{sched_clear_shutdown, sched_is_shutdown, sched_timer_reset, R};
 use crate::{decl_command, decl_constant, decl_init, decl_shutdown, sendf, shutdown};
@@ -183,12 +184,8 @@ fn move_finalize() -> R {
     }
     let mut dummy = MoveQueueHead { first: null_mut(), last: null_mut() };
     move_queue_setup(&mut dummy, core::mem::size_of::<MoveNode>())?;
-    let size = MOVES.get().item_size as usize;
-    let mut count = 0;
-    let list = alloc_chunks(size, 1024, &mut count)?;
     let moves = MOVES.get();
-    moves.list = list;
-    moves.count = count;
+    moves.list = alloc_chunks(moves.item_size as usize, 1024, &mut moves.count)?;
     move_reset()?;
     Ok(())
 }
@@ -258,7 +255,7 @@ pub fn foreach_oid(typ: OidType) -> impl Iterator<Item = *mut u8> {
     })
 }
 
-pub fn command_allocate_oids(args: &[u32]) -> R {
+pub fn command_allocate_oids(args: &Args) -> R {
     let o = OIDS.get();
     if !o.oids.is_null() {
         shutdown!("oids already allocated");
@@ -276,7 +273,7 @@ decl_command!(command_allocate_oids, "allocate_oids count=%c");
 
 static CONFIG_CRC: Global<u32> = Global::new(0);
 
-pub fn command_get_config(_args: &[u32]) -> R {
+pub fn command_get_config(_args: &Args) -> R {
     sendf!(
         "config is_config=%c crc=%u is_shutdown=%c move_count=%hu",
         is_finalized() as u8,
@@ -287,7 +284,7 @@ pub fn command_get_config(_args: &[u32]) -> R {
 }
 decl_command!(command_get_config, HF_IN_SHUTDOWN, "get_config");
 
-pub fn command_finalize_config(args: &[u32]) -> R {
+pub fn command_finalize_config(args: &Args) -> R {
     move_finalize()?;
     *CONFIG_CRC.get() = args[0];
     Ok(())
@@ -295,7 +292,7 @@ pub fn command_finalize_config(args: &[u32]) -> R {
 decl_command!(command_finalize_config, "finalize_config crc=%u");
 
 // Attempt a full manual reset of the config
-pub fn config_reset(_args: &[u32]) -> R {
+pub fn config_reset(_args: &Args) -> R {
     if !sched_is_shutdown() {
         shutdown!("config_reset only available when shutdown");
     }
@@ -314,7 +311,7 @@ pub fn config_reset(_args: &[u32]) -> R {
  * Timing and load stats
  ****************************************************************/
 
-pub fn command_get_clock(_args: &[u32]) -> R {
+pub fn command_get_clock(_args: &Args) -> R {
     sendf!("clock clock=%u", timer_read_time())
 }
 decl_command!(command_get_clock, HF_IN_SHUTDOWN, "get_clock");
@@ -329,7 +326,7 @@ struct Stats {
 
 static STATS: Global<Stats> = Global::new(Stats { send_time: 0, send_time_high: 0, count: 0, sum: 0, sumsq: 0 });
 
-pub fn command_get_uptime(_args: &[u32]) -> R {
+pub fn command_get_uptime(_args: &Args) -> R {
     let cur = timer_read_time();
     let s = STATS.get();
     let high = s.send_time_high + (cur < s.send_time) as u32;
@@ -382,17 +379,17 @@ pub fn stats_update(start: u32, cur: u32) -> R {
  * Misc commands
  ****************************************************************/
 
-pub fn command_emergency_stop(_args: &[u32]) -> R {
+pub fn command_emergency_stop(_args: &Args) -> R {
     shutdown!("Command request");
 }
 decl_command!(command_emergency_stop, HF_IN_SHUTDOWN, "emergency_stop");
 
-pub fn command_clear_shutdown(_args: &[u32]) -> R {
+pub fn command_clear_shutdown(_args: &Args) -> R {
     sched_clear_shutdown()
 }
 decl_command!(command_clear_shutdown, HF_IN_SHUTDOWN, "clear_shutdown");
 
-pub fn command_identify(args: &[u32]) -> R {
+pub fn command_identify(args: &Args) -> R {
     let offset = args[0];
     let mut count = args[1] as u8 as u32;
     let isize = COMMAND_IDENTIFY_DATA.len() as u32;

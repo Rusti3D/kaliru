@@ -93,5 +93,5 @@ pub fn armcm_irq_shutdown(s: Shutdown) -> ! {
 }
 
 extern "C" fn armcm_irq_shutdown_entry(reason: u32) -> ! {
-    sched_main_loop(Err(Shutdown(reason as u8)))
+    sched_main_loop(Some(reason as u8))
 }

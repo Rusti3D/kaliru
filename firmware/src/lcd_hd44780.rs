@@ -5,7 +5,7 @@
 // This file may be distributed under the terms of the GNU GPLv3 license.
 use crate::basecmd::{foreach_oid, oid_alloc, oid_lookup, OidType};
 use crate::board::{gpio_out_setup, gpio_out_toggle, gpio_out_write, irq_disable, irq_enable, irq_poll, timer_from_us, timer_is_before, timer_read_time, GpioOut};
-use crate::command::command_decode_buffer;
+use crate::command::{command_decode_buffer, Args};
 use crate::config::{CONFIG_HAVE_STRICT_TIMING, CONFIG_MACH_AVR};
 use crate::sched::R;
 use crate::{decl_command, decl_shutdown};
@@ -98,7 +98,7 @@ fn hd44780_xmit(h: &mut Hd44780, data: &[u8]) -> R {
  * Interface
  ****************************************************************/
 
-pub fn command_config_hd44780(args: &[u32]) -> R {
+pub fn command_config_hd44780(args: &Args) -> R {
     let h = unsafe { &mut *(oid_alloc(args[0] as u8, oid_type(), size_of::<Hd44780>() as u16)? as *mut Hd44780) };
     h.rs = gpio_out_setup(args[1], 0)?;
     h.e = gpio_out_setup(args[2], 0)?;
@@ -130,7 +130,7 @@ decl_command!(
     concat!("config_hd44780 oid=%c rs_pin=%u e_pin=%u", " d4_pin=%u d5_pin=%u d6_pin=%u d7_pin=%u delay_ticks=%u")
 );
 
-pub fn command_hd44780_send_cmds(args: &[u32]) -> R {
+pub fn command_hd44780_send_cmds(args: &Args) -> R {
     let h = unsafe { &mut *(oid_lookup(args[0] as u8, oid_type())? as *mut Hd44780) };
     gpio_out_write(h.rs, 0);
     let cmds = command_decode_buffer(args[1] as u8 as u32, args[2]);
@@ -138,7 +138,7 @@ pub fn command_hd44780_send_cmds(args: &[u32]) -> R {
 }
 decl_command!(command_hd44780_send_cmds, "hd44780_send_cmds oid=%c cmds=%*s");
 
-pub fn command_hd44780_send_data(args: &[u32]) -> R {
+pub fn command_hd44780_send_data(args: &Args) -> R {
     let h = unsafe { &mut *(oid_lookup(args[0] as u8, oid_type())? as *mut Hd44780) };
     gpio_out_write(h.rs, 1);
     let data = command_decode_buffer(args[1] as u8 as u32, args[2]);

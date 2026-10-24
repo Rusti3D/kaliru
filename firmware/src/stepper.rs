@@ -8,6 +8,7 @@ use crate::basecmd::{
     oid_alloc, oid_lookup, MoveNode, MoveQueueHead, OidType,
 };
 use crate::board::{gpio_out_setup, gpio_out_toggle_noirq, gpio_out_write, irq_disable, irq_enable, timer_from_us, timer_is_before, timer_read_time, GpioOut};
+use crate::command::Args;
 use crate::config::{CONFIG_CLOCK_FREQ, CONFIG_INLINE_STEPPER_HACK};
 use crate::sched::{sched_add_timer, sched_del_timer, Timer, R, SF_DONE, SF_RESCHEDULE};
 use crate::trsync::{trsync_add_signal, trsync_oid_lookup, TrsyncSignal};
@@ -218,7 +219,7 @@ pub unsafe fn stepper_event(t: *mut Timer) -> R<u8> {
     stepper_event_full(t)
 }
 
-pub fn command_config_stepper(args: &[u32]) -> R {
+pub fn command_config_stepper(args: &Args) -> R {
     let s = unsafe { &mut *(oid_alloc(args[0] as u8, oid_type(), size_of::<Stepper>() as u16)? as *mut Stepper) };
     let invert_step = args[3] as i8;
     if invert_step > 0 {
@@ -259,7 +260,7 @@ fn stepper_oid_lookup(oid: u8) -> R<&'static mut Stepper> {
 }
 
 // Schedule a set of steps with a given timing
-pub fn command_queue_step(args: &[u32]) -> R {
+pub fn command_queue_step(args: &Args) -> R {
     let s = stepper_oid_lookup(args[0] as u8)?;
     let m = unsafe { &mut *(move_alloc()? as *mut StepperMove) };
     m.interval = args[1];
@@ -293,7 +294,7 @@ pub fn command_queue_step(args: &[u32]) -> R {
 decl_command!(command_queue_step, "queue_step oid=%c interval=%u count=%hu add=%hi");
 
 // Set the direction of the next queued step
-pub fn command_set_next_step_dir(args: &[u32]) -> R {
+pub fn command_set_next_step_dir(args: &Args) -> R {
     let s = stepper_oid_lookup(args[0] as u8)?;
     let nextdir = if args[1] != 0 { SF_NEXT_DIR } else { 0 };
     irq_disable();
@@ -304,7 +305,7 @@ pub fn command_set_next_step_dir(args: &[u32]) -> R {
 decl_command!(command_set_next_step_dir, "set_next_step_dir oid=%c dir=%c");
 
 // Set an absolute time that the next step will be relative to
-pub fn command_reset_step_clock(args: &[u32]) -> R {
+pub fn command_reset_step_clock(args: &Args) -> R {
     let s = stepper_oid_lookup(args[0] as u8)?;
     let waketime = args[1];
     irq_disable();
@@ -336,7 +337,7 @@ fn stepper_get_position(s: &Stepper) -> u32 {
 }
 
 // Report the current position of the stepper
-pub fn command_stepper_get_position(args: &[u32]) -> R {
+pub fn command_stepper_get_position(args: &Args) -> R {
     let oid = args[0] as u8;
     let s = stepper_oid_lookup(oid)?;
     irq_disable();
@@ -367,7 +368,7 @@ unsafe fn stepper_stop(tss: *mut TrsyncSignal, _reason: u8) {
 }
 
 // Set the stepper to stop on a "trigger event" (used in homing)
-pub fn command_stepper_stop_on_trigger(args: &[u32]) -> R {
+pub fn command_stepper_stop_on_trigger(args: &Args) -> R {
     let s = stepper_oid_lookup(args[0] as u8)?;
     let ts = trsync_oid_lookup(args[1] as u8)?;
     trsync_add_signal(ts, &mut s.stop_signal, stepper_stop)

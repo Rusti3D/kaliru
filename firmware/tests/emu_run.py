@@ -2735,11 +2735,140 @@ BOARDS = {"CONFIG_MACH_STM32": Stm32, "CONFIG_MACH_LPC176X": Lpc176x, "CONFIG_MA
           "CONFIG_MACH_ATSAMD": Atsamd, "CONFIG_MACH_HC32F460": Hc32f460, "CONFIG_MACH_RPXXXX": Rp2040}
 
 
-class Emu(mcu_run.Mcu):
+class Scripted(mcu_run.Mcu):
+    """an emulated micro-controller driven by a mcu_run.py script: the
+    emulator's `run(advance_until)` runs the image until it waits with
+    nothing to do; `rx` is fed to it, it leaves its output in `tx`, `time`
+    is its clock"""
     mask_clocks = False
 
-    def __init__(self, elf, dictionary, config, log):
+    def init_session(self, dictionary, log, clock_freq):
         self.dictionary = dictionary
+        self.log = open(log, "w")
+        self.clock_freq = clock_freq
+        self.time = 0
+        self.rx = b""
+        self.tx = b""
+        self.crashed = None
+        # (mcu_run.Mcu state)
+        self.last_clock = 0
+        self.parser = mcu_run.msgproto.MessageParser()
+        self.seq = 0
+        self.buf = b""
+        self.hwlog = None
+        # (the registers that are plain memory)
+        self.mem = {}
+        self.poll_addr, self.poll_count = None, 0
+
+    def get(self, addr, size):
+        return sum(self.mem.get(addr + i, 0) << (8 * i) for i in range(size))
+
+    def put(self, addr, size, value):
+        for i in range(size):
+            self.mem[addr + i] = (value >> (8 * i)) & 0xFF
+
+    def tick(self):
+        """a read of the clock"""
+        self.time = (self.time + TICK) & 0xFFFFFFFF
+        return self.time
+
+    def rx_byte(self):
+        v = self.rx[0] if self.rx else 0
+        self.rx = self.rx[1:]
+        return v
+
+    def polled(self, addr, size, v):
+        """a memory register's read value: a wait for bits the model does
+        not set (POLL reads in a row) reads inverted, then each single bit,
+        then 0, so the wait ends the same way for any image (a write ends
+        the series: poll_addr = None)"""
+        if addr == self.poll_addr:
+            self.poll_count += 1
+            n = self.poll_count - POLL
+            if n >= 0:
+                n %= 8 * size + 2
+                v = ~v if n == 0 else 0 if n == 8 * size + 1 else 1 << (n - 1)
+        else:
+            self.poll_addr, self.poll_count = addr, 1
+        return v
+
+    def close(self):
+        self.log.close()
+        return ""
+
+    def send_raw(self, data):
+        self.rx += bytes(data)
+        self.run()
+
+    def read_blocks(self, until_ack, quiet=0.01, timeout=2.0):
+        # (the answers so far, then those of a quiet period)
+        self.run((self.time + int(quiet * self.clock_freq)) & 0xFFFFFFFF)
+        self.buf += self.tx
+        self.tx = b""
+        out = []
+        if self.crashed:
+            out.append(("crash", "(see the log)"))
+        while True:
+            n = self.parser.check_packet(self.buf)
+            if n == 0:
+                break
+            if n < 0:
+                out.append(("garbage", self.buf[:1].hex()))
+                self.buf = self.buf[1:]
+                continue
+            out.append(("block", self.buf[:n]))
+            self.buf = self.buf[n:]
+        return out
+
+    def wait(self, seconds):
+        return self.read_blocks(False, quiet=seconds)
+
+    def identify(self):
+        # (the build's data dictionary, not fetched with identify commands:
+        # the C and Rust dictionaries differ in their version fields, so the
+        # transfer would differ in length, and so the sequence numbers and
+        # times after it)
+        raw = open(self.dictionary, "rb").read()
+        self.parser.process_identify(raw, decompress=False)
+        d = json.loads(raw)
+        for k in ("version", "build_versions"):
+            d.pop(k, None)
+        return json.dumps(d, sort_keys=True), len(raw)
+
+    def prepare(self, line):
+        # (the linux scripts' names: gpioN / analogN the board's pin number N,
+        # spidevN.M / i2c.N its spi / i2c bus number N)
+        enums = self.parser.get_enumerations()
+        # (a board without hardware spi / i2c buses, hc32f460: software buses
+        # on fixed pins instead)
+        if not {"spi_bus", "i2c_bus", "bus"} & set(enums):
+            line = re.sub(r"^spi_set_bus oid=(\d+) spi_bus=\S+ mode=(\d+) rate=\d+$",
+                          r"spi_set_sw_bus oid=\1 miso_pin=gpio62 mosi_pin=gpio63 sclk_pin=gpio64 mode=\2 pulse_ticks=10", line)
+            line = re.sub(r"^i2c_set_bus oid=(\d+) i2c_bus=\S+ rate=\d+ address=(\d+)$",
+                          r"i2c_set_sw_bus oid=\1 scl_pin=gpio60 sda_pin=gpio61 pulse_ticks=10 address=\2", line)
+
+        def name(enum, value, default):
+            return {v: k for k, v in enums.get(enum, {}).items()}.get(value, default)
+
+        # (a number the board has none for: the one at that index, among the
+        # numbered names: not rp2040's ADC_TEMPERATURE pseudo pin; all names
+        # when none is numbered: avr's one "spi" / "twi" bus)
+        def value(enum, n, default):
+            names = sorted(enums.get(enum, {}).items(), key=lambda kv: kv[1])
+            names = [kv for kv in names if re.search(r"\d", kv[0])] or names
+            return name(enum, n, names[n % len(names)][0] if names else default)
+
+        line = re.sub(r"\b(?:gpio|analog)(\d+)\b", lambda m: value("pin", int(m.group(1)), m.group(0)), line)
+        # (atsamd: one "bus" enumeration of its sercoms)
+        spi, i2c = [e if e in enums else "bus" for e in ("spi_bus", "i2c_bus")]
+        line = re.sub(r"\bspidev(\d+)\.\d+\b", lambda m: value(spi, int(m.group(1)), m.group(0)), line)
+        line = re.sub(r"\bi2c\.(\d+)\b", lambda m: value(i2c, int(m.group(1)), m.group(0)), line)
+        self.log.write("# %s\n" % line)
+        return super().prepare(line)
+
+
+class Emu(Scripted):
+    def __init__(self, elf, dictionary, config, log):
         cfg = autoconf(config)
         board = next((b for k, b in BOARDS.items() if cfg.get(k)), None)
         if board is None:
@@ -2774,49 +2903,19 @@ class Emu(mcu_run.Mcu):
         # (an access outside the model's memory: the crash's address)
         self.bad_access = None
         uc.hook_add(unicorn.UC_HOOK_MEM_INVALID, self.on_invalid)
-        self.mem = {}
-        self.log = open(log, "w")
-        self.time = 0
+        self.init_session(dictionary, log, cfg["CONFIG_CLOCK_FREQ"])
         self.nvic_enabled = set()
         self.active = 0
-        self.rx = b""
-        self.tx = b""
-        self.poll_addr, self.poll_count = None, 0
         self.spin = {}
         self.preempt = None
         self.stopped = None
-        self.crashed = None
         c = b.chip
         self.icsr = c.reg("SCB", "SCB_Type", "ICSR")
         self.iser = c.reg("NVIC", "NVIC_Type", "ISER")
         self.icer = c.reg("NVIC", "NVIC_Type", "ICER")
-        self.clock_freq = cfg["CONFIG_CLOCK_FREQ"]
-        # (mcu_run.Mcu state)
-        self.last_clock = 0
-        self.parser = mcu_run.msgproto.MessageParser()
-        self.seq = 0
-        self.buf = b""
-        self.hwlog = None
         self.run()
 
     # ---- memory mapped registers
-
-    def get(self, addr, size):
-        return sum(self.mem.get(addr + i, 0) << (8 * i) for i in range(size))
-
-    def put(self, addr, size, value):
-        for i in range(size):
-            self.mem[addr + i] = (value >> (8 * i)) & 0xFF
-
-    def tick(self):
-        """a read of the clock"""
-        self.time = (self.time + TICK) & 0xFFFFFFFF
-        return self.time
-
-    def rx_byte(self):
-        v = self.rx[0] if self.rx else 0
-        self.rx = self.rx[1:]
-        return v
 
     def mmio_read(self, uc, offset, size, base):
         addr = base + offset
@@ -2839,14 +2938,7 @@ class Emu(mcu_run.Mcu):
             rule = b.read_rules.get(addr)
             if rule:
                 v = rule(v)
-            if addr == self.poll_addr:
-                self.poll_count += 1
-                n = self.poll_count - POLL
-                if n >= 0:
-                    n %= 8 * size + 2
-                    v = ~v if n == 0 else 0 if n == 8 * size + 1 else 1 << (n - 1)
-            else:
-                self.poll_addr, self.poll_count = addr, 1
+            v = self.polled(addr, size, v)
         v &= (1 << (8 * size)) - 1
         if not self.in_memory(addr):
             self.log.write("R %08x %d %s\n" % (addr, size, self.logged(addr, v)))
@@ -3028,84 +3120,15 @@ class Emu(mcu_run.Mcu):
                 return
             self.pc = self.enter(num, (self.pc + 2) | 1) & ~1
 
-    # ---- mcu_run.Mcu interface
-
-    def close(self):
-        self.log.close()
-        return ""
-
-    def send_raw(self, data):
-        self.rx += bytes(data)
-        self.run()
-
-    def read_blocks(self, until_ack, quiet=0.01, timeout=2.0):
-        # (the answers so far, then those of a quiet period)
-        self.run((self.time + int(quiet * self.clock_freq)) & 0xFFFFFFFF)
-        self.buf += self.tx
-        self.tx = b""
-        out = []
-        if self.crashed:
-            out.append(("crash", "(see the log)"))
-        while True:
-            n = self.parser.check_packet(self.buf)
-            if n == 0:
-                break
-            if n < 0:
-                out.append(("garbage", self.buf[:1].hex()))
-                self.buf = self.buf[1:]
-                continue
-            out.append(("block", self.buf[:n]))
-            self.buf = self.buf[n:]
-        return out
-
-    def wait(self, seconds):
-        return self.read_blocks(False, quiet=seconds)
-
-    def identify(self):
-        # (the build's data dictionary, not fetched with identify commands:
-        # the C and Rust dictionaries differ in their version fields, so the
-        # transfer would differ in length, and so the sequence numbers and
-        # times after it)
-        raw = open(self.dictionary, "rb").read()
-        self.parser.process_identify(raw, decompress=False)
-        d = json.loads(raw)
-        for k in ("version", "build_versions"):
-            d.pop(k, None)
-        return json.dumps(d, sort_keys=True), len(raw)
-
-    def prepare(self, line):
-        # (the linux scripts' names: gpioN / analogN the board's pin number N,
-        # spidevN.M / i2c.N its spi / i2c bus number N)
-        enums = self.parser.get_enumerations()
-        # (a board without hardware spi / i2c buses, hc32f460: software buses
-        # on fixed pins instead)
-        if not {"spi_bus", "i2c_bus", "bus"} & set(enums):
-            line = re.sub(r"^spi_set_bus oid=(\d+) spi_bus=\S+ mode=(\d+) rate=\d+$",
-                          r"spi_set_sw_bus oid=\1 miso_pin=gpio62 mosi_pin=gpio63 sclk_pin=gpio64 mode=\2 pulse_ticks=10", line)
-            line = re.sub(r"^i2c_set_bus oid=(\d+) i2c_bus=\S+ rate=\d+ address=(\d+)$",
-                          r"i2c_set_sw_bus oid=\1 scl_pin=gpio60 sda_pin=gpio61 pulse_ticks=10 address=\2", line)
-
-        def name(enum, value, default):
-            return {v: k for k, v in enums.get(enum, {}).items()}.get(value, default)
-
-        # (a number the board has none for: the one at that index, among the
-        # numbered names: not rp2040's ADC_TEMPERATURE pseudo pin)
-        def value(enum, n, default):
-            names = sorted(((k, v) for k, v in enums.get(enum, {}).items() if re.search(r"\d", k)), key=lambda kv: kv[1])
-            return name(enum, n, names[n % len(names)][0] if names else default)
-
-        line = re.sub(r"\b(?:gpio|analog)(\d+)\b", lambda m: value("pin", int(m.group(1)), m.group(0)), line)
-        # (atsamd: one "bus" enumeration of its sercoms)
-        spi, i2c = [e if e in enums else "bus" for e in ("spi_bus", "i2c_bus")]
-        line = re.sub(r"\bspidev(\d+)\.\d+\b", lambda m: value(spi, int(m.group(1)), m.group(0)), line)
-        line = re.sub(r"\bi2c\.(\d+)\b", lambda m: value(i2c, int(m.group(1)), m.group(0)), line)
-        self.log.write("# %s\n" % line)
-        return super().prepare(line)
-
 
 def main():
     elf, dictionary, config, script, log = sys.argv[1:6]
-    emu = Emu(elf, dictionary, config, log)
+    if autoconf(config).get("CONFIG_MACH_AVR"):
+        import emu_avr
+
+        emu = emu_avr.AvrEmu(elf, dictionary, config, log)
+    else:
+        emu = Emu(elf, dictionary, config, log)
     out, err = mcu_run.run_script(emu, script)
     print("\n".join(out))
 

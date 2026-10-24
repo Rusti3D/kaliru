@@ -5,6 +5,7 @@
 // This file may be distributed under the terms of the GNU GPLv3 license.
 use crate::basecmd::{oid_alloc, oid_lookup, OidType};
 use crate::board::{timer_is_before, timer_read_time};
+use crate::command::Args;
 use crate::sched::{sched_add_timer, sched_del_timer, Timer, R, SF_DONE, SF_RESCHEDULE};
 use crate::sos_filter::{sos_filter_oid_lookup, sosfilt, SosFilter};
 use crate::trsync::{trsync_do_trigger, trsync_oid_lookup, Trsync};
@@ -218,7 +219,7 @@ fn set_endstop_range(
 }
 
 // Create a load_cell_probe
-pub fn command_config_load_cell_probe(args: &[u32]) -> R {
+pub fn command_config_load_cell_probe(args: &Args) -> R {
     let lcp = unsafe { &mut *(oid_alloc(args[0] as u8, oid_type(), size_of::<LoadCellProbe>() as u16)? as *mut LoadCellProbe) };
     lcp.flags = 0;
     lcp.trigger_ticks = 0;
@@ -235,7 +236,7 @@ pub fn load_cell_probe_oid_lookup(oid: u8) -> R<*mut LoadCellProbe> {
 }
 
 // Set the triggering range and tare value
-pub fn command_load_cell_probe_set_range(args: &[u32]) -> R {
+pub fn command_load_cell_probe_set_range(args: &Args) -> R {
     let lcp = unsafe { &mut *load_cell_probe_oid_lookup(args[0] as u8)? };
     set_endstop_range(lcp, args[1] as i32, args[2] as i32, args[3] as i32, args[4], args[5] as FixedQ16)
 }
@@ -249,7 +250,7 @@ decl_command!(
 );
 
 // Home an axis
-pub fn command_load_cell_probe_home(args: &[u32]) -> R {
+pub fn command_load_cell_probe_home(args: &Args) -> R {
     let lcp = unsafe { &mut *load_cell_probe_oid_lookup(args[0] as u8)? };
     sched_del_timer(&mut lcp.time);
     // clear the homing trigger flag
@@ -280,7 +281,7 @@ decl_command!(
     concat!("load_cell_probe_home oid=%c trsync_oid=%c trigger_reason=%c", " error_reason=%c clock=%u rest_ticks=%u timeout=%u")
 );
 
-pub fn command_load_cell_probe_query_state(args: &[u32]) -> R {
+pub fn command_load_cell_probe_query_state(args: &Args) -> R {
     let oid = args[0] as u8;
     let lcp = unsafe { &*load_cell_probe_oid_lookup(args[0] as u8)? };
     sendf!(

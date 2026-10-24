@@ -4,8 +4,8 @@
 //
 // This file may be distributed under the terms of the GNU GPLv3 license.
 use super::chip::{addr, WDCE, WDE, WDIE, WDP3, WDTCSR};
-use super::irq::{avr_irq_shutdown, irq_disable};
-use crate::command::HF_IN_SHUTDOWN;
+use super::irq::irq_disable;
+use crate::command::Args;
 use crate::ctr::Global;
 use crate::sched::{sched_shutdown, R};
 use crate::{decl_command, decl_init, decl_task, static_string};
@@ -47,7 +47,7 @@ static WATCHDOG_SHUTDOWN: Global<u8> = Global::new(0);
 #[export_name = avr_vector!(WDT_vect)]
 pub unsafe extern "avr-interrupt" fn wdt_isr() {
     *WATCHDOG_SHUTDOWN.get() = 1;
-    avr_irq_shutdown(sched_shutdown(static_string!("Watchdog timer!")));
+    sched_shutdown(static_string!("Watchdog timer!"));
 }
 
 pub fn watchdog_reset() -> R {
@@ -92,7 +92,7 @@ global_asm!(
 );
 
 // Support reset on AVR via the watchdog timer
-pub fn command_reset(_args: &[u32]) -> R {
+pub fn command_reset(_args: &Args) -> R {
     irq_disable();
     wdt_enable(WDTO_15MS);
     #[allow(clippy::empty_loop)]

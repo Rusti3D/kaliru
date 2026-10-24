@@ -5,6 +5,7 @@
 // This file may be distributed under the terms of the GNU GPLv3 license.
 use super::internal::*;
 use crate::board::GpioPwm;
+use crate::command::Args;
 use crate::config::CONFIG_CLOCK_FREQ;
 use crate::ctr::{concat, concat_len};
 use crate::sched::R;
@@ -521,7 +522,7 @@ pub fn gpio_pwm_setup(pin: u32, cycle_time: u32, val: u16) -> R<GpioPwm> {
     gpio_timer_setup(pin as u8, cycle_time, val as u32, false)
 }
 
-pub fn command_stm32_timer_output(args: &[u32]) -> R {
+pub fn command_stm32_timer_output(args: &Args) -> R {
     gpio_timer_setup(args[0] as u8, args[1], args[2], true)?;
     Ok(())
 }

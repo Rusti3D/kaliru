@@ -4,12 +4,12 @@
 //
 // This file may be distributed under the terms of the GNU GPLv3 license.
 use crate::board::{irq_restore, irq_save};
-use crate::command::{command_decode_buffer, command_decode_ptr};
+use crate::command::{command_decode_buffer, command_decode_ptr, Args};
 use crate::sched::R;
 use crate::{decl_command, sendf};
 use core::ptr::{read_volatile, write_volatile};
 
-pub fn command_debug_read(args: &[u32]) -> R {
+pub fn command_debug_read(args: &Args) -> R {
     let order = args[0] as u8;
     let ptr = command_decode_ptr(args[1]);
     let flag = irq_save();
@@ -25,7 +25,7 @@ pub fn command_debug_read(args: &[u32]) -> R {
 }
 decl_command!(command_debug_read, HF_IN_SHUTDOWN, "debug_read order=%c addr=%u");
 
-pub fn command_debug_write(args: &[u32]) -> R {
+pub fn command_debug_write(args: &Args) -> R {
     let order = args[0] as u8;
     let ptr = command_decode_ptr(args[1]);
     let v = args[2];
@@ -42,13 +42,13 @@ pub fn command_debug_write(args: &[u32]) -> R {
 }
 decl_command!(command_debug_write, HF_IN_SHUTDOWN, "debug_write order=%c addr=%u val=%u");
 
-pub fn command_debug_ping(args: &[u32]) -> R {
+pub fn command_debug_ping(args: &Args) -> R {
     let data = command_decode_buffer(args[0] as u8 as u32, args[1]);
     sendf!("pong data=%*s", &*data)
 }
 decl_command!(command_debug_ping, HF_IN_SHUTDOWN, "debug_ping data=%*s");
 
-pub fn command_debug_nop(_args: &[u32]) -> R {
+pub fn command_debug_nop(_args: &Args) -> R {
     Ok(())
 }
 decl_command!(command_debug_nop, HF_IN_SHUTDOWN, "debug_nop");

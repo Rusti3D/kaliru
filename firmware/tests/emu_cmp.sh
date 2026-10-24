@@ -10,9 +10,10 @@ cd "$(dirname "$0")"
 c=$1
 shift
 C_ELF=~/rk/fw_$c/klipper.elf
-RS_ELF=$(ls ~/rk/fwtarget-ctr-$c/*/mcu/kaliru-mcu 2>/dev/null | head -1)
+# (an AVR build: kaliru-mcu.elf, its out dir build/kaliru-mcu/<hash>/out)
+RS_ELF=$(ls ~/rk/fwtarget-ctr-$c/*/mcu/kaliru-mcu ~/rk/fwtarget-ctr-$c/*/mcu/kaliru-mcu.elf 2>/dev/null | head -1)
 C_DICT=~/rk/fw_$c/klipper.dict
-RS_DICT=$(ls -td ~/rk/fwtarget-ctr-$c/*/mcu/build/kaliru-mcu-*/out 2>/dev/null | head -1)/klipper.dict
+RS_DICT=$(ls -t ~/rk/fwtarget-ctr-$c/*/mcu/build/kaliru-mcu-*/out/klipper.dict ~/rk/fwtarget-ctr-$c/*/mcu/build/kaliru-mcu/*/out/klipper.dict 2>/dev/null | head -1)
 [ -f "$C_ELF" ] && [ -n "$RS_ELF" ] || { echo "build $c first (tools/mkref.sh, tests/ctr_check.sh)"; exit 1; }
 scripts=("$@")
 [ ${#scripts[@]} -eq 0 ] && scripts=(scripts/*.script)

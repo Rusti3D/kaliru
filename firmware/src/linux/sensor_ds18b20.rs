@@ -8,7 +8,7 @@ use super::console::report_errno;
 use super::timer::{timer_disable_signals, timer_enable_signals};
 use crate::basecmd::{oid_alloc, oid_lookup, OidType};
 use crate::board::{irq_disable, irq_enable};
-use crate::command::command_decode_ptr;
+use crate::command::{command_decode_ptr, Args};
 use crate::ctr::Global;
 use crate::sched::{sched_add_timer, sched_check_wake, sched_del_timer, sched_wake_task, TaskWake, Timer, R, SF_RESCHEDULE};
 use crate::{decl_command, decl_task, sendf, shutdown, try_shutdown};
@@ -135,7 +135,7 @@ unsafe fn ds18_event(timer: *mut Timer) -> R<u8> {
     Ok(SF_RESCHEDULE)
 }
 
-pub fn command_config_ds18b20(args: &[u32]) -> R {
+pub fn command_config_ds18b20(args: &Args) -> R {
     // Open kernel port
     let serial_len = args[1] as u8 as usize;
     let serial = unsafe { core::slice::from_raw_parts(command_decode_ptr(args[2]), serial_len) };
@@ -193,7 +193,7 @@ pub fn command_config_ds18b20(args: &[u32]) -> R {
 }
 decl_command!(command_config_ds18b20, "config_ds18b20 oid=%c serial=%*s max_error_count=%c ignore_limits=%c");
 
-pub fn command_query_ds18b20(args: &[u32]) -> R {
+pub fn command_query_ds18b20(args: &Args) -> R {
     let d = unsafe { &mut *(oid_lookup(args[0] as u8, oid_type())? as *mut Ds18) };
 
     sched_del_timer(&mut d.timer);

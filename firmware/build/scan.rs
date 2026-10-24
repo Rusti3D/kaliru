@@ -259,6 +259,9 @@ fn skip_item(c: &[char], mut i: usize) -> usize {
             '(' | '[' => depth += 1,
             ')' | ']' => depth -= 1,
             ';' if depth == 0 => return i + 1,
+            // (the end of the enclosing block: the item was a block's tail
+            // expression)
+            '}' if depth == 0 => return i,
             '{' if depth == 0 => {
                 let (_, after) = macro_args(c, i);
                 return after;

@@ -4,7 +4,7 @@
 //
 // This file may be distributed under the terms of the GNU GPLv3 license.
 use super::chip::*;
-use super::irq::{avr_irq_shutdown, irq_disable, irq_enable, irq_restore, irq_save};
+use super::irq::{irq_disable, irq_enable, irq_restore, irq_save};
 use crate::config::CONFIG_CLOCK_FREQ;
 use crate::ctr::Global;
 use crate::sched::{sched_add_timer, sched_check_set_tasks_busy, sched_timer_dispatch, Timer, R, SF_RESCHEDULE};
@@ -185,7 +185,6 @@ fn timer_dispatch() -> R {
 
 #[export_name = avr_vector!(TIMER1_COMPA_vect)]
 pub unsafe extern "avr-interrupt" fn timer1_compa_isr() {
-    if let Err(s) = timer_dispatch() {
-        avr_irq_shutdown(s);
-    }
+    // (a shutdown does not return here: avr/irq.rs shutdown_jump)
+    let Ok(()) = timer_dispatch();
 }

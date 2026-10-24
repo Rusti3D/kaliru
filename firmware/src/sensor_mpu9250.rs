@@ -7,6 +7,7 @@
 // This file may be distributed under the terms of the GNU GPLv3 license.
 use crate::basecmd::{oid_alloc, oid_lookup, OidType};
 use crate::board::{irq_disable, irq_enable, timer_read_time};
+use crate::command::Args;
 use crate::ctr::Global;
 use crate::i2ccmds::{i2c_dev_read, i2c_shutdown_on_err, i2cdev_oid_lookup, I2cDev};
 use crate::sched::{sched_add_timer, sched_check_wake, sched_del_timer, sched_wake_task, TaskWake, Timer, R, SF_DONE};
@@ -50,7 +51,7 @@ unsafe fn mpu9250_event(timer: *mut Timer) -> R<u8> {
     Ok(SF_DONE)
 }
 
-pub fn command_config_mpu9250(args: &[u32]) -> R {
+pub fn command_config_mpu9250(args: &Args) -> R {
     let mp = unsafe { &mut *(oid_alloc(args[0] as u8, oid_type(), size_of::<Mpu9250>() as u16)? as *mut Mpu9250) };
     mp.timer.func = Some(mpu9250_event);
     mp.i2c = i2cdev_oid_lookup(args[1] as u8)?;
@@ -111,7 +112,7 @@ fn mp9250_query(mp: &mut Mpu9250, oid: u8) -> R {
     Ok(())
 }
 
-pub fn command_query_mpu9250(args: &[u32]) -> R {
+pub fn command_query_mpu9250(args: &Args) -> R {
     let mp = unsafe { &mut *(oid_lookup(args[0] as u8, oid_type())? as *mut Mpu9250) };
 
     sched_del_timer(&mut mp.timer);
@@ -133,7 +134,7 @@ pub fn command_query_mpu9250(args: &[u32]) -> R {
 }
 decl_command!(command_query_mpu9250, "query_mpu9250 oid=%c rest_ticks=%u");
 
-pub fn command_query_mpu9250_status(args: &[u32]) -> R {
+pub fn command_query_mpu9250_status(args: &Args) -> R {
     let mp = unsafe { &mut *(oid_lookup(args[0] as u8, oid_type())? as *mut Mpu9250) };
 
     // Detect if a FIFO overrun occurred

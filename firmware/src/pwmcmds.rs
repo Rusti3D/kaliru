@@ -8,6 +8,7 @@ use crate::basecmd::{
     move_queue_setup, oid_alloc, oid_lookup, MoveNode, MoveQueueHead, OidType,
 };
 use crate::board::{gpio_pwm_setup, gpio_pwm_write, irq_disable, irq_enable, timer_is_before, GpioPwm};
+use crate::command::Args;
 use crate::sched::{sched_add_timer, sched_del_timer, Timer, TimerFunc, R, SF_DONE, SF_RESCHEDULE};
 use crate::{decl_command, decl_shutdown, shutdown};
 use core::mem::size_of;
@@ -67,7 +68,7 @@ unsafe fn pwm_event(timer: *mut Timer) -> R<u8> {
     Ok(SF_RESCHEDULE)
 }
 
-pub fn command_config_pwm_out(args: &[u32]) -> R {
+pub fn command_config_pwm_out(args: &Args) -> R {
     let pin = gpio_pwm_setup(args[1], args[2], args[3] as u16)?;
     let p = unsafe { &mut *(oid_alloc(args[0] as u8, oid_type(), size_of::<PwmOut>() as u16)? as *mut PwmOut) };
     p.pin = pin;
@@ -85,7 +86,7 @@ fn is_func(f: Option<TimerFunc>, g: TimerFunc) -> bool {
     matches!(f, Some(f) if f as usize == g as usize)
 }
 
-pub fn command_queue_pwm_out(args: &[u32]) -> R {
+pub fn command_queue_pwm_out(args: &Args) -> R {
     let p = unsafe { &mut *(oid_lookup(args[0] as u8, oid_type())? as *mut PwmOut) };
     let m = unsafe { &mut *(move_alloc()? as *mut PwmMove) };
     m.waketime = args[1];
@@ -120,7 +121,7 @@ pub fn pwm_shutdown() -> R {
 }
 decl_shutdown!(pwm_shutdown);
 
-pub fn command_set_pwm_out(args: &[u32]) -> R {
+pub fn command_set_pwm_out(args: &Args) -> R {
     gpio_pwm_setup(args[0], args[1], args[2] as u16)?;
     Ok(())
 }

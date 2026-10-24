@@ -5,7 +5,7 @@
 // This file may be distributed under the terms of the GNU GPLv3 license.
 use crate::basecmd::{oid_alloc, oid_lookup, OidType};
 use crate::board::{gpio_out_setup, gpio_out_toggle_noirq, gpio_out_write, irq_disable, irq_enable, irq_poll, timer_from_us, timer_read_time, GpioOut};
-use crate::command::command_decode_ptr;
+use crate::command::{command_decode_ptr, Args};
 use crate::sched::R;
 use crate::{decl_command, sendf, shutdown};
 use core::mem::size_of;
@@ -43,13 +43,25 @@ fn neopixel_get_time() -> NeopixelTime {
     unsafe { (*crate::board::chip::TCNT1).read() }
 }
 
+// (C: `#define neopixel_delay(start, ticks) (void)(ticks)`, which does not
+// evaluate `start`: no neopixel_get_time() read for it)
 #[cfg(CONFIG_MACH_AVR)]
-#[inline]
-fn neopixel_delay(_start: NeopixelTime, _ticks: NeopixelTime) {}
+macro_rules! neopixel_delay {
+    ($start:expr, $ticks:expr) => {
+        let _ = $ticks;
+    };
+}
 
 #[cfg(not(CONFIG_MACH_AVR))]
 fn neopixel_get_time() -> NeopixelTime {
     timer_read_time()
+}
+
+#[cfg(not(CONFIG_MACH_AVR))]
+macro_rules! neopixel_delay {
+    ($start:expr, $ticks:expr) => {
+        neopixel_delay($start, $ticks)
+    };
 }
 
 #[cfg(not(CONFIG_MACH_AVR))]
@@ -95,7 +107,7 @@ fn oid_type() -> OidType {
     command_config_neopixel as *const ()
 }
 
-pub fn command_config_neopixel(args: &[u32]) -> R {
+pub fn command_config_neopixel(args: &Args) -> R {
     let pin = gpio_out_setup(args[1], 0)?;
     let data_size = args[2] as u16;
     if data_size & 0x8000 != 0 {
@@ -132,7 +144,7 @@ fn send_data(n: &mut Neopixel) -> R<i32> {
             for _ in 0..8 {
                 if byte & 0x80 != 0 {
                     // Long pulse
-                    neopixel_delay(last_start, bit_min_ticks());
+                    neopixel_delay!(last_start, bit_min_ticks());
                     irq_disable();
                     let start = neopixel_get_time();
                     gpio_out_toggle_noirq(pin);
@@ -144,19 +156,19 @@ fn send_data(n: &mut Neopixel) -> R<i32> {
                     last_start = start;
                     byte <<= 1;
 
-                    neopixel_delay(start, pulse_long_ticks());
+                    neopixel_delay!(start, pulse_long_ticks());
                     irq_disable();
                     gpio_out_toggle_noirq(pin);
                     irq_enable();
 
-                    neopixel_delay(neopixel_get_time(), edge_min_ticks());
+                    neopixel_delay!(neopixel_get_time(), edge_min_ticks());
                 } else {
                     // Short pulse
-                    neopixel_delay(last_start, bit_min_ticks());
+                    neopixel_delay!(last_start, bit_min_ticks());
                     irq_disable();
                     let start = neopixel_get_time();
                     gpio_out_toggle_noirq(pin);
-                    neopixel_delay(start, edge_min_ticks());
+                    neopixel_delay!(start, edge_min_ticks());
                     gpio_out_toggle_noirq(pin);
                     irq_enable();
 
@@ -177,7 +189,7 @@ fn send_data(n: &mut Neopixel) -> R<i32> {
     Ok(-1)
 }
 
-pub fn command_neopixel_update(args: &[u32]) -> R {
+pub fn command_neopixel_update(args: &Args) -> R {
     let oid = args[0] as u8;
     let n = unsafe { &mut *(oid_lookup(oid, oid_type())? as *mut Neopixel) };
     let pos = args[1] as u16 as usize;
@@ -191,7 +203,7 @@ pub fn command_neopixel_update(args: &[u32]) -> R {
 }
 decl_command!(command_neopixel_update, "neopixel_update oid=%c pos=%hu data=%*s");
 
-pub fn command_neopixel_send(args: &[u32]) -> R {
+pub fn command_neopixel_send(args: &Args) -> R {
     let oid = args[0] as u8;
     let n = unsafe { &mut *(oid_lookup(oid, oid_type())? as *mut Neopixel) };
     let ret = send_data(n)?;

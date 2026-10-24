@@ -5,6 +5,7 @@
 // This file may be distributed under the terms of the GNU GPLv3 license.
 use crate::basecmd::{oid_alloc, oid_lookup, OidType};
 use crate::board::{gpio_in_read, gpio_in_setup, irq_disable, irq_enable, timer_read_time, GpioIn};
+use crate::command::Args;
 use crate::ctr::Global;
 use crate::load_cell_probe::{load_cell_probe_oid_lookup, load_cell_probe_report_sample, LoadCellProbe};
 use crate::sched::{sched_add_timer, sched_check_wake, sched_del_timer, sched_wake_task, TaskWake, Timer, R, SF_RESCHEDULE};
@@ -97,7 +98,7 @@ fn ads1220_read_adc(ads1220: &mut Ads1220Adc, oid: u8) -> R {
 }
 
 // Create an ads1220 sensor
-pub fn command_config_ads1220(args: &[u32]) -> R {
+pub fn command_config_ads1220(args: &Args) -> R {
     let ads1220 = unsafe { &mut *(oid_alloc(args[0] as u8, oid_type(), size_of::<Ads1220Adc>() as u16)? as *mut Ads1220Adc) };
     ads1220.timer.func = Some(ads1220_event);
     ads1220.pending_flag = 0;
@@ -110,7 +111,7 @@ decl_command!(
     concat!("config_ads1220 oid=%c", " spi_oid=%c data_ready_pin=%u")
 );
 
-pub fn ads1220_attach_load_cell_probe(args: &[u32]) -> R {
+pub fn ads1220_attach_load_cell_probe(args: &Args) -> R {
     let oid = args[0] as u8;
     let ads1220 = lookup(oid)?;
     ads1220.lce = load_cell_probe_oid_lookup(args[1] as u8)?;
@@ -119,7 +120,7 @@ pub fn ads1220_attach_load_cell_probe(args: &[u32]) -> R {
 decl_command!(ads1220_attach_load_cell_probe, "ads1220_attach_load_cell_probe oid=%c load_cell_probe_oid=%c");
 
 // start/stop capturing ADC data
-pub fn command_query_ads1220(args: &[u32]) -> R {
+pub fn command_query_ads1220(args: &Args) -> R {
     let oid = args[0] as u8;
     let ads1220 = lookup(oid)?;
     sched_del_timer(&mut ads1220.timer);
@@ -139,7 +140,7 @@ pub fn command_query_ads1220(args: &[u32]) -> R {
 }
 decl_command!(command_query_ads1220, "query_ads1220 oid=%c rest_ticks=%u");
 
-pub fn command_query_ads1220_status(args: &[u32]) -> R {
+pub fn command_query_ads1220_status(args: &Args) -> R {
     let oid = args[0] as u8;
     let ads1220 = lookup(oid)?;
     irq_disable();

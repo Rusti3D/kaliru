@@ -6,7 +6,7 @@
 //
 // This file may be distributed under the terms of the GNU GPLv3 license.
 use crate::board::{canhw_get_status, irq_restore, irq_save};
-use crate::command::{command_dispatch, command_encode_and_frame, command_find_block, command_send_ack, CommandEncoder, SendArg};
+use crate::command::{command_dispatch, command_encode_and_frame, command_find_block, command_send_ack, Args, CommandEncoder, SendArg};
 use crate::config::CONFIG_HAVE_BOOTLOADER_REQUEST;
 use crate::ctr::Global;
 use crate::generic::canbus::{canbus_send, canbus_set_filter, CanbusMsg, CanbusStatus, CANMSG_DATA_LEN};
@@ -361,7 +361,7 @@ decl_enumeration!("canbus_bus_state", "warn", CANBUS_STATE_WARN);
 decl_enumeration!("canbus_bus_state", "passive", CANBUS_STATE_PASSIVE);
 decl_enumeration!("canbus_bus_state", "off", CANBUS_STATE_OFF);
 
-pub fn command_get_canbus_status(_args: &[u32]) -> R {
+pub fn command_get_canbus_status(_args: &Args) -> R {
     let mut status = CanbusStatus::default();
     canhw_get_status(&mut status);
     sendf!(
@@ -374,7 +374,7 @@ pub fn command_get_canbus_status(_args: &[u32]) -> R {
 }
 decl_command!(command_get_canbus_status, HF_IN_SHUTDOWN, "get_canbus_status");
 
-pub fn command_get_canbus_id(_args: &[u32]) -> R {
+pub fn command_get_canbus_id(_args: &Args) -> R {
     sendf!("canbus_id canbus_uuid=%.*s canbus_nodeid=%u", &cd().uuid, can_get_nodeid())
 }
 decl_command!(command_get_canbus_id, HF_IN_SHUTDOWN, "get_canbus_id");

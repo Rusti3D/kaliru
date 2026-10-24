@@ -5,6 +5,7 @@
 // This file may be distributed under the terms of the GNU GPLv3 license.
 use crate::basecmd::alloc_chunk;
 use crate::board::{gpio_in_read, gpio_in_setup, gpio_out_setup, gpio_out_toggle, gpio_out_write, timer_is_before, timer_read_time, GpioIn, GpioOut};
+use crate::command::Args;
 use crate::sched::R;
 use crate::spicmds::{spidev_oid_lookup, spidev_set_software_bus};
 use crate::{decl_command, shutdown};
@@ -19,7 +20,7 @@ pub struct SpiSoftware {
     mode: u8,
 }
 
-pub fn command_spi_set_sw_bus(args: &[u32]) -> R {
+pub fn command_spi_set_sw_bus(args: &Args) -> R {
     let mode = args[4] as u8;
     let pulse_ticks = args[5];
     if mode > 3 {

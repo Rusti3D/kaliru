@@ -5,6 +5,7 @@
 // This file may be distributed under the terms of the GNU GPLv3 license.
 use crate::basecmd::{oid_alloc, oid_lookup, OidType};
 use crate::board::{irq_disable, irq_enable, timer_read_time};
+use crate::command::Args;
 use crate::ctr::Global;
 use crate::sched::{sched_add_timer, sched_check_wake, sched_del_timer, sched_wake_task, TaskWake, Timer, R, SF_DONE};
 use crate::sensor_bulk::{sensor_bulk_report, sensor_bulk_reset, sensor_bulk_status, SensorBulk};
@@ -37,7 +38,7 @@ unsafe fn adxl345_event(timer: *mut Timer) -> R<u8> {
     Ok(SF_DONE)
 }
 
-pub fn command_config_adxl345(args: &[u32]) -> R {
+pub fn command_config_adxl345(args: &Args) -> R {
     let ax = unsafe { &mut *(oid_alloc(args[0] as u8, oid_type(), size_of::<Adxl345>() as u16)? as *mut Adxl345) };
     ax.timer.func = Some(adxl345_event);
     ax.spi = spidev_oid_lookup(args[1] as u8)?;
@@ -108,7 +109,7 @@ fn adxl_query(ax: &mut Adxl345, oid: u8) -> R {
     Ok(())
 }
 
-pub fn command_query_adxl345(args: &[u32]) -> R {
+pub fn command_query_adxl345(args: &Args) -> R {
     let ax = unsafe { &mut *(oid_lookup(args[0] as u8, oid_type())? as *mut Adxl345) };
 
     sched_del_timer(&mut ax.timer);
@@ -125,7 +126,7 @@ pub fn command_query_adxl345(args: &[u32]) -> R {
 }
 decl_command!(command_query_adxl345, "query_adxl345 oid=%c rest_ticks=%u");
 
-pub fn command_query_adxl345_status(args: &[u32]) -> R {
+pub fn command_query_adxl345_status(args: &Args) -> R {
     let ax = unsafe { &mut *(oid_lookup(args[0] as u8, oid_type())? as *mut Adxl345) };
     let mut msg = [AR_FIFO_STATUS | AM_READ, 0x00];
 

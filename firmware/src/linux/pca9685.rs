@@ -10,6 +10,7 @@ use crate::basecmd::{
     move_queue_setup, oid_alloc, oid_lookup, MoveNode, MoveQueueHead, OidType,
 };
 use crate::board::{irq_disable, irq_enable, timer_from_us, timer_is_before};
+use crate::command::Args;
 use crate::ctr::Global;
 use crate::sched::{sched_add_timer, sched_del_timer, Timer, TimerFunc, R, SF_DONE, SF_RESCHEDULE};
 use crate::{decl_command, decl_constant, decl_shutdown, shutdown, try_shutdown};
@@ -192,7 +193,7 @@ unsafe fn pca9685_event(timer: *mut Timer) -> R<u8> {
     Ok(SF_RESCHEDULE)
 }
 
-pub fn command_config_pca9685(args: &[u32]) -> R {
+pub fn command_config_pca9685(args: &Args) -> R {
     let (bus, addr, channel) = (args[1] as u8, args[2] as u8, args[3] as u8);
     let (value, default_value) = (args[5] as u16, args[6] as u16);
     if channel > CHANNEL_MAX || value > VALUE_MAX || default_value > VALUE_MAX {
@@ -219,7 +220,7 @@ fn is_func(f: Option<TimerFunc>, g: TimerFunc) -> bool {
     matches!(f, Some(f) if f as usize == g as usize)
 }
 
-pub fn command_queue_pca9685_out(args: &[u32]) -> R {
+pub fn command_queue_pca9685_out(args: &Args) -> R {
     let p = unsafe { &mut *(oid_lookup(args[0] as u8, oid_type())? as *mut I2cPwm) };
     let m = unsafe { &mut *(move_alloc()? as *mut Pca9685Move) };
     m.waketime = args[1];
@@ -246,7 +247,7 @@ pub fn command_queue_pca9685_out(args: &[u32]) -> R {
 }
 decl_command!(command_queue_pca9685_out, "queue_pca9685_out oid=%c clock=%u value=%hu");
 
-pub fn command_set_pca9685_out(args: &[u32]) -> R {
+pub fn command_set_pca9685_out(args: &Args) -> R {
     let (bus, addr, channel) = (args[0] as u8, args[1] as u8, args[2] as u8);
     let value = args[4] as u16;
     if channel > CHANNEL_MAX || value > VALUE_MAX {

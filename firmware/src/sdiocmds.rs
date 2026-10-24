@@ -5,7 +5,7 @@
 // This file may be distributed under the terms of the GNU GPLv3 license.
 use crate::basecmd::{oid_alloc, oid_lookup, OidType};
 use crate::board::{sdio_prepare_data_transfer, sdio_read_data, sdio_send_command, sdio_set_speed, sdio_setup, sdio_write_data, SdioConfig};
-use crate::command::command_decode_ptr;
+use crate::command::{command_decode_ptr, Args};
 use crate::sched::R;
 use crate::{decl_command, sendf};
 use core::mem::size_of;
@@ -24,7 +24,7 @@ fn oid_type() -> OidType {
     command_config_sdio as *const ()
 }
 
-pub fn command_config_sdio(args: &[u32]) -> R {
+pub fn command_config_sdio(args: &Args) -> R {
     let sdio = unsafe { &mut *(oid_alloc(args[0] as u8, oid_type(), size_of::<SdiodevS>() as u16)? as *mut SdiodevS) };
     sdio.blocksize = args[1];
     sdio.speed = 400000; // Initial speed set to ~400khz
@@ -36,14 +36,14 @@ pub fn sdiodev_oid_lookup(oid: u8) -> R<*mut SdiodevS> {
     Ok(oid_lookup(oid, oid_type())? as *mut SdiodevS)
 }
 
-pub fn command_sdio_set_bus(args: &[u32]) -> R {
+pub fn command_sdio_set_bus(args: &Args) -> R {
     let sdio = unsafe { &mut *sdiodev_oid_lookup(args[0] as u8)? };
     sdio.sdio_config = sdio_setup(args[1])?;
     Ok(())
 }
 decl_command!(command_sdio_set_bus, "sdio_set_bus oid=%c sdio_bus=%u");
 
-pub fn command_sdio_set_speed(args: &[u32]) -> R {
+pub fn command_sdio_set_speed(args: &Args) -> R {
     let sdio = unsafe { &mut *sdiodev_oid_lookup(args[0] as u8)? };
     sdio.speed = args[1];
     sdio_set_speed(sdio.sdio_config, sdio.speed);
@@ -51,7 +51,7 @@ pub fn command_sdio_set_speed(args: &[u32]) -> R {
 }
 decl_command!(command_sdio_set_speed, "sdio_set_speed oid=%c speed=%u");
 
-pub fn command_sdio_send_command(args: &[u32]) -> R {
+pub fn command_sdio_send_command(args: &Args) -> R {
     let oid = args[0] as u8;
     let cmd = args[1] as u8;
     let argument = args[2];
@@ -64,7 +64,7 @@ pub fn command_sdio_send_command(args: &[u32]) -> R {
 }
 decl_command!(command_sdio_send_command, "sdio_send_command oid=%c cmd=%c argument=%u wait=%c");
 
-pub fn command_sdio_read_data(args: &[u32]) -> R {
+pub fn command_sdio_read_data(args: &Args) -> R {
     let oid = args[0] as u8;
     let cmd = args[1] as u8;
     let argument = args[2];
@@ -88,7 +88,7 @@ pub fn command_sdio_read_data(args: &[u32]) -> R {
 }
 decl_command!(command_sdio_read_data, "sdio_read_data oid=%c cmd=%c argument=%u");
 
-pub fn command_sdio_write_data(args: &[u32]) -> R {
+pub fn command_sdio_write_data(args: &Args) -> R {
     let oid = args[0] as u8;
     let cmd = args[1] as u8;
     let argument = args[2];
@@ -114,7 +114,7 @@ decl_command!(command_sdio_write_data, "sdio_write_data oid=%c cmd=%c argument=%
 
 // (offset + len wraps as the C uint32_t sum does; the buffer address is
 // then computed the same way)
-pub fn command_sdio_read_data_buffer(args: &[u32]) -> R {
+pub fn command_sdio_read_data_buffer(args: &Args) -> R {
     let oid = args[0] as u8;
     let offset = args[1];
     let mut len = args[2] as u8;
@@ -129,7 +129,7 @@ pub fn command_sdio_read_data_buffer(args: &[u32]) -> R {
 }
 decl_command!(command_sdio_read_data_buffer, "sdio_read_data_buffer oid=%c offset=%u len=%c");
 
-pub fn command_sdio_write_data_buffer(args: &[u32]) -> R {
+pub fn command_sdio_write_data_buffer(args: &Args) -> R {
     let oid = args[0] as u8;
     let offset = args[1];
     let write_data_len = args[2] as u8;

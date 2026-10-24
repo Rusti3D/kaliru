@@ -6,6 +6,7 @@
 // This file may be distributed under the terms of the GNU GPLv3 license.
 use crate::basecmd::{oid_alloc, oid_lookup, OidType};
 use crate::board::{irq_disable, irq_enable};
+use crate::command::Args;
 use crate::ctr::Global;
 use crate::sched::{sched_add_timer, sched_check_wake, sched_del_timer, sched_wake_task, TaskWake, Timer, R, SF_RESCHEDULE};
 use crate::spicmds::{spidev_oid_lookup, spidev_transfer, SpiDev};
@@ -52,7 +53,7 @@ unsafe fn thermocouple_event(timer: *mut Timer) -> R<u8> {
     Ok(SF_RESCHEDULE)
 }
 
-pub fn command_config_thermocouple(args: &[u32]) -> R {
+pub fn command_config_thermocouple(args: &Args) -> R {
     let chip_type = args[2] as u8;
     if chip_type > TS_CHIP_MAX6675 {
         shutdown!("Invalid thermocouple chip type");
@@ -65,7 +66,7 @@ pub fn command_config_thermocouple(args: &[u32]) -> R {
 }
 decl_command!(command_config_thermocouple, "config_thermocouple oid=%c spi_oid=%c thermocouple_type=%c");
 
-pub fn command_query_thermocouple(args: &[u32]) -> R {
+pub fn command_query_thermocouple(args: &Args) -> R {
     let spi = unsafe { &mut *(oid_lookup(args[0] as u8, oid_type())? as *mut ThermocoupleSpi) };
 
     sched_del_timer(&mut spi.timer);

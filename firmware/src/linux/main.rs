@@ -5,6 +5,7 @@
 // This file may be distributed under the terms of the GNU GPLv3 license.
 use super::console::{console_setup, report_errno};
 use super::watchdog::watchdog_setup;
+use crate::command::Args;
 use crate::ctr::Global;
 use crate::sched::{sched_is_shutdown, sched_main, R};
 use crate::{decl_command, decl_constant_str, shutdown};
@@ -41,7 +42,7 @@ fn realtime_setup() -> i32 {
 
 static ORIG_ARGV: Global<Vec<*mut libc::c_char>> = Global::new(Vec::new());
 
-pub fn command_config_reset(_args: &[u32]) -> R {
+pub fn command_config_reset(_args: &Args) -> R {
     if !sched_is_shutdown() {
         shutdown!("config_reset only available when shutdown");
     }

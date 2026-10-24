@@ -8,6 +8,7 @@ use super::pid::{PidController, PidParams};
 use super::status_led_driver::*;
 use crate::atsamd::internal::*;
 use crate::board::{timer_from_us, timer_is_before, timer_read_time};
+use crate::command::Args;
 use crate::config::CONFIG_CLOCK_FREQ;
 use crate::ctr::Global;
 use crate::sched::{
@@ -267,7 +268,7 @@ fn indx_init() -> R {
     sched_add_timer(&mut h.liveness_timer)
 }
 
-pub fn command_indx_set_target(args: &[u32]) -> R {
+pub fn command_indx_set_target(args: &Args) -> R {
     let Some(h) = instance() else { return Ok(()) };
 
     let set_point = f32::from_bits(args[0]);
@@ -284,7 +285,7 @@ pub fn command_indx_set_target(args: &[u32]) -> R {
 }
 decl_command!(command_indx_set_target, "indx_set_target target=%u");
 
-pub fn command_indx_set_bracket_temp(args: &[u32]) -> R {
+pub fn command_indx_set_bracket_temp(args: &Args) -> R {
     let Some(h) = instance() else { return Ok(()) };
 
     let temp = f32::from_bits(args[0]);
@@ -297,7 +298,7 @@ pub fn command_indx_set_bracket_temp(args: &[u32]) -> R {
 }
 decl_command!(command_indx_set_bracket_temp, "indx_set_bracket_temp temp=%u");
 
-pub fn command_indx_set_ir_sensor_params(args: &[u32]) -> R {
+pub fn command_indx_set_ir_sensor_params(args: &Args) -> R {
     let Some(h) = instance() else { return Ok(()) };
 
     let exponent = f32::from_bits(args[0]);
@@ -313,7 +314,7 @@ decl_command!(
     "indx_set_ir_sensor_params exponent=%u obj_gain=%u bracket_gain=%u"
 );
 
-pub fn command_indx_set_control_params(args: &[u32]) -> R {
+pub fn command_indx_set_control_params(args: &Args) -> R {
     let Some(h) = instance() else { return Ok(()) };
 
     let kp = f32::from_bits(args[0]);
@@ -334,7 +335,7 @@ decl_command!(
     "indx_set_control_params kp=%u ti=%u td=%u b=%u i_window=%u i_limit=%u"
 );
 
-pub fn command_indx_set_coil_driver_params(args: &[u32]) -> R {
+pub fn command_indx_set_coil_driver_params(args: &Args) -> R {
     let Some(h) = instance() else { return Ok(()) };
 
     let time_on = f32::from_bits(args[0]);
@@ -348,7 +349,7 @@ decl_command!(
     "indx_set_coil_driver_params time_on=%u time_off=%u time_on_first=%u"
 );
 
-pub fn command_indx_cycle_limit(args: &[u32]) -> R {
+pub fn command_indx_cycle_limit(args: &Args) -> R {
     let Some(h) = instance() else { return Ok(()) };
 
     h.coil_driver_inst.set_cycle_limit(args[0]);
@@ -359,7 +360,7 @@ decl_command!(command_indx_cycle_limit, "indx_cycle_limit limit=%u");
 // Start the on-device coil-driver auto-tune (commissioning). start_tune()
 // faults if the coil is being driven; tuning and heating are mutually
 // exclusive. Advanced to completion by tune_step() from indx_heater_task.
-pub fn command_indx_tune_coil(args: &[u32]) -> R {
+pub fn command_indx_tune_coil(args: &Args) -> R {
     let Some(h) = instance() else { return Ok(()) };
 
     h.coil_driver_inst.start_tune(args[0] != 0)
@@ -368,7 +369,7 @@ decl_command!(command_indx_tune_coil, "indx_tune_coil debug=%c");
 
 // Poll the latched tune outcome (replies indx_coil_tune_result). Reliable
 // because the host can re-query; a dropped completion notification is fine.
-pub fn command_indx_query_coil_tune(_args: &[u32]) -> R {
+pub fn command_indx_query_coil_tune(_args: &Args) -> R {
     let Some(h) = instance() else { return Ok(()) };
 
     h.coil_driver_inst.report_tune_status()
@@ -377,14 +378,14 @@ decl_command!(command_indx_query_coil_tune, "indx_query_coil_tune");
 
 // Read back the drive timings currently in effect (replies
 // indx_coil_driver_params).
-pub fn command_indx_query_coil_driver_params(_args: &[u32]) -> R {
+pub fn command_indx_query_coil_driver_params(_args: &Args) -> R {
     let Some(h) = instance() else { return Ok(()) };
 
     h.coil_driver_inst.report_params()
 }
 decl_command!(command_indx_query_coil_driver_params, "indx_query_coil_driver_params");
 
-pub fn command_indx_led_force_color(args: &[u32]) -> R {
+pub fn command_indx_led_force_color(args: &Args) -> R {
     let Some(h) = instance() else { return Ok(()) };
 
     if args[3] != 0 {
@@ -395,14 +396,14 @@ pub fn command_indx_led_force_color(args: &[u32]) -> R {
 }
 decl_command!(command_indx_led_force_color, "indx_led_force_color r=%c g=%c b=%c force=%c");
 
-pub fn command_indx_led_set_current(args: &[u32]) -> R {
+pub fn command_indx_led_set_current(args: &Args) -> R {
     let Some(h) = instance() else { return Ok(()) };
 
     h.status_led.set_currents(args[0] as u8, args[1] as u8, args[2] as u8)
 }
 decl_command!(command_indx_led_set_current, "indx_led_set_current r=%c g=%c b=%c");
 
-pub fn command_indx_debug_stream_raw_ir_sensor(args: &[u32]) -> R {
+pub fn command_indx_debug_stream_raw_ir_sensor(args: &Args) -> R {
     let Some(h) = instance() else { return Ok(()) };
 
     h.debug_stream_raw_ir = args[0] != 0;
@@ -410,7 +411,7 @@ pub fn command_indx_debug_stream_raw_ir_sensor(args: &[u32]) -> R {
 }
 decl_command!(command_indx_debug_stream_raw_ir_sensor, "indx_debug_stream_raw_ir_sensor enable=%c");
 
-pub fn command_indx_debug_ir_sensor_eeprom(_args: &[u32]) -> R {
+pub fn command_indx_debug_ir_sensor_eeprom(_args: &Args) -> R {
     sendf!("indx_debug_ir_sensor_eeprom_data data=%*s", &*EEPROM.get())
 }
 decl_command!(command_indx_debug_ir_sensor_eeprom, "indx_debug_ir_sensor_eeprom");

@@ -6,6 +6,7 @@
 // This file may be distributed under the terms of the GNU GPLv3 license.
 use crate::basecmd::alloc_chunk;
 use crate::board::{gpio_in_read, gpio_in_reset, gpio_in_setup, gpio_out_reset, gpio_out_setup, timer_is_before, timer_read_time, GpioIn, GpioOut};
+use crate::command::Args;
 use crate::decl_command;
 use crate::i2ccmds::{i2cdev_oid_lookup, i2cdev_set_software_bus, I2C_BUS_NACK, I2C_BUS_START_NACK, I2C_BUS_START_READ_NACK, I2C_BUS_SUCCESS};
 use crate::sched::R;
@@ -21,7 +22,7 @@ pub struct I2cSoftware {
     ticks: u32,
 }
 
-pub fn command_i2c_set_sw_bus(args: &[u32]) -> R {
+pub fn command_i2c_set_sw_bus(args: &Args) -> R {
     let i2c = i2cdev_oid_lookup(args[0] as u8)?;
     let is = alloc_chunk(size_of::<I2cSoftware>())? as *mut I2cSoftware;
     let s = unsafe { &mut *is };

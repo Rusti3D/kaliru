@@ -5,6 +5,7 @@
 // This file may be distributed under the terms of the GNU GPLv3 license.
 use crate::basecmd::{oid_alloc, oid_lookup, OidType};
 use crate::board::{gpio_in_read, gpio_in_setup, irq_disable, irq_enable, timer_is_before, GpioIn};
+use crate::command::Args;
 use crate::ctr::Global;
 use crate::sched::{sched_add_timer, sched_check_wake, sched_del_timer, sched_wake_task, TaskWake, Timer, R, SF_RESCHEDULE};
 use crate::{decl_command, decl_task, sendf};
@@ -52,7 +53,7 @@ unsafe fn counter_event(timer: *mut Timer) -> R<u8> {
     Ok(SF_RESCHEDULE)
 }
 
-pub fn command_config_counter(args: &[u32]) -> R {
+pub fn command_config_counter(args: &Args) -> R {
     let c = unsafe { &mut *(oid_alloc(args[0] as u8, oid_type(), size_of::<Counter>() as u16)? as *mut Counter) };
     c.pin = gpio_in_setup(args[1], args[2] as crate::board::GpioPullUp)?;
     c.timer.func = Some(counter_event);
@@ -60,7 +61,7 @@ pub fn command_config_counter(args: &[u32]) -> R {
 }
 decl_command!(command_config_counter, "config_counter oid=%c pin=%u pull_up=%c");
 
-pub fn command_query_counter(args: &[u32]) -> R {
+pub fn command_query_counter(args: &Args) -> R {
     let c = unsafe { &mut *(oid_lookup(args[0] as u8, oid_type())? as *mut Counter) };
     sched_del_timer(&mut c.timer);
     c.timer.waketime = args[1];

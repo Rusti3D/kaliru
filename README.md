@@ -50,12 +50,11 @@ Reference: Kalico `5b59427`.
   the linux board, scripted sessions against both, with fake gpio/spi/i2c/adc
   hardware, give the same answers and the same pin and bus activity. In an
   emulator the C and Rust images of every micro-controller config (serial,
-  USB, CAN incl. can2040 on the rp2040 PIO, USB-to-CAN) give the same
-  answers and the same peripheral register accesses; no micro-controller
+  USB, CAN incl. can2040 on the rp2040 PIO, USB-to-CAN; AVR on simavr) give
+  the same answers and the same peripheral register accesses; no micro-controller
   build has run on a chip yet. See
   [`firmware/README.md`](firmware/README.md).
 - Not ported: the AR100 (or1k) and PRU boards (Rust has no target for them).
-  The atmega168 build is 6.3KB larger than its flash.
 
 ## Building
 

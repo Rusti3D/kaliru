@@ -6,6 +6,7 @@
 // This file may be distributed under the terms of the GNU GPLv3 license.
 use crate::basecmd::{oid_alloc, oid_lookup, OidType};
 use crate::board::{gpio_in_read, gpio_in_setup, irq_disable, irq_enable, timer_is_before, timer_read_time, GpioIn};
+use crate::command::Args;
 use crate::ctr::Global;
 use crate::i2ccmds::{i2c_dev_read, i2c_shutdown_on_err, i2cdev_oid_lookup, I2cDev};
 use crate::sched::{sched_add_timer, sched_check_wake, sched_del_timer, sched_wake_task, TaskWake, Timer, R, SF_RESCHEDULE};
@@ -66,7 +67,7 @@ unsafe fn ldc1612_event(timer: *mut Timer) -> R<u8> {
     Ok(SF_RESCHEDULE)
 }
 
-pub fn command_config_ldc1612(args: &[u32]) -> R {
+pub fn command_config_ldc1612(args: &Args) -> R {
     let ld = unsafe { &mut *(oid_alloc(args[0] as u8, oid_type(), size_of::<Ldc1612>() as u16)? as *mut Ldc1612) };
     ld.timer.func = Some(ldc1612_event);
     ld.i2c = i2cdev_oid_lookup(args[1] as u8)?;
@@ -74,7 +75,7 @@ pub fn command_config_ldc1612(args: &[u32]) -> R {
 }
 decl_command!(command_config_ldc1612, "config_ldc1612 oid=%c i2c_oid=%c");
 
-pub fn command_config_ldc1612_with_intb(args: &[u32]) -> R {
+pub fn command_config_ldc1612_with_intb(args: &Args) -> R {
     command_config_ldc1612(args)?;
     let ld = lookup(args[0])?;
     ld.intb_pin = gpio_in_setup(args[2], 1)?;
@@ -83,7 +84,7 @@ pub fn command_config_ldc1612_with_intb(args: &[u32]) -> R {
 }
 decl_command!(command_config_ldc1612_with_intb, "config_ldc1612_with_intb oid=%c i2c_oid=%c intb_pin=%c");
 
-pub fn command_ldc1612_setup_home(args: &[u32]) -> R {
+pub fn command_ldc1612_setup_home(args: &Args) -> R {
     let ld = lookup(args[0])?;
 
     ld.trigger_threshold = args[2];
@@ -104,7 +105,7 @@ decl_command!(
     concat!("ldc1612_setup_home oid=%c clock=%u threshold=%u", " trsync_oid=%c trigger_reason=%c error_reason=%c")
 );
 
-pub fn command_query_ldc1612_home_state(args: &[u32]) -> R {
+pub fn command_query_ldc1612_home_state(args: &Args) -> R {
     let ld = lookup(args[0])?;
     sendf!(
         "ldc1612_home_state oid=%c homing=%c trigger_clock=%u",
@@ -190,7 +191,7 @@ fn ldc1612_query(ld: &mut Ldc1612, oid: u8) -> R {
     Ok(())
 }
 
-pub fn command_query_ldc1612(args: &[u32]) -> R {
+pub fn command_query_ldc1612(args: &Args) -> R {
     let ld = lookup(args[0])?;
 
     sched_del_timer(&mut ld.timer);
@@ -211,7 +212,7 @@ pub fn command_query_ldc1612(args: &[u32]) -> R {
 }
 decl_command!(command_query_ldc1612, "query_ldc1612 oid=%c rest_ticks=%u");
 
-pub fn command_query_status_ldc1612(args: &[u32]) -> R {
+pub fn command_query_status_ldc1612(args: &Args) -> R {
     let ld = lookup(args[0])?;
 
     if ld.flags & LDC_HAVE_INTB != 0 {

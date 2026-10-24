@@ -44,7 +44,7 @@ pub use gpio_h::{GpioAdc, GpioIn, GpioOut, GpioOutVal, GpioPullUp, GpioPwm, I2cC
 pub use hard_pwm::{gpio_pwm_setup, gpio_pwm_write};
 #[cfg(CONFIG_WANT_GPIO_I2C)]
 pub use i2c::{i2c_read, i2c_setup, i2c_write};
-pub use irq::{irq_disable, irq_enable, irq_poll, irq_restore, irq_save, irq_wait, IrqStatus};
+pub use irq::{irq_disable, irq_enable, irq_poll, irq_restore, irq_save, irq_wait, shutdown_jump, IrqStatus};
 pub use main::{crc16_ccitt, dynmem_end, dynmem_start};
 #[cfg(CONFIG_SERIAL)]
 pub use serial::serial_enable_tx_irq;

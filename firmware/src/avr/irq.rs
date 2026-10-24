@@ -2,7 +2,7 @@
 //
 // This file may be distributed under the terms of the GNU GPLv3 license.
 use super::chip::SREG;
-use crate::sched::{sched_main_loop, Shutdown, R};
+use crate::sched::{sched_main_loop, R};
 use core::arch::asm;
 use core::sync::atomic::{compiler_fence, Ordering};
 
@@ -42,13 +42,12 @@ pub fn irq_poll() -> R {
     Ok(())
 }
 
-// A shutdown inside an irq handler. C's sched_shutdown() longjmps from the
-// handler back into sched_main() (irqs stay disabled: the handler's reti
-// is not run); here the handler passes the Shutdown to this function,
-// which drops the stack the same way (to its top, RAMEND, where avr-libc's
-// startup put it) and continues in the sched_main() loop. (SPH / SPL are
-// io registers 0x3e / 0x3d on every AVR.)
-pub fn avr_irq_shutdown(s: Shutdown) -> ! {
+// sched_shutdown(): C longjmps back into sched_main() (irqs stay disabled;
+// from an irq handler its reti is not run). Here the stack is dropped the
+// same way (to its top, RAMEND, where avr-libc's startup put it) and the
+// sched_main() loop is entered again with the reason. (SPH / SPL are io
+// registers 0x3e / 0x3d on every AVR.)
+pub fn shutdown_jump(reason: u8) -> ! {
     let top = super::chip::RAMEND;
     unsafe {
         asm!(
@@ -57,13 +56,13 @@ pub fn avr_irq_shutdown(s: Shutdown) -> ! {
             "ijmp",
             hi = in(reg) (top >> 8) as u8,
             lo = in(reg) top as u8,
-            in("r24") s.0,
-            in("Z") avr_irq_shutdown_entry as extern "C" fn(u8) -> !,
+            in("r24") reason,
+            in("Z") shutdown_entry as extern "C" fn(u8) -> !,
             options(noreturn),
         )
     }
 }
 
-extern "C" fn avr_irq_shutdown_entry(reason: u8) -> ! {
-    sched_main_loop(Err(Shutdown(reason)))
+extern "C" fn shutdown_entry(reason: u8) -> ! {
+    sched_main_loop(Some(reason))
 }

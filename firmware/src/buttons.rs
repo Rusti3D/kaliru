@@ -5,6 +5,7 @@
 // This file may be distributed under the terms of the GNU GPLv3 license.
 use crate::basecmd::{oid_alloc, oid_lookup, OidType};
 use crate::board::{gpio_in_read, gpio_in_setup, irq_disable, irq_enable, GpioIn};
+use crate::command::Args;
 use crate::ctr::Global;
 use crate::sched::{sched_add_timer, sched_check_wake, sched_del_timer, sched_wake_task, TaskWake, Timer, R, SF_RESCHEDULE};
 use crate::{decl_command, decl_task, sendf, shutdown};
@@ -89,7 +90,7 @@ unsafe fn buttons_event(t: *mut Timer) -> R<u8> {
     Ok(SF_RESCHEDULE)
 }
 
-pub fn command_config_buttons(args: &[u32]) -> R {
+pub fn command_config_buttons(args: &Args) -> R {
     let button_count = args[1] as u8;
     if button_count > 8 {
         shutdown!("Max of 8 buttons");
@@ -106,7 +107,7 @@ fn lookup(oid: u32) -> R<&'static mut Buttons> {
     Ok(unsafe { &mut *(oid_lookup(oid as u8, oid_type())? as *mut Buttons) })
 }
 
-pub fn command_buttons_add(args: &[u32]) -> R {
+pub fn command_buttons_add(args: &Args) -> R {
     let b = lookup(args[0])?;
     let pos = args[1] as u8;
     if pos >= b.button_count {
@@ -117,7 +118,7 @@ pub fn command_buttons_add(args: &[u32]) -> R {
 }
 decl_command!(command_buttons_add, "buttons_add oid=%c pos=%c pin=%u pull_up=%c");
 
-pub fn command_buttons_query(args: &[u32]) -> R {
+pub fn command_buttons_query(args: &Args) -> R {
     let b = lookup(args[0])?;
     sched_del_timer(&mut b.time);
     b.time.waketime = args[1];
@@ -141,7 +142,7 @@ decl_command!(
     concat!("buttons_query oid=%c clock=%u rest_ticks=%u retransmit_count=%c", " invert=%c")
 );
 
-pub fn command_buttons_ack(args: &[u32]) -> R {
+pub fn command_buttons_ack(args: &Args) -> R {
     let b = lookup(args[0])?;
     let count = args[1] as u8;
     b.ack_count = b.ack_count.wrapping_add(count);

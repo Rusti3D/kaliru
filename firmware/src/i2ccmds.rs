@@ -5,7 +5,7 @@
 // This file may be distributed under the terms of the GNU GPLv3 license.
 use crate::basecmd::{oid_alloc, oid_lookup, OidType};
 use crate::board::I2cConfig;
-use crate::command::{command_decode_buffer, command_decode_ptr};
+use crate::command::{command_decode_buffer, command_decode_ptr, Args};
 #[cfg(CONFIG_WANT_SOFTWARE_I2C)]
 use crate::i2c_software::I2cSoftware;
 use crate::sched::R;
@@ -55,7 +55,7 @@ fn oid_type() -> OidType {
     command_config_i2c as *const ()
 }
 
-pub fn command_config_i2c(args: &[u32]) -> R {
+pub fn command_config_i2c(args: &Args) -> R {
     oid_alloc(args[0] as u8, oid_type(), size_of::<I2cDev>() as u16)?;
     Ok(())
 }
@@ -66,7 +66,7 @@ pub fn i2cdev_oid_lookup(oid: u8) -> R<*mut I2cDev> {
 }
 
 #[cfg(CONFIG_WANT_GPIO_I2C)]
-pub fn command_i2c_set_bus(args: &[u32]) -> R {
+pub fn command_i2c_set_bus(args: &Args) -> R {
     let addr = (args[3] & 0x7f) as u8;
     let i2c = unsafe { &mut *i2cdev_oid_lookup(args[0] as u8)? };
     i2c.bus.i2c_hw = i2c_setup(args[1], args[2], addr)?;
@@ -74,7 +74,7 @@ pub fn command_i2c_set_bus(args: &[u32]) -> R {
     Ok(())
 }
 #[cfg(not(CONFIG_WANT_GPIO_I2C))]
-pub fn command_i2c_set_bus(_args: &[u32]) -> R {
+pub fn command_i2c_set_bus(_args: &Args) -> R {
     shutdown!("hardware I2C is not supported/enabled");
 }
 decl_command!(command_i2c_set_bus, "i2c_set_bus oid=%c i2c_bus=%u rate=%u address=%u");
@@ -115,7 +115,7 @@ pub fn i2c_dev_write(i2c: *mut I2cDev, data: &[u8]) -> R<i32> {
     i2c_write(unsafe { (*i2c).bus.i2c_hw }, data)
 }
 
-pub fn command_i2c_write(args: &[u32]) -> R {
+pub fn command_i2c_write(args: &Args) -> R {
     let oid = args[0] as u8;
     let i2c = oid_lookup(oid, oid_type())? as *mut I2cDev;
     let data = command_decode_buffer(args[1] as u8 as u32, args[2]);
@@ -138,7 +138,7 @@ pub fn i2c_dev_read(i2c: *mut I2cDev, reg: &[u8], read: &mut [u8]) -> R<i32> {
     i2c_read(unsafe { (*i2c).bus.i2c_hw }, reg, read)
 }
 
-pub fn command_i2c_read(args: &[u32]) -> R {
+pub fn command_i2c_read(args: &Args) -> R {
     let oid = args[0] as u8;
     let i2c = oid_lookup(oid, oid_type())? as *mut I2cDev;
     let reg_len = args[1] as u8 as usize;

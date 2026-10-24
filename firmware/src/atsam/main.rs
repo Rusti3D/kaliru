@@ -5,6 +5,7 @@
 // This file may be distributed under the terms of the GNU GPLv3 license.
 use super::internal::*;
 use crate::board::irq_disable;
+use crate::command::Args;
 use crate::config::{CONFIG_CLOCK_FREQ, CONFIG_MACH_SAME70};
 use crate::sched::{sched_main, R};
 use crate::{decl_command, decl_init, decl_task};
@@ -80,7 +81,7 @@ const RST_PARAMS: u32 = (0xA5 << RSTC_CR_KEY_Pos) | RSTC_CR_PROCRST;
 #[cfg(not(CONFIG_MACH_SAME70))]
 const RST_PARAMS: u32 = (0xA5 << RSTC_CR_KEY_Pos) | RSTC_CR_PROCRST | RSTC_CR_PERRST;
 
-pub fn command_reset(_args: &[u32]) -> R {
+pub fn command_reset(_args: &Args) -> R {
     irq_disable();
     unsafe { &*RSTC }.RSTC_CR.write(RST_PARAMS);
     #[allow(clippy::empty_loop)]

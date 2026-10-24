@@ -4,6 +4,7 @@
 //
 // This file may be distributed under the terms of the GNU GPLv3 license.
 use crate::board::irq_disable;
+use crate::command::Args;
 use crate::config::{CONFIG_FLASH_APPLICATION_ADDRESS, CONFIG_FLASH_BOOT_ADDRESS};
 use crate::decl_command;
 use crate::generic::cmsis::NVIC_SystemReset;
@@ -37,7 +38,7 @@ pub fn try_request_canboot() {
     canboot_reset(CANBOOT_REQUEST);
 }
 
-pub fn command_reset(_args: &[u32]) -> R {
+pub fn command_reset(_args: &Args) -> R {
     canboot_reset(CANBOOT_BYPASS);
     NVIC_SystemReset();
 }

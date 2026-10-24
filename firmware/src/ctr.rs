@@ -95,7 +95,7 @@ pub const fn streq(a: &str, b: &str) -> bool {
 
 #[allow(unused_imports)]
 use crate::command::{
-    CommandEncoder, CommandParser, PT_buffer, PT_byte, PT_int16, PT_int32, PT_progmem_buffer, PT_string, PT_uint16, PT_uint32,
+    CommandEncoder, CommandParser, ParamTypes, PT_buffer, PT_byte, PT_int16, PT_int32, PT_progmem_buffer, PT_string, PT_uint16, PT_uint32,
 };
 use crate::sched::R;
 
@@ -167,7 +167,7 @@ macro_rules! armcm_enable_irq {
 macro_rules! sendf {
     ($fmt:expr $(, $arg:expr)* $(,)?) => {{
         const IDX: usize = $crate::ctr::ctr_lookup_encoder($fmt);
-        $crate::command::command_sendf(&$crate::ctr::ENCODERS[IDX], &[$($crate::command::SendArg::from($arg)),*])
+        $crate::command_sendf_args!(&$crate::ctr::ENCODERS[IDX] $(, $arg)*)
     }};
 }
 
@@ -176,8 +176,39 @@ macro_rules! sendf {
 macro_rules! output {
     ($fmt:expr $(, $arg:expr)* $(,)?) => {{
         const IDX: usize = $crate::ctr::ctr_lookup_output($fmt);
-        $crate::command::command_sendf(&$crate::ctr::ENCODERS[IDX], &[$($crate::command::SendArg::from($arg)),*])
+        $crate::command_sendf_args!(&$crate::ctr::ENCODERS[IDX] $(, $arg)*)
     }};
+}
+
+// command_sendf() of an encoder and its arguments (1 to 4 of them through
+// command_sendf4())
+#[doc(hidden)]
+#[macro_export]
+macro_rules! command_sendf_args {
+    ($ce:expr) => {
+        $crate::command::command_sendf($ce, &[])
+    };
+    ($ce:expr, $a:expr) => {
+        $crate::command_sendf_args!($ce, $a, $crate::command::SendArg::NONE, $crate::command::SendArg::NONE, $crate::command::SendArg::NONE)
+    };
+    ($ce:expr, $a:expr, $b:expr) => {
+        $crate::command_sendf_args!($ce, $a, $b, $crate::command::SendArg::NONE, $crate::command::SendArg::NONE)
+    };
+    ($ce:expr, $a:expr, $b:expr, $c:expr) => {
+        $crate::command_sendf_args!($ce, $a, $b, $c, $crate::command::SendArg::NONE)
+    };
+    ($ce:expr, $a:expr, $b:expr, $c:expr, $d:expr) => {
+        $crate::command::command_sendf4(
+            $ce,
+            $crate::command::SendArg::from($a),
+            $crate::command::SendArg::from($b),
+            $crate::command::SendArg::from($c),
+            $crate::command::SendArg::from($d),
+        )
+    };
+    ($ce:expr $(, $arg:expr)*) => {
+        $crate::command::command_sendf($ce, &[$($crate::command::SendArg::from($arg)),*])
+    };
 }
 
 // The id of a static string (also declares it)

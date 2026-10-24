@@ -8,6 +8,7 @@ use crate::board::{
     gpio_in_read, gpio_in_reset, gpio_in_setup, gpio_out_reset, gpio_out_setup, gpio_out_write, irq_disable, irq_enable, irq_poll,
     timer_from_us, timer_is_before, timer_read_time, GpioIn, GpioOut,
 };
+use crate::command::Args;
 use crate::config::CONFIG_MACH_AVR;
 use crate::ctr::Global;
 use crate::load_cell_probe::{load_cell_probe_oid_lookup, load_cell_probe_report_sample, LoadCellProbe};
@@ -224,7 +225,7 @@ fn cs1237_read_adc(cs: &mut Cs1237Adc, oid: u8) -> R {
     add_sample(cs, oid, counts)
 }
 
-pub fn command_config_cs1237(args: &[u32]) -> R {
+pub fn command_config_cs1237(args: &Args) -> R {
     let cs = unsafe { &mut *(oid_alloc(args[0] as u8, oid_type(), size_of::<Cs1237Adc>() as u16)? as *mut Cs1237Adc) };
     cs.timer.func = Some(cs1237_event);
     cs.config = (args[1] & 0x7f) as u8;
@@ -240,7 +241,7 @@ decl_command!(
     concat!("config_cs1237 oid=%c config=%c", " dout_pin=%u sclk_pin=%u")
 );
 
-pub fn cs1237_attach_load_cell_probe(args: &[u32]) -> R {
+pub fn cs1237_attach_load_cell_probe(args: &Args) -> R {
     let cs = lookup(args[0] as u8)?;
     cs.lce = load_cell_probe_oid_lookup(args[1] as u8)?;
     Ok(())
@@ -250,7 +251,7 @@ decl_command!(
     concat!("cs1237_attach_load_cell_probe", " oid=%c load_cell_probe_oid=%c")
 );
 
-pub fn command_query_cs1237(args: &[u32]) -> R {
+pub fn command_query_cs1237(args: &Args) -> R {
     let cs = lookup(args[0] as u8)?;
     sched_del_timer(&mut cs.timer);
     cs.flags = 0;
@@ -273,7 +274,7 @@ pub fn command_query_cs1237(args: &[u32]) -> R {
 }
 decl_command!(command_query_cs1237, "query_cs1237 oid=%c rest_ticks=%u");
 
-pub fn command_query_cs1237_status(args: &[u32]) -> R {
+pub fn command_query_cs1237_status(args: &Args) -> R {
     let oid = args[0] as u8;
     let cs = lookup(oid)?;
     irq_disable();

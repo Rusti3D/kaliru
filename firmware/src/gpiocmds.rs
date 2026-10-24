@@ -8,6 +8,7 @@ use crate::basecmd::{
     move_queue_setup, oid_alloc, oid_lookup, MoveNode, MoveQueueHead, OidType,
 };
 use crate::board::{gpio_out_setup, gpio_out_toggle_noirq, gpio_out_write, irq_disable, irq_enable, timer_is_before, timer_read_time, GpioOut};
+use crate::command::Args;
 use crate::sched::{sched_add_timer, sched_del_timer, Timer, R, SF_DONE, SF_RESCHEDULE};
 use crate::{decl_command, decl_shutdown, shutdown};
 use core::mem::size_of;
@@ -123,7 +124,7 @@ unsafe fn digital_load_event(timer: *mut Timer) -> R<u8> {
     Ok(SF_RESCHEDULE)
 }
 
-pub fn command_config_digital_out(args: &[u32]) -> R {
+pub fn command_config_digital_out(args: &Args) -> R {
     let pin = gpio_out_setup(args[1], (args[2] != 0) as crate::board::GpioOutVal)?;
     let d = unsafe { &mut *(oid_alloc(args[0] as u8, oid_type(), size_of::<DigitalOut>() as u16)? as *mut DigitalOut) };
     d.pin = pin;
@@ -140,7 +141,7 @@ fn lookup(oid: u32) -> R<&'static mut DigitalOut> {
     Ok(unsafe { &mut *(oid_lookup(oid as u8, oid_type())? as *mut DigitalOut) })
 }
 
-pub fn command_set_digital_out_pwm_cycle(args: &[u32]) -> R {
+pub fn command_set_digital_out_pwm_cycle(args: &Args) -> R {
     let d = lookup(args[0])?;
     irq_disable();
     if !move_queue_empty(&d.mq) {
@@ -152,7 +153,7 @@ pub fn command_set_digital_out_pwm_cycle(args: &[u32]) -> R {
 }
 decl_command!(command_set_digital_out_pwm_cycle, "set_digital_out_pwm_cycle oid=%c cycle_ticks=%u");
 
-pub fn command_queue_digital_out(args: &[u32]) -> R {
+pub fn command_queue_digital_out(args: &Args) -> R {
     let d = lookup(args[0])?;
     let m = move_alloc()? as *mut DigitalMove;
     let time = args[1];
@@ -187,7 +188,7 @@ pub fn command_queue_digital_out(args: &[u32]) -> R {
 }
 decl_command!(command_queue_digital_out, "queue_digital_out oid=%c clock=%u on_ticks=%u");
 
-pub fn command_update_digital_out(args: &[u32]) -> R {
+pub fn command_update_digital_out(args: &Args) -> R {
     let d = lookup(args[0])?;
     sched_del_timer(&mut d.timer);
     if !move_queue_empty(&d.mq) {
@@ -221,7 +222,7 @@ pub fn digital_out_shutdown() -> R {
 }
 decl_shutdown!(digital_out_shutdown);
 
-pub fn command_set_digital_out(args: &[u32]) -> R {
+pub fn command_set_digital_out(args: &Args) -> R {
     gpio_out_setup(args[0], args[1] as crate::board::GpioOutVal)?;
     Ok(())
 }

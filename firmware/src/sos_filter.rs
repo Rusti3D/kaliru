@@ -4,6 +4,7 @@
 //
 // This file may be distributed under the terms of the GNU GPLv3 license.
 use crate::basecmd::{oid_alloc, oid_lookup, OidType};
+use crate::command::Args;
 use crate::sched::R;
 use crate::{decl_command, shutdown};
 use core::mem::size_of;
@@ -100,7 +101,7 @@ pub fn sosfilt(sf: *mut SosFilter, unfiltered_value: i32) -> R<i32> {
 }
 
 // Create an sos_filter
-pub fn command_config_sos_filter(args: &[u32]) -> R {
+pub fn command_config_sos_filter(args: &Args) -> R {
     let max_sections = args[1] as u8;
     let size = size_of::<SosFilter>() + size_of::<SosFilterSection>() * max_sections as usize;
     let sf = unsafe { &mut *(oid_alloc(args[0] as u8, oid_type(), size as u16)? as *mut SosFilter) };
@@ -124,7 +125,7 @@ fn validate_section_index(sf: &SosFilter, section_idx: u8) -> R {
 }
 
 // Set one section of the filter
-pub fn command_sos_filter_set_section(args: &[u32]) -> R {
+pub fn command_sos_filter_set_section(args: &Args) -> R {
     let sf = unsafe { &mut *sos_filter_oid_lookup(args[0] as u8)? };
     // setting a section marks the filter as inactive
     sf.is_active = 0;
@@ -143,7 +144,7 @@ decl_command!(
 );
 
 // Set the state of one section of the filter
-pub fn command_sos_filter_set_state(args: &[u32]) -> R {
+pub fn command_sos_filter_set_state(args: &Args) -> R {
     let sf = unsafe { &mut *sos_filter_oid_lookup(args[0] as u8)? };
     // setting a section's state marks the filter as inactive
     sf.is_active = 0;
@@ -159,7 +160,7 @@ pub fn command_sos_filter_set_state(args: &[u32]) -> R {
 decl_command!(command_sos_filter_set_state, "sos_filter_set_state oid=%c section_idx=%c state0=%i state1=%i");
 
 // Set one section of the filter
-pub fn command_sos_filter_activate(args: &[u32]) -> R {
+pub fn command_sos_filter_activate(args: &Args) -> R {
     let sf = unsafe { &mut *sos_filter_oid_lookup(args[0] as u8)? };
     let n_sections = args[1] as u8;
     if n_sections > sf.max_sections {

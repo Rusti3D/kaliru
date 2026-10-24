@@ -6,6 +6,7 @@
 // This file may be distributed under the terms of the GNU GPLv3 license.
 use crate::basecmd::{oid_alloc, oid_lookup, OidType};
 use crate::board::{irq_disable, irq_enable, timer_read_time};
+use crate::command::Args;
 use crate::config::{CONFIG_WANT_I2C, CONFIG_WANT_SPI};
 use crate::ctr::Global;
 use crate::i2ccmds::{i2c_dev_read, i2c_shutdown_on_err, i2cdev_oid_lookup, I2cDev};
@@ -71,7 +72,7 @@ unsafe fn lis2dw_event(timer: *mut Timer) -> R<u8> {
     Ok(SF_DONE)
 }
 
-pub fn command_config_lis2dw(args: &[u32]) -> R {
+pub fn command_config_lis2dw(args: &Args) -> R {
     let ax = unsafe { &mut *(oid_alloc(args[0] as u8, oid_type(), size_of::<Lis2dw>() as u16)? as *mut Lis2dw) };
     ax.timer.func = Some(lis2dw_event);
 
@@ -210,7 +211,7 @@ fn lis2dw_query(ax: &mut Lis2dw, oid: u8) -> R {
     Ok(())
 }
 
-pub fn command_query_lis2dw(args: &[u32]) -> R {
+pub fn command_query_lis2dw(args: &Args) -> R {
     let ax = unsafe { &mut *(oid_lookup(args[0] as u8, oid_type())? as *mut Lis2dw) };
 
     sched_del_timer(&mut ax.timer);
@@ -228,7 +229,7 @@ pub fn command_query_lis2dw(args: &[u32]) -> R {
 }
 decl_command!(command_query_lis2dw, "query_lis2dw oid=%c rest_ticks=%u");
 
-pub fn command_query_lis2dw_status(args: &[u32]) -> R {
+pub fn command_query_lis2dw_status(args: &Args) -> R {
     let ax = unsafe { &mut *(oid_lookup(args[0] as u8, oid_type())? as *mut Lis2dw) };
     let mut time1 = 0;
     let mut time2 = 0;

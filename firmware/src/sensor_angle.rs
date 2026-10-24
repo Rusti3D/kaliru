@@ -5,7 +5,7 @@
 // This file may be distributed under the terms of the GNU GPLv3 license.
 use crate::basecmd::{oid_alloc, oid_lookup, oid_next, OidType};
 use crate::board::{gpio_out_write, irq_disable, irq_enable, irq_poll, timer_from_us, timer_is_before, timer_read_time};
-use crate::command::command_decode_buffer;
+use crate::command::{command_decode_buffer, Args};
 use crate::ctr::Global;
 use crate::sched::{sched_add_timer, sched_check_wake, sched_del_timer, sched_wake_task, TaskWake, Timer, R, SF_RESCHEDULE};
 use crate::sensor_bulk::{sensor_bulk_report, sensor_bulk_reset, SensorBulk};
@@ -74,7 +74,7 @@ unsafe fn angle_event(timer: *mut Timer) -> R<u8> {
     Ok(SF_RESCHEDULE)
 }
 
-pub fn command_config_spi_angle(args: &[u32]) -> R {
+pub fn command_config_spi_angle(args: &Args) -> R {
     let chip_type = args[2] as u8;
     if chip_type > SA_CHIP_MAX {
         shutdown!("Invalid spi_angle chip type");
@@ -289,7 +289,7 @@ fn tle5012b_query(sa: &mut SpiAngle, stime: u32) -> R {
     Ok(())
 }
 
-pub fn command_query_spi_angle(args: &[u32]) -> R {
+pub fn command_query_spi_angle(args: &Args) -> R {
     let sa = unsafe { &mut *(oid_lookup(args[0] as u8, oid_type())? as *mut SpiAngle) };
 
     sched_del_timer(&mut sa.timer);
@@ -308,7 +308,7 @@ pub fn command_query_spi_angle(args: &[u32]) -> R {
 }
 decl_command!(command_query_spi_angle, "query_spi_angle oid=%c clock=%u rest_ticks=%u time_shift=%c");
 
-pub fn command_spi_angle_transfer(args: &[u32]) -> R {
+pub fn command_spi_angle_transfer(args: &Args) -> R {
     let oid = args[0] as u8;
     let sa = unsafe { &mut *(oid_lookup(oid, oid_type())? as *mut SpiAngle) };
     let data = command_decode_buffer(args[1] as u8 as u32, args[2]);

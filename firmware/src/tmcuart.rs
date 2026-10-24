@@ -8,7 +8,7 @@ use crate::board::{
     gpio_in_read, gpio_in_reset, gpio_in_setup, gpio_out_reset, gpio_out_setup, gpio_out_toggle_noirq, gpio_out_write, irq_disable,
     irq_enable, timer_from_us, timer_read_time, GpioIn, GpioOut,
 };
-use crate::command::command_decode_ptr;
+use crate::command::{command_decode_ptr, Args};
 use crate::ctr::Global;
 use crate::sched::{sched_add_timer, sched_check_wake, sched_wake_task, TaskWake, Timer, R, SF_DONE, SF_RESCHEDULE};
 use crate::{decl_command, decl_shutdown, decl_task, sendf, shutdown};
@@ -182,7 +182,7 @@ unsafe fn tmcuart_send_sync_event(timer: *mut Timer) -> R<u8> {
     Ok(SF_RESCHEDULE)
 }
 
-pub fn command_config_tmcuart(args: &[u32]) -> R {
+pub fn command_config_tmcuart(args: &Args) -> R {
     let t = unsafe { &mut *(oid_alloc(args[0] as u8, oid_type(), size_of::<Tmcuart>() as u16)? as *mut Tmcuart) };
     let pull_up = args[2] as u8;
     let (rx_pin, tx_pin) = (args[1], args[3]);
@@ -198,7 +198,7 @@ decl_command!(
 );
 
 // Parse and schedule a TMC UART transmission request
-pub fn command_tmcuart_send(args: &[u32]) -> R {
+pub fn command_tmcuart_send(args: &Args) -> R {
     let t = unsafe { &mut *(oid_lookup(args[0] as u8, oid_type())? as *mut Tmcuart) };
     if t.flags & TU_ACTIVE != 0 {
         // Uart is busy - silently drop this request (host should retransmit)

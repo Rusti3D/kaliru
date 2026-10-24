@@ -8,6 +8,7 @@ use crate::board::pgm::{readp, NEED_PROGMEM};
 use crate::board::{console_sendf, crc16_ccitt, irq_poll};
 use crate::ctr::{Global, COMMAND_INDEX, MAX_COMMAND_ARGS};
 use core::ffi::{c_int, c_uint};
+use core::marker::PhantomData;
 use core::mem::size_of;
 use crate::sched::{sched_is_shutdown, sched_report_shutdown, R};
 use crate::{decl_shutdown, shutdown};
@@ -37,44 +38,87 @@ pub const PT_string: u8 = 5;
 pub const PT_progmem_buffer: u8 = 6;
 pub const PT_buffer: u8 = 7;
 
+/// a table of num_params parameter types (C: `const uint8_t *param_types`:
+/// one pointer, not a slice)
+#[derive(Clone, Copy)]
+pub struct ParamTypes(pub *const u8);
+unsafe impl Sync for ParamTypes {}
+
+impl ParamTypes {
+    pub const NONE: ParamTypes = ParamTypes(core::ptr::null());
+}
+
 pub struct CommandEncoder {
     pub encoded_msgid: u16,
     pub max_size: u8,
     pub num_params: u8,
-    pub param_types: &'static [u8],
+    pub param_types: ParamTypes,
 }
 
-pub type CommandFunc = fn(&[u32]) -> R;
+// The arguments of a command (as many as the longest command has: an index
+// known at compile time needs no bounds check)
+pub type Args = [u32; MAX_COMMAND_ARGS];
+pub type CommandFunc = fn(&Args) -> R;
 
 pub struct CommandParser {
     pub encoded_msgid: u16,
     pub num_args: u8,
     pub flags: u8,
     pub num_params: u8,
-    pub param_types: &'static [u8],
+    pub param_types: ParamTypes,
     pub func: Option<CommandFunc>,
 }
 
 impl CommandParser {
     pub const EMPTY: CommandParser =
-        CommandParser { encoded_msgid: 0, num_args: 0, flags: 0, num_params: 0, param_types: &[], func: None };
+        CommandParser { encoded_msgid: 0, num_args: 0, flags: 0, num_params: 0, param_types: ParamTypes::NONE, func: None };
 }
 
-/// a sendf() argument (the C varargs)
+/// a sendf() argument, a C vararg: an int, or a string / buffer (its
+/// pointer and length), which the encoder's param_types tell apart. (Untagged,
+/// as C's: 4 bytes on AVR, so command_sendf4() gets them in registers.)
 #[derive(Clone, Copy)]
-pub enum SendArg<'a> {
-    Int(u32),
-    /// %s: a nul terminated string (up to the end of the slice here)
-    Str(&'a [u8]),
-    /// %*s / %.*s: a length and a pointer
-    Buf(&'a [u8]),
+pub union SendArg<'a> {
+    int: u32,
+    buf: SendBuf<'a>,
+    none: (),
+}
+
+#[derive(Clone, Copy)]
+struct SendBuf<'a> {
+    ptr: *const u8,
+    len: usize,
+    _data: PhantomData<&'a [u8]>,
+}
+
+impl<'a> SendArg<'a> {
+    /// (no argument: command_sendf4()'s unused ones, never read)
+    pub const NONE: SendArg<'static> = SendArg { none: () };
+
+    pub const fn int(v: u32) -> Self {
+        SendArg { int: v }
+    }
+
+    /// a %*s / %.*s buffer, or a %s string (up to a nul or its end here)
+    pub const fn bytes(b: &'a [u8]) -> Self {
+        SendArg { buf: SendBuf { ptr: b.as_ptr(), len: b.len(), _data: PhantomData } }
+    }
+
+    /// (the encoder's param_types say which it is)
+    unsafe fn as_int(self) -> u32 {
+        self.int
+    }
+
+    unsafe fn as_bytes(self) -> &'a [u8] {
+        core::slice::from_raw_parts(self.buf.ptr, self.buf.len)
+    }
 }
 
 macro_rules! int_arg {
     ($($t:ty),*) => {$(
         impl From<$t> for SendArg<'_> {
             fn from(v: $t) -> Self {
-                SendArg::Int(v as i32 as u32)
+                SendArg::int(v as i32 as u32)
             }
         }
     )*};
@@ -83,27 +127,27 @@ int_arg!(u8, u16, i8, i16, i32);
 
 impl From<u32> for SendArg<'_> {
     fn from(v: u32) -> Self {
-        SendArg::Int(v)
+        SendArg::int(v)
     }
 }
 impl From<bool> for SendArg<'_> {
     fn from(v: bool) -> Self {
-        SendArg::Int(v as u32)
+        SendArg::int(v as u32)
     }
 }
 impl<'a> From<&'a [u8]> for SendArg<'a> {
     fn from(v: &'a [u8]) -> Self {
-        SendArg::Buf(v)
+        SendArg::bytes(v)
     }
 }
 impl<'a, const N: usize> From<&'a [u8; N]> for SendArg<'a> {
     fn from(v: &'a [u8; N]) -> Self {
-        SendArg::Buf(v)
+        SendArg::bytes(v)
     }
 }
 impl<'a> From<&'a str> for SendArg<'a> {
     fn from(v: &'a str) -> Self {
-        SendArg::Str(v.as_bytes())
+        SendArg::bytes(v.as_bytes())
     }
 }
 
@@ -135,37 +179,39 @@ pub fn command_decode_buffer<'a>(len: u32, ptr: u32) -> &'a mut [u8] {
  ****************************************************************/
 
 // Encode an integer as a variable length quantity (vlq)
-fn encode_int(buf: &mut [u8], mut p: usize, v: u32) -> usize {
+unsafe fn encode_int(mut p: *mut u8, v: u32) -> *mut u8 {
     let sv = v as i32;
-    let n = if sv < (3 << 5) && sv >= -(1 << 5) {
-        1
+    // (C jumps into the run of stores: the number of 7 bit groups before
+    // the last)
+    let n: u8 = if sv < (3 << 5) && sv >= -(1 << 5) {
+        0
     } else if sv < (3 << 12) && sv >= -(1 << 12) {
-        2
+        1
     } else if sv < (3 << 19) && sv >= -(1 << 19) {
-        3
+        2
     } else if sv < (3 << 26) && sv >= -(1 << 26) {
-        4
+        3
     } else {
-        5
+        4
     };
-    if n >= 5 {
-        buf[p] = ((v >> 28) | 0x80) as u8;
-        p += 1;
-    }
     if n >= 4 {
-        buf[p] = (((v >> 21) & 0x7f) | 0x80) as u8;
-        p += 1;
+        p.write(((v >> 28) | 0x80) as u8);
+        p = p.add(1);
     }
     if n >= 3 {
-        buf[p] = (((v >> 14) & 0x7f) | 0x80) as u8;
-        p += 1;
+        p.write((((v >> 21) & 0x7f) | 0x80) as u8);
+        p = p.add(1);
     }
     if n >= 2 {
-        buf[p] = (((v >> 7) & 0x7f) | 0x80) as u8;
-        p += 1;
+        p.write((((v >> 14) & 0x7f) | 0x80) as u8);
+        p = p.add(1);
     }
-    buf[p] = (v & 0x7f) as u8;
-    p + 1
+    if n >= 1 {
+        p.write((((v >> 7) & 0x7f) | 0x80) as u8);
+        p = p.add(1);
+    }
+    p.write((v & 0x7f) as u8);
+    p.add(1)
 }
 
 // Parse an integer that was encoded as a "variable length quantity"
@@ -187,13 +233,13 @@ fn parse_int(buf: &[u8], pp: &mut usize) -> u32 {
 }
 
 // Write an encoded msgid (optimized 2-byte VLQ encoder)
-fn encode_msgid(buf: &mut [u8], mut p: usize, encoded_msgid: u16) -> usize {
+unsafe fn encode_msgid(mut p: *mut u8, encoded_msgid: u16) -> *mut u8 {
     if encoded_msgid >= 0x80 {
-        buf[p] = ((encoded_msgid >> 7) | 0x80) as u8;
-        p += 1;
+        p.write(((encoded_msgid >> 7) | 0x80) as u8);
+        p = p.add(1);
     }
-    buf[p] = (encoded_msgid & 0x7f) as u8;
-    p + 1
+    p.write((encoded_msgid & 0x7f) as u8);
+    p.add(1)
 }
 
 // Parse an encoded msgid (optimized 2-byte parser, return as positive number)
@@ -213,13 +259,15 @@ pub fn command_parse_msgid(buf: &[u8], pp: &mut usize) -> u16 {
 pub fn command_parsef(buf: &[u8], mut p: usize, maxend: usize, cp: &CommandParser, args: &mut [u32]) -> R<usize> {
     'error: {
         let mut a = 0;
-        let num_params = readp(&cp.num_params) as usize;
-        let param_types = readp(&cp.param_types);
-        for t in &param_types[..num_params] {
+        let num_params = readp(&cp.num_params);
+        let mut param_types = readp(&cp.param_types).0;
+        for _ in 0..num_params {
             if p > maxend {
                 break 'error;
             }
-            match readp(t) {
+            let t = readp(unsafe { &*param_types });
+            param_types = unsafe { param_types.add(1) };
+            match t {
                 PT_uint32 | PT_int32 | PT_uint16 | PT_int16 | PT_byte => {
                     args[a] = parse_int(buf, &mut p);
                     a += 1;
@@ -246,87 +294,98 @@ pub fn command_parsef(buf: &[u8], mut p: usize, maxend: usize, cp: &CommandParse
     shutdown!("Command parser error");
 }
 
-// Encode a message
-fn command_encodef(buf: &mut [u8], ce: &CommandEncoder, args: &[SendArg]) -> R<usize> {
+// Encode a message (into `buf`, which has room for the encoder's max_size,
+// as C's callers make sure)
+unsafe fn command_encodef(buf: *mut u8, ce: &CommandEncoder, args: &[SendArg]) -> R<usize> {
     let max_size = readp(&ce.max_size) as usize;
     if max_size <= MESSAGE_MIN {
         // Ack/Nak message
         return Ok(max_size);
     }
-    let mut p = MESSAGE_HEADER_SIZE;
-    let maxend = p + max_size - MESSAGE_MIN;
-    let num_params = readp(&ce.num_params) as usize;
-    let param_types = readp(&ce.param_types);
-    p = encode_msgid(buf, p, readp(&ce.encoded_msgid));
+    let mut p = buf.add(MESSAGE_HEADER_SIZE);
+    let maxend = p.add(max_size - MESSAGE_MIN);
+    let num_params = readp(&ce.num_params);
+    let mut param_types = readp(&ce.param_types).0;
+    p = encode_msgid(p, readp(&ce.encoded_msgid));
+    let mut args = args.iter();
     'error: {
-        for (i, t) in param_types[..num_params].iter().enumerate() {
-            let t = readp(t);
+        for _ in 0..num_params {
             if p > maxend {
                 break 'error;
             }
-            match (t, args.get(i)) {
-                (PT_uint32 | PT_int32 | PT_uint16 | PT_int16 | PT_byte, Some(SendArg::Int(v))) => {
+            let t = readp(&*param_types);
+            param_types = param_types.add(1);
+            let Some(&arg) = args.next() else {
+                break 'error;
+            };
+            match t {
+                PT_uint32 | PT_int32 | PT_uint16 | PT_int16 | PT_byte => {
+                    let v = arg.as_int();
                     // (a 16bit int board passes these as an int / unsigned int)
                     let v = if size_of::<u32>() > size_of::<c_int>() && t >= PT_uint16 {
                         if t == PT_int16 {
-                            *v as c_int as i32 as u32
+                            v as c_int as i32 as u32
                         } else {
-                            *v as c_uint as u32
+                            v as c_uint as u32
                         }
                     } else {
-                        *v
+                        v
                     };
-                    p = encode_int(buf, p, v);
+                    p = encode_int(p, v);
                 }
-                (PT_string, Some(SendArg::Str(s))) => {
+                PT_string => {
                     let lenp = p;
-                    p += 1;
-                    for &ch in s.iter() {
+                    p = p.add(1);
+                    for &ch in arg.as_bytes() {
                         if ch == 0 || p >= maxend {
                             break;
                         }
-                        buf[p] = ch;
-                        p += 1;
+                        p.write(ch);
+                        p = p.add(1);
                     }
-                    buf[lenp] = (p - lenp - 1) as u8;
+                    lenp.write((p.offset_from(lenp) - 1) as u8);
                 }
-                (PT_progmem_buffer | PT_buffer, Some(SendArg::Buf(s))) => {
-                    let v = s.len().min(maxend - p);
-                    buf[p] = v as u8;
-                    p += 1;
+                PT_progmem_buffer | PT_buffer => {
+                    let s = arg.as_bytes();
+                    let v = s.len().min(maxend.offset_from(p) as usize);
+                    p.write(v as u8);
+                    p = p.add(1);
                     if t == PT_progmem_buffer && NEED_PROGMEM {
                         // memcpy_P()
-                        for (d, b) in buf[p..p + v].iter_mut().zip(&s[..v]) {
-                            *d = readp(b);
+                        for (i, b) in s[..v].iter().enumerate() {
+                            p.add(i).write(readp(b));
                         }
                     } else {
-                        buf[p..p + v].copy_from_slice(&s[..v]);
+                        core::ptr::copy_nonoverlapping(s.as_ptr(), p, v);
                     }
-                    p += v;
+                    p = p.add(v);
                 }
                 _ => break 'error,
             }
         }
-        return Ok(p + MESSAGE_TRAILER_SIZE);
+        return Ok(p.offset_from(buf) as usize + MESSAGE_TRAILER_SIZE);
     }
     shutdown!("Message encode error");
 }
 
 // Add header and trailer bytes to a message block
-fn command_add_frame(buf: &mut [u8], msglen: usize) {
-    buf[MESSAGE_POS_LEN] = msglen as u8;
-    buf[MESSAGE_POS_SEQ] = *NEXT_SEQUENCE.get();
-    let crc = crc16_ccitt(&buf[..msglen - MESSAGE_TRAILER_SIZE]);
-    buf[msglen - MESSAGE_TRAILER_CRC] = (crc >> 8) as u8;
-    buf[msglen - MESSAGE_TRAILER_CRC + 1] = crc as u8;
-    buf[msglen - MESSAGE_TRAILER_SYNC] = MESSAGE_SYNC;
+unsafe fn command_add_frame(buf: *mut u8, msglen: usize) {
+    buf.add(MESSAGE_POS_LEN).write(msglen as u8);
+    buf.add(MESSAGE_POS_SEQ).write(*NEXT_SEQUENCE.get());
+    let crc = crc16_ccitt(core::slice::from_raw_parts(buf, msglen - MESSAGE_TRAILER_SIZE));
+    buf.add(msglen - MESSAGE_TRAILER_CRC).write((crc >> 8) as u8);
+    buf.add(msglen - MESSAGE_TRAILER_CRC + 1).write(crc as u8);
+    buf.add(msglen - MESSAGE_TRAILER_SYNC).write(MESSAGE_SYNC);
 }
 
-// Encode a message and then add a message block frame around it
+// Encode a message and then add a message block frame around it (`buf`
+// has room for the encoder's max_size)
 pub fn command_encode_and_frame(buf: &mut [u8], ce: &CommandEncoder, args: &[SendArg]) -> R<usize> {
-    let msglen = command_encodef(buf, ce, args)?;
-    command_add_frame(buf, msglen);
-    Ok(msglen)
+    unsafe {
+        let msglen = command_encodef(buf.as_mut_ptr(), ce, args)?;
+        command_add_frame(buf.as_mut_ptr(), msglen);
+        Ok(msglen)
+    }
 }
 
 static IN_SENDF: Global<u8> = Global::new(0);
@@ -345,6 +404,14 @@ pub fn command_sendf(ce: &CommandEncoder, args: &[SendArg]) -> R {
     let r = console_sendf(ce, args);
     unsafe { core::ptr::write_volatile(in_sendf, 0) };
     r
+}
+
+// (sendf!() with 1 to 4 arguments, the unused ones SendArg::NONE: they come
+// in registers and the array is made here, not at every sendf!(); the
+// encoder reads num_params of them)
+#[inline(never)]
+pub fn command_sendf4(ce: &CommandEncoder, a: SendArg, b: SendArg, c: SendArg, d: SendArg) -> R {
+    command_sendf(ce, &[a, b, c, d])
 }
 
 pub fn sendf_shutdown() -> R {
@@ -367,7 +434,7 @@ fn command_lookup_parser(cmdid: u16) -> R<&'static CommandParser> {
 
 // Empty message (for ack/nak transmission)
 #[cfg_attr(CONFIG_MACH_AVR, link_section = ".progmem.data")]
-pub static ENCODE_ACKNAK: CommandEncoder = CommandEncoder { encoded_msgid: 0, max_size: MESSAGE_MIN as u8, num_params: 0, param_types: &[] };
+pub static ENCODE_ACKNAK: CommandEncoder = CommandEncoder { encoded_msgid: 0, max_size: MESSAGE_MIN as u8, num_params: 0, param_types: ParamTypes::NONE };
 
 const CF_NEED_SYNC: u8 = 1 << 0;
 const CF_NEED_VALID: u8 = 1 << 1;
@@ -448,16 +515,16 @@ pub fn command_dispatch(buf: &[u8], msglen: usize) -> R {
     while p < msgend {
         let cmdid = command_parse_msgid(buf, &mut p);
         let cp = command_lookup_parser(cmdid)?;
-        // (C: a variable length array of READP(cp->num_args))
-        let mut args = [0u32; MAX_COMMAND_ARGS];
-        let args = &mut args[..readp(&cp.num_args) as usize];
-        p = command_parsef(buf, p, msgend, cp, args)?;
+        // (C: a variable length array of READP(cp->num_args); here one of
+        // the longest command's size, of which the parser fills num_args)
+        let mut args: Args = [0; MAX_COMMAND_ARGS];
+        p = command_parsef(buf, p, msgend, cp, &mut args[..readp(&cp.num_args) as usize])?;
         if sched_is_shutdown() && readp(&cp.flags) & HF_IN_SHUTDOWN == 0 {
             sched_report_shutdown()?;
             continue;
         }
         irq_poll()?;
-        (readp(&cp.func).unwrap())(args)?;
+        (readp(&cp.func).unwrap())(&args)?;
     }
     Ok(())
 }

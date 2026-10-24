@@ -5,6 +5,7 @@
 // This file may be distributed under the terms of the GNU GPLv3 license.
 use crate::basecmd::{foreach_oid, oid_alloc, oid_lookup, OidType};
 use crate::board::{irq_disable, irq_enable, irq_restore, irq_save, timer_read_time};
+use crate::command::Args;
 use crate::ctr::Global;
 use crate::sched::{sched_add_timer, sched_check_wake, sched_del_timer, sched_wake_task, TaskWake, Timer, R, SF_DONE, SF_RESCHEDULE};
 use crate::{decl_command, decl_shutdown, decl_task, sendf, shutdown};
@@ -78,7 +79,7 @@ unsafe fn trsync_report_event(t: *mut Timer) -> R<u8> {
     Ok(SF_RESCHEDULE)
 }
 
-pub fn command_config_trsync(args: &[u32]) -> R {
+pub fn command_config_trsync(args: &Args) -> R {
     let ts = unsafe { &mut *(oid_alloc(args[0] as u8, oid_type(), size_of::<Trsync>() as u16)? as *mut Trsync) };
     ts.report_time.func = Some(trsync_report_event);
     ts.expire_time.func = Some(trsync_expire_event);
@@ -125,7 +126,7 @@ fn trsync_clear(ts: &mut Trsync) {
     ts.expire_reason = 0;
 }
 
-pub fn command_trsync_start(args: &[u32]) -> R {
+pub fn command_trsync_start(args: &Args) -> R {
     let ts = unsafe { &mut *trsync_oid_lookup(args[0] as u8)? };
     irq_disable();
     trsync_clear(ts);
@@ -144,7 +145,7 @@ decl_command!(
     concat!("trsync_start oid=%c report_clock=%u report_ticks=%u", " expire_reason=%c")
 );
 
-pub fn command_trsync_set_timeout(args: &[u32]) -> R {
+pub fn command_trsync_set_timeout(args: &Args) -> R {
     let ts = unsafe { &mut *trsync_oid_lookup(args[0] as u8)? };
     irq_disable();
     let flags = ts.flags;
@@ -168,7 +169,7 @@ fn trsync_report(oid: u8, flags: u8, reason: u8, clock: u32) -> R {
     )
 }
 
-pub fn command_trsync_trigger(args: &[u32]) -> R {
+pub fn command_trsync_trigger(args: &Args) -> R {
     let oid = args[0] as u8;
     let ts = trsync_oid_lookup(oid)?;
     irq_disable();

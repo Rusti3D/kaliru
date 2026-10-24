@@ -23,7 +23,8 @@ command parsing, all command modules and sensor drivers) and these boards:
 Not ported: ar100, pru (Rust has no or1k / pru target).
 
 AVR builds need nightly rustc (`avr-none`, `-Z build-std=core`) and avr-gcc / avr-libc for the startup code and
-linker script; `tests/ctr_check.sh` builds them with opt-level z. The atmega168 image does not fit its flash.
+linker script; `tests/ctr_check.sh` builds them with opt-level z (about 1.08x the C image: atmega168 16.3KB of 16KB).
+`tools/size_cmp.py` compares the C and Rust images function by function.
 
 ## Building
 
@@ -95,7 +96,7 @@ application address.
   (`tests/emu_run.py`: Unicorn with a small deterministic model of each board family's clock, timer and serial
   port, usb device controller (with a usb host that enumerates it) or can controller (with a can host that assigns
   the node id)) on the `tests/scripts` and compares the answers and every peripheral register read and write. 52
-  of the 54 configs (all but linux, checked by `mcu_cmp.sh`, and the simulator) give 7/7 identical scripts: all 16
+  of the 54 ARM configs (all but linux, checked by `mcu_cmp.sh`, and the simulator) give 7/7 identical scripts: all 16
   serial configs (stm32 f0 / f1 / f4 / g0 / g4 / h7, AT32, N32, lpc176x, sam3x, samd21, samd51, hc32f460, rp2040),
   all 20 USB configs (stm32 usbfs and otg, rp2040, rp2350, samd21 / samd51, lpc176x, sam3x / sam4s / sam4e /
   same70), the INDX toolboard, the 9 CAN configs (bxcan, stm32 fdcan, samc21 / same51 / same70 M_CAN, lpc176x,
@@ -103,5 +104,9 @@ application address.
   bridges (gs_usb). The known differences (`tests/emu_known/README.md`) are Kalico C code whose effect gcc
   chooses (non-volatile register pointers, a volatile read moved past a call, uninitialised frame bytes) or C
   defects (an HC32 neopixel store merged away, an F072 stack overflow).
+  AVR configs run on simavr's core instead (`tests/emu_avr.py` + `tests/avr_shim.c`, apt `simavr
+  libsimavr-dev`): every io register is the model's (timer1, usart, the at90usb / atmega32u4 usb controller with
+  the same usb host); simavr has no at90usb1286 / 646 core, so atmega1280 / atmega644p cores (same flash and
+  vector size) stand in. All 10 AVR configs give 7/7 identical scripts.
 - Behaviour on a chip is not checked for any micro-controller board yet (no hardware run; the Renode set-up in `tests/renode/` does not yet run
   Kalico's own image, see NOTES "Kaliru MCU firmware").

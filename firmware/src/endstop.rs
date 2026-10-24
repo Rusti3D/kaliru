@@ -5,6 +5,7 @@
 // This file may be distributed under the terms of the GNU GPLv3 license.
 use crate::basecmd::{oid_alloc, oid_lookup, OidType};
 use crate::board::{gpio_in_read, gpio_in_setup, irq_disable, irq_enable, GpioIn};
+use crate::command::Args;
 use crate::sched::{sched_add_timer, sched_del_timer, Timer, R, SF_DONE, SF_RESCHEDULE};
 use crate::trsync::{trsync_do_trigger, trsync_oid_lookup, Trsync};
 use crate::{decl_command, sendf};
@@ -68,7 +69,7 @@ unsafe fn endstop_oversample_event(t: *mut Timer) -> R<u8> {
     Ok(SF_RESCHEDULE)
 }
 
-pub fn command_config_endstop(args: &[u32]) -> R {
+pub fn command_config_endstop(args: &Args) -> R {
     let e = unsafe { &mut *(oid_alloc(args[0] as u8, oid_type(), size_of::<Endstop>() as u16)? as *mut Endstop) };
     e.pin = gpio_in_setup(args[1], args[2] as crate::board::GpioPullUp)?;
     Ok(())
@@ -76,7 +77,7 @@ pub fn command_config_endstop(args: &[u32]) -> R {
 decl_command!(command_config_endstop, "config_endstop oid=%c pin=%c pull_up=%c");
 
 // Home an axis
-pub fn command_endstop_home(args: &[u32]) -> R {
+pub fn command_endstop_home(args: &Args) -> R {
     let e = unsafe { &mut *(oid_lookup(args[0] as u8, oid_type())? as *mut Endstop) };
     sched_del_timer(&mut e.time);
     e.time.waketime = args[1];
@@ -104,7 +105,7 @@ decl_command!(
     )
 );
 
-pub fn command_endstop_query_state(args: &[u32]) -> R {
+pub fn command_endstop_query_state(args: &Args) -> R {
     let oid = args[0] as u8;
     let e = unsafe { &mut *(oid_lookup(oid, oid_type())? as *mut Endstop) };
 

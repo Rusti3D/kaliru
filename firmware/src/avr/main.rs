@@ -3,9 +3,9 @@
 // Copyright (C) 2016,2017  Kevin O'Connor <kevin@koconnor.net>
 //
 // This file may be distributed under the terms of the GNU GPLv3 license.
-use super::chip::{CLKPR, SP};
+use super::chip::{CLKPR, FLASHEND, SP};
 use super::irq::{irq_enable, irq_restore, irq_save};
-use crate::config::{CONFIG_AVR_CLKPR, CONFIG_AVR_STACK_SIZE, CONFIG_MCU};
+use crate::config::{CONFIG_AVR_CLKPR, CONFIG_AVR_STACK_SIZE};
 use crate::sched::{sched_main, R};
 use crate::{decl_constant_str, decl_init};
 use core::ptr::addr_of_mut;
@@ -21,10 +21,21 @@ extern "C" {
     static mut _end: u8;
 }
 
+// C's .bss holds sched.c's `static jmp_buf shutdown_jmp` (avr-libc: 24
+// bytes with a 3 byte pc, a flash over 128KB, else 23), which the Rust
+// shutdown path does not need: the dynamic memory starts that much after
+// .bss, where C's does, so the move_count reported is C's
+const JBLEN: usize = if FLASHEND as u32 > 0x1ffff { 24 } else { 23 };
+
 // Return the start of memory available for dynamic allocations
 pub fn dynmem_start() -> *mut u8 {
-    unsafe { addr_of_mut!(_end) }
+    unsafe { addr_of_mut!(_end).add(JBLEN) }
 }
+
+// avr-libc's memcpy / memmove / memset, as C's build has, not the larger
+// ones of compiler_builtins (weak there): libc comes before it in the link
+#[link(name = "c")]
+extern "C" {}
 
 // Return the end of memory available for dynamic allocations
 pub fn dynmem_end() -> *mut u8 {

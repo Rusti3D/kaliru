@@ -5,6 +5,7 @@
 // This file may be distributed under the terms of the GNU GPLv3 license.
 use crate::basecmd::{oid_alloc, oid_lookup, OidType};
 use crate::board::{gpio_in_read, gpio_in_setup, irq_disable, irq_enable, timer_read_time, GpioIn};
+use crate::command::Args;
 use crate::ctr::Global;
 use crate::load_cell_probe::{load_cell_probe_oid_lookup, load_cell_probe_report_sample, LoadCellProbe};
 use crate::sched::{sched_add_timer, sched_check_wake, sched_del_timer, sched_wake_task, TaskWake, Timer, R, SF_RESCHEDULE};
@@ -167,7 +168,7 @@ fn ads131m0x_read_adc(adc: &mut Ads131m0xAdc, oid: u8) -> R {
     }
 }
 
-pub fn command_config_ads131m0x(args: &[u32]) -> R {
+pub fn command_config_ads131m0x(args: &Args) -> R {
     let adc = unsafe { &mut *(oid_alloc(args[0] as u8, oid_type(), size_of::<Ads131m0xAdc>() as u16)? as *mut Ads131m0xAdc) };
     adc.timer.func = Some(ads131m0x_event);
     adc.pending_flag = 0;
@@ -198,7 +199,7 @@ decl_command!(
     concat!("config_ads131m0x oid=%c spi_oid=%c data_ready_pin=%u", " sensor_channel_count=%c channel_mask=%c")
 );
 
-pub fn ads131m0x_attach_load_cell_probe(args: &[u32]) -> R {
+pub fn ads131m0x_attach_load_cell_probe(args: &Args) -> R {
     let oid = args[0] as u8;
     let adc = lookup(oid)?;
     adc.lce = load_cell_probe_oid_lookup(args[1] as u8)?;
@@ -206,7 +207,7 @@ pub fn ads131m0x_attach_load_cell_probe(args: &[u32]) -> R {
 }
 decl_command!(ads131m0x_attach_load_cell_probe, "ads131m0x_attach_load_cell_probe oid=%c load_cell_probe_oid=%c");
 
-pub fn command_query_ads131m0x(args: &[u32]) -> R {
+pub fn command_query_ads131m0x(args: &Args) -> R {
     let oid = args[0] as u8;
     let adc = lookup(oid)?;
     sched_del_timer(&mut adc.timer);
@@ -225,7 +226,7 @@ pub fn command_query_ads131m0x(args: &[u32]) -> R {
 }
 decl_command!(command_query_ads131m0x, "query_ads131m0x oid=%c rest_ticks=%u");
 
-pub fn command_query_ads131m0x_status(args: &[u32]) -> R {
+pub fn command_query_ads131m0x_status(args: &Args) -> R {
     let oid = args[0] as u8;
     let adc = lookup(oid)?;
     irq_disable();

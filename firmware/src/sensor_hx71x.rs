@@ -8,6 +8,7 @@ use crate::board::{
     gpio_in_read, gpio_in_setup, gpio_out_setup, gpio_out_toggle_noirq, gpio_out_write, irq_disable, irq_enable, irq_poll, timer_from_us,
     timer_is_before, timer_read_time, GpioIn, GpioOut,
 };
+use crate::command::Args;
 use crate::config::CONFIG_MACH_AVR;
 use crate::ctr::Global;
 use crate::load_cell_probe::{load_cell_probe_oid_lookup, load_cell_probe_report_sample, LoadCellProbe};
@@ -176,7 +177,7 @@ fn hx71x_read_adc(hx71x: &mut Hx71xAdc, oid: u8) -> R {
 }
 
 // Create a hx71x sensor
-pub fn command_config_hx71x(args: &[u32]) -> R {
+pub fn command_config_hx71x(args: &Args) -> R {
     let hx71x = unsafe { &mut *(oid_alloc(args[0] as u8, oid_type(), size_of::<Hx71xAdc>() as u16)? as *mut Hx71xAdc) };
     hx71x.timer.func = Some(hx71x_event);
     let gain_channel = args[1] as u8;
@@ -198,7 +199,7 @@ fn lookup(oid: u8) -> R<&'static mut Hx71xAdc> {
     Ok(unsafe { &mut *(oid_lookup(oid, oid_type())? as *mut Hx71xAdc) })
 }
 
-pub fn hx71x_attach_load_cell_probe(args: &[u32]) -> R {
+pub fn hx71x_attach_load_cell_probe(args: &Args) -> R {
     let oid = args[0] as u8;
     let hx71x = lookup(oid)?;
     hx71x.lce = load_cell_probe_oid_lookup(args[1] as u8)?;
@@ -210,7 +211,7 @@ decl_command!(
 );
 
 // start/stop capturing ADC data
-pub fn command_query_hx71x(args: &[u32]) -> R {
+pub fn command_query_hx71x(args: &Args) -> R {
     let oid = args[0] as u8;
     let hx71x = lookup(oid)?;
     sched_del_timer(&mut hx71x.timer);
@@ -233,7 +234,7 @@ pub fn command_query_hx71x(args: &[u32]) -> R {
 }
 decl_command!(command_query_hx71x, "query_hx71x oid=%c rest_ticks=%u");
 
-pub fn command_query_hx71x_status(args: &[u32]) -> R {
+pub fn command_query_hx71x_status(args: &Args) -> R {
     let oid = args[0] as u8;
     let hx71x = lookup(oid)?;
     irq_disable();

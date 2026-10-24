@@ -340,7 +340,7 @@ pub fn generate(requests: &[Request], eval: &Eval, versions: &Versions, kconfig:
     let mut params_ref = |types: &[(&'static str, usize)]| -> String {
         let names: Vec<&'static str> = types.iter().map(|t| t.0).collect();
         if names.is_empty() {
-            return "&[]".to_string();
+            return "ParamTypes::NONE".to_string();
         }
         let id = match param_ids.iter().position(|p| *p == names) {
             Some(i) => i,
@@ -349,7 +349,7 @@ pub fn generate(requests: &[Request], eval: &Eval, versions: &Versions, kconfig:
                 param_ids.len() - 1
             }
         };
-        format!("&COMMAND_PARAMETERS{}", id)
+        format!("ParamTypes(COMMAND_PARAMETERS{}.as_ptr())", id)
     };
     // encoders and outputs (generate_responses_code)
     let mut encoder_defs = vec![];
