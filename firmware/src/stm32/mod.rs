@@ -1,6 +1,5 @@
 // src/stm32: the STM32 boards. The board interface (board/misc.h,
 // board/irq.h, board/gpio.h, ...) as re-exports.
-pub mod reg;
 #[allow(non_upper_case_globals, non_camel_case_types, non_snake_case, dead_code, clippy::all)]
 pub mod chip {
     // the CMSIS device header (CONFIG_MCU), made by tools/gen_stm32_regs.py

@@ -15,7 +15,9 @@ for c in $configs; do
         target=""; tdir=release; profile=--release
     elif grep -q "CONFIG_MACH_STM32F4 1\|CONFIG_MACH_STM32F7 1\|CONFIG_MACH_STM32G4 1\|CONFIG_MACH_STM32L4 1\|CONFIG_MACH_STM32H7 1\|CONFIG_MACH_N32G45x 1" $a; then
         target=thumbv7em-none-eabi; tdir=$target/mcu; profile="--profile mcu"
-    elif grep -q "CONFIG_MACH_STM32F0 1\|CONFIG_MACH_STM32G0 1" $a; then
+    elif grep -q "CONFIG_MACH_RP2350 1" $a; then
+        target=thumbv8m.main-none-eabi; tdir=$target/mcu; profile="--profile mcu"
+    elif grep -q "CONFIG_MACH_STM32F0 1\|CONFIG_MACH_STM32G0 1\|CONFIG_MACH_RP2040 1" $a; then
         target=thumbv6m-none-eabi; tdir=$target/mcu; profile="--profile mcu"
     else
         target=thumbv7m-none-eabi; tdir=$target/mcu; profile="--profile mcu"

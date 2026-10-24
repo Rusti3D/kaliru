@@ -5,7 +5,7 @@
 // This file may be distributed under the terms of the GNU GPLv3 license.
 #![allow(non_snake_case)]
 pub use super::chip::*;
-pub use super::reg::Reg;
+pub use crate::reg::Reg;
 
 // gpio.c
 pub use super::gpio::digital_regs;

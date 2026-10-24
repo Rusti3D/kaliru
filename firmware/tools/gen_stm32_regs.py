@@ -9,14 +9,34 @@
 #
 # or one stand alone header (Kalico's lib/n32g45x/include/n32g45x_adc.h):
 #   gen_stm32_regs.py --header <kalico>/lib <family> <header.h> <out.rs>
+#
+# or the pico-sdk headers of an rp2040 / rp2350 build (the cmsis device header and every
+# hardware/structs and hardware/regs header; also every enum, not only IRQn_Type):
+#   gen_stm32_regs.py --pico <kalico>/lib <mcu> <out.rs>
 import os, re, subprocess, sys, tempfile
 
+pico = sys.argv[1] == '--pico'
 if sys.argv[1] == '--header':
     lib, family, header, out = sys.argv[2:6]
     define = None
     incs = ['-I', os.path.dirname(os.path.abspath(header))]
     top = os.path.basename(header)
     header_path = os.path.abspath(header)
+elif pico:
+    lib, mcu, out = sys.argv[2:5]
+    family = mcu
+    define = 'PICO_' + mcu.upper()                  # as the rp2040 Makefile's -DPICO_$(MCU_UPPER)
+    sdk = os.path.join(lib, 'pico-sdk')
+    incs = ['-I', os.path.join(lib, 'cmsis-core'), '-I', os.path.join(sdk, mcu), '-I', sdk,
+            '-I', os.path.join(sdk, mcu, 'cmsis_include')]
+    hw = os.path.join(sdk, mcu, 'hardware')
+    top = os.path.abspath(out) + '.h'
+    with open(top, 'w') as f:
+        f.write('#include "%s.h"\n' % mcu.upper())
+        for d in ('regs', 'structs'):
+            for h in sorted(os.listdir(os.path.join(hw, d))):
+                f.write('#include "hardware/%s/%s"\n' % (d, h))
+    header_path = top
 else:
     lib, family, mcu, out = sys.argv[1:5]
     define = mcu.upper().replace('X', 'x')          # as the stm32 Makefile's MCU_UPPER
@@ -25,10 +45,24 @@ else:
     header_path = os.path.join(lib, family, 'include', top)
 defs = ['-D' + define] if define else []
 # the -mcpu of Kalico's src/stm32/Makefile (the CMSIS headers test the target)
-MCPU = {'stm32f0': 'cortex-m0', 'stm32f1': 'cortex-m3', 'stm32f2': 'cortex-m3', 'stm32f4': 'cortex-m4',
+MCPU = {'rp2040': 'cortex-m0plus', 'rp2350': 'cortex-m33', 'stm32f0': 'cortex-m0', 'stm32f1': 'cortex-m3', 'stm32f2': 'cortex-m3', 'stm32f4': 'cortex-m4',
         'stm32f7': 'cortex-m7', 'stm32g0': 'cortex-m0plus', 'stm32g4': 'cortex-m4', 'stm32h7': 'cortex-m7',
         'stm32l4': 'cortex-m4'}[family]
-CTYPES = {'uint32_t': 'u32', 'uint16_t': 'u16', 'uint8_t': 'u8', 'int32_t': 'i32'}
+CTYPES = {'uint32_t': 'u32', 'uint16_t': 'u16', 'uint8_t': 'u8', 'int32_t': 'i32',
+          # pico-sdk hardware/address_mapped.h
+          'io_rw_32': 'u32', 'io_ro_32': 'u32', 'io_wo_32': 'u32',
+          'io_rw_16': 'u16', 'io_ro_16': 'u16', 'io_wo_16': 'u16',
+          'io_rw_8': 'u8', 'io_ro_8': 'u8', 'io_wo_8': 'u8'}
+
+
+# a C name that is a Rust keyword as a raw identifier (the `in` of usb_dpram)
+KEYWORDS = set('as async await break const continue crate dyn else enum extern false fn for if impl in let loop '
+               'match mod move mut pub ref return self static struct super trait true type unsafe use where '
+               'while abstract become box do final gen macro override priv try typeof unsized virtual yield'.split())
+
+
+def rust_name(n):
+    return 'r#' + n if n in KEYWORDS else n
 
 
 def run(cmd, **kw):
@@ -50,6 +84,23 @@ names = set(re.findall(r'#\s*define\s+(\w+)', text))
 gcc = ['arm-none-eabi-gcc', '-mcpu=' + MCPU, '-mthumb'] + defs + incs
 text = run(gcc + ['-E', '-P', '-x', 'c', header_path]).stdout
 
+# (pico: an anonymous `union { struct { fields }; T array[N]; };` is its struct's fields, the names
+# the C code uses; an inline `struct tag { fields } name[N];` is a struct of its own)
+inner = []        # (the C names of these are `struct tag`)
+hoisted = []
+if pico:
+    def hoist(m):
+        inner.append(m.group(1))
+        hoisted.append('typedef struct {%s} %s;' % (m.group(2), m.group(1)))
+        return '%s %s' % (m.group(1), m.group(3))
+    while True:
+        t = re.sub(r'union\s*\{\s*struct\s*\{([^{}]*)\}\s*;[^{}]*\}\s*;', r'\1', text)
+        t = re.sub(r'struct\s+(\w+)\s*\{([^{}]*)\}\s*(\w+\s*(?:\[[^\]]*\])?\s*;)', hoist, t)
+        if t == text:
+            break
+        text = t
+    text = '\n'.join(hoisted) + '\n' + text
+
 # Structs: only plain register lists; anything else (unions, bitfields) is left out
 structs = {}
 for m in re.finditer(r'typedef\s+struct\s*\{([^{}]*)\}\s*(\w+)\s*;', text):
@@ -59,16 +110,22 @@ for m in re.finditer(r'typedef\s+struct\s*\{([^{}]*)\}\s*(\w+)\s*;', text):
         decl = decl.strip()
         if not decl:
             continue
-        f = re.fullmatch(r'(?:__IOM|__IM|__OM|__IO|__I|__O|volatile|const|\s)*(\w+)\s+(\w+)\s*(?:\[\s*(\w+)\s*\])?', decl)
+        f = re.fullmatch(r'(?:__IOM|__IM|__OM|__IO|__I|__O|volatile|const|\s)*(\w+)\s+(\w+)\s*(?:\[([^\]]+)\])?', decl)
         if not f or (f.group(1) not in CTYPES and f.group(1) not in structs):
             fields = None
             break
-        fields.append(f.groups())
+        fields.append((f.group(1), f.group(2), f.group(3) and f.group(3).strip()))
     if fields:
         structs[sname] = fields
 enums = []
 for m in re.finditer(r'typedef\s+enum\s*\{([^{}]*)\}\s*IRQn_Type\s*;', text):
     enums += [e.split('=')[0].strip() for e in m.group(1).split(',') if e.strip()]
+# (pico: the other enums too, as u32 values: gpio_function_t, ...)
+uenums = []
+if pico:
+    for m in re.finditer(r'\benum\s*\w*\s*\{([^{}]*)\}', text):
+        uenums += [e.split('=')[0].strip() for e in m.group(1).split(',')
+                   if e.strip() and e.split('=')[0].strip() not in enums]
 
 # Macro expansions (object-like only)
 dm = run(gcc + ['-E', '-dM', '-x', 'c', header_path])
@@ -84,6 +141,10 @@ for n, v in macros.items():
         ptrs[n] = p.group(1)
 # a register as an lvalue macro: *((uint32_t *)(ADDR)) or (*(uint32_t *)(ADDR))
 regs = sorted(n for n, v in macros.items() if re.fullmatch(r'\(?\s*\*\s*\(*\s*uint32_t\s*\*\s*\).+', v.strip()))
+# (pico: a pointer macro named by another one, iobank0_hw -> io_bank0_hw)
+for n, v in macros.items():
+    if pico and v.strip() in ptrs:
+        ptrs[n] = ptrs[v.strip()]
 ints = sorted(n for n in macros if n not in ptrs and n not in regs and macros[n].strip())
 
 
@@ -93,12 +154,16 @@ def evaluate():
     items = [('I', n, '(uint32_t)(%s)' % n) for n in ints]
     items += [('P', n, '(uint32_t)(%s)' % n) for n in ptrs]
     items += [('R', n, '(uint32_t)&(%s)' % n) for n in regs]
-    items += [('E', n, '(uint32_t)(%s)' % n) for n in enums]
+    items += [('E', n, '(uint32_t)(%s)' % n) for n in enums + uenums]
     for s, fl in structs.items():
-        items.append(('S', s, 'sizeof(%s)' % s))
+        cs = 'struct ' + s if s in inner else s
+        items.append(('S', s, 'sizeof(%s)' % cs))
         # (a field named like a macro, COMP1 of DWT_Type on chips with COMP1
         # peripherals, cannot be named here: its offset is covered by the size)
-        items += [('F', s + '.' + f, 'offsetof(%s, %s)' % (s, f)) for t, f, dim in fl if f not in macros]
+        items += [('F', s + '.' + f, 'offsetof(%s, %s)' % (cs, f)) for t, f, dim in fl if f not in macros]
+        # (an array's length, when it is not a plain number)
+        items += [('D', s + '.' + f, 'sizeof(((%s *)0)->%s) / sizeof(((%s *)0)->%s[0])' % (cs, f, cs, f))
+                  for t, f, dim in fl if dim and f not in macros and not re.fullmatch(r'\w+', dim)]
     while True:
         pre = ['#include <stddef.h>', '#include <stdint.h>', '#include "%s"' % top]
         src = pre + ['__attribute__((used)) const uint32_t v%d = %s;' % (i, e) for i, (k, n, e) in enumerate(items)]
@@ -124,19 +189,24 @@ def evaluate():
             bad = {i for i in bad if 0 <= i < len(items)}
             if not bad:
                 sys.exit(r.stderr[:3000])
-            drop = {items[i][1].split('.')[0] for i in bad if items[i][0] in 'SF'}
+            drop = {items[i][1].split('.')[0] for i in bad if items[i][0] in 'SFD'}
             for s in drop:
                 del structs[s]
             items = [it for i, it in enumerate(items)
-                     if i not in bad and not (it[0] in 'SF' and it[1].split('.')[0] in drop)]
+                     if i not in bad and not (it[0] in 'SFD' and it[1].split('.')[0] in drop)]
 
 
 vals = evaluate()
 ptrs = {n: s for n, s in ptrs.items() if ('P', n) in vals and s in structs}
 
-src = os.path.relpath(header_path, lib) if define is None else '%s (%s, -D%s)' % (family, top, define)
+if pico:
+    src = 'pico-sdk/%s (%s.h, hardware/regs/*.h, hardware/structs/*.h, -D%s)' % (mcu, mcu.upper(), define)
+elif define is None:
+    src = os.path.relpath(header_path, lib)
+else:
+    src = '%s (%s, -D%s)' % (family, top, define)
 o = ['// Generated by tools/gen_stm32_regs.py from Kalico lib/%s: do not edit.' % src,
-     'use crate::stm32::reg::Reg;', '', 'pub type IRQn_Type = i32;',
+     'use crate::reg::Reg;', '', 'pub type IRQn_Type = i32;',
      ]
 if define:
     o += ['// the -D%s of the build (the headers test it)' % define, 'pub const %s: u32 = 1;' % define]
@@ -151,18 +221,21 @@ for s, fl in structs.items():
         ty = CTYPES[t] if plain and t in CTYPES else 'Reg<%s>' % CTYPES[t] if t in CTYPES else t
         if dim:
             lit = re.fullmatch(r'(\d+|0x[0-9a-fA-F]+)[uUlL]*', dim)
-            n = int(lit.group(1), 0) if lit else vals[('I', dim)]
+            n = int(lit.group(1), 0) if lit else vals.get(('I', dim), vals.get(('D', s + '.' + f)))
             ty = '[%s; %d]' % (ty, n)
-        o.append('    pub %s: %s,' % (f, ty))
+        o.append('    pub %s: %s,' % (rust_name(f), ty))
     o.append('}')
     o.append('const _: () = assert!(core::mem::size_of::<%s>() == %d);' % (s, vals[('S', s)]))
     for t, f, dim in fl:
         if ('F', s + '.' + f) in vals:
-            o.append('const _: () = assert!(core::mem::offset_of!(%s, %s) == %d);' % (s, f, vals[('F', s + '.' + f)]))
+            o.append('const _: () = assert!(core::mem::offset_of!(%s, %s) == %d);' % (s, rust_name(f), vals[('F', s + '.' + f)]))
 o.append('')
 for n in enums:
     v = vals[('E', n)]
     o.append('pub const %s: i32 = %d;' % (n, v - (1 << 32) if v >= 1 << 31 else v))
+for n in uenums:
+    if ('E', n) in vals:
+        o.append('pub const %s: u32 = 0x%x;' % (n, vals[('E', n)]))
 for n in sorted(n for n in macros if not macros[n].strip()):
     # a macro defined empty (the C #ifdef tests it: has_NAME)
     o.append('pub const %s: () = ();' % n)
@@ -172,7 +245,7 @@ for n in regs:
 for n in sorted(ptrs):
     o.append('pub const %s: *mut %s = 0x%08x as *mut %s;' % (n, ptrs[n], vals[('P', n)], ptrs[n]))
 for n in ints:
-    if ('I', n) in vals and n not in enums:
+    if ('I', n) in vals and n not in enums and n not in uenums:
         v = vals[('I', n)] & 0xffffffff
         if macros[n].strip() in enums:
             # an alias of an irq number (USB_LP_IRQn -> USB_LP_CAN1_RX0_IRQn)
@@ -180,5 +253,7 @@ for n in ints:
         else:
             o.append('pub const %s: u32 = 0x%x;' % (n, v))
 open(out, 'w').write('\n'.join(o) + '\n')
+if pico:
+    os.remove(top)
 print('%s: %d structs, %d irqs, %d pointers, %d values' % (out, len(structs), len(enums), len(ptrs),
                                                          sum(1 for n in ints if ('I', n) in vals)))

@@ -1,5 +1,5 @@
-// A memory mapped register: the CMSIS __IO / __I / __O fields, accessed with
-// volatile reads and writes as the C code's struct member accesses are.
+// A memory mapped register: the CMSIS __IO / __I / __O fields (pico-sdk io_rw_32
+// ...), accessed with volatile reads and writes as the C struct member accesses are.
 use core::cell::UnsafeCell;
 
 #[repr(transparent)]

@@ -1,15 +1,15 @@
 // src/generic: code shared by the boards
 #[cfg(CONFIG_MACH_LINUX)]
 pub mod alloc;
-#[cfg(CONFIG_MACH_STM32)]
+#[cfg(any(CONFIG_MACH_STM32, CONFIG_MACH_RPXXXX))]
 pub mod armcm_boot;
-#[cfg(CONFIG_MACH_STM32)]
+#[cfg(any(CONFIG_MACH_STM32, CONFIG_MACH_RPXXXX))]
 pub mod armcm_irq;
-#[cfg(CONFIG_MACH_STM32)]
+#[cfg(any(CONFIG_MACH_STM32, CONFIG_MACH_RPXXXX))]
 pub mod armcm_reset;
-#[cfg(all(CONFIG_MACH_STM32, not(any(CONFIG_MACH_STM32F0, CONFIG_MACH_STM32G0))))]
+#[cfg(any(all(CONFIG_MACH_STM32, not(any(CONFIG_MACH_STM32F0, CONFIG_MACH_STM32G0))), CONFIG_MACH_RP2350))]
 pub mod armcm_timer;
-#[cfg(CONFIG_MACH_STM32)]
+#[cfg(any(CONFIG_MACH_STM32, CONFIG_MACH_RPXXXX))]
 pub mod cmsis;
 #[cfg(any(CONFIG_CANSERIAL, CONFIG_USBCANBUS))]
 pub mod canbus;
@@ -22,7 +22,7 @@ pub mod crc16_ccitt;
 pub mod fasthash;
 #[cfg(CONFIG_SERIAL)]
 pub mod serial_irq;
-#[cfg(any(CONFIG_MACH_STM32F0, CONFIG_MACH_STM32G0))]
+#[cfg(any(CONFIG_MACH_STM32F0, CONFIG_MACH_STM32G0, CONFIG_MACH_RP2040))]
 pub mod timer_irq;
 #[cfg(CONFIG_USBSERIAL)]
 pub mod usb_cdc;

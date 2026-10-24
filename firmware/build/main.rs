@@ -169,21 +169,60 @@ fn sources(config: &kconfig::Config) -> Vec<&'static str> {
                 out.extend(files);
             }
         }
+    } else if on("CONFIG_MACH_RPXXXX") {
+        // src/rp2040/Makefile
+        out.extend(["rp2040/internal.rs", "rp2040/main.rs", "rp2040/watchdog.rs", "rp2040/gpio.rs", "rp2040/adc.rs"]);
+        out.extend(["generic/armcm_boot.rs", "generic/armcm_irq.rs", "generic/armcm_reset.rs", "generic/crc16_ccitt.rs"]);
+        if on("CONFIG_MACH_RP2040") {
+            out.extend(["rp2040/timer.rs", "generic/timer_irq.rs", "rp2040/bootrom.rs"]);
+        }
+        if on("CONFIG_MACH_RP2350") {
+            out.extend(["generic/armcm_timer.rs", "rp2040/rp2350_bootrom.rs"]);
+        }
+        // (canbus.h: no requests, its constants are used in theirs)
+        if on("CONFIG_CANSERIAL") || on("CONFIG_USBCANBUS") {
+            out.push("generic/canbus_h.rs");
+        }
+        let opt: &[(&str, &[&'static str])] = &[
+            ("CONFIG_USBSERIAL", &["rp2040/usbserial.rs", "generic/usb_cdc.rs", "rp2040/chipid.rs"]),
+            ("CONFIG_SERIAL", &["rp2040/serial.rs", "generic/serial_irq.rs"]),
+            ("CONFIG_CANSERIAL", &["rp2040/can.rs", "rp2040/chipid.rs", "rp2040/can2040.rs"]),
+            ("CONFIG_CANSERIAL", &["generic/canserial.rs", "generic/canbus.rs"]),
+            ("CONFIG_CANSERIAL", &["generic/fasthash.rs"]),
+            ("CONFIG_USBCANBUS", &["rp2040/can.rs", "rp2040/chipid.rs", "rp2040/can2040.rs"]),
+            ("CONFIG_USBCANBUS", &["generic/canserial.rs", "generic/usb_canbus.rs"]),
+            ("CONFIG_USBCANBUS", &["generic/fasthash.rs", "rp2040/usbserial.rs"]),
+            ("CONFIG_WANT_HARD_PWM", &["rp2040/hard_pwm.rs"]),
+            ("CONFIG_WANT_GPIO_SPI", &["rp2040/spi.rs"]),
+            ("CONFIG_WANT_GPIO_I2C", &["rp2040/i2c.rs"]),
+        ];
+        for (c, files) in opt {
+            if on(c) {
+                out.extend(*files);
+            }
+        }
     } else {
-        panic!("only the linux and stm32 boards are ported");
+        panic!("only the linux, stm32 and rp2040 boards are ported");
     }
+    // (make: a source listed twice is built once, at its first place)
+    let mut seen = BTreeSet::new();
+    out.retain(|f| seen.insert(*f));
     out
 }
 
-/// The CMSIS device header of an stm32 build (src/stm32/chip/<mcu>.rs,
+/// The device header of an stm32 / rp2040 build (src/<board>/chip/<mcu>.rs,
 /// made by tools/gen_stm32_regs.py): its path and the names it defines
 /// (the C `#ifdef NAME`, here `#[cfg(has_NAME)]`)
-fn stm32_chip(root: &Path, config: &kconfig::Config) -> Option<(PathBuf, BTreeSet<String>)> {
-    if !config.enabled("CONFIG_MACH_STM32") {
+fn chip_header(root: &Path, config: &kconfig::Config) -> Option<(PathBuf, BTreeSet<String>)> {
+    let board = if config.enabled("CONFIG_MACH_STM32") {
+        "stm32"
+    } else if config.enabled("CONFIG_MACH_RPXXXX") {
+        "rp2040"
+    } else {
         return None;
-    }
+    };
     let mcu = config.string("CONFIG_MCU").unwrap();
-    let path = root.join("src/stm32/chip").join(format!("{}.rs", mcu));
+    let path = root.join("src").join(board).join("chip").join(format!("{}.rs", mcu));
     if !path.exists() {
         panic!("no {}: make it with tools/gen_stm32_regs.py", path.display());
     }
@@ -196,25 +235,49 @@ fn stm32_chip(root: &Path, config: &kconfig::Config) -> Option<(PathBuf, BTreeSe
     Some((path, names))
 }
 
-/// generic/armcm_link.lds.S through the C preprocessor: its `#if CONFIG_X`
-/// blocks and CONFIG_X values from the configuration
+/// A linker script (generic/armcm_link.lds.S, rp2040/rpxxxx_link.lds.S)
+/// through the C preprocessor: its `#if CONFIG_X` / `#else` blocks, its
+/// `#define`s, CONFIG_X values from the configuration, `//` comments removed
 fn armcm_link(src: &str, config: &kconfig::Config) -> String {
     let mut out = String::new();
-    let mut skip = vec![];
+    // (per open #if: skipping, and whether a branch was taken)
+    let mut skip: Vec<(bool, bool)> = vec![];
+    let mut defines: Vec<(String, String)> = vec![];
+    let skipping = |skip: &Vec<(bool, bool)>| skip.iter().any(|s| s.0);
     for line in src.lines() {
         let t = line.trim();
         if let Some(c) = t.strip_prefix("#if ") {
-            skip.push(!config.enabled(c.trim()));
+            let on = config.enabled(c.trim());
+            skip.push((!on, on));
+            continue;
+        }
+        if t.starts_with("#else") {
+            let (_, taken) = skip.pop().unwrap();
+            skip.push((taken, true));
             continue;
         }
         if t.starts_with("#endif") {
             skip.pop();
             continue;
         }
-        if t.starts_with("#include") || t.starts_with("//") || skip.contains(&true) {
+        if t.starts_with("#include") || skipping(&skip) {
             continue;
         }
-        let mut l = line.to_string();
+        if let Some(d) = t.strip_prefix("#define ") {
+            let (name, value) = d.trim().split_once(char::is_whitespace).unwrap();
+            defines.push((name.to_string(), value.trim().to_string()));
+            continue;
+        }
+        let mut l = match line.find("//") {
+            Some(i) => line[..i].trim_end().to_string(),
+            None => line.to_string(),
+        };
+        if l.trim().is_empty() && !line.trim().is_empty() {
+            continue;
+        }
+        for (name, value) in &defines {
+            l = replace_word(&l, name, value);
+        }
         while let Some(i) = l.find("CONFIG_") {
             let name: String = l[i..].chars().take_while(|c| c.is_ascii_alphanumeric() || *c == '_').collect();
             let v = config.int(&name).unwrap_or_else(|| panic!("linker script: {}", name));
@@ -224,6 +287,25 @@ fn armcm_link(src: &str, config: &kconfig::Config) -> String {
         out.push('\n');
     }
     out
+}
+
+/// `text` with the whole word `word` replaced
+fn replace_word(text: &str, word: &str, by: &str) -> String {
+    let is_id = |c: char| c.is_ascii_alphanumeric() || c == '_';
+    let mut out = String::new();
+    let mut rest = text;
+    while let Some(i) = rest.find(word) {
+        let before = rest[..i].chars().next_back();
+        let after = rest[i + word.len()..].chars().next();
+        out += &rest[..i];
+        if before.is_some_and(is_id) || after.is_some_and(is_id) {
+            out += word;
+        } else {
+            out += by;
+        }
+        rest = &rest[i + word.len()..];
+    }
+    out + rest
 }
 
 /// the module path of a source file (linux/timer.rs -> crate::linux::timer)
@@ -289,8 +371,8 @@ fn main() {
     }
     std::fs::write(out.join("config.rs"), config.rust_consts()).unwrap();
 
-    // stm32: the chip header, has_NAME cfgs, the linker script
-    let chip = stm32_chip(&root, &config);
+    // stm32 / rp2040: the chip header, has_NAME cfgs, the linker script
+    let chip = chip_header(&root, &config);
     let chip_names = chip.as_ref().map(|c| c.1.clone()).unwrap_or_default();
     for name in config_names(&root.join("src"), "has_") {
         println!("cargo::rustc-check-cfg=cfg({})", name);
@@ -301,7 +383,8 @@ fn main() {
     let has = |n: &str| config.enabled(n) || n.strip_prefix("has_").is_some_and(|c| chip_names.contains(c));
     if let Some((path, _)) = &chip {
         std::fs::write(out.join("chip.rs"), format!("include!({:?});\n", path.display().to_string())).unwrap();
-        let lds = armcm_link(&read(&root.join("build/armcm_link.lds.S")), &config);
+        let script = if config.enabled("CONFIG_MACH_RPXXXX") { "rpxxxx_link.lds.S" } else { "armcm_link.lds.S" };
+        let lds = armcm_link(&read(&root.join("build").join(script)), &config);
         std::fs::write(out.join("armcm_link.ld"), lds).unwrap();
         println!("cargo:rustc-link-arg=-T{}", out.join("armcm_link.ld").display());
         // the C link has no entry symbol either: ld then uses the start of

@@ -11,6 +11,9 @@ pub mod config {
     include!(concat!(env!("OUT_DIR"), "/config.rs"));
 }
 pub mod ctr;
+// (the volatile register type of the micro-controller boards)
+#[cfg(not(CONFIG_MACH_LINUX))]
+pub mod reg;
 
 pub mod basecmd;
 pub mod command;
@@ -90,6 +93,10 @@ pub use linux as board;
 pub mod stm32;
 #[cfg(CONFIG_MACH_STM32)]
 pub use stm32 as board;
+#[cfg(CONFIG_MACH_RPXXXX)]
+pub mod rp2040;
+#[cfg(CONFIG_MACH_RPXXXX)]
+pub use rp2040 as board;
 
 #[cfg(CONFIG_MACH_LINUX)]
 fn main() {
