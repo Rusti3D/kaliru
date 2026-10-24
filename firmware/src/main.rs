@@ -70,6 +70,8 @@ pub mod sensor_ads1220;
 pub mod sensor_ads131m0x;
 #[cfg(CONFIG_WANT_CS1237)]
 pub mod sensor_cs1237;
+#[cfg(CONFIG_WANT_SENSOR_ANGLE)]
+pub mod sensor_angle;
 #[cfg(CONFIG_NEED_SENSOR_BULK)]
 pub mod sensor_bulk;
 #[cfg(CONFIG_NEED_SOS_FILTER)]
