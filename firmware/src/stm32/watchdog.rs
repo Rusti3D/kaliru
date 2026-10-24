@@ -3,11 +3,13 @@
 // Copyright (C) 2019  Kevin O'Connor <kevin@koconnor.net>
 //
 // This file may be distributed under the terms of the GNU GPLv3 license.
+#[cfg(not(CONFIG_MACH_STM32H7))]
 use super::internal::IWDG;
+// stm32h7 libraries only define IWDG1 and IWDG2
+#[cfg(CONFIG_MACH_STM32H7)]
+use super::internal::IWDG1 as IWDG;
 use crate::sched::R;
 use crate::{decl_init, decl_task};
-
-// (stm32h7: its libraries only define IWDG1 and IWDG2 - comes with that board)
 
 pub fn watchdog_reset() -> R {
     unsafe { &*IWDG }.KR.write(0xAAAA);

@@ -59,6 +59,10 @@ mod nvic {
         if irqn >= 0 {
             unsafe { &*NVIC }.IP[irqn as usize].write(v);
         } else {
+            // (the Cortex-M7 calls it SHPR)
+            #[cfg(has___CORE_CM7_H_GENERIC)]
+            unsafe { &*SCB }.SHPR[((irqn as u32 & 0xF) - 4) as usize].write(v);
+            #[cfg(not(has___CORE_CM7_H_GENERIC))]
             unsafe { &*SCB }.SHP[((irqn as u32 & 0xF) - 4) as usize].write(v);
         }
     }
@@ -136,3 +140,88 @@ mod nvic {
     }
 }
 pub use nvic::*;
+
+// D-Cache Clean by address (cachel1_armv7.h, Cortex-M7)
+#[cfg(has___CORE_CM7_H_GENERIC)]
+pub fn SCB_CleanDCache_by_Addr(addr: *mut u32, dsize: i32) {
+    use crate::board::internal::{__DCACHE_PRESENT, __SCB_DCACHE_LINE_SIZE};
+    if __DCACHE_PRESENT == 1 && dsize > 0 {
+        let mut op_size = dsize + ((addr as u32) & (__SCB_DCACHE_LINE_SIZE - 1)) as i32;
+        let mut op_addr = addr as u32;
+
+        __DSB();
+
+        loop {
+            unsafe { &*SCB }.DCCMVAC.write(op_addr); // register accepts only 32byte aligned values, only bits 31..5 are valid
+            op_addr = op_addr.wrapping_add(__SCB_DCACHE_LINE_SIZE);
+            op_size -= __SCB_DCACHE_LINE_SIZE as i32;
+            if op_size <= 0 {
+                break;
+            }
+        }
+
+        __DSB();
+        __ISB();
+    }
+}
+
+// Enable I-Cache (cachel1_armv7.h, Cortex-M7)
+#[cfg(has___CORE_CM7_H_GENERIC)]
+pub fn SCB_EnableICache() {
+    use crate::board::internal::{SCB_CCR_IC_Msk, __ICACHE_PRESENT};
+    if __ICACHE_PRESENT == 1 {
+        let scb = unsafe { &*SCB };
+        if scb.CCR.read() & SCB_CCR_IC_Msk != 0 {
+            return; // return if ICache is already enabled
+        }
+
+        __DSB();
+        __ISB();
+        scb.ICIALLU.write(0); // invalidate I-Cache
+        __DSB();
+        __ISB();
+        scb.CCR.or(SCB_CCR_IC_Msk); // enable I-Cache
+        __DSB();
+        __ISB();
+    }
+}
+
+// Enable D-Cache (cachel1_armv7.h, Cortex-M7)
+#[cfg(has___CORE_CM7_H_GENERIC)]
+pub fn SCB_EnableDCache() {
+    use crate::board::internal::*;
+    if __DCACHE_PRESENT == 1 {
+        let scb = unsafe { &*SCB };
+        if scb.CCR.read() & SCB_CCR_DC_Msk != 0 {
+            return; // return if DCache is already enabled
+        }
+
+        scb.CSSELR.write(0); // select Level 1 data cache
+        __DSB();
+
+        let ccsidr = scb.CCSIDR.read();
+
+        // invalidate D-Cache
+        let mut sets = (ccsidr & SCB_CCSIDR_NUMSETS_Msk) >> SCB_CCSIDR_NUMSETS_Pos;
+        loop {
+            let mut ways = (ccsidr & SCB_CCSIDR_ASSOCIATIVITY_Msk) >> SCB_CCSIDR_ASSOCIATIVITY_Pos;
+            loop {
+                scb.DCISW.write(((sets << SCB_DCISW_SET_Pos) & SCB_DCISW_SET_Msk) | ((ways << SCB_DCISW_WAY_Pos) & SCB_DCISW_WAY_Msk));
+                if ways == 0 {
+                    break;
+                }
+                ways -= 1;
+            }
+            if sets == 0 {
+                break;
+            }
+            sets -= 1;
+        }
+        __DSB();
+
+        scb.CCR.or(SCB_CCR_DC_Msk); // enable D-Cache
+
+        __DSB();
+        __ISB();
+    }
+}

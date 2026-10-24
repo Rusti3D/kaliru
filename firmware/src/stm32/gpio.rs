@@ -3,59 +3,11 @@
 // Copyright (C) 2019  Kevin O'Connor <kevin@koconnor.net>
 //
 // This file may be distributed under the terms of the GNU GPLv3 license.
+use super::gpio_h::*;
 use super::internal::*;
 use crate::board::{irq_restore, irq_save};
 use crate::sched::R;
 use crate::{decl_enumeration_range, shutdown};
-
-// The board's gpio.h types (the same sizes as the C structs, they are
-// part of the objects of the command modules)
-// the value / pull_up parameter types of gpio_out_setup() / gpio_in_setup()
-pub type GpioOutVal = u32;
-pub type GpioPullUp = i32;
-
-#[repr(C)]
-#[derive(Clone, Copy)]
-pub struct GpioOut {
-    pub regs: *mut GPIO_TypeDef,
-    // (stm32h7 uses an odr_cache pointer here)
-    pub bit: u32,
-}
-
-#[repr(C)]
-#[derive(Clone, Copy)]
-pub struct GpioIn {
-    pub regs: *mut GPIO_TypeDef,
-    pub bit: u32,
-}
-
-#[repr(C)]
-#[derive(Clone, Copy)]
-pub struct GpioPwm {
-    pub reg: *mut Reg<u32>,
-}
-
-#[repr(C)]
-#[derive(Clone, Copy)]
-pub struct GpioAdc {
-    pub adc: *mut ADC_TypeDef,
-    pub chan: u32,
-}
-
-#[repr(C)]
-#[derive(Clone, Copy)]
-pub struct SpiConfig {
-    pub spi: *mut SPI_TypeDef,
-    // (a union with the div / mode bytes of other boards' spi code)
-    pub spi_cr1: u32,
-}
-
-#[repr(C)]
-#[derive(Clone, Copy)]
-pub struct I2cConfig {
-    pub i2c: *mut I2C_TypeDef,
-    pub addr: u8,
-}
 
 decl_enumeration_range!("pin", "PA0", GPIO('A', 0), 16);
 decl_enumeration_range!("pin", "PB0", GPIO('B', 0), 16);

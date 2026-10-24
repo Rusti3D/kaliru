@@ -10,7 +10,13 @@ pub mod internal;
 
 pub mod clockline;
 pub mod dfu_reboot;
+#[cfg(not(CONFIG_MACH_STM32H7))]
 pub mod gpio;
+#[cfg(CONFIG_MACH_STM32H7)]
+pub mod stm32h7_gpio;
+#[cfg(CONFIG_MACH_STM32H7)]
+pub use stm32h7_gpio as gpio;
+pub mod gpio_h;
 #[cfg(not(CONFIG_MACH_STM32F1))]
 pub mod gpioperiph;
 #[cfg(CONFIG_MACH_STM32F0)]
@@ -25,6 +31,14 @@ pub mod stm32g0;
 pub mod stm32g4;
 #[cfg(CONFIG_MACH_STM32G4)]
 pub mod system_stm32g4xx;
+#[cfg(CONFIG_MACH_STM32F7)]
+pub mod stm32f7;
+#[cfg(CONFIG_MACH_STM32F7)]
+pub mod system_stm32f7xx;
+#[cfg(CONFIG_MACH_STM32H7)]
+pub mod stm32h7;
+#[cfg(CONFIG_MACH_STM32H7)]
+pub mod system_stm32h7xx;
 #[cfg(CONFIG_MACH_STM32L4)]
 pub mod stm32l4;
 #[cfg(CONFIG_MACH_STM32L4)]
@@ -50,8 +64,12 @@ pub use stm32f0_adc as adc;
 pub mod stm32h7_adc;
 #[cfg(all(CONFIG_WANT_ADC, any(CONFIG_MACH_STM32G4, CONFIG_MACH_STM32H7, CONFIG_MACH_STM32L4)))]
 pub use stm32h7_adc as adc;
-#[cfg(CONFIG_WANT_GPIO_SPI)]
+#[cfg(all(CONFIG_WANT_GPIO_SPI, not(CONFIG_MACH_STM32H7)))]
 pub mod spi;
+#[cfg(all(CONFIG_WANT_GPIO_SPI, CONFIG_MACH_STM32H7))]
+pub mod stm32h7_spi;
+#[cfg(all(CONFIG_WANT_GPIO_SPI, CONFIG_MACH_STM32H7))]
+pub use stm32h7_spi as spi;
 #[cfg(all(CONFIG_WANT_GPIO_I2C, any(CONFIG_MACH_STM32F1, CONFIG_MACH_STM32F2, CONFIG_MACH_STM32F4)))]
 pub mod i2c;
 #[cfg(all(CONFIG_WANT_GPIO_I2C, not(any(CONFIG_MACH_STM32F1, CONFIG_MACH_STM32F2, CONFIG_MACH_STM32F4))))]
@@ -102,8 +120,8 @@ pub use adc::{gpio_adc_cancel_sample, gpio_adc_read, gpio_adc_sample, gpio_adc_s
 pub use chipid::usbserial_get_serialid;
 pub use gpio::{
     gpio_in_read, gpio_in_reset, gpio_in_setup, gpio_out_reset, gpio_out_setup, gpio_out_toggle, gpio_out_toggle_noirq, gpio_out_write,
-    GpioAdc, GpioIn, GpioOut, GpioOutVal, GpioPullUp, GpioPwm, I2cConfig, SpiConfig,
 };
+pub use gpio_h::{GpioAdc, GpioIn, GpioOut, GpioOutVal, GpioPullUp, GpioPwm, I2cConfig, SpiConfig};
 #[cfg(CONFIG_WANT_HARD_PWM)]
 pub use hard_pwm::{gpio_pwm_setup, gpio_pwm_write};
 #[cfg(CONFIG_WANT_GPIO_I2C)]
@@ -120,6 +138,10 @@ pub use stm32g0::{armcm_main, bootloader_request};
 pub use stm32g4::{armcm_main, bootloader_request};
 #[cfg(CONFIG_MACH_STM32L4)]
 pub use stm32l4::{armcm_main, bootloader_request};
+#[cfg(CONFIG_MACH_STM32F7)]
+pub use stm32f7::{armcm_main, bootloader_request};
+#[cfg(CONFIG_MACH_STM32H7)]
+pub use stm32h7::{armcm_main, bootloader_request};
 #[cfg(CONFIG_MACH_STM32F1)]
 pub use stm32f1::{armcm_main, bootloader_request};
 #[cfg(any(CONFIG_MACH_STM32F2, CONFIG_MACH_STM32F4))]

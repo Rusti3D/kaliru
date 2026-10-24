@@ -52,7 +52,6 @@ unsafe fn boot_memcpy(dest: *mut u32, src: *const u32, mut n: usize) {
 }
 
 // Main initialization code (called from ResetHandler below)
-// (the Cortex-M7 / M33 register names, SHPR / IPR, come with those boards)
 #[unsafe(link_section = ".text.armcm_boot.stage_two")]
 unsafe extern "C" fn reset_handler_stage_two() -> ! {
     let (nvic, scb, systick) = (&*NVIC, &*SCB, &*SysTick);
@@ -65,6 +64,7 @@ unsafe extern "C" fn reset_handler_stage_two() -> ! {
     }
 
     // Reset all user interrupt priorities
+    // (the Cortex-M33 IPR comes with those boards)
     for ip in nvic.IP.iter() {
         ip.write(0);
     }
@@ -77,6 +77,11 @@ unsafe extern "C" fn reset_handler_stage_two() -> ! {
     scb.ICSR.write(SCB_ICSR_PENDSVCLR_Msk | SCB_ICSR_PENDSTCLR_Msk);
 
     // Reset all system interrupt priorities
+    #[cfg(has___CORE_CM7_H_GENERIC)]
+    for shp in scb.SHPR.iter() {
+        shp.write(0);
+    }
+    #[cfg(not(has___CORE_CM7_H_GENERIC))]
     for shp in scb.SHP.iter() {
         shp.write(0);
     }

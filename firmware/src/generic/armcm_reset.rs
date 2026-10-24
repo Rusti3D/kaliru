@@ -27,7 +27,8 @@ fn canboot_reset(req_signature: u64) {
         }
         irq_disable();
         core::ptr::write_volatile(req_sig, req_signature);
-        // (Cortex-M7: SCB_CleanDCache_by_Addr comes with those boards)
+        #[cfg(has___CORE_CM7_H_GENERIC)]
+        crate::generic::cmsis::SCB_CleanDCache_by_Addr(req_sig as *mut u32, 8);
         NVIC_SystemReset();
     }
 }

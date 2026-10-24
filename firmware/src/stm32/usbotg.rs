@@ -35,10 +35,23 @@ mod pins {
 }
 use pins::*;
 
-// (the OTG_HS controller of the stm32h7 / PB14_PB15 boards comes with those)
-const USB_PERIPH_BASE: u32 = USB_OTG_FS_PERIPH_BASE;
-const OTG_IRQn: IRQn_Type = OTG_FS_IRQn;
-const _: () = assert!(!IS_OTG_HS);
+#[cfg(any(CONFIG_STM32_USB_PB14_PB15, CONFIG_MACH_STM32H723))]
+mod hs {
+    use super::*;
+    pub const USB_PERIPH_BASE: u32 = USB_OTG_HS_PERIPH_BASE;
+    pub const OTG_IRQn: IRQn_Type = OTG_HS_IRQn;
+    #[allow(dead_code)]
+    pub const USBOTGEN: u32 = RCC_AHB1ENR_USB1OTGHSEN;
+}
+#[cfg(not(any(CONFIG_STM32_USB_PB14_PB15, CONFIG_MACH_STM32H723)))]
+mod hs {
+    use super::*;
+    pub const USB_PERIPH_BASE: u32 = USB_OTG_FS_PERIPH_BASE;
+    pub const OTG_IRQn: IRQn_Type = OTG_FS_IRQn;
+    #[cfg(CONFIG_MACH_STM32H7)]
+    pub const USBOTGEN: u32 = RCC_AHB1ENR_USB2OTGHSEN;
+}
+use hs::*;
 
 fn usb_irq_disable() {
     NVIC_DisableIRQ(OTG_IRQn);
@@ -444,7 +457,15 @@ pub unsafe extern "C" fn OTG_FS_IRQHandler() {
 pub fn usb_init() -> R {
     let (otg, otgd) = (OTG(), OTGD());
     // Enable USB clock
-    // (stm32h7: its PWR / AHB1ENR setup comes with that board)
+    #[cfg(CONFIG_MACH_STM32H7)]
+    {
+        let pwr = unsafe { &*PWR };
+        if pwr.CR3.read() & PWR_CR3_USB33RDY != PWR_CR3_USB33RDY {
+            pwr.CR3.or(PWR_CR3_USB33DEN);
+        }
+        unsafe { &*RCC }.AHB1ENR.or(USBOTGEN);
+    }
+    #[cfg(not(CONFIG_MACH_STM32H7))]
     unsafe { &*RCC }.AHB2ENR.or(RCC_AHB2ENR_OTGFSEN);
     while otg.GRSTCTL.read() & USB_OTG_GRSTCTL_AHBIDL == 0 {}
 

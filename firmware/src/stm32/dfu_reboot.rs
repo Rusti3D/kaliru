@@ -17,7 +17,9 @@ use crate::generic::cmsis::NVIC_SystemReset;
 // address.
 
 // Location of ram address to set internal flag
-// (stm32h7 places it in "AXI SRAM" - comes with that board)
+#[cfg(CONFIG_MACH_STM32H7)]
+const USB_BOOT_FLAG_ADDR: usize = 0x24000000 + 0x8000; // Place flag in "AXI SRAM"
+#[cfg(not(CONFIG_MACH_STM32H7))]
 const USB_BOOT_FLAG_ADDR: usize = (CONFIG_RAM_START + CONFIG_RAM_SIZE - 1024) as usize;
 
 // Signature to set in memory to flag that a dfu reboot is requested
@@ -30,7 +32,9 @@ pub fn dfu_reboot() {
     }
     irq_disable();
     unsafe { core::ptr::write_volatile(USB_BOOT_FLAG_ADDR as *mut u64, USB_BOOT_FLAG) };
-    // (Cortex-M7: SCB_CleanDCache_by_Addr comes with those boards)
+    // (#if __CORTEX_M >= 7)
+    #[cfg(has___CORE_CM7_H_GENERIC)]
+    crate::generic::cmsis::SCB_CleanDCache_by_Addr(USB_BOOT_FLAG_ADDR as *mut u32, 8);
     NVIC_SystemReset();
 }
 

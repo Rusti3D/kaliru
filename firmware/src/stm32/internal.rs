@@ -53,6 +53,10 @@ pub use super::stm32g0::{get_pclock_frequency, gpio_clock_enable, lookup_clock_l
 pub use super::stm32g4::{get_pclock_frequency, gpio_clock_enable, lookup_clock_line};
 #[cfg(CONFIG_MACH_STM32L4)]
 pub use super::stm32l4::{get_pclock_frequency, gpio_clock_enable, lookup_clock_line};
+#[cfg(CONFIG_MACH_STM32F7)]
+pub use super::stm32f7::{get_pclock_frequency, gpio_clock_enable, lookup_clock_line};
+#[cfg(CONFIG_MACH_STM32H7)]
+pub use super::stm32h7::{get_pclock_frequency, gpio_clock_enable, lookup_clock_line};
 #[cfg(CONFIG_MACH_STM32F1)]
 pub use super::stm32f1::{get_pclock_frequency, gpio_clock_enable, lookup_clock_line};
 #[cfg(any(CONFIG_MACH_STM32F2, CONFIG_MACH_STM32F4))]
