@@ -64,7 +64,11 @@ unsafe extern "C" fn reset_handler_stage_two() -> ! {
     }
 
     // Reset all user interrupt priorities
-    // (the Cortex-M33 IPR comes with those boards)
+    #[cfg(has___CORE_CM33_H_GENERIC)]
+    for ip in nvic.IPR.iter() {
+        ip.write(0);
+    }
+    #[cfg(not(has___CORE_CM33_H_GENERIC))]
     for ip in nvic.IP.iter() {
         ip.write(0);
     }
@@ -77,11 +81,11 @@ unsafe extern "C" fn reset_handler_stage_two() -> ! {
     scb.ICSR.write(SCB_ICSR_PENDSVCLR_Msk | SCB_ICSR_PENDSTCLR_Msk);
 
     // Reset all system interrupt priorities
-    #[cfg(has___CORE_CM7_H_GENERIC)]
+    #[cfg(any(has___CORE_CM7_H_GENERIC, has___CORE_CM33_H_GENERIC))]
     for shp in scb.SHPR.iter() {
         shp.write(0);
     }
-    #[cfg(not(has___CORE_CM7_H_GENERIC))]
+    #[cfg(not(any(has___CORE_CM7_H_GENERIC, has___CORE_CM33_H_GENERIC)))]
     for shp in scb.SHP.iter() {
         shp.write(0);
     }

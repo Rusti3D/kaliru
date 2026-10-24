@@ -62,12 +62,16 @@ mod nvic {
     pub fn NVIC_SetPriority(irqn: IRQn_Type, priority: u32) {
         let v = ((priority << (8 - __NVIC_PRIO_BITS)) & 0xFF) as u8;
         if irqn >= 0 {
+            // (the Cortex-M33 calls it IPR)
+            #[cfg(has___CORE_CM33_H_GENERIC)]
+            unsafe { &*NVIC }.IPR[irqn as usize].write(v);
+            #[cfg(not(has___CORE_CM33_H_GENERIC))]
             unsafe { &*NVIC }.IP[irqn as usize].write(v);
         } else {
-            // (the Cortex-M7 calls it SHPR)
-            #[cfg(has___CORE_CM7_H_GENERIC)]
+            // (the Cortex-M7 / M33 call it SHPR)
+            #[cfg(any(has___CORE_CM7_H_GENERIC, has___CORE_CM33_H_GENERIC))]
             unsafe { &*SCB }.SHPR[((irqn as u32 & 0xF) - 4) as usize].write(v);
-            #[cfg(not(has___CORE_CM7_H_GENERIC))]
+            #[cfg(not(any(has___CORE_CM7_H_GENERIC, has___CORE_CM33_H_GENERIC)))]
             unsafe { &*SCB }.SHP[((irqn as u32 & 0xF) - 4) as usize].write(v);
         }
     }

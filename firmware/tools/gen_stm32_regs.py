@@ -36,6 +36,9 @@ elif pico:
         for d in ('regs', 'structs'):
             for h in sorted(os.listdir(os.path.join(hw, d))):
                 f.write('#include "hardware/%s/%s"\n' % (d, h))
+        if mcu == 'rp2350':
+            # (the rom api constants of rp2040/rp2350_bootrom.c)
+            f.write('#include "boot/bootrom_constants.h"\n#include "boot/picoboot_constants.h"\n')
     header_path = top
 else:
     lib, family, mcu, out = sys.argv[1:5]
@@ -110,11 +113,13 @@ for m in re.finditer(r'typedef\s+struct\s*\{([^{}]*)\}\s*(\w+)\s*;', text):
         decl = decl.strip()
         if not decl:
             continue
-        f = re.fullmatch(r'(?:__IOM|__IM|__OM|__IO|__I|__O|volatile|const|\s)*(\w+)\s+(\w+)\s*(?:\[([^\]]+)\])?', decl)
+        f = re.fullmatch(r'(?:__IOM|__IM|__OM|__IO|__I|__O|volatile|const|\s)*(\w+)\s+(\w+)((?:\s*\[[^\]]+\])*)', decl)
         if not f or (f.group(1) not in CTYPES and f.group(1) not in structs):
             fields = None
             break
-        fields.append((f.group(1), f.group(2), f.group(3) and f.group(3).strip()))
+        # (the array dimensions, outermost first)
+        dims = tuple(d.strip() for d in re.findall(r'\[([^\]]+)\]', f.group(3)))
+        fields.append((f.group(1), f.group(2), dims))
     if fields:
         structs[sname] = fields
 enums = []
@@ -161,9 +166,12 @@ def evaluate():
         # (a field named like a macro, COMP1 of DWT_Type on chips with COMP1
         # peripherals, cannot be named here: its offset is covered by the size)
         items += [('F', s + '.' + f, 'offsetof(%s, %s)' % (cs, f)) for t, f, dim in fl if f not in macros]
-        # (an array's length, when it is not a plain number)
-        items += [('D', s + '.' + f, 'sizeof(((%s *)0)->%s) / sizeof(((%s *)0)->%s[0])' % (cs, f, cs, f))
-                  for t, f, dim in fl if dim and f not in macros and not re.fullmatch(r'\w+', dim)]
+        # (an array dimension, when it is not a plain number)
+        for t, f, dims in fl:
+            for k, d in enumerate(dims):
+                if f not in macros and not re.fullmatch(r'\w+', d):
+                    a = '((%s *)0)->%s' % (cs, f) + '[0]' * k
+                    items.append(('D', '%s.%s.%d' % (s, f, k), 'sizeof(%s) / sizeof(%s[0])' % (a, a)))
     while True:
         pre = ['#include <stddef.h>', '#include <stdint.h>', '#include "%s"' % top]
         src = pre + ['__attribute__((used)) const uint32_t v%d = %s;' % (i, e) for i, (k, n, e) in enumerate(items)]
@@ -219,9 +227,9 @@ for s, fl in structs.items():
     o.append('pub struct %s {' % s)
     for t, f, dim in fl:
         ty = CTYPES[t] if plain and t in CTYPES else 'Reg<%s>' % CTYPES[t] if t in CTYPES else t
-        if dim:
-            lit = re.fullmatch(r'(\d+|0x[0-9a-fA-F]+)[uUlL]*', dim)
-            n = int(lit.group(1), 0) if lit else vals.get(('I', dim), vals.get(('D', s + '.' + f)))
+        for k, d in reversed(list(enumerate(dim))):
+            lit = re.fullmatch(r'(\d+|0x[0-9a-fA-F]+)[uUlL]*', d)
+            n = int(lit.group(1), 0) if lit else vals.get(('I', d), vals.get(('D', '%s.%s.%d' % (s, f, k))))
             ty = '[%s; %d]' % (ty, n)
         o.append('    pub %s: %s,' % (rust_name(f), ty))
     o.append('}')
