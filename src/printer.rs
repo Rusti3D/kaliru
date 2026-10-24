@@ -44,6 +44,10 @@ Printer is halted
 
 pub trait PrinterObject: Any {
     fn as_any(&self) -> &dyn Any;
+    /// the Rust type's path (python plugins find the Kalico class by it)
+    fn type_name(&self) -> &'static str {
+        std::any::type_name::<Self>()
+    }
     /// hasattr(obj, "get_status"); override together with get_status()
     fn has_status(&self) -> bool {
         false
@@ -77,6 +81,12 @@ pub trait PrinterObject: Any {
     /// `obj is None`: a module whose load_config returned None
     fn is_none(&self) -> bool {
         false
+    }
+    /// obj.<name>(*args) by name, for objects Rust code only knows as
+    /// printer objects (a python plugin's): None where kaliru's own objects
+    /// are called through their Rust type instead
+    fn call_method(&self, _name: &str, _args: &[PyVal]) -> Option<KResult<PyVal>> {
+        None
     }
     /// not in python: drop references back to the printer / self when the
     /// printer instance ends (see Printer::teardown)
@@ -587,8 +597,6 @@ impl Printer {
         Ok(())
     }
 
-    /// not in python (garbage collected there): drop the objects and
-    /// handlers that hold Rc<Printer>, after the reactor was finalized
     /// Kalico's _load_modules for python modules: klippy/extras files
     /// kaliru has no built-in for, then klippy/plugins (a name in both is an
     /// error unless allow_plugin_override)
@@ -612,6 +620,27 @@ impl Printer {
         Ok(())
     }
 
+    /// printer.objects[name] = obj (python plugins: a dict assignment keeps
+    /// the position of an existing name)
+    #[cfg(feature = "plugins")]
+    pub fn objects_set(&self, name: &str, obj: PObj) {
+        self.objects.borrow_mut().insert(name.to_string(), obj);
+    }
+
+    /// printer.objects.pop(name)
+    #[cfg(feature = "plugins")]
+    pub fn objects_remove(&self, name: &str) -> Option<PObj> {
+        self.objects.borrow_mut().shift_remove(name)
+    }
+
+    /// list(printer.objects)
+    #[cfg(feature = "plugins")]
+    pub fn object_names(&self) -> Vec<String> {
+        self.objects.borrow().keys().cloned().collect()
+    }
+
+    /// not in python (garbage collected there): drop the objects and
+    /// handlers that hold Rc<Printer>, after the reactor was finalized
     pub fn teardown(&self) {
         #[cfg(feature = "plugins")]
         crate::plugins::teardown();

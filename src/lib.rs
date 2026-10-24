@@ -28,6 +28,7 @@ pub mod pyglob;
 pub mod pyval;
 pub mod queuelogger;
 pub mod reactor;
+pub mod running;
 pub mod serialhdl;
 pub mod stepper;
 pub mod toolhead;

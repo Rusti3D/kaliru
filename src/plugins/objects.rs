@@ -6,6 +6,7 @@
 //
 // The table holds both sides until teardown() (the end of a printer
 // instance, as python klippy drops all printer objects on RESTART).
+use crate::plugins::gil::Gil;
 use super::py::{lookup, py_int, PyRef};
 use crate::error::{KError, KResult};
 use crate::printer::PObj;
@@ -30,44 +31,64 @@ struct Table {
     classes: HashMap<TypeId, (&'static str, &'static str)>,
 }
 
-thread_local! {
-    static TABLE: RefCell<Table> = RefCell::new(Table::default());
-}
+static TABLE: Gil<RefCell<Table>> = Gil::new(|| RefCell::new(Table::default()));
 
 fn addr(rust: &Rc<dyn Any>) -> usize {
     Rc::as_ptr(rust) as *const () as usize
 }
 
-/// Register the mirrored class of a Rust type ("klippy.gcode", "GCodeDispatch")
+/// Register the mirrored class of a Rust type whose path does not name it
+/// ("klippy.mcu", "MCU" for kaliru::mcu::Mcu); others are found by path
 pub fn register_class<T: 'static>(module: &'static str, class: &'static str) {
     TABLE.with(|t| t.borrow_mut().classes.insert(TypeId::of::<T>(), (module, class)));
 }
 
+/// The Kalico class of a Rust type: registered, else by its path
+/// (kaliru::extras::heaters::Heater is klippy.extras.heaters.Heater)
+fn class_of(tid: TypeId, type_name: &str) -> KResult<PyRef> {
+    if let Some((module, class)) = TABLE.with(|t| t.borrow().classes.get(&tid).copied()) {
+        return lookup(module, class);
+    }
+    let path = type_name.split('<').next().unwrap_or(type_name);
+    let mut parts: Vec<&str> = path.split("::").collect();
+    let class = parts.pop().unwrap_or("");
+    if parts.first() == Some(&"kaliru") && parts.len() > 1 {
+        parts[0] = "klippy";
+        if let Ok(c) = lookup(&parts.join("."), class) {
+            return Ok(c);
+        }
+    }
+    Err(KError::Py(
+        "TypeError".into(),
+        format!("kaliru: {} has no Kalico class yet (plugins/objects.rs register_class)", type_name),
+    ))
+}
+
 /// The python object of a Rust object (created on first use)
-pub fn wrap(rust: Rc<dyn Any>) -> KResult<PyRef> {
-    wrap_impl(rust, None)
+pub fn wrap<T: 'static>(rust: Rc<T>) -> KResult<PyRef> {
+    wrap_impl(rust, std::any::type_name::<T>(), None)
+}
+
+/// wrap() of an object known by its Rust type's path only
+pub fn wrap_any(rust: Rc<dyn Any>, type_name: &str) -> KResult<PyRef> {
+    wrap_impl(rust, type_name, None)
 }
 
 /// wrap() of a printer object (keeps it usable as one when python hands it back)
-pub fn wrap_pobj(rust: Rc<dyn Any>, pobj: PObj) -> KResult<PyRef> {
-    wrap_impl(rust, Some(pobj))
+pub fn wrap_pobj(pobj: PObj) -> KResult<PyRef> {
+    let type_name = pobj.type_name();
+    let rust: Rc<dyn Any> = pobj.clone();
+    wrap_impl(rust, type_name, Some(pobj))
 }
 
-fn wrap_impl(rust: Rc<dyn Any>, pobj: Option<PObj>) -> KResult<PyRef> {
+fn wrap_impl(rust: Rc<dyn Any>, type_name: &str, pobj: Option<PObj>) -> KResult<PyRef> {
     if let Some(py) = TABLE.with(|t| {
         let t = t.borrow();
         t.by_addr.get(&addr(&rust)).and_then(|h| t.entries[*h].as_ref().map(|e| e.py.clone()))
     }) {
         return Ok(py);
     }
-    let tid = (*rust).type_id();
-    let Some((module, class)) = TABLE.with(|t| t.borrow().classes.get(&tid).copied()) else {
-        return Err(KError::Py(
-            "TypeError".into(),
-            format!("kaliru: this object has no python class yet ({:?})", tid),
-        ));
-    };
-    let cls = lookup(module, class)?;
+    let cls = class_of((*rust).type_id(), type_name)?;
     // cls.__new__(cls): the object exists already, __init__ must not run
     let py = cls.getattr("__new__")?.call(&[&cls])?;
     bind_impl(&py, rust, pobj)?;

@@ -8,7 +8,11 @@
 #    mirrored method is replaced on a class or overridden by a subclass, and
 #    Object.__setattr__ when it is replaced on an instance, so kaliru's own
 #    calls of that method go to the python replacement
-#  - Attr: an instance attribute that lives in kaliru (data descriptor)
+#  - Attr: an instance attribute that lives in kaliru (data descriptor). An
+#    object a plugin built without a kaliru object behind it (its __init__
+#    is Kalico's own code) is plain python: its attributes live in __dict__
+#  - FileConfig / AccessTracking: config.fileconfig and .access_tracking of
+#    kaliru's configs, live views of kaliru's parser and tracking
 #  - module_getattr: module names that are not copied into a mirror module
 #    resolve on first access (PEP 562)
 #  - logging: python's root logger writes to kaliru's log (klippy.log), as
@@ -17,6 +21,8 @@
 #    modules a mirror does not exist for (third-party extras and plugins),
 #    which are files under the klippy directory; plus Kalico's compat aliases
 #    (`import mcu` is `klippy.mcu`, klippy/compat.py)
+from collections.abc import MutableMapping, MutableSequence
+import configparser
 import importlib.abc
 import importlib.machinery
 import importlib.util
@@ -50,7 +56,8 @@ class Object(metaclass=Meta):
 
     def __setattr__(self, name, value):
         object.__setattr__(self, name, value)
-        _n.patched_instance(self, name)
+        if getattr(self, "_k_h", None) is not None:
+            _n.patched_instance(self, name)
 
 
 class Attr:
@@ -63,13 +70,219 @@ class Attr:
     def __get__(self, obj, cls=None):
         if obj is None:
             return self
+        if getattr(obj, "_k_h", None) is None:
+            try:
+                return obj.__dict__[self.name]
+            except KeyError:
+                raise AttributeError(
+                    "%r object has no attribute %r" % (type(obj).__name__, self.name)
+                ) from None
         return _n.get(obj, self.id)
 
     def __set__(self, obj, value):
-        _n.set(obj, self.id, value)
+        if getattr(obj, "_k_h", None) is None:
+            obj.__dict__[self.name] = value
+        else:
+            _n.set(obj, self.id, value)
 
     def __delete__(self, obj):
-        _n.delete(obj, self.id)
+        if getattr(obj, "_k_h", None) is None:
+            del obj.__dict__[self.name]
+        else:
+            _n.delete(obj, self.id)
+
+
+class FileConfig(configparser.RawConfigParser):
+    """config.fileconfig of a kaliru config: kaliru's parser, Kalico's
+    interpolation included. getint/getfloat/getboolean/SectionProxy are
+    RawConfigParser's own, on top of these primitives."""
+
+    default_section = configparser.DEFAULTSECT
+
+    def __init__(self, *args, **kwargs):
+        raise TypeError("kaliru: FileConfig only wraps kaliru's parser")
+
+    def sections(self):
+        return _n.ext("fc_sections", self)
+
+    def has_section(self, section):
+        return _n.ext("fc_has_section", self, section)
+
+    def add_section(self, section):
+        if section == self.default_section:
+            raise ValueError("Invalid section name: %r" % section)
+        if self.has_section(section):
+            raise configparser.DuplicateSectionError(section)
+        _n.ext("fc_add_section", self, section)
+
+    def remove_section(self, section):
+        return _n.ext("fc_remove_section", self, section)
+
+    def options(self, section):
+        if not self.has_section(section):
+            raise configparser.NoSectionError(section)
+        return _n.ext("fc_options", self, section)
+
+    def has_option(self, section, option):
+        return _n.ext("fc_has_option", self, section, option)
+
+    def get(self, section, option, *, raw=False, vars=None, fallback=configparser._UNSET):
+        if not self.has_section(section) and section != self.default_section:
+            if fallback is configparser._UNSET:
+                raise configparser.NoSectionError(section)
+            return fallback
+        if not self.has_option(section, option):
+            if fallback is configparser._UNSET:
+                raise configparser.NoOptionError(self.optionxform(option), section)
+            return fallback
+        return _n.ext("fc_get", self, section, option, raw)
+
+    def items(self, section=configparser._UNSET, raw=False, vars=None):
+        if section is configparser._UNSET:
+            return [(s, self[s]) for s in [self.default_section] + self.sections()]
+        return [(o, self.get(section, o, raw=raw)) for o in self.options(section)]
+
+    def set(self, section, option, value=None):
+        if not self.has_section(section) and section != self.default_section:
+            raise configparser.NoSectionError(section)
+        _n.ext("fc_set", self, section, option, "" if value is None else value)
+
+    def remove_option(self, section, option):
+        if not self.has_section(section) and section != self.default_section:
+            raise configparser.NoSectionError(section)
+        return _n.ext("fc_remove_option", self, section, option)
+
+    def __getitem__(self, key):
+        if key != self.default_section and not self.has_section(key):
+            raise KeyError(key)
+        return configparser.SectionProxy(self, key)
+
+    def __contains__(self, key):
+        return key == self.default_section or self.has_section(key)
+
+    def __iter__(self):
+        return iter([self.default_section] + self.sections())
+
+    def __len__(self):
+        return len(self.sections()) + 1
+
+
+class AccessTracking(MutableMapping):
+    """config.access_tracking of a kaliru config: {(section, option): value}"""
+
+    def __getitem__(self, key):
+        return _n.ext("at_get", self, key)
+
+    def __setitem__(self, key, value):
+        _n.ext("at_set", self, key, value)
+
+    def __delitem__(self, key):
+        _n.ext("at_del", self, key)
+
+    def __iter__(self):
+        return iter(_n.ext("at_keys", self))
+
+    def __len__(self):
+        return len(_n.ext("at_keys", self))
+
+
+class ListView(MutableSequence):
+    """A list attribute that lives in kaliru (PrinterHeaters.available_heaters):
+    reads and writes go to kaliru, so its own code sees a plugin's append"""
+
+    __slots__ = ("_owner", "_field")
+
+    def __init__(self, owner, field):
+        self._owner = owner
+        self._field = field
+
+    def _get(self):
+        return _n.ext("list_get", self._owner, self._field)
+
+    def _set(self, items):
+        _n.ext("list_set", self._owner, self._field, items)
+
+    def __getitem__(self, i):
+        return self._get()[i]
+
+    def __setitem__(self, i, value):
+        items = self._get()
+        items[i] = value
+        self._set(items)
+
+    def __delitem__(self, i):
+        items = self._get()
+        del items[i]
+        self._set(items)
+
+    def __len__(self):
+        return len(self._get())
+
+    def insert(self, i, value):
+        items = self._get()
+        items.insert(i, value)
+        self._set(items)
+
+    def __eq__(self, other):
+        return self._get() == list(other)
+
+    def __repr__(self):
+        return repr(self._get())
+
+
+class DictView(MutableMapping):
+    """A dict attribute that lives in kaliru (PrinterHeaters.heaters)"""
+
+    __slots__ = ("_owner", "_field")
+
+    def __init__(self, owner, field):
+        self._owner = owner
+        self._field = field
+
+    def __getitem__(self, key):
+        return _n.ext("dict_get", self._owner, self._field, key)
+
+    def __setitem__(self, key, value):
+        _n.ext("dict_set", self._owner, self._field, key, value)
+
+    def __delitem__(self, key):
+        _n.ext("dict_del", self._owner, self._field, key)
+
+    def __iter__(self):
+        return iter(_n.ext("dict_keys", self._owner, self._field))
+
+    def __len__(self):
+        return len(_n.ext("dict_keys", self._owner, self._field))
+
+    def __repr__(self):
+        return repr(dict(self))
+
+
+class ObjectsView(MutableMapping):
+    """printer.objects: kaliru's object table seen as the OrderedDict"""
+
+    __slots__ = ("_printer",)
+
+    def __init__(self, printer):
+        self._printer = printer
+
+    def __getitem__(self, name):
+        return _n.ext("objects_get", self._printer, name)
+
+    def __setitem__(self, name, obj):
+        _n.ext("objects_set", self._printer, name, obj)
+
+    def __delitem__(self, name):
+        _n.ext("objects_del", self._printer, name)
+
+    def __iter__(self):
+        return iter(_n.ext("objects_keys", self._printer))
+
+    def __len__(self):
+        return len(_n.ext("objects_keys", self._printer))
+
+    def __repr__(self):
+        return "ObjectsView(%r)" % (dict(self),)
 
 
 def module_getattr(modname):

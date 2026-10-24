@@ -39,17 +39,12 @@ pub fn coord_pyval(values: &[f64]) -> PyVal {
 
 pub type Handler = Rc<dyn Fn(&GCodeCommand) -> KResult<()>>;
 
-thread_local! {
-    // the commands being handled; python plugins keep
-    // references to the command object itself (src/plugins)
-    static RUNNING_COMMANDS: RefCell<Vec<Rc<GCodeCommand>>> = const { RefCell::new(Vec::new()) };
-}
-
-/// The Rc of a command being handled, if `cmd` is one (python plugins)
-pub fn running_command(cmd: &GCodeCommand) -> Option<Rc<GCodeCommand>> {
-    RUNNING_COMMANDS.with(|r| r.borrow().iter().rev().find(|c| std::ptr::eq(c.as_ref(), cmd)).cloned())
-}
 pub type OutputCallback = Rc<dyn Fn(&str)>;
+
+/// What an output callback is a bound method of (python plugins look at
+/// `cb.__self__`): the object and its Rust type's path, or the python
+/// callable itself for one a plugin registered
+pub type CallbackOrigin = (Rc<dyn Any>, &'static str);
 
 pub struct GCodeCommand {
     command: RefCell<String>,
@@ -84,6 +79,24 @@ impl GCodeCommand {
 
     pub fn get_commandline(&self) -> &str {
         &self.commandline
+    }
+
+    /// self._params, self._command, self._need_ack (python plugins read and
+    /// write them: their GCodeCommand methods are Kalico's own code)
+    pub fn params_cell(&self) -> &RefCell<IndexMap<String, String>> {
+        &self.params
+    }
+
+    pub fn set_command(&self, command: &str) {
+        *self.command.borrow_mut() = command.to_string();
+    }
+
+    pub fn need_ack(&self) -> bool {
+        self.need_ack.get()
+    }
+
+    pub fn set_need_ack(&self, v: bool) {
+        self.need_ack.set(v);
     }
 
     pub fn get_command_parameters(&self) -> IndexMap<String, String> {
@@ -233,7 +246,7 @@ pub struct GCodeDispatch {
     is_fileinput: bool,
     is_printer_ready: Cell<bool>,
     mutex: Rc<ReactorMutex>,
-    output_callbacks: RefCell<Vec<OutputCallback>>,
+    output_callbacks: RefCell<Vec<(OutputCallback, Option<CallbackOrigin>)>>,
     // python: self.gcode_handlers is the base or the ready dict itself
     active: Cell<Active>,
     base_gcode_handlers: RefCell<IndexMap<String, Handler>>,
@@ -443,6 +456,28 @@ impl GCodeDispatch {
         Ok(())
     }
 
+    /// the names in base_gcode_handlers / ready_gcode_handlers / the active
+    /// dict (gcode_handlers), for python plugins
+    pub fn handler_dict_names(&self, which: &str) -> Vec<String> {
+        match which {
+            "base" => self.base_gcode_handlers.borrow().keys().cloned().collect(),
+            "ready" => self.ready_gcode_handlers.borrow().keys().cloned().collect(),
+            _ => match self.active.get() {
+                Active::Base => self.base_gcode_handlers.borrow().keys().cloned().collect(),
+                Active::Ready => self.ready_gcode_handlers.borrow().keys().cloned().collect(),
+            },
+        }
+    }
+
+    /// a handler of one of those dicts
+    pub fn handler_in(&self, which: &str, name: &str) -> Option<Handler> {
+        match which {
+            "base" => self.base_gcode_handlers.borrow().get(name).cloned(),
+            "ready" => self.ready_gcode_handlers.borrow().get(name).cloned(),
+            _ => self.handlers_get(name),
+        }
+    }
+
     pub fn get_command_help(&self) -> IndexMap<String, String> {
         self.gcode_help.borrow().clone()
     }
@@ -460,8 +495,18 @@ impl GCodeDispatch {
         *self.status_commands.borrow_mut() = PyVal::Dict(commands);
     }
 
+    /// register_output_handler(obj.method): the callback and its object
+    pub fn register_output_handler_from(&self, cb: OutputCallback, origin: CallbackOrigin) {
+        self.output_callbacks.borrow_mut().push((cb, Some(origin)));
+    }
+
+    /// self.output_callbacks (python plugins)
+    pub fn output_callbacks(&self) -> Vec<(OutputCallback, Option<CallbackOrigin>)> {
+        self.output_callbacks.borrow().clone()
+    }
+
     pub fn register_output_handler(&self, cb: OutputCallback) {
-        self.output_callbacks.borrow_mut().push(cb);
+        self.output_callbacks.borrow_mut().push((cb, None));
     }
 
     fn handle_shutdown(&self) -> KResult<()> {
@@ -549,13 +594,11 @@ impl GCodeDispatch {
             if self.script_context.get() > 0 && cmd == "RETURN" {
                 return Ok(());
             }
-            RUNNING_COMMANDS.with(|r| r.borrow_mut().push(gcmd.clone()));
-            let res = match self.handlers_get(&cmd) {
-                Some(handler) => handler(&gcmd),
-                None => self.cmd_default(&gcmd),
-            };
-            // (handlers pause: another greenlet's commands may have come and gone)
-            RUNNING_COMMANDS.with(|r| r.borrow_mut().retain(|c| !Rc::ptr_eq(c, &gcmd)));
+            // (python plugins keep the command object itself: crate::running)
+            let res = crate::running::run(&gcmd, |g| match self.handlers_get(&cmd) {
+                Some(handler) => handler(g),
+                None => self.cmd_default(g),
+            });
             if let Err(e) = res {
                 if e.is_command_error() {
                     self.respond_error(&e.to_string());
@@ -610,7 +653,7 @@ impl GCodeDispatch {
 
     // Response handling
     pub fn respond_raw(&self, msg: &str) {
-        let cbs = self.output_callbacks.borrow().clone();
+        let cbs: Vec<OutputCallback> = self.output_callbacks.borrow().iter().map(|(cb, _)| cb.clone()).collect();
         for cb in cbs {
             cb(msg);
         }
@@ -853,7 +896,8 @@ impl GCodeIO {
         });
         if !io.is_fileinput {
             let i = io.clone();
-            gcode.register_output_handler(Rc::new(move |msg| i.respond_raw(msg)));
+            let origin: CallbackOrigin = (io.clone(), std::any::type_name::<GCodeIO>());
+            gcode.register_output_handler_from(Rc::new(move |msg| i.respond_raw(msg)), origin);
             io.register_fd();
         }
         let i = io.clone();

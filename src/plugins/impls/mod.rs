@@ -4,9 +4,13 @@
 // defaults filled in by the generated python.
 mod configfile;
 mod gcode;
+mod heaters;
+mod pins;
 mod printer;
 mod reactor;
+mod webhooks;
 
+use crate::plugins::gil::Gil;
 use super::native::Registry;
 use super::py::*;
 use super::{objects, pobj_to_py};
@@ -22,13 +26,51 @@ pub fn register(r: &mut Registry) {
     printer::register(r);
     configfile::register(r);
     gcode::register(r);
+    heaters::register(r);
+    pins::register(r);
     reactor::register(r);
+    webhooks::register(r);
 }
 
-thread_local! {
-    // the printer of the running instance (callbacks report through it)
-    static PRINTER: RefCell<Weak<Printer>> = const { RefCell::new(Weak::new()) };
+/// get_status / stats / get_temp of any printer object (kaliru's
+/// PrinterObject methods), for every Kalico class that has them
+pub fn generic_methods(name: &str) -> Option<super::native::Method> {
+    if name.ends_with(".get_status") {
+        Some(|a| {
+            let o = pobj_of(a)?;
+            match o.try_get_status(a.f64(0)?)? {
+                Some(v) => Ok(from_pyval(&v)),
+                None => Err(KError::Py("AttributeError".into(), "get_status".into())),
+            }
+        })
+    } else if name.ends_with(".stats") {
+        Some(|a| {
+            let o = pobj_of(a)?;
+            match o.stats(a.f64(0)?) {
+                Some((busy, msg)) => Ok(py_tuple(vec![py_bool(busy), py_str(&msg)])),
+                None => Err(KError::Py("AttributeError".into(), "stats".into())),
+            }
+        })
+    } else if name.ends_with(".get_temp") {
+        Some(|a| {
+            let o = pobj_of(a)?;
+            match o.get_temp(a.f64(0)?) {
+                Some((cur, target)) => Ok(py_tuple(vec![py_float(cur), py_float(target)])),
+                None => Err(KError::Py("AttributeError".into(), "get_temp".into())),
+            }
+        })
+    } else {
+        None
+    }
 }
+
+fn pobj_of(a: &super::native::Args) -> KResult<PObj> {
+    let slf = a.slf.as_ref().expect("method without self");
+    objects::bound_pobj(slf).ok_or_else(|| KError::Py("NotImplementedError".into(), "kaliru: not a printer object".into()))
+}
+
+// the printer of the running instance (callbacks report through it)
+static PRINTER: Gil<RefCell<Weak<Printer>>> = Gil::new(|| RefCell::new(Weak::new()));
 
 pub fn set_printer(p: &Rc<Printer>) {
     PRINTER.with(|c| *c.borrow_mut() = Rc::downgrade(p));
@@ -75,6 +117,9 @@ pub fn value_or_default(v: Option<PyVal>, missing: bool, default: Option<PyRef>)
 
 /// An event / callback argument as python sees it
 pub fn any_to_py(a: &dyn Any) -> KResult<PyRef> {
+    if let Some(v) = a.downcast_ref::<PyRef>() {
+        return Ok(v.clone());
+    }
     if let Some(v) = a.downcast_ref::<f64>() {
         return Ok(py_float(*v));
     }

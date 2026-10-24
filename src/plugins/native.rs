@@ -6,6 +6,7 @@
 // GCodeDispatch.register_command"); mirror_ids.rs gives each name the ID the
 // generated python passes. An ID without a handler raises
 // NotImplementedError naming it.
+use crate::plugins::gil::Gil;
 use super::capi::*;
 use super::mirror_ids::{IDS, MODULES};
 use super::objects;
@@ -59,16 +60,36 @@ pub type Ctor = fn(&Args) -> KResult<Rc<dyn Any>>;
 pub type Getter = fn(&PyRef) -> KResult<PyRef>;
 pub type Setter = fn(&PyRef, &PyRef) -> KResult<()>;
 
+/// A list attribute kept in kaliru: read it whole, write it whole
+/// (prelude.py ListView); the field's qualified name picks the list
+#[derive(Clone, Copy)]
+pub struct ListField {
+    pub get: fn(&PyRef, &str) -> KResult<Vec<PyRef>>,
+    pub set: fn(&PyRef, &str, Vec<PyRef>) -> KResult<()>,
+}
+
+/// A dict attribute kept in kaliru (prelude.py DictView)
+#[derive(Clone, Copy)]
+pub struct DictField {
+    pub get: fn(&PyRef, &str, &PyRef) -> KResult<PyRef>,
+    pub set: fn(&PyRef, &str, &PyRef, &PyRef) -> KResult<()>,
+    pub del: fn(&PyRef, &str, &PyRef) -> KResult<()>,
+    pub keys: fn(&PyRef, &str) -> KResult<Vec<PyRef>>,
+}
+
 #[derive(Clone, Copy)]
 pub enum Handler {
     Method(Method),
     Ctor(Ctor),
     Attr(Getter, Option<Setter>),
+    List(&'static str, ListField),
+    Dict(&'static str, DictField),
 }
 
-/// Collects handlers by qualified name (src/plugins/impls/*)
+/// Collects handlers by qualified name (src/plugins/impls/*), and the
+/// layer's own helpers by name (`_kaliru.ext`)
 #[derive(Default)]
-pub struct Registry(HashMap<&'static str, Handler>);
+pub struct Registry(HashMap<&'static str, Handler>, HashMap<&'static str, Method>);
 
 impl Registry {
     pub fn method(&mut self, name: &'static str, f: Method) {
@@ -80,13 +101,21 @@ impl Registry {
     pub fn attr(&mut self, name: &'static str, get: Getter, set: Option<Setter>) {
         self.0.insert(name, Handler::Attr(get, set));
     }
+    pub fn ext(&mut self, name: &'static str, f: Method) {
+        self.1.insert(name, f);
+    }
+    pub fn list(&mut self, name: &'static str, f: ListField) {
+        self.0.insert(name, Handler::List(name, f));
+    }
+    pub fn dict(&mut self, name: &'static str, f: DictField) {
+        self.0.insert(name, Handler::Dict(name, f));
+    }
 }
 
-thread_local! {
-    static HANDLERS: RefCell<Vec<Option<Handler>>> = const { RefCell::new(Vec::new()) };
-    // (class qualname or "@<object handle>", name) a plugin replaced
-    static PATCHED: RefCell<HashSet<(String, String)>> = RefCell::new(HashSet::new());
-}
+static HANDLERS: Gil<RefCell<Vec<Option<Handler>>>> = Gil::new(|| RefCell::new(Vec::new()));
+// (class qualname or "@<object handle>", name) a plugin replaced
+static PATCHED: Gil<RefCell<HashSet<(String, String)>>> = Gil::new(|| RefCell::new(HashSet::new()));
+static EXT: Gil<RefCell<HashMap<&'static str, Method>>> = Gil::new(|| RefCell::new(HashMap::new()));
 
 /// Resolve the registry against the generated IDs; names that are not
 /// Kalico's are a bug in the impls
@@ -94,7 +123,14 @@ pub fn install_handlers(reg: Registry) {
     let mut by_id = vec![None; IDS.len()];
     let mut unknown: Vec<&str> = vec![];
     let index: HashMap<&str, usize> = IDS.iter().enumerate().map(|(i, n)| (*n, i)).collect();
-    for (name, h) in reg.0 {
+    // get_status / stats / get_temp: the PrinterObject methods unless a
+    // class has its own handler
+    for (i, name) in IDS.iter().enumerate() {
+        if let Some(f) = super::impls::generic_methods(name) {
+            by_id[i] = Some(Handler::Method(f));
+        }
+    }
+    for (name, h) in reg.0.iter().map(|(n, h)| (*n, *h)) {
         match index.get(name) {
             Some(&i) => by_id[i] = Some(h),
             None => unknown.push(name),
@@ -102,6 +138,7 @@ pub fn install_handlers(reg: Registry) {
     }
     assert!(unknown.is_empty(), "plugin handlers for names Kalico does not have: {:?}", unknown);
     HANDLERS.with(|h| *h.borrow_mut() = by_id);
+    EXT.with(|e| *e.borrow_mut() = reg.1);
 }
 
 fn handler(id: usize) -> KResult<Handler> {
@@ -174,9 +211,34 @@ native!(k_new, |a| {
 
 // get(obj, id)
 native!(k_get, |a| {
-    let Handler::Attr(get, _) = handler(id_of(&a[1])?)? else { return Err(KError::Other("kaliru: not an attribute".into())) };
-    get(&a[0])
+    match handler(id_of(&a[1])?)? {
+        Handler::Attr(get, _) => get(&a[0]),
+        Handler::List(name, _) => lookup("_k", "ListView")?.call(&[&a[0], &py_str(name)]),
+        Handler::Dict(name, _) => lookup("_k", "DictView")?.call(&[&a[0], &py_str(name)]),
+        _ => Err(KError::Other("kaliru: not an attribute".into())),
+    }
 });
+
+fn field_handler(name: &PyRef) -> KResult<Handler> {
+    let name = name.as_string()?;
+    let id = IDS.iter().position(|n| *n == name).ok_or_else(|| KError::Other(format!("kaliru: no field {}", name)))?;
+    handler(id)
+}
+
+// list_get(owner, field) / list_set(owner, field, items) (prelude.py ListView)
+fn list_ops(a: &[PyRef]) -> KResult<(ListField, String)> {
+    match field_handler(&a[1])? {
+        Handler::List(n, f) => Ok((f, n.to_string())),
+        _ => Err(KError::Other("kaliru: not a list field".into())),
+    }
+}
+
+fn dict_ops(a: &[PyRef]) -> KResult<(DictField, String)> {
+    match field_handler(&a[1])? {
+        Handler::Dict(n, f) => Ok((f, n.to_string())),
+        _ => Err(KError::Other("kaliru: not a dict field".into())),
+    }
+}
 
 // set(obj, id, value)
 native!(k_set, |a| {
@@ -233,6 +295,47 @@ native!(k_log, |a| {
     Ok(py_none())
 });
 
+// ext(name, *args): the layer's own helpers (prelude.py views), not Kalico names
+native!(k_ext, |a| {
+    let name = a[0].as_string()?;
+    let rest = &a[1..];
+    match name.as_str() {
+        "list_get" => {
+            let (f, n) = list_ops(rest)?;
+            return Ok(py_list((f.get)(&rest[0], &n)?));
+        }
+        "list_set" => {
+            let (f, n) = list_ops(rest)?;
+            let items: Vec<PyRef> = super::convert::FromPy::from_py(&rest[2])?;
+            (f.set)(&rest[0], &n, items)?;
+            return Ok(py_none());
+        }
+        "dict_get" => {
+            let (f, n) = dict_ops(rest)?;
+            return (f.get)(&rest[0], &n, &rest[2]);
+        }
+        "dict_set" => {
+            let (f, n) = dict_ops(rest)?;
+            (f.set)(&rest[0], &n, &rest[2], &rest[3])?;
+            return Ok(py_none());
+        }
+        "dict_del" => {
+            let (f, n) = dict_ops(rest)?;
+            (f.del)(&rest[0], &n, &rest[2])?;
+            return Ok(py_none());
+        }
+        "dict_keys" => {
+            let (f, n) = dict_ops(rest)?;
+            return Ok(py_list((f.keys)(&rest[0], &n)?));
+        }
+        _ => {}
+    }
+    let f = EXT
+        .with(|e| e.borrow().get(name.as_str()).copied())
+        .ok_or_else(|| KError::Other(format!("kaliru: no layer helper {}", name)))?;
+    f(&Args { slf: None, args: a[1..].to_vec() })
+});
+
 const FLAGS: std::ffi::c_int = METH_FASTCALL | METH_KEYWORDS;
 
 macro_rules! def {
@@ -241,7 +344,8 @@ macro_rules! def {
     };
 }
 
-static DEFS: [PyMethodDef; 11] = [
+static DEFS: [PyMethodDef; 12] = [
+    def!("ext", k_ext),
     def!("log", k_log),
     def!("call", k_call),
     def!("fcall", k_fcall),

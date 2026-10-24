@@ -35,6 +35,9 @@ EXC_ROOTS = {"Exception", "BaseException", "configparser.Error", "error", "Comma
 
 
 BUILTINS = set(dir(builtins))
+# methods emitted as Kalico's own code (one qualified name per line)
+VERBATIM = {l.split("#")[0].strip() for l in open(pathlib.Path(__file__).with_name("mirror_verbatim.txt"))} - {""}
+VERBATIM_SEEN = set()
 
 
 def is_main_guard(node):
@@ -139,6 +142,8 @@ class ModuleGen:
         self.stdlib_names = set()
         self.heavy_names = set()
         self.stdlib_classes = set()  # names bound by stdlib imports (enum, typing, ...)
+        self.star_imports = []
+        self.verbatim_used = []
         self.out = []
         self.needed = set()     # names the emitted code references at definition time
         self.bound = set()      # module constants emitted so far
@@ -161,6 +166,9 @@ class ModuleGen:
                 elif isinstance(n, ast.ImportFrom):
                     for a in n.names:
                         if a.name == "*":
+                            # klippy/__init__.py: from .printer import * (mirror modules: cheap)
+                            if n.level > 0:
+                                self.star_imports.append(ast.unparse(n))
                             continue
                         bound = a.asname or a.name
                         self.imports[bound] = ast.unparse(ast.ImportFrom(module=n.module, names=[a], level=n.level))
@@ -200,7 +208,29 @@ class ModuleGen:
         return out
 
 
+    def emit_verbatim(self, fn, indent):
+        """Kalico's own method body (tools/mirror_verbatim.txt): derived
+        methods built on mirrored primitives (ConfigWrapper.getchoice)"""
+        for dec in fn.decorator_list:
+            self.out.append(indent + "@" + ast.unparse(dec))
+        # the segment starts at `def`; later lines keep their original indentation
+        lines = ast.get_source_segment(self.src, fn).split("\n")
+        shift = len(indent) - fn.col_offset
+        self.out.append(indent + lines[0])
+        for l in lines[1:]:
+            if not l.strip():
+                self.out.append("")
+            elif shift >= 0:
+                self.out.append(" " * shift + l)
+            else:
+                self.out.append(l[-shift:])
+        self.verbatim_used.append(fn)
+
     def emit_function(self, fn, indent, qual, method):
+        if qual in VERBATIM:
+            VERBATIM_SEEN.add(qual)
+            self.ids.new(qual)  # IDs stay stable whichever way a method is emitted
+            return self.emit_verbatim(fn, indent)
         params, call = param_list(fn, self.src)
         for d in fn.args.defaults + [d for d in fn.args.kw_defaults if d is not None]:
             self.needed |= names_in(d)
@@ -320,7 +350,31 @@ class ModuleGen:
         for name in sorted(self.needed - defined):
             if name in self.imports:
                 head.append(self.imports[name])
+        head += self.star_imports
         head.append("")
+        module_names = set(BUILTINS) | {"_k", "__name__", "__file__"} | defined | self.bound
+        # imports the head actually has
+        module_names |= {n for n in self.imports if self.imports[n] in head}
+        for fn in self.verbatim_used:
+            local = {a.arg for a in fn.args.args + fn.args.kwonlyargs + fn.args.posonlyargs}
+            local |= {fn.args.vararg.arg} if fn.args.vararg else set()
+            local |= {fn.args.kwarg.arg} if fn.args.kwarg else set()
+            local |= bound_names(fn) | {n.name for n in ast.walk(fn) if isinstance(n, ast.FunctionDef)}
+            # parameters of nested functions and lambdas
+            for sub in ast.walk(fn):
+                if isinstance(sub, (ast.FunctionDef, ast.Lambda)):
+                    sa = sub.args
+                    local |= {x.arg for x in sa.args + sa.kwonlyargs + sa.posonlyargs}
+                    local |= {x.arg for x in (sa.vararg, sa.kwarg) if x}
+            # defaults and decorators are evaluated in the class body, not here
+            body = ast.Module(body=fn.body, type_ignores=[])
+            free = statement_loads(body) - local - module_names
+            for name in sorted(free):
+                if name in self.imports:
+                    head.append(self.imports[name])
+                    module_names.add(name)
+                else:
+                    raise SystemExit(f"verbatim {self.modname}.{fn.name} uses {name!r}, which the mirror module does not bind")
         tail = ["", "__getattr__ = _k.module_getattr(__name__)", ""]
         return "\n".join(head + self.out + tail)
 
@@ -366,7 +420,10 @@ def main():
         for n in ids.names:
             f.write(f'    "{n}",\n')
         f.write("];\n")
-    print(f"{len(modules)} modules, {len(ids.names)} ids", file=sys.stderr)
+    missing = VERBATIM - VERBATIM_SEEN
+    if missing:
+        raise SystemExit(f"mirror_verbatim.txt names Kalico does not have: {sorted(missing)}")
+    print(f"{len(modules)} modules, {len(ids.names)} ids, {len(VERBATIM_SEEN)} verbatim methods", file=sys.stderr)
 
 
 if __name__ == "__main__":

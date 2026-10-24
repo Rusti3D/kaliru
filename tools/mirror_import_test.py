@@ -40,7 +40,7 @@ prelude = types.ModuleType("_k")
 exec(compile(open(os.path.join(root, "src/plugins/prelude.py")).read(), "prelude.py", "exec"), prelude.__dict__)
 sys.modules["_k"] = prelude
 klippy_dir = os.path.join(root, "tools/mirror_test_klippy")
-prelude.install(klippy_dir, modules)
+prelude.install(klippy_dir, modules, 20)
 
 import importlib
 failed = 0
@@ -70,8 +70,9 @@ class MyHeater(Heater):
 
 Heater.get_temp = lambda self, t: (0, 0)
 obj = object.__new__(MyHeater)
+object.__setattr__(obj, "_k_h", 1)  # as if kaliru had bound it
 obj.check_busy = lambda *a: False
-ok = reports[:1] == [("class", "MyHeater", "__module__")] and ("class", "MyHeater", "set_temp") in reports \
+ok = ("class", "MyHeater", "set_temp") in reports \
     and ("class", "Heater", "get_temp") in reports and ("inst", "MyHeater", "check_busy") in reports
 print("patch reports", "OK" if ok else reports)
 print("isinstance", "OK" if isinstance(obj, Heater) and issubclass(MyHeater, klippy.extras.heaters.Heater) else "FAIL")

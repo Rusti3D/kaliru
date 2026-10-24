@@ -3,6 +3,7 @@ import _k
 import collections
 import re
 
+from . import mathutil
 Coord = collections.namedtuple('Coord', ('x', 'y', 'z', 'e'))
 
 class CommandError(Exception):
@@ -12,25 +13,110 @@ class GCodeCommand(_k.Object):
     __kaliru_mirror__ = True
     error = CommandError
     def __init__(self, gcode, command, commandline, params, need_ack):
-        _k.new(self, 6071, gcode, command, commandline, params, need_ack)
+        self._command = command
+        self._commandline = commandline
+        self._params = params
+        self._need_ack = need_ack
+        # Method wrappers
+        self.respond_info = gcode.respond_info
+        self.respond_raw = gcode.respond_raw
     def get_command(self):
-        return _k.call(self, 6072)
+        return self._command
     def get_commandline(self):
-        return _k.call(self, 6073)
+        return self._commandline
     def get_command_parameters(self):
-        return _k.call(self, 6074)
+        return self._params
     def get_raw_command_parameters(self):
-        return _k.call(self, 6075)
+        command = self._command
+        origline = self._commandline
+        param_start = len(command)
+        param_end = len(origline)
+        if origline[:param_start].upper() != command:
+            # Skip any gcode line-number and ignore any trailing checksum
+            param_start += origline.upper().find(command)
+            end = origline.rfind("*")
+            if end >= 0 and origline[end + 1 :].isdigit():
+                param_end = end
+        if origline[param_start : param_start + 1].isspace():
+            param_start += 1
+        return origline[param_start:param_end]
     def ack(self, msg=None):
-        return _k.call(self, 6076, msg)
+        if not self._need_ack:
+            return False
+        ok_msg = "ok"
+        if msg:
+            ok_msg = "ok %s" % (msg,)
+        self.respond_raw(ok_msg)
+        self._need_ack = False
+        return True
     class sentinel:
         pass
-    def get(self, name, default=sentinel, parser=str, minval=None, maxval=None, above=None, below=None):
-        return _k.call(self, 6077, name, default, parser, minval, maxval, above, below)
+    def get(
+        self,
+        name,
+        default=sentinel,
+        parser=str,
+        minval=None,
+        maxval=None,
+        above=None,
+        below=None,
+    ):
+        if parser is float:
+            parser = mathutil.safe_float
+        value = self._params.get(name)
+        if value is None:
+            if default is self.sentinel:
+                raise self.error(
+                    "Error on '%s': missing %s" % (self._commandline, name)
+                )
+            return default
+        try:
+            value = parser(value)
+        except:
+            raise self.error(
+                "Error on '%s': unable to parse %s" % (self._commandline, value)
+            )
+        if minval is not None and value < minval:
+            raise self.error(
+                "Error on '%s': %s must have minimum of %s"
+                % (self._commandline, name, minval)
+            )
+        if maxval is not None and value > maxval:
+            raise self.error(
+                "Error on '%s': %s must have maximum of %s"
+                % (self._commandline, name, maxval)
+            )
+        if above is not None and value <= above:
+            raise self.error(
+                "Error on '%s': %s must be above %s"
+                % (self._commandline, name, above)
+            )
+        if below is not None and value >= below:
+            raise self.error(
+                "Error on '%s': %s must be below %s"
+                % (self._commandline, name, below)
+            )
+        return value
     def get_int(self, name, default=sentinel, minval=None, maxval=None):
-        return _k.call(self, 6078, name, default, minval, maxval)
-    def get_float(self, name, default=sentinel, minval=None, maxval=None, above=None, below=None):
-        return _k.call(self, 6079, name, default, minval, maxval, above, below)
+        return self.get(name, default, parser=int, minval=minval, maxval=maxval)
+    def get_float(
+        self,
+        name,
+        default=sentinel,
+        minval=None,
+        maxval=None,
+        above=None,
+        below=None,
+    ):
+        return self.get(
+            name,
+            default,
+            parser=mathutil.safe_float,
+            minval=minval,
+            maxval=maxval,
+            above=above,
+            below=below,
+        )
     _command = _k.Attr(6080, '_command')
     _commandline = _k.Attr(6081, '_commandline')
     _need_ack = _k.Attr(6082, '_need_ack')
@@ -78,7 +164,7 @@ class GCodeDispatch(_k.Object):
     def get_mutex(self):
         return _k.call(self, 6102)
     def create_gcode_command(self, command, commandline, params):
-        return _k.call(self, 6103, command, commandline, params)
+        return GCodeCommand(self, command, commandline, params, False)
     def respond_raw(self, msg):
         return _k.call(self, 6104, msg)
     def respond_info(self, msg, log=True):

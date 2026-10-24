@@ -28,6 +28,8 @@ pub struct ForeignError {
     pub class: String,
     /// the exception object itself (src/plugins keeps the python reference)
     pub obj: Box<dyn std::any::Any>,
+    /// traceback.format_exception() of it, for the log
+    pub traceback: Option<String>,
 }
 
 impl fmt::Debug for ForeignError {

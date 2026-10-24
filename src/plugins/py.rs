@@ -2,6 +2,7 @@
 // PyRef owns one reference (Drop = Py_DecRef; the GIL is held wherever
 // kaliru runs, see greenlets.rs), errors map both ways between KError and
 // python exceptions.
+use crate::plugins::gil::Gil;
 use super::capi::*;
 use crate::error::{ForeignError, KError, KResult};
 use crate::pyval::PyVal;
@@ -191,10 +192,8 @@ pub fn import(name: &str) -> KResult<PyRef> {
     unsafe { PyRef::owned_or_err(PyImport_ImportModule(c.as_ptr())) }
 }
 
-thread_local! {
-    // "module:attr" -> object (exception classes and the like)
-    static CACHE: RefCell<HashMap<String, PyRef>> = RefCell::new(HashMap::new());
-}
+// "module:attr" -> object (exception classes and the like)
+static CACHE: Gil<RefCell<HashMap<String, PyRef>>> = Gil::new(|| RefCell::new(HashMap::new()));
 
 /// module.attr, cached for the life of the interpreter
 pub fn lookup(module: &str, attr: &str) -> KResult<PyRef> {
@@ -303,11 +302,9 @@ pub fn fetch_error() -> KError {
     exception_to_kerror(exc)
 }
 
-thread_local! {
-    // set while an exception is being converted: a failure inside the
-    // conversion (a class lookup that raises) must not convert recursively
-    static CONVERTING: std::cell::Cell<bool> = const { std::cell::Cell::new(false) };
-}
+// set while an exception is being converted: a failure inside the
+// conversion (a class lookup that raises) must not convert recursively
+static CONVERTING: Gil<std::cell::Cell<bool>> = Gil::new(|| std::cell::Cell::new(false));
 
 pub fn exception_to_kerror(exc: PyRef) -> KError {
     if CONVERTING.with(|c| c.replace(true)) {
@@ -348,7 +345,12 @@ fn exception_to_kerror_inner(exc: PyRef) -> KError {
             break;
         }
     }
-    KError::Foreign(Rc::new(ForeignError { kind, class, obj: Box::new(exc) }))
+    let traceback = lookup("traceback", "format_exception")
+        .and_then(|f| f.call(&[&exc]))
+        .and_then(|l| lookup("builtins", "str")?.getattr("join")?.call(&[&py_str(""), &l]))
+        .and_then(|t| t.as_string())
+        .ok();
+    KError::Foreign(Rc::new(ForeignError { kind, class, obj: Box::new(exc), traceback }))
 }
 
 /// raise `e` in python (sets the error indicator; the caller returns NULL)

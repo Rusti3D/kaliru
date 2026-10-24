@@ -6,7 +6,9 @@
 // klippy directory: $KALIRU_KLIPPY_DIR, else `klippy` next to the binary
 // (Kalico's layout: klippy/extras, klippy/plugins).
 mod callable;
+mod gil;
 pub mod capi;
+pub mod convert;
 mod greenlets;
 mod impls;
 mod mirror_ids;
@@ -15,6 +17,7 @@ pub mod objects;
 pub mod py;
 mod sources;
 
+use crate::plugins::gil::Gil;
 use crate::configfile::ConfigWrapper;
 use crate::error::{KError, KResult};
 use crate::printer::{PObj, PrinterObject};
@@ -25,9 +28,7 @@ use std::cell::Cell;
 use std::path::PathBuf;
 use std::rc::Rc;
 
-thread_local! {
-    static STARTED: Cell<bool> = const { Cell::new(false) };
-}
+static STARTED: Gil<Cell<bool>> = Gil::new(|| Cell::new(false));
 
 /// Whether the interpreter runs (then the reactor thread holds the GIL)
 pub fn started() -> bool {
@@ -166,6 +167,14 @@ impl PrinterObject for PyPrinterObject {
             _ => None,
         }
     }
+    fn call_method(&self, name: &str, args: &[PyVal]) -> Option<KResult<PyVal>> {
+        let res = (|| {
+            let args: Vec<PyRef> = args.iter().map(py::from_pyval).collect();
+            let refs: Vec<&PyRef> = args.iter().collect();
+            py::to_pyval(&self.obj.call_method(name, &refs)?)
+        })();
+        Some(res)
+    }
     fn get_temp(&self, eventtime: f64) -> Option<(f64, f64)> {
         let v = self.call("get_temp", eventtime).ok()??;
         match py::to_pyval(&v).ok()? {
@@ -183,8 +192,7 @@ pub fn pobj_to_py(obj: &PObj) -> KResult<PyRef> {
     if obj.is_none() {
         return Ok(py::py_none());
     }
-    let any: Rc<dyn Any> = obj.clone();
-    objects::wrap_pobj(any, obj.clone())
+    objects::wrap_pobj(obj.clone())
 }
 
 /// A python object as a printer object (add_object and the like)

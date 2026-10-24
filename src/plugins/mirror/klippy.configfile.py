@@ -3,6 +3,8 @@ import _k
 import configparser
 import re
 
+from . import mathutil
+import pathlib
 error = configparser.Error
 PYTHON_SCRIPT_PREFIX = '!'
 _INCLUDERE = re.compile('!!include (?P<file>.*)')
@@ -51,43 +53,246 @@ class ConfigWrapper(_k.Object):
     __kaliru_mirror__ = True
     error = configparser.Error
     def __init__(self, printer, fileconfig, access_tracking, section):
-        _k.new(self, 54, printer, fileconfig, access_tracking, section)
+        self.printer = printer
+        self.fileconfig = fileconfig
+        self.access_tracking = access_tracking
+        self.section = section
     def get_printer(self):
-        return _k.call(self, 55)
+        return self.printer
     def get_name(self):
-        return _k.call(self, 56)
-    def _get_wrapper(self, parser, option, default, minval=None, maxval=None, above=None, below=None, note_valid=True):
-        return _k.call(self, 57, parser, option, default, minval, maxval, above, below, note_valid)
+        return self.section
+    def _get_wrapper(
+        self,
+        parser,
+        option,
+        default,
+        minval=None,
+        maxval=None,
+        above=None,
+        below=None,
+        note_valid=True,
+    ):
+        if not self.fileconfig.has_option(self.section, option):
+            if default is not sentinel:
+                if note_valid and default is not None:
+                    acc_id = (self.section.lower(), option.lower())
+                    self.access_tracking[acc_id] = default
+                return default
+            raise error(
+                "Option '%s' in section '%s' must be specified"
+                % (option, self.section)
+            )
+        if parser is float:
+            parser = mathutil.safe_float
+        try:
+            v = parser(self.section, option)
+        except self.error as e:
+            raise
+        except:
+            raise error(
+                "Unable to parse option '%s' in section '%s'"
+                % (option, self.section)
+            )
+        if note_valid:
+            self.access_tracking[(self.section.lower(), option.lower())] = v
+        if minval is not None and v < minval:
+            raise error(
+                "Option '%s' in section '%s' must have minimum of %s"
+                % (option, self.section, minval)
+            )
+        if maxval is not None and v > maxval:
+            raise error(
+                "Option '%s' in section '%s' must have maximum of %s"
+                % (option, self.section, maxval)
+            )
+        if above is not None and v <= above:
+            raise error(
+                "Option '%s' in section '%s' must be above %s"
+                % (option, self.section, above)
+            )
+        if below is not None and v >= below:
+            raise self.error(
+                "Option '%s' in section '%s' must be below %s"
+                % (option, self.section, below)
+            )
+        return v
     def get(self, option, default=sentinel, note_valid=True):
-        return _k.call(self, 58, option, default, note_valid)
+        return self._get_wrapper(
+            self.fileconfig.get, option, default, note_valid=note_valid
+        )
     def getscript(self, option, default=sentinel, note_valid=True):
-        return _k.call(self, 59, option, default, note_valid)
-    def getint(self, option, default=sentinel, minval=None, maxval=None, note_valid=True):
-        return _k.call(self, 60, option, default, minval, maxval, note_valid)
-    def getfloat(self, option, default=sentinel, minval=None, maxval=None, above=None, below=None, note_valid=True):
-        return _k.call(self, 61, option, default, minval, maxval, above, below, note_valid)
+        value: str = self.get(option, default, note_valid).strip()
+
+        match = _INCLUDERE.search(value)
+        if match:
+            file_path = pathlib.Path(match.group("file"))
+            if file_path.suffix.lower() == ".py":
+                return ("python", file_path.read_text())
+            else:
+                return ("gcode", file_path.read_text())
+
+        elif value.startswith(PYTHON_SCRIPT_PREFIX):
+            return (
+                "python",
+                "\n".join(
+                    line.removeprefix(PYTHON_SCRIPT_PREFIX)
+                    for line in value.splitlines()
+                ),
+            )
+
+        return ("gcode", value)
+    def getint(
+        self,
+        option,
+        default=sentinel,
+        minval=None,
+        maxval=None,
+        note_valid=True,
+    ):
+        return self._get_wrapper(
+            self.fileconfig.getint,
+            option,
+            default,
+            minval,
+            maxval,
+            note_valid=note_valid,
+        )
+    def getfloat(
+        self,
+        option,
+        default=sentinel,
+        minval=None,
+        maxval=None,
+        above=None,
+        below=None,
+        note_valid=True,
+    ):
+        return self._get_wrapper(
+            self.fileconfig.getfloat,
+            option,
+            default,
+            minval,
+            maxval,
+            above,
+            below,
+            note_valid=note_valid,
+        )
     def getboolean(self, option, default=sentinel, note_valid=True):
-        return _k.call(self, 62, option, default, note_valid)
+        return self._get_wrapper(
+            self.fileconfig.getboolean, option, default, note_valid=note_valid
+        )
     def getchoice(self, option, choices, default=sentinel, note_valid=True):
-        return _k.call(self, 63, option, choices, default, note_valid)
-    def getlists(self, option, default=sentinel, seps=(",",), count=None, parser=str, note_valid=True):
-        return _k.call(self, 64, option, default, seps, count, parser, note_valid)
-    def getlist(self, option, default=sentinel, sep=",", count=None, note_valid=True):
-        return _k.call(self, 65, option, default, sep, count, note_valid)
-    def getintlist(self, option, default=sentinel, sep=",", count=None, note_valid=True):
-        return _k.call(self, 66, option, default, sep, count, note_valid)
-    def getfloatlist(self, option, default=sentinel, sep=",", count=None, note_valid=True):
-        return _k.call(self, 67, option, default, sep, count, note_valid)
+        if isinstance(choices, list):
+            choices = {i: i for i in choices}
+        if choices and isinstance(list(choices.keys())[0], int):
+            c = self.getint(option, default, note_valid=note_valid)
+        else:
+            c = self.get(option, default, note_valid=note_valid)
+        if c not in choices:
+            raise error(
+                "Choice '%s' for option '%s' in section '%s'"
+                " is not a valid choice" % (c, option, self.section)
+            )
+        return choices[c]
+    def getlists(
+        self,
+        option,
+        default=sentinel,
+        seps=(",",),
+        count=None,
+        parser=str,
+        note_valid=True,
+    ):
+        def lparser(value, pos):
+            if len(value.strip()) == 0:
+                # Return an empty list instead of [''] for empty string
+                parts = []
+            else:
+                parts = [p.strip() for p in value.split(seps[pos])]
+            if pos:
+                # Nested list
+                return tuple([lparser(p, pos - 1) for p in parts if p])
+            res = [parser(p) for p in parts]
+            if count is not None and len(res) != count:
+                raise error(
+                    "Option '%s' in section '%s' must have %d elements"
+                    % (option, self.section, count)
+                )
+            return tuple(res)
+
+        def fcparser(section, option):
+            return lparser(self.fileconfig.get(section, option), len(seps) - 1)
+
+        return self._get_wrapper(
+            fcparser, option, default, note_valid=note_valid
+        )
+    def getlist(
+        self, option, default=sentinel, sep=",", count=None, note_valid=True
+    ):
+        return self.getlists(
+            option,
+            default,
+            seps=(sep,),
+            count=count,
+            parser=str,
+            note_valid=note_valid,
+        )
+    def getintlist(
+        self, option, default=sentinel, sep=",", count=None, note_valid=True
+    ):
+        return self.getlists(
+            option,
+            default,
+            seps=(sep,),
+            count=count,
+            parser=int,
+            note_valid=note_valid,
+        )
+    def getfloatlist(
+        self, option, default=sentinel, sep=",", count=None, note_valid=True
+    ):
+        return self.getlists(
+            option,
+            default,
+            seps=(sep,),
+            count=count,
+            parser=mathutil.safe_float,
+            note_valid=note_valid,
+        )
     def getsection(self, section):
-        return _k.call(self, 68, section)
+        return ConfigWrapper(
+            self.printer, self.fileconfig, self.access_tracking, section
+        )
     def has_section(self, section):
-        return _k.call(self, 69, section)
+        return self.fileconfig.has_section(section)
     def get_prefix_sections(self, prefix):
-        return _k.call(self, 70, prefix)
+        return [
+            self.getsection(s)
+            for s in self.fileconfig.sections()
+            if s.startswith(prefix)
+        ]
     def get_prefix_options(self, prefix):
-        return _k.call(self, 71, prefix)
+        return [
+            o
+            for o in self.fileconfig.options(self.section)
+            if o.startswith(prefix)
+        ]
     def deprecate(self, option, value=None):
-        return _k.call(self, 72, option, value)
+        if not self.fileconfig.has_option(self.section, option):
+            return
+        if value is None:
+            msg = "Option '%s' in section '%s' is deprecated." % (
+                option,
+                self.section,
+            )
+        else:
+            msg = "Value '%s' in option '%s' in section '%s' is deprecated." % (
+                value,
+                option,
+                self.section,
+            )
+        pconfig = self.printer.lookup_object("configfile")
+        pconfig.deprecate(self.section, option, value, msg)
     access_tracking = _k.Attr(73, 'access_tracking')
     fileconfig = _k.Attr(74, 'fileconfig')
     printer = _k.Attr(75, 'printer')

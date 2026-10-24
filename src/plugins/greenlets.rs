@@ -12,7 +12,7 @@
 // Precondition: the reactor thread holds the GIL at every switch (it releases
 // it only while blocked in poll, where no switch happens).
 use super::capi::*;
-use crate::greenlet::{set_switch_hook, Greenlet, SwitchEvent};
+use crate::greenlet::{getcurrent, set_switch_hook, Greenlet, SwitchEvent};
 use std::cell::{Cell, RefCell};
 use std::collections::HashMap;
 
@@ -22,9 +22,23 @@ thread_local! {
     static STATES: RefCell<HashMap<usize, *mut PyThreadState>> = RefCell::new(HashMap::new());
 }
 
-/// Call on the reactor thread, with the GIL held, after Py_Initialize
+/// Call on the reactor thread, with the GIL held, after Py_Initialize.
+/// Python starts on demand, usually inside a reactor greenlet (a module's
+/// load_config): that greenlet keeps the thread state python started on
+/// (its frames are there) and the main context gets a new one.
 pub fn install() {
-    MAIN.with(|m| m.set(unsafe { PyThreadState_Get() }));
+    let current = unsafe { PyThreadState_Get() };
+    match getcurrent() {
+        Some(g) => unsafe {
+            STATES.with(|s| s.borrow_mut().insert(key(&g), current));
+            let (lo, size) = g.stack();
+            if PyUnstable_ThreadState_SetStackProtection(current, lo as *mut _, size) != 0 {
+                panic!("PyUnstable_ThreadState_SetStackProtection failed");
+            }
+            MAIN.with(|m| m.set(PyThreadState_New(PyInterpreterState_Get())));
+        },
+        None => MAIN.with(|m| m.set(current)),
+    }
     set_switch_hook(Some(hook));
 }
 
