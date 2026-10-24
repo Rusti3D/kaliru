@@ -60,12 +60,16 @@ defs = ['-D' + define] if define else []
 # the -mcpu of Kalico's src/stm32/Makefile (the CMSIS headers test the target)
 MCPU = {'rp2040': 'cortex-m0plus', 'rp2350': 'cortex-m33', 'stm32f0': 'cortex-m0', 'stm32f1': 'cortex-m3', 'stm32f2': 'cortex-m3', 'stm32f4': 'cortex-m4',
         'stm32f7': 'cortex-m7', 'stm32g0': 'cortex-m0plus', 'stm32g4': 'cortex-m4', 'stm32h7': 'cortex-m7',
-        'stm32l4': 'cortex-m4', 'lpc176x': 'cortex-m3'}[family]
+        'stm32l4': 'cortex-m4', 'lpc176x': 'cortex-m3', 'sam3x': 'cortex-m3', 'sam4s': 'cortex-m4', 'sam4e': 'cortex-m4',
+        'same70b': 'cortex-m7'}[family]
 CTYPES = {'uint32_t': 'u32', 'uint16_t': 'u16', 'uint8_t': 'u8', 'int32_t': 'i32',
           # pico-sdk hardware/address_mapped.h
           'io_rw_32': 'u32', 'io_ro_32': 'u32', 'io_wo_32': 'u32',
           'io_rw_16': 'u16', 'io_ro_16': 'u16', 'io_wo_16': 'u16',
-          'io_rw_8': 'u8', 'io_ro_8': 'u8', 'io_wo_8': 'u8'}
+          'io_rw_8': 'u8', 'io_ro_8': 'u8', 'io_wo_8': 'u8',
+          # Atmel (sam3x, sam4, same70, samd) headers
+          'RoReg': 'u32', 'WoReg': 'u32', 'RwReg': 'u32', 'RoReg16': 'u16', 'WoReg16': 'u16', 'RwReg16': 'u16',
+          'RoReg8': 'u8', 'WoReg8': 'u8', 'RwReg8': 'u8'}
 
 
 # a C name that is a Rust keyword as a raw identifier (the `in` of usb_dpram)
@@ -198,12 +202,24 @@ for n, v in macros.items():
     if p and p.group(1) in structs:
         ptrs[n] = p.group(1)
 # a register as an lvalue macro: *((uint32_t *)(ADDR)) or (*(uint32_t *)(ADDR))
-regs = sorted(n for n, v in macros.items() if re.fullmatch(r'\(?\s*\*\s*\(*\s*uint32_t\s*\*\s*\).+', v.strip()))
+regs = sorted(n for n, v in macros.items()
+              if re.fullmatch(r'\(?\s*\*\s*\(*\s*(?:__IO|__I|__O|volatile|const|\s)*uint32_t\s*\*\s*\).+', v.strip()))
 # (pico: a pointer macro named by another one, iobank0_hw -> io_bank0_hw)
 for n, v in macros.items():
     if pico and v.strip() in ptrs:
         ptrs[n] = ptrs[v.strip()]
 ints = sorted(n for n in macros if n not in ptrs and n not in regs and macros[n].strip())
+# Field macros `NAME(value)` that are `((NAME_Msk & ((value) << NAME_Pos)))` (Atmel): const fns,
+# checked against gcc for a few values
+fields_fn = {}
+for line in dm.stdout.splitlines():
+    m = re.match(r'#define (\w+)\((\w+)\) (.*)$', line)
+    if m and m.group(1) in names:
+        v = re.escape(m.group(2))
+        f = re.fullmatch(r'\(*\s*(\w+)\s*&\s*\(\s*\(\s*%s\s*\)\s*<<\s*(\w+)\s*\)\s*\)*' % v, m.group(3).strip())
+        if f and m.group(3).count('(') == m.group(3).count(')'):
+            fields_fn[m.group(1)] = (f.group(1), f.group(2))
+FN_TESTS = (0, 1, 3, 0x5a5a5a5a)
 
 
 # Evaluate with arm-none-eabi-gcc: each value becomes a const uint32_t whose .word is read from
@@ -213,6 +229,7 @@ def evaluate():
     items += [('P', n, '(uint32_t)(%s)' % n) for n in ptrs]
     items += [('R', n, '(uint32_t)&(%s)' % n) for n in regs]
     items += [('E', n, '(uint32_t)(%s)' % n) for n in enums + uenums]
+    items += [('M', '%s.%d' % (n, k), '(uint32_t)(%s(%du))' % (n, k)) for n in fields_fn for k in FN_TESTS]
     for s, fl in structs.items():
         cs = 'struct ' + s if s in inner else s
         items.append(('S', s, 'sizeof(%s)' % cs))
@@ -253,6 +270,9 @@ def evaluate():
             if not bad:
                 sys.exit(r.stderr[:3000])
             drop = {items[i][1].split('.')[0] for i in bad if items[i][0] in 'SFDA'}
+            for i in bad:
+                if items[i][0] == 'M':
+                    fields_fn.pop(items[i][1].split('.')[0], None)
             for s in drop:
                 del structs[s]
             items = [it for i, it in enumerate(items)
@@ -326,6 +346,15 @@ for n in regs:
     o.append('pub const %s: *mut u32 = 0x%08x as *mut u32;' % (n, vals[('R', n)]))
 for n in sorted(ptrs):
     o.append('pub const %s: *mut %s = 0x%08x as *mut %s;' % (n, ptrs[n], vals[('P', n)], ptrs[n]))
+for n, (msk, pos) in sorted(fields_fn.items()):
+    # (only when the formula gives gcc's values)
+    if ('I', msk) not in vals or ('I', pos) not in vals or vals[('I', pos)] >= 32:
+        continue
+    if all(vals.get(('M', '%s.%d' % (n, k))) == vals[('I', msk)] & ((k << vals[('I', pos)]) & 0xffffffff)
+           for k in FN_TESTS):
+        o.append('pub const fn %s(value: u32) -> u32 {' % n)
+        o.append('    %s & (value << %s)' % (msk, pos))
+        o.append('}')
 for n in ints:
     if ('I', n) in vals and n not in enums and n not in uenums:
         v = vals[('I', n)] & 0xffffffff

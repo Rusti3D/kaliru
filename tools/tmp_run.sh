@@ -1,4 +1,2 @@
-cd /mnt/d/RustyKlipper/kaliru/firmware
-bash tests/ctr_check.sh lpc1768-usb lpc1769-serial lpc1768-can lpc1768-usbcan 2>&1 | tail -30
-for c in lpc1769-serial lpc1768-can lpc1768-usbcan; do KALIRU_MCU_CONFIG=configs/$c CARGO_TARGET_DIR=~/rk/fwtarget-ctr-$c ~/.cargo/bin/cargo build --profile mcu --target thumbv7m-none-eabi 2>&1 | grep -E "^warning" -A6 | head -20; done
-arm-none-eabi-size ~/rk/fwtarget-ctr-lpc1768-usb/thumbv7m-none-eabi/mcu/kaliru-mcu ~/rk/fw_lpc1768-usb/klipper.elf
+R=~/rk/fwtarget-ctr-same70q20b-usb/thumbv7em-none-eabi/mcu/kaliru-mcu; C=~/rk/fw_same70q20b-usb/klipper.elf
+for f in $R $C; do echo "== $f"; arm-none-eabi-objdump -h $f | grep -E "^ +[0-9]" | grep -v debug; arm-none-eabi-nm $f | grep -E " (_text_vectortable_start|_text_size|_dtcm_bss_start|_dtcm_bss_end|ResetHandler|_data_flash)$"; done

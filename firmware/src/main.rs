@@ -101,6 +101,10 @@ pub use rp2040 as board;
 pub mod lpc176x;
 #[cfg(CONFIG_MACH_LPC176X)]
 pub use lpc176x as board;
+#[cfg(CONFIG_MACH_ATSAM)]
+pub mod atsam;
+#[cfg(CONFIG_MACH_ATSAM)]
+pub use atsam as board;
 #[cfg(CONFIG_MACH_SIMU)]
 pub mod simulator;
 #[cfg(CONFIG_MACH_SIMU)]

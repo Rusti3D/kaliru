@@ -231,13 +231,43 @@ fn sources(config: &kconfig::Config) -> Vec<&'static str> {
                 out.extend(*files);
             }
         }
+    } else if on("CONFIG_MACH_ATSAM") {
+        // src/atsam/Makefile
+        out.extend(["atsam/internal.rs", "atsam/main.rs", "atsam/gpio.rs", "atsam/i2c.rs", "atsam/spi.rs"]);
+        out.extend(["generic/armcm_boot.rs", "generic/armcm_irq.rs", "generic/armcm_timer.rs"]);
+        out.push("generic/crc16_ccitt.rs");
+        // (canbus.h: no requests, its constants are used in theirs)
+        if on("CONFIG_CANSERIAL") || on("CONFIG_USBCANBUS") {
+            out.push("generic/canbus_h.rs");
+        }
+        let usb: &'static str = if on("CONFIG_MACH_SAM4") { "atsam/sam4_usb.rs" } else { "atsam/sam3_usb.rs" };
+        let canbus: &[&'static str] = &["generic/canserial.rs", "generic/fasthash.rs", "atsam/fdcan.rs", "atsam/chipid.rs"];
+        let opt: &[(&str, Vec<&'static str>)] = &[
+            ("CONFIG_USBSERIAL", vec![usb, "atsam/chipid.rs", "generic/usb_cdc.rs"]),
+            ("CONFIG_SERIAL", vec!["atsam/serial.rs", "generic/serial_irq.rs"]),
+            ("CONFIG_USBCANBUS", [canbus, &[usb, "generic/usb_canbus.rs"]].concat()),
+            ("CONFIG_CANSERIAL", [canbus, &["generic/canbus.rs"]].concat()),
+            ("CONFIG_MACH_SAM3X", vec!["atsam/adc.rs", "atsam/hard_pwm.rs"]),
+            ("CONFIG_MACH_SAM4", vec!["atsam/hard_pwm.rs"]),
+            ("CONFIG_MACH_SAM4S", vec!["atsam/adc.rs"]),
+            ("CONFIG_MACH_SAM4E", vec!["atsam/sam4e_afec.rs", "atsam/sam4_cache.rs"]),
+            ("CONFIG_MACH_SAM3X", vec!["atsam/system_sam3xa.rs"]),
+            ("CONFIG_MACH_SAM4S", vec!["atsam/sam4s_sysinit.rs"]),
+            ("CONFIG_MACH_SAM4E", vec!["atsam/system_sam4e.rs"]),
+            ("CONFIG_MACH_SAME70", vec!["atsam/same70_sysinit.rs", "atsam/sam4e_afec.rs"]),
+        ];
+        for (c, files) in opt {
+            if on(c) {
+                out.extend(files.iter().copied());
+            }
+        }
     } else if on("CONFIG_MACH_SIMU") {
         // src/simulator/Makefile
         out.extend(["simulator/main.rs", "simulator/gpio.rs", "simulator/timer.rs", "simulator/serial.rs"]);
         out.extend(["generic/crc16_ccitt.rs", "generic/alloc.rs"]);
         out.extend(["generic/timer_irq.rs", "generic/serial_irq.rs"]);
     } else {
-        panic!("only the linux, stm32, rp2040, lpc176x and simulator boards are ported");
+        panic!("only the linux, stm32, rp2040, lpc176x, atsam and simulator boards are ported");
     }
     // (make: a source listed twice is built once, at its first place)
     let mut seen = BTreeSet::new();
@@ -245,7 +275,7 @@ fn sources(config: &kconfig::Config) -> Vec<&'static str> {
     out
 }
 
-/// The device header of an stm32 / rp2040 / lpc176x build (src/<board>/chip/<mcu>.rs,
+/// The device header of an stm32 / rp2040 / lpc176x / atsam build (src/<board>/chip/<mcu>.rs,
 /// made by tools/gen_stm32_regs.py): its path and the names it defines
 /// (the C `#ifdef NAME`, here `#[cfg(has_NAME)]`)
 fn chip_header(root: &Path, config: &kconfig::Config) -> Option<(PathBuf, BTreeSet<String>)> {
@@ -254,6 +284,8 @@ fn chip_header(root: &Path, config: &kconfig::Config) -> Option<(PathBuf, BTreeS
         ("stm32", mcu.to_string())
     } else if config.enabled("CONFIG_MACH_RPXXXX") {
         ("rp2040", mcu.to_string())
+    } else if config.enabled("CONFIG_MACH_ATSAM") {
+        ("atsam", mcu.to_string())
     } else if config.enabled("CONFIG_MACH_LPC176X") {
         // (LPC17xx.h, for both lpc1768 and lpc1769)
         ("lpc176x", "lpc17xx".to_string())
@@ -421,7 +453,13 @@ fn main() {
     let has = |n: &str| config.enabled(n) || n.strip_prefix("has_").is_some_and(|c| chip_names.contains(c));
     if let Some((path, _)) = &chip {
         std::fs::write(out.join("chip.rs"), format!("include!({:?});\n", path.display().to_string())).unwrap();
-        let script = if config.enabled("CONFIG_MACH_RPXXXX") { "rpxxxx_link.lds.S" } else { "armcm_link.lds.S" };
+        let script = if config.enabled("CONFIG_MACH_RPXXXX") {
+            "rpxxxx_link.lds.S"
+        } else if config.enabled("CONFIG_MACH_SAME70") {
+            "same70_link.lds.S"
+        } else {
+            "armcm_link.lds.S"
+        };
         let lds = armcm_link(&read(&root.join("build").join(script)), &config);
         std::fs::write(out.join("armcm_link.ld"), lds).unwrap();
         println!("cargo:rustc-link-arg=-T{}", out.join("armcm_link.ld").display());
