@@ -2,6 +2,7 @@
 use super::*;
 use crate::kinematics::extruder::PrinterExtruder;
 use crate::plugins::convert::{FromPy, ToPy};
+use crate::kinematics::Kinematics;
 use crate::toolhead::{ExtraAxisRef, ToolHead};
 use crate::{cell_attr, method, ro_attr};
 
@@ -24,7 +25,21 @@ fn extra_axis_from_py(o: &PyRef) -> KResult<ExtraAxisRef> {
     }
 }
 
+/// A kinematics object as python sees it (one per kinematics, kept for `is`)
+pub struct KinRef(pub Rc<dyn Kinematics>);
+
+static KINS: crate::plugins::gil::Gil<std::cell::RefCell<std::collections::HashMap<usize, Rc<KinRef>>>> =
+    crate::plugins::gil::Gil::new(|| std::cell::RefCell::new(std::collections::HashMap::new()));
+
+fn kin_to_py(kin: Rc<dyn Kinematics>) -> KResult<PyRef> {
+    let key = Rc::as_ptr(&kin) as *const () as usize;
+    let k = KINS.with(|m| m.borrow_mut().entry(key).or_insert_with(|| Rc::new(KinRef(kin.clone()))).clone());
+    let type_name = k.0.type_name();
+    objects::wrap_any(k, type_name)
+}
+
 pub fn register(r: &mut Registry) {
+    r.method("klippy.toolhead.ToolHead.get_kinematics", |a| kin_to_py(a.this::<ToolHead>()?.get_kinematics()));
     method!(r, "klippy.toolhead.ToolHead", ToolHead, get_position(t) => t.get_position());
     method!(r, "klippy.toolhead.ToolHead", ToolHead, set_position(t, newpos: Vec<f64>, homing_axes: String) => t.set_position(&newpos, &homing_axes));
     // move(newpos, speed) (`move` is a Rust keyword: registered by name)

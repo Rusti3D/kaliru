@@ -4,6 +4,7 @@
 // defaults filled in by the generated python.
 mod buttons;
 mod configfile;
+mod extras_misc;
 mod extras_state;
 mod extruder;
 mod filament_switch_sensor;
@@ -12,7 +13,7 @@ mod heaters;
 mod pins;
 mod printer;
 mod reactor;
-mod toolhead;
+pub(crate) mod toolhead;
 mod webhooks;
 
 use crate::plugins::gil::Gil;
@@ -29,6 +30,7 @@ use std::rc::{Rc, Weak};
 pub fn register(r: &mut Registry) {
     printer::register(r);
     buttons::register(r);
+    extras_misc::register(r);
     extras_state::register(r);
     extruder::register(r);
     configfile::register(r);
@@ -75,6 +77,10 @@ pub fn generic_methods(name: &str) -> Option<super::native::Method> {
 
 fn pobj_of(a: &super::native::Args) -> KResult<PObj> {
     let slf = a.slf.as_ref().expect("method without self");
+    // a kinematics object: its own get_status
+    if let Ok(k) = objects::unwrap_as::<toolhead::KinRef>(slf) {
+        return Ok(Rc::new(KinStatus(k)));
+    }
     objects::bound_pobj(slf).ok_or_else(|| KError::Py("NotImplementedError".into(), "kaliru: not a printer object".into()))
 }
 
@@ -93,6 +99,21 @@ pub fn printer() -> Option<Rc<Printer>> {
 pub fn report_unhandled(e: &KError) {
     if let Some(p) = printer() {
         p.unhandled_exception(e);
+    }
+}
+
+/// get_status of a kinematics object, through the printer object interface
+struct KinStatus(Rc<toolhead::KinRef>);
+
+impl crate::printer::PrinterObject for KinStatus {
+    fn as_any(&self) -> &dyn Any {
+        self
+    }
+    fn has_status(&self) -> bool {
+        true
+    }
+    fn get_status(&self, eventtime: f64) -> Option<PyVal> {
+        Some(PyVal::Dict(self.0 .0.get_status(eventtime)))
     }
 }
 
