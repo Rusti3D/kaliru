@@ -172,6 +172,54 @@ plugins.
 - **Parity:** the existing harnesses (live_cmp with linux MCU processes, case/suite) run each plugin config on
   Python Kalico and on kaliru+bridge. The serialqueue trace and the masked log must match.
 
+## Step 1 results: prototype (`pybridge/`, branch `plugins`, 2026-10-24)
+
+`pybridge/src/bin/proto.rs` embeds CPython 3.15.1 (uv build, `PYTHON_LIBDIR`) and runs Python on two kaliru
+greenlets. `pybridge/src/greenlets.rs` is the switch hook; `src/greenlet.rs` gained `set_switch_hook` and
+`Greenlet::stack()`.
+
+| check | result |
+|---|---|
+| g1 suspended 50 Python frames deep inside an `except` block; g2 runs, then switches back | OK: frames, return values (55, 307) and g1's `sys.exception()` intact |
+| g2 does not see g1's exception state | OK |
+| C recursion (`list(map(f, ...))`, recursion limit 10^7) on a 1 MiB greenlet stack | RecursionError, no crash |
+| Python thread while kaliru holds the GIL (busy 50 ms) vs while it is released (poll) | thread never ran in the held window, finished in the released one |
+| **control:** no switch hook (one thread state for all greenlets) | segfault |
+| **control:** swap thread states but no `SetStackProtection` | segfault |
+| armv7 (cross-built, qemu-arm) | same checks pass |
+
+Both pieces are required, so **CPython ≥ 3.15 is the minimum for plugins**. Older versions would need greenlet's
+version-specific tstate patching.
+
+Costs measured on x86_64 (CPython 3.15.1):
+
+| item | cost |
+|---|---|
+| interpreter start | +2.4 MB anon (1.7 → 4.1 MB), +6.8 MB file-backed (libpython, shared) |
+| Python → Rust call (`METH_FASTCALL`, no args) | 0.063 µs (a Python → Python call: 0.054 µs) |
+| Rust → Python call (`PyObject_CallNoArgs`) | 0.024 µs |
+| thread-state swap per greenlet switch (Enter + Main) | 0.093 µs |
+
+On the CC1 itself (user's OK, printer idle; binary in /data/kt, removed afterwards; COSMOS's own CPython 3.15.0,
+Cortex-A7):
+
+| item | cost |
+|---|---|
+| all checks | greenlets OK, thread OK; `noswap` control segfaults (exit 139) |
+| interpreter start | +1.7 MB anon (0.4 → 2.1 MB), +3.1 MB file-backed |
+| after the greenlet and thread tests | 4.2 MB anon in total (includes the 1 MiB greenlet stack the C-recursion test touched) |
+| Python → Rust call | 1.94 µs (a Python → Python call: 1.60 µs) |
+| Rust → Python call | 0.82 µs |
+| thread-state swap per greenlet switch | 2.5 µs |
+
+qemu-arm numbers are not used: qemu's own RSS is counted, and the timing is emulation speed.
+
+The GIL model was tested as designed:
+- the reactor thread keeps the GIL except while it blocks in poll;
+- while Python bytecode runs, CPython's 5 ms switch interval lets threads run, as in Kalico.
+
+Plugin threads therefore run only at points where they could also run under Kalico.
+
 ## Steps
 
 1. Prototype the risky core and verify it before anything else (WSL, CPython 3.15 built locally):
