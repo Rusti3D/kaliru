@@ -10,6 +10,13 @@ C compiler is free to choose (non-volatile pointers to hardware registers,
 uninitialised memory) or from a C defect; the Rust port does what the source
 says, with volatile register accesses in source order.
 
+Memory that is not registers is not logged: the stm32 system memory and the
+atsamd nvm rows (unique id, GET_FUSE calibration), the stm32 fdcan message
+ram, the atsam / atsamd M_CAN message ram (the image's own ram). Kalico reads
+and writes those through plain pointers, in an order and with access sizes
+gcc picks; what they carry is checked through the answers and the frames the
+can models log.
+
 - `at32f403-serial/*.diff` (every script, the clock setup): `stm32/stm32f1.c`
   `clock_setup()` sets the AT32 ACC_CTRL1, CRM_MISC1 and CRM_MISC3 registers
   through `*((uint32_t *)REG_..._ADDR) |= ...`, which are not volatile; gcc
@@ -31,12 +38,6 @@ says, with volatile register accesses in source order.
   two identical toggles with only (volatile) timer reads between them, so gcc
   keeps one store and the C firmware sends no pulse for a 0 bit. Rust makes
   both toggles (a C defect, not reproduced).
-- `samd21g18-usb/*.diff`, `samd51j19-usb/*.diff`, `samd21e15-usb/*.diff`
-  (every script): `atsamd/internal.h` `GET_FUSE()` reads the calibration rows
-  through a non-volatile `*((uint32_t*)ADDR)`; gcc moves `clock.c`'s DFLL
-  fuse reads before the `SYSCTRL->DFLLCTRL = 0` write (samd21) and reads
-  `usbserial.c`'s three USB trim fields of the same word once. Rust reads
-  them in source order, once per field. Same values.
 - `samd21e15-usb/{config,gpio,stepper}.txt.diff`: `move_count`. The Rust
   image's ram (.data + .bss) is smaller, so its dynamic memory pool, and the
   moves it holds, are larger; on this 4KB ram chip the count stays below its

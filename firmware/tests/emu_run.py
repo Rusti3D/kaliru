@@ -628,15 +628,21 @@ class FdCan:
         c = chip.const
         can2 = any(cfg.get("CONFIG_STM32_CANBUS_" + p) for p in ("PB0_PB1", "PC2_PC3", "PB5_PB6", "PB12_PB13"))
         n = "FDCAN2" if can2 else "FDCAN1"
-        r = lambda f: chip.at(n, f)  # noqa: E731
-        self.txfqs, self.txbar, self.ir, self.ie = r("TXFQS"), r("TXBAR"), r("IR"), r("IE")
-        self.ile, self.rxf0s, self.rxf0a, self.cccr = r("ILE"), r("RXF0S"), r("RXF0A"), r("CCCR")
+        self.registers(chip, n, "", "FDCAN_")
         self.ram = c["SRAMCAN_BASE"] + (self.RAM_SIZE if can2 else 0)
         self.memory = [(self.ram, self.RAM_SIZE)]
         self.irq_num = c["TIM16_FDCAN_IT0_IRQn"] if cfg.get("CONFIG_MACH_STM32G0") else c[n + "_IT0_IRQn"]
-        self.RF0N, self.TC, self.TFE = c["FDCAN_IR_RF0N"], c["FDCAN_IE_TCE"], c["FDCAN_IE_TFEE"]
-        self.INIT, self.EINT0 = c["FDCAN_CCCR_INIT"], c["FDCAN_ILE_EINT0"]
-        self.TFQPI_Pos, self.F0GI_Pos = c["FDCAN_TXFQS_TFQPI_Pos"], c["FDCAN_RXF0S_F0GI_Pos"]
+
+    def registers(self, chip, n, reg, const):
+        """(the controller's registers: `reg` + their name, the constants:
+        `const` + theirs)"""
+        c = chip.const
+        r = lambda f: chip.at(n, reg + f)  # noqa: E731
+        self.txfqs, self.txbar, self.ir, self.ie = r("TXFQS"), r("TXBAR"), r("IR"), r("IE")
+        self.ile, self.rxf0s, self.rxf0a, self.cccr = r("ILE"), r("RXF0S"), r("RXF0A"), r("CCCR")
+        self.RF0N, self.TC, self.TFE = c[const + "IE_RF0NE"], c[const + "IE_TCE"], c[const + "IE_TFEE"]
+        self.INIT, self.EINT0 = c[const + "CCCR_INIT"], c[const + "ILE_EINT0"]
+        self.TFQPI_Pos, self.F0GI_Pos = c[const + "TXFQS_TFQPI_Pos"], c[const + "RXF0S_F0GI_Pos"]
         self.flags = 0
         # (the transmit put index; receive fifo 0: its frames' indexes, put index)
         self.tx_put = 0
@@ -668,10 +674,10 @@ class FdCan:
             # (the fifo element's frame goes out)
             for i in range(3):
                 if value >> i & 1:
-                    e = self.ram + self.TXFIFO + i * self.FIFO_SIZE
-                    dlc = (emu.get(e + 4, 4) >> 16) & 0xF
-                    data = struct.pack("<II", emu.get(e + 8, 4), emu.get(e + 12, 4))[:dlc]
-                    fid = (emu.get(e, 4) >> 18) & 0x7FF
+                    e = self.tx_element(emu, i)
+                    dlc = (self.load(emu, e + 4) >> 16) & 0xF
+                    data = struct.pack("<II", self.load(emu, e + 8), self.load(emu, e + 12))[:dlc]
+                    fid = (self.load(emu, e) >> 18) & 0x7FF
                     emu.log.write("# can frame out %x %s\n" % (fid, data.hex()))
                     self.tx.append((fid, data))
                     self.tx_put = (i + 1) % 3
@@ -696,10 +702,10 @@ class FdCan:
         if self.rx_idx:
             return False
         emu.log.write("# can frame in %x %s\n" % (fid, bytes(data).hex()))
-        e = self.ram + self.RXF0 + self.rx_put * self.FIFO_SIZE
+        e = self.rx_element(emu, self.rx_put)
         words = (fid << 18, len(data) << 16) + struct.unpack("<II", bytes(data).ljust(8, b"\0"))
         for i, w in enumerate(words):
-            emu.put(e + 4 * i, 4, w)
+            self.store(emu, e + 4 * i, w)
         self.rx_idx.append(self.rx_put)
         self.rx_put = (self.rx_put + 1) % 3
         self.flags |= self.RF0N
@@ -708,6 +714,58 @@ class FdCan:
     def recv(self, emu):
         frames, self.tx = self.tx, []
         return frames
+
+    # ---- the message ram
+
+    def rx_element(self, emu, idx):
+        return self.ram + self.RXF0 + idx * self.FIFO_SIZE
+
+    def tx_element(self, emu, idx):
+        return self.ram + self.TXFIFO + idx * self.FIFO_SIZE
+
+    def load(self, emu, addr):
+        return emu.get(addr, 4)
+
+    def store(self, emu, addr, value):
+        emu.put(addr, 4, value)
+
+
+class Mcan(FdCan):
+    """atsamd/fdcan.c, atsam/fdcan.c: the same controller (Bosch M_CAN), its
+    message ram the image's own MSG_RAM in its ram: the receive fifo 0 and
+    transmit fifo where RXF0C F0SA / TXBC TBSA point, in the 64KB the
+    CAN0_MSG_RAM_ADDR (samd) or the MATRIX CCFG DMABA (same70) gives. Those
+    registers hold ram addresses, which differ between the images."""
+
+    def __init__(self, cfg, chip, n, irq):
+        c = chip.const
+        e70 = cfg.get("CONFIG_MACH_SAME70")
+        reg = "MCAN_" if e70 else ""
+        self.registers(chip, n, reg, reg or "CAN_")
+        self.rxf0c, self.txbc, self.sidfc = chip.at(n, reg + "RXF0C"), chip.at(n, reg + "TXBC"), chip.at(n, reg + "SIDFC")
+        if e70:
+            self.dmaba = chip.at("MATRIX", "CCFG_CAN0" if n == "MCAN0" else "CCFG_SYSIO")
+            self.pointer_regs = {self.rxf0c, self.txbc, self.sidfc, self.dmaba}
+        else:
+            self.dmaba = None
+            self.pointer_regs = {self.rxf0c, self.txbc, self.sidfc}
+            self.base = c["CAN0_MSG_RAM_ADDR"]
+        self.irq_num = c[irq]
+
+    def ram_base(self, emu):
+        return emu.get(self.dmaba, 4) & 0xFFFF0000 if self.dmaba else self.base
+
+    def rx_element(self, emu, idx):
+        return self.ram_base(emu) + (emu.get(self.rxf0c, 4) & 0xFFFC) + idx * self.FIFO_SIZE
+
+    def tx_element(self, emu, idx):
+        return self.ram_base(emu) + (emu.get(self.txbc, 4) & 0xFFFC) + idx * self.FIFO_SIZE
+
+    def load(self, emu, addr):
+        return struct.unpack("<I", emu.uc.mem_read(addr, 4))[0]
+
+    def store(self, emu, addr, value):
+        emu.uc.mem_write(addr, struct.pack("<I", value))
 
 
 class UsbFs:
@@ -1429,7 +1487,13 @@ class Atsam(Ported):
             A.UC_CPU_ARM_CORTEX_M7 if cfg.get("CONFIG_MACH_SAME70") else A.UC_CPU_ARM_CORTEX_M4)
         self.time = DwtTime(chip)
         self.read_rules = {}
-        if not cfg.get("CONFIG_USBSERIAL"):
+        self.pointer_regs = set()
+        if cfg.get("CONFIG_CANSERIAL"):
+            # (fdcan.c: MCAN0 on PB3 / PB2, MCAN1 on PC12 / PD12)
+            n = "MCAN0" if cfg.get("CONFIG_ATSAM_CANBUS_PB3_PB2") else "MCAN1"
+            self.port = Mcan(cfg, chip, n, n + "_INT0_IRQn")
+            self.pointer_regs = self.port.pointer_regs
+        elif not cfg.get("CONFIG_USBSERIAL"):
             self.port = AtsamUart(cfg, chip)
         elif cfg.get("CONFIG_MACH_SAM4"):
             self.port = SamUdp(chip)
@@ -1437,8 +1501,15 @@ class Atsam(Ported):
             self.port = SamUotghs(cfg, chip)
             self.mmio = [(self.port.ram, 10 * 0x8000)]
         self.eefc = Eefc(chip)
+        self.e70 = cfg.get("CONFIG_MACH_SAME70")
         # (same70_sysinit.c: the dma copy of the code to the itcm, its length)
-        self.size_regs = {chip.ptr["REG_XDMAC_CUBC0"]} if cfg.get("CONFIG_MACH_SAME70") else set()
+        self.size_regs = {chip.ptr["REG_XDMAC_CUBC0"]} if self.e70 else set()
+
+    def setup(self, uc):
+        # (same70: the 128KB DTCM same70_sysinit.c's GPNVM 7 / 8 configure,
+        # where fdcan.c's MSG_RAM is (.dtcm.bss))
+        if self.e70:
+            uc.mem_map(0x20000000, 0x20000)
 
     def uart_read(self, emu, addr):
         v = self.eefc.read(emu, addr)
@@ -1853,8 +1924,8 @@ class TcTime:
 
 
 class Atsamd(Ported):
-    """atsamd: the SERCOM0 usart or the usb device, the TC (samd21, samc21)
-    or DWT (samd51, same5x) time; the nvm calibration rows (GET_FUSE: 0)"""
+    """atsamd: the SERCOM0 usart, the usb device or the can controller, the
+    TC (samd21, samc21) or DWT (samd51, same5x) time"""
 
     def __init__(self, cfg):
         chip = self.chip = Chip(os.path.join(ROOT, "src", "atsamd", "chip", cfg["CONFIG_MCU"] + ".rs"))
@@ -1862,9 +1933,24 @@ class Atsamd(Ported):
         self.cpu = A.UC_CPU_ARM_CORTEX_M4 if samx5 else A.UC_CPU_ARM_CORTEX_M0
         self.time = DwtTime(chip) if samx5 else TcTime(chip, "TC0" if cfg.get("CONFIG_MACH_SAMC21") else "TC4")
         self.read_rules = {}
-        self.mmio = [(0x00800000, 0x10000)]
-        self.port = SamdUsb(cfg, chip) if cfg.get("CONFIG_USBSERIAL") else AtsamdUsart(cfg, chip)
-        self.pointer_regs = {self.port.descadd} if cfg.get("CONFIG_USBSERIAL") else set()
+        self.mmio = []
+        if cfg.get("CONFIG_USBSERIAL"):
+            self.port = SamdUsb(cfg, chip)
+            self.pointer_regs = {self.port.descadd}
+        elif cfg.get("CONFIG_CANSERIAL"):
+            # (fdcan.c: CAN0 on PA23 / PA22, PA25 / PA24, else CAN1)
+            n = "CAN0" if cfg.get("CONFIG_ATSAMD_CANBUS_PA23_PA22") or cfg.get("CONFIG_ATSAMD_CANBUS_PA25_PA24") else "CAN1"
+            self.port = Mcan(cfg, chip, n, n + "_IRQn")
+            self.pointer_regs = self.port.pointer_regs
+        else:
+            self.port = AtsamdUsart(cfg, chip)
+            self.pointer_regs = set()
+
+    def setup(self, uc):
+        # (the nvm calibration rows (GET_FUSE) and serial number words: 0
+        # here; flash, not registers: C reads them through plain pointers,
+        # in the order and sizes gcc picks)
+        uc.mem_map(0x00800000, 0x10000, unicorn.UC_PROT_READ)
 
 
 class AtsamdUsart:
