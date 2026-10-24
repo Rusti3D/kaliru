@@ -161,7 +161,11 @@ impl KalicoTelemetry {
         let configfile = self.printer.lookup::<ConfigFileObject>("configfile")?;
         let pconfig = configfile.pconfig.borrow();
         let mut res = IndexMap::new();
-        for (section, options) in &pconfig.status_raw_config {
+        let raw_config = match pconfig.status_raw_config.get() {
+            PyVal::Dict(d) => d.clone(),
+            _ => IndexMap::new(),
+        };
+        for (section, options) in &raw_config {
             let keys = match options {
                 PyVal::Dict(d) => d.keys().map(|k| PyVal::Str(k.clone())).collect(),
                 _ => vec![],

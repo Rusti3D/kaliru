@@ -446,7 +446,8 @@ impl GCodeDispatch {
                 d.insert("help".to_string(), PyVal::Str(help.clone()));
             }
         }
-        *self.status_commands.borrow_mut() = PyVal::Dict(commands);
+        // (a new dict each time, handed out by reference: PyVal::Shared)
+        *self.status_commands.borrow_mut() = PyVal::shared(PyVal::Dict(commands));
     }
 
     pub fn register_output_handler(&self, cb: OutputCallback) {

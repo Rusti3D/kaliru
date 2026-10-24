@@ -849,8 +849,8 @@ impl QueryStatusHelper {
                     };
                     query.insert(obj_name.clone(), res);
                 }
-                let res = query[&obj_name].clone();
-                let res_keys: Vec<String> = match &res {
+                let res = &query[&obj_name];
+                let res_keys: Vec<String> = match res {
                     PyVal::Dict(d) => d.keys().cloned().collect(),
                     _ => vec![],
                 };
@@ -869,12 +869,12 @@ impl QueryStatusHelper {
                 let mut cres = IndexMap::new();
                 for ri in req_items.items().unwrap_or(&[]) {
                     let ri = ri.str();
-                    let rd = match &res {
-                        PyVal::Dict(d) => d.get(&ri).cloned().unwrap_or(PyVal::None),
-                        _ => PyVal::None,
+                    let rd = match res {
+                        PyVal::Dict(d) => d.get(&ri).unwrap_or(&PyVal::None),
+                        _ => &PyVal::None,
                     };
                     if is_query || !rd.py_eq(lres.get(&ri).unwrap_or(&PyVal::None)) {
-                        cres.insert(ri, rd);
+                        cres.insert(ri, rd.clone());
                     }
                 }
                 if !cres.is_empty() || is_query {

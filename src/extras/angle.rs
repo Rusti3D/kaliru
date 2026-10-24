@@ -61,7 +61,7 @@ fn get_microsteps(printer: &Printer, stepper_name: &str) -> KResult<(i64, i64)> 
     let configfile = printer.lookup::<ConfigFileObject>("configfile")?;
     let status = configfile.pconfig.borrow().get_status(0.0);
     let stconfig = match &status {
-        PyVal::Dict(d) => match d.get("settings") {
+        PyVal::Dict(d) => match d.get("settings").map(PyVal::get) {
             Some(PyVal::Dict(s)) => s.get(stepper_name).cloned(),
             _ => None,
         },

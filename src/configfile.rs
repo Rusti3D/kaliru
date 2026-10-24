@@ -662,10 +662,13 @@ pub struct PrinterConfig {
     pub deprecated: Rc<RefCell<Deprecated>>,
     pub runtime_warnings: Vec<PyVal>,
     pub deprecate_warnings: Vec<PyVal>,
-    pub status_raw_config: IndexMap<String, PyVal>,
-    pub status_save_pending: IndexMap<String, PyVal>,
-    pub status_settings: IndexMap<String, PyVal>,
-    pub status_warnings: Vec<PyVal>,
+    // the status dicts, Shared: python returns the same objects from
+    // get_status() and replaces one when it changes (webhooks subscribers
+    // compare them by identity first)
+    pub status_raw_config: PyVal,
+    pub status_save_pending: PyVal,
+    pub status_settings: PyVal,
+    pub status_warnings: PyVal,
     pub unused_sections: Vec<String>,
     pub unused_options: Vec<(String, String)>,
     pub save_config_pending: bool,
@@ -680,10 +683,10 @@ impl PrinterConfig {
             deprecated: Rc::new(RefCell::new(IndexMap::new())),
             runtime_warnings: vec![],
             deprecate_warnings: vec![],
-            status_raw_config: IndexMap::new(),
-            status_save_pending: IndexMap::new(),
-            status_settings: IndexMap::new(),
-            status_warnings: vec![],
+            status_raw_config: PyVal::shared(PyVal::dict()),
+            status_save_pending: PyVal::shared(PyVal::dict()),
+            status_settings: PyVal::shared(PyVal::dict()),
+            status_warnings: PyVal::shared(PyVal::List(vec![])),
             unused_sections: vec![],
             unused_options: vec![],
             save_config_pending: false,
@@ -945,7 +948,7 @@ impl PrinterConfig {
         res.insert("type".to_string(), PyVal::from("runtime_warning"));
         res.insert("message".to_string(), PyVal::from(msg));
         self.runtime_warnings.push(PyVal::Dict(res));
-        self.status_warnings = self.runtime_warnings.iter().chain(&self.deprecate_warnings).cloned().collect();
+        self.status_warnings = PyVal::shared(PyVal::List(self.runtime_warnings.iter().chain(&self.deprecate_warnings).cloned().collect()));
     }
 
     pub fn deprecate(&self, section: &str, option: &str, value: Option<&str>, msg: &str) {
@@ -967,25 +970,31 @@ impl PrinterConfig {
         if let Some(v) = value {
             res.insert("value".to_string(), PyVal::from(v));
         }
-        self.status_warnings.push(PyVal::Dict(res));
+        // (python appends in place; this runs while the status is built,
+        // before anyone holds it)
+        let mut warnings = self.status_warnings.items().unwrap_or(&[]).to_vec();
+        warnings.push(PyVal::Dict(res));
+        self.status_warnings = PyVal::shared(PyVal::List(warnings));
     }
 
     fn build_status(&mut self, config: &ConfigWrapper) -> Result<()> {
-        self.status_raw_config.clear();
+        let mut raw_config = IndexMap::new();
         for section in config.get_prefix_sections("") {
             let mut section_status = IndexMap::new();
             for option in section.get_prefix_options("")? {
                 let v = section.get_value(&option, REQUIRED, false)?.unwrap_or(PyVal::None);
                 section_status.insert(option, v);
             }
-            self.status_raw_config.insert(section.get_name().to_string(), PyVal::Dict(section_status));
+            raw_config.insert(section.get_name().to_string(), PyVal::Dict(section_status));
         }
-        self.status_settings = IndexMap::new();
+        self.status_raw_config = PyVal::shared(PyVal::Dict(raw_config));
+        let mut settings = IndexMap::new();
         for ((section, option), value) in config.access_tracking.borrow().iter() {
-            if let PyVal::Dict(d) = self.status_settings.entry(section.clone()).or_insert_with(PyVal::dict) {
+            if let PyVal::Dict(d) = settings.entry(section.clone()).or_insert_with(PyVal::dict) {
                 d.insert(option.clone(), value.clone());
             }
         }
+        self.status_settings = PyVal::shared(PyVal::Dict(settings));
         let deprecated: Vec<_> = self.deprecated.borrow().iter().map(|(k, v)| (k.clone(), v.clone())).collect();
         for ((section, option, value), msg) in deprecated {
             self.warn("deprecated_value", &msg, Some(&section), Some(&option), value.as_deref());
@@ -1006,11 +1015,11 @@ impl PrinterConfig {
 
     pub fn get_status(&self, _eventtime: f64) -> PyVal {
         let mut d = IndexMap::new();
-        d.insert("config".to_string(), PyVal::Dict(self.status_raw_config.clone()));
-        d.insert("settings".to_string(), PyVal::Dict(self.status_settings.clone()));
-        d.insert("warnings".to_string(), PyVal::List(self.status_warnings.clone()));
+        d.insert("config".to_string(), self.status_raw_config.clone());
+        d.insert("settings".to_string(), self.status_settings.clone());
+        d.insert("warnings".to_string(), self.status_warnings.clone());
         d.insert("save_config_pending".to_string(), PyVal::Bool(self.save_config_pending));
-        d.insert("save_config_pending_items".to_string(), PyVal::Dict(self.status_save_pending.clone()));
+        d.insert("save_config_pending_items".to_string(), self.status_save_pending.clone());
         PyVal::Dict(d)
     }
 
@@ -1022,31 +1031,39 @@ impl PrinterConfig {
             autosave.borrow_mut().add_section(section)?;
         }
         autosave.borrow_mut().set(section, option, svalue)?;
-        let mut pending = self.status_save_pending.clone();
+        let mut pending = self.save_pending();
         let mut sect = match pending.get(section) {
             Some(PyVal::Dict(m)) => m.clone(),
             _ => IndexMap::new(),
         };
         sect.insert(option.to_string(), PyVal::from(svalue));
         pending.insert(section.to_string(), PyVal::Dict(sect));
-        self.status_save_pending = pending;
+        self.status_save_pending = PyVal::shared(PyVal::Dict(pending));
         self.save_config_pending = true;
         logging::info(&format!("save_config: set [{}] {} = {}", section, option, svalue));
         Ok(())
+    }
+
+    /// a copy of save_config_pending_items (python copies it before a change)
+    fn save_pending(&self) -> IndexMap<String, PyVal> {
+        match self.status_save_pending.get() {
+            PyVal::Dict(d) => d.clone(),
+            _ => IndexMap::new(),
+        }
     }
 
     pub fn remove_section(&mut self, section: &str) {
         let autosave = self.autosave.as_ref().expect("read_main_config first").fileconfig.clone();
         if autosave.borrow().has_section(section) {
             autosave.borrow_mut().remove_section(section);
-            let mut pending = self.status_save_pending.clone();
+            let mut pending = self.save_pending();
             pending.insert(section.to_string(), PyVal::None);
-            self.status_save_pending = pending;
+            self.status_save_pending = PyVal::shared(PyVal::Dict(pending));
             self.save_config_pending = true;
-        } else if matches!(self.status_save_pending.get(section), Some(v) if *v != PyVal::None) {
-            let mut pending = self.status_save_pending.clone();
+        } else if matches!(self.save_pending().get(section), Some(v) if *v != PyVal::None) {
+            let mut pending = self.save_pending();
             pending.shift_remove(section);
-            self.status_save_pending = pending;
+            self.status_save_pending = PyVal::shared(PyVal::Dict(pending));
             self.save_config_pending = true;
         }
     }

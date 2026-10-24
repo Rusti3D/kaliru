@@ -78,7 +78,7 @@ fn save(args: &[String]) {
             }
         }
     }
-    println!("pending {} {}", pconfig.save_config_pending, PyVal::Dict(pconfig.status_save_pending.clone()).json());
+    println!("pending {} {}", pconfig.save_config_pending, pconfig.status_save_pending.json());
     match pconfig.save_config(autosave_includes) {
         Ok(true) => {
             // cmd_SAVE_CONFIG with RESTART=0
