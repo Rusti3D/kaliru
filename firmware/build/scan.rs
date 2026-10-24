@@ -108,7 +108,7 @@ fn strip_comments(src: &str) -> Vec<char> {
 
 /// the arguments of a macro call whose '(' is at c[open]; returns them
 /// split at top level commas, and the index after the ')'
-fn macro_args(c: &[char], open: usize) -> (Vec<String>, usize) {
+pub fn macro_args(c: &[char], open: usize) -> (Vec<String>, usize) {
     let mut depth = 0;
     let mut args = vec![];
     let mut cur = String::new();

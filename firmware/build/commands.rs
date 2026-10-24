@@ -222,10 +222,7 @@ pub fn generate(requests: &[Request], eval: &Eval, versions: &Versions, kconfig:
                 format!("DECL_CONSTANT {}{}", name, ctr_int(v))
             }
             Decl::ConstantStr { name, value } => {
-                let v = match crate::scan::literal(value) {
-                    Some(s) => s,
-                    None => eval.config.string(value).unwrap_or_else(|| panic!("constant string {}", value)).to_string(),
-                };
+                let v = constant_str(value, eval.config);
                 set_constant(&mut constants, name, Json::Str(v.clone()));
                 format!("DECL_CONSTANT_STR {} {}", name, v)
             }
@@ -509,4 +506,23 @@ fn lookup_pin(enums: &Ordered<EnumValue>, name: &str) -> Option<i64> {
         }
     }
     all.get(name).copied()
+}
+
+/// The value of a DECL_CONSTANT_STR: a literal, a string option, or a
+/// concat!() of those and int options (the C string pasting of
+/// __stringify(CONFIG_X))
+fn constant_str(value: &str, config: &crate::kconfig::Config) -> String {
+    if let Some(s) = crate::scan::literal(value) {
+        return s;
+    }
+    if let Some(inner) = value.trim().strip_prefix("concat!(").and_then(|a| a.strip_suffix(')')) {
+        let c: Vec<char> = format!("({})", inner).chars().collect();
+        let (parts, _) = crate::scan::macro_args(&c, 0);
+        return parts.iter().map(|p| constant_str(p, config)).collect();
+    }
+    let name = value.trim();
+    if let Some(s) = config.string(name) {
+        return s.to_string();
+    }
+    config.int(name).unwrap_or_else(|| panic!("constant string {}", value)).to_string()
 }

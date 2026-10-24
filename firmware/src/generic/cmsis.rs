@@ -27,6 +27,11 @@ pub fn __ISB() {
 }
 
 #[inline(always)]
+pub fn __DMB() {
+    unsafe { asm!("dmb 0xF", options(nostack)) }
+}
+
+#[inline(always)]
 pub fn __NOP() {
     unsafe { asm!("nop", options(nomem, nostack)) }
 }
