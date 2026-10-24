@@ -20,8 +20,17 @@ Reference: Kalico `5b59427`.
 - **Kalico's stock test suite: 87 of 88 runs identical** to Kalico (MCU
   command trace, exit code and log). The remaining one differs only by
   wall-clock timer timing.
-- **Custom parity cases** (`tests/cases/`, 57 runs covering modules the stock
+- **Custom parity cases** (`tests/cases/`, 62 runs covering modules the stock
   suite doesn't reach): all identical to Kalico.
+- **Live runs** (`tools/live_cmp.sh`, `tests/live/`): Kalico and Kaliru each
+  drive real Linux-process MCUs (with fake hardware) through a g-code session,
+  including MCU shutdowns, reconnects and TMC faults; the transcripts match.
+- **armv7 (the Centauri Carbon's CPU)**: `tools/build_armv7.sh` cross-builds
+  it; under qemu the stock suite (88/88) and the custom cases (62/62) are
+  identical to Kalico on x86.
+- **Memory**: in the live runs Kaliru's own (anonymous) memory is 2.7 MB
+  against Kalico's 34 MB, and CPU time 0.03-0.09 s against about 1.6 s
+  (x86_64, `resources.txt` of `tools/live_run.py`).
 - Ported: the whole klippy host (reactor, serial and msgproto, clock sync,
   config, pins, gcode, toolhead, steppers and rails, homing, mcu), the chelper
   C code, all kinematics, a Jinja2 port for g-code macros, and every Kalico
@@ -54,13 +63,19 @@ Reference: Kalico `5b59427`.
   the same answers and the same peripheral register accesses; no micro-controller
   build has run on a chip yet. See
   [`firmware/README.md`](firmware/README.md).
-- Not ported: the AR100 (or1k) and PRU boards (Rust has no target for them).
+- Not ported yet: the AR100 (or1k) and PRU boards (Rust has no target for
+  them; planned through rustc_codegen_gcc).
+- Planned: Python plugin support (Kalico's `klippy/extras` and
+  `klippy/plugins` modules), so that a plugin that works on Kalico works on
+  Kaliru, with no cost when none is configured. Design and measurements:
+  [`docs/PLUGINS.md`](docs/PLUGINS.md); work happens on the `plugins` branch.
 
 ## Building
 
 ```sh
-cargo build --release                        # with python macros (~30 MB)
-cargo build --release --no-default-features  # without them (~9 MB)
+cargo build --release                        # with python macros (24.3 MB)
+cargo build --release --no-default-features  # without them
+tools/build_armv7.sh                         # armv7 (gcc linker, glibc)
 ```
 
 The parity tools in `tools/` compare Kaliru against a Kalico checkout
