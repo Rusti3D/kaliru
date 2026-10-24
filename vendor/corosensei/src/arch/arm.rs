@@ -76,6 +76,11 @@ use crate::util::EncodedValue;
 // compiler options used (e.g. relocation model) so we probe for this in
 // build.rs and then generate an appropriate clobber list here depending on the
 // results.
+//
+// (kaliru) The callee-saved VFP registers are named d8-d15, not q4-q7: the q
+// registers only exist with NEON, and on an armv7 target without it (rustc's
+// armv7-unknown-linux-gnueabihf) the q4-q7 clobbers were dropped, so a switch
+// lost the floats its caller kept in d10-d15.
 cfg_if::cfg_if! {
     if #[cfg(fp_is_r7)] {
         #[cfg(r9_reserved)]
@@ -85,7 +90,8 @@ cfg_if::cfg_if! {
                     $($asm)*
                     lateout("r11") _,
                     lateout("r4") _, lateout("r5") _, lateout("r8") _, lateout("r10") _,
-                    lateout("q4") _, lateout("q5") _, lateout("q6") _, lateout("q7") _,
+                    lateout("d8") _, lateout("d9") _, lateout("d10") _, lateout("d11") _,
+                    lateout("d12") _, lateout("d13") _, lateout("d14") _, lateout("d15") _,
                     clobber_abi("C"),
                     options($($opt),*)
                 )
@@ -98,7 +104,8 @@ cfg_if::cfg_if! {
                     $($asm)*
                     lateout("r11") _, lateout("r9") _,
                     lateout("r4") _, lateout("r5") _, lateout("r8") _, lateout("r10") _,
-                    lateout("q4") _, lateout("q5") _, lateout("q6") _, lateout("q7") _,
+                    lateout("d8") _, lateout("d9") _, lateout("d10") _, lateout("d11") _,
+                    lateout("d12") _, lateout("d13") _, lateout("d14") _, lateout("d15") _,
                     clobber_abi("C"),
                     options($($opt),*)
                 )
@@ -122,7 +129,8 @@ cfg_if::cfg_if! {
                     $($asm)*
                     lateout("r7") _,
                     lateout("r4") _, lateout("r5") _, lateout("r8") _, lateout("r10") _,
-                    lateout("q4") _, lateout("q5") _, lateout("q6") _, lateout("q7") _,
+                    lateout("d8") _, lateout("d9") _, lateout("d10") _, lateout("d11") _,
+                    lateout("d12") _, lateout("d13") _, lateout("d14") _, lateout("d15") _,
                     clobber_abi("C"),
                     options($($opt),*)
                 )
@@ -135,7 +143,8 @@ cfg_if::cfg_if! {
                     $($asm)*
                     lateout("r7") _, lateout("r9") _,
                     lateout("r4") _, lateout("r5") _, lateout("r8") _, lateout("r10") _,
-                    lateout("q4") _, lateout("q5") _, lateout("q6") _, lateout("q7") _,
+                    lateout("d8") _, lateout("d9") _, lateout("d10") _, lateout("d11") _,
+                    lateout("d12") _, lateout("d13") _, lateout("d14") _, lateout("d15") _,
                     clobber_abi("C"),
                     options($($opt),*)
                 )

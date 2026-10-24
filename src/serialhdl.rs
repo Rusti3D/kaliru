@@ -707,8 +707,9 @@ struct Termios2 {
     c_ospeed: u32,
 }
 
-const TCGETS2: libc::c_ulong = 0x802C542A;
-const TCSETS2: libc::c_ulong = 0x402C542B;
+// (the ioctl request type: c_ulong on glibc, c_int on musl; the same bits)
+const TCGETS2: libc::Ioctl = 0x802C542Au32 as libc::Ioctl;
+const TCSETS2: libc::Ioctl = 0x402C542Bu32 as libc::Ioctl;
 const BOTHER: u32 = 0o010000;
 const CBAUD: u32 = 0o010017;
 

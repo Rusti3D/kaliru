@@ -1653,7 +1653,8 @@ pub struct ZMesh {
     mesh_y_dist: f64,
 }
 
-static ZMESH_ID: std::sync::atomic::AtomicUsize = std::sync::atomic::AtomicUsize::new(0x7f0000000000);
+// (u64: the same values on 32-bit hosts)
+static ZMESH_ID: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0x7f0000000000);
 
 impl ZMesh {
     pub fn new(params: MeshParams, name: Option<&str>) -> Self {

@@ -1,3 +1,4 @@
+# KALIRU_BIN="qemu-arm-static <armv7 build>" runs another build.
 # Runs the stock Kalico test cases (or the given ones) with kaliru into
 # ~/rk/rs and diffs them against the Python reference run ~/rk/ref1
 # (made by run_ref.sh ref1). Build kaliru first (tools/build.sh).
@@ -7,7 +8,7 @@ cd "$(dirname "$0")"
 tests=()
 for t in "$@"; do tests+=(~/rk/kalico/test/klippy/$t.test); done
 rm -rf ~/rk/rs
-python3 refrun.py --out ~/rk/rs --klippy ~/rk/target/release/kaliru "${tests[@]}" < /dev/null > ~/rk/rs.out 2>&1
+python3 refrun.py --out ~/rk/rs --klippy "${KALIRU_BIN:-$HOME/rk/target/release/kaliru}" "${tests[@]}" < /dev/null > ~/rk/rs.out 2>&1
 tail -1 ~/rk/rs.out
 if [ ${#tests[@]} -eq 0 ]; then
     python3 refdiff.py ~/rk/ref1 ~/rk/rs > ~/rk/rs.diff 2>&1

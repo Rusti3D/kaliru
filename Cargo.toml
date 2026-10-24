@@ -74,3 +74,4 @@ codegen-units = 1
 [patch.crates-io]
 rustpython-vm = { path = "vendor/rustpython-vm" }
 rustpython-stdlib = { path = "vendor/rustpython-stdlib" }
+corosensei = { path = "vendor/corosensei" }

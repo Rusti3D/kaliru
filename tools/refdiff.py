@@ -24,6 +24,8 @@ LOG_MASKS = [
     (re.compile(rb"Start printer at .*"), b"Start printer at <TIME>"),
     (re.compile(rb"\b\d{10}\.\d+\b"), b"<TIME>"),        # time.time()
     (re.compile(rb"0x[0-9a-f]{8,}"), b"<ADDR>"),
+    # (repr() of an object: any address, a 32-bit host's are shorter)
+    (re.compile(rb" object at 0x[0-9a-f]+>"), b" object at <ADDR>>"),
     (re.compile(rb"\bpid \d+"), b"pid <PID>"),
     # util.dump_mcu_build: paths relative to the install dir (klippy/ vs
     # the kaliru binary's dir)
