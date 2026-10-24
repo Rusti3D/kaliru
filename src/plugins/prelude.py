@@ -23,7 +23,7 @@
 #    (`import mcu` is `klippy.mcu`, klippy/compat.py)
 from collections.abc import MutableMapping, MutableSequence
 import configparser
-import importlib.abc
+import importlib
 import importlib.machinery
 import importlib.util
 import logging
@@ -388,7 +388,8 @@ def module_getattr(modname):
     return __getattr__
 
 
-class MirrorLoader(importlib.abc.Loader):
+# (the import system calls loaders and finders by name: plain classes)
+class MirrorLoader:
     def create_module(self, spec):
         return None
 
@@ -398,7 +399,7 @@ class MirrorLoader(importlib.abc.Loader):
         exec(code, module.__dict__)
 
 
-class MirrorFinder(importlib.abc.MetaPathFinder):
+class MirrorFinder:
     def __init__(self, klippy_dir, modules):
         self.klippy_dir = klippy_dir
         self.modules = modules  # mirrored name -> is a package
@@ -425,7 +426,7 @@ class MirrorFinder(importlib.abc.MetaPathFinder):
         return os.path.isfile(rel + ".py") or os.path.isfile(os.path.join(rel, "__init__.py"))
 
 
-class _AliasLoader(importlib.abc.Loader):
+class _AliasLoader:
     def __init__(self, target):
         self.target = target
 
