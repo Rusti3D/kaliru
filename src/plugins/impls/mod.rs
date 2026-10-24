@@ -4,6 +4,7 @@
 // defaults filled in by the generated python.
 mod accel;
 mod buttons;
+mod classes;
 mod configfile;
 mod extras_misc;
 mod extras_state;
@@ -32,6 +33,7 @@ use std::rc::{Rc, Weak};
 pub fn register(r: &mut Registry) {
     printer::register(r);
     accel::register(r);
+    classes::register(r);
     buttons::register(r);
     extras_misc::register(r);
     extras_state::register(r);

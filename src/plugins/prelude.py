@@ -77,8 +77,18 @@ class Object(metaclass=Meta):
 
     def __setattr__(self, name, value):
         object.__setattr__(self, name, value)
-        if getattr(self, "_k_h", None) is not None:
+        if _handle(self) is not None:
             _n.patched_instance(self, name)
+
+
+def _handle(obj):
+    """the kaliru handle of an object, read through Object's _k_h slot
+    descriptor: a Kalico class's own __getattr__ (GetStatusWrapperPython)
+    must not see the probe"""
+    try:
+        return Object._k_h.__get__(obj, type(obj))
+    except (AttributeError, TypeError):
+        return None
 
 
 class Attr:
@@ -91,7 +101,7 @@ class Attr:
     def __get__(self, obj, cls=None):
         if obj is None:
             return self
-        if getattr(obj, "_k_h", None) is None:
+        if _handle(obj) is None:
             try:
                 return obj.__dict__[self.name]
             except KeyError:
@@ -101,13 +111,13 @@ class Attr:
         return _n.get(obj, self.id)
 
     def __set__(self, obj, value):
-        if getattr(obj, "_k_h", None) is None:
+        if _handle(obj) is None:
             obj.__dict__[self.name] = value
         else:
             _n.set(obj, self.id, value)
 
     def __delete__(self, obj):
-        if getattr(obj, "_k_h", None) is None:
+        if _handle(obj) is None:
             del obj.__dict__[self.name]
         else:
             _n.delete(obj, self.id)
@@ -277,6 +287,72 @@ class DictView(MutableMapping):
 
     def __repr__(self):
         return repr(dict(self))
+
+
+def _paired_mutators(cls, base, names, store):
+    """each mutating method of `base` on `cls`, writing the result back to
+    the kaliru value the object is paired with (values.rs)"""
+    def make(name):
+        method = getattr(base, name)
+
+        def mutate(self, *args, **kwargs):
+            res = method(self, *args, **kwargs)
+            if _handle_any(self) is not None:
+                _n.ext(store, self)
+            return res
+
+        mutate.__name__ = name
+        return mutate
+
+    for name in names:
+        setattr(cls, name, make(name))
+
+
+def _handle_any(obj):
+    try:
+        return obj._k_h
+    except AttributeError:
+        return None
+
+
+class ValueList(list):
+    """a kaliru template list (a macro variable) as a python list"""
+
+    __slots__ = ("_k_h",)
+
+    def __reduce_ex__(self, protocol):
+        # copies (copy.deepcopy of a status) are plain lists
+        return (list, (list(self),))
+
+
+class ValueDict(dict):
+    """a kaliru template dict as a python dict"""
+
+    __slots__ = ("_k_h",)
+
+    def __reduce_ex__(self, protocol):
+        return (dict, (dict(self),))
+
+
+_paired_mutators(ValueList, list, ("append", "extend", "insert", "pop", "remove", "clear", "sort", "reverse",
+                                   "__setitem__", "__delitem__", "__iadd__", "__imul__"), "vl_store")
+_paired_mutators(ValueDict, dict, ("__setitem__", "__delitem__", "clear", "pop", "popitem", "setdefault",
+                                   "update", "__ior__"), "vd_store")
+# python's messages name the type ('list' object has no attribute ...)
+for _cls, _name in ((ValueList, "list"), (ValueDict, "dict")):
+    _cls.__name__ = _cls.__qualname__ = _name
+    _cls.__module__ = "builtins"
+
+_list_setitem = list.__setitem__
+
+
+def _vl_fill(obj, items):
+    _list_setitem(obj, slice(None), items)
+
+
+def _vd_fill(obj, pairs):
+    dict.clear(obj)
+    dict.update(obj, pairs)
 
 
 class ObjectsView(MutableMapping):

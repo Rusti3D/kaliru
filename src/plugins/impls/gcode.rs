@@ -55,7 +55,7 @@ pub fn register(r: &mut Registry) {
                 Some(l) => l.is_true()?,
                 None => true,
             };
-            g.respond_info(&args[0].as_string()?, log);
+            respond_info(&args[0], log, |m, l| g.respond_info(m, l))?;
             Ok(py_none())
         }))
     }, None);
@@ -84,7 +84,7 @@ pub fn register(r: &mut Registry) {
     method!(r, "klippy.gcode.GCodeDispatch", GCodeDispatch, run_script_from_command(g, script: String) => g.run_script_from_command(&script));
     method!(r, "klippy.gcode.GCodeDispatch", GCodeDispatch, run_script(g, script: String) => g.run_script(&script));
     method!(r, "klippy.gcode.GCodeDispatch", GCodeDispatch, get_mutex(g) => g.get_mutex());
-    method!(r, "klippy.gcode.GCodeDispatch", GCodeDispatch, respond_info(g, msg: String, log: bool) => g.respond_info(&msg, log));
+    method!(r, "klippy.gcode.GCodeDispatch", GCodeDispatch, respond_info(g, msg: PyRef, log: bool) => respond_info(&msg, log, |m, l| g.respond_info(m, l)));
     method!(r, "klippy.gcode.GCodeDispatch", GCodeDispatch, respond_raw(g, msg: String) => g.respond_raw(&msg));
     method!(r, "klippy.gcode.GCodeDispatch", GCodeDispatch, _respond_error(g, msg: String) => g.respond_error(&msg));
     method!(r, "klippy.gcode.GCodeDispatch", GCodeDispatch, request_restart(g, result: String) => g.request_restart(&result));
@@ -202,5 +202,22 @@ fn register_command(a: &Args) -> KResult<PyRef> {
             h(&gcmd)?;
             Ok(py_none())
         })),
+    }
+}
+
+/// respond_info(msg, log): python's logging.info(msg) takes any object; the
+/// msg.strip() after it fails for a non-str as python's would
+fn respond_info(msg: &PyRef, log: bool, respond: impl Fn(&str, bool)) -> KResult<()> {
+    match msg.as_string() {
+        Ok(m) => {
+            respond(&m, log);
+            Ok(())
+        }
+        Err(_) => {
+            if log {
+                crate::logging::info(&msg.str()?);
+            }
+            Err(KError::Py("AttributeError".into(), format!("'{}' object has no attribute 'strip'", crate::plugins::py::type_name(msg)?)))
+        }
     }
 }

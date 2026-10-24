@@ -7,7 +7,7 @@ use crate::extras::pause_resume::PauseResume;
 use crate::extras::stepper_enable::{EnableTracking, PrinterStepperEnable};
 use crate::jinja::value::Value;
 use indexmap::IndexMap;
-use crate::method;
+use crate::{method, ro_attr};
 use crate::plugins::convert::ToPy;
 use crate::plugins::native::DictField;
 
@@ -33,6 +33,7 @@ pub fn register(r: &mut Registry) {
         let default = a.opt_string(2)?;
         a.this::<PrinterGCodeMacro>()?.load_template(&config, &a.string(1)?, default.as_deref())?.to_py()
     });
+    ro_attr!(r, "klippy.extras.gcode_macro.PrinterGCodeMacro.printer", PrinterGCodeMacro, |m| m.printer.clone());
     r.attr("klippy.extras.gcode_macro.Template.function", |o| template_function(o), None);
     r.method("klippy.extras.gcode_macro.Template.__getattr__", |a| template_function(a.slf.as_ref().unwrap())?.getattr(&a.string(0)?));
     method!(r, "klippy.extras.gcode_macro.TemplateWrapperJinja", TemplateWrapperJinja, render(t, context: Option<PyRef>) =>
@@ -45,16 +46,31 @@ pub fn register(r: &mut Registry) {
     method!(r, "klippy.extras.gcode_macro.TemplateWrapperPython", crate::extras::gcode_python::TemplateWrapperPython,
         run_gcode_from_command(t, context: Option<PyRef>) => t.run_gcode_from_command(template_context(context)?));
 
+    // template lists / dicts as python objects paired with them (values.rs)
+    objects::register_class::<std::cell::RefCell<Vec<Value>>>("_k", "ValueList");
+    objects::register_class::<std::cell::RefCell<IndexMap<crate::jinja::value::Key, Value>>>("_k", "ValueDict");
+    r.ext("vl_store", |a| crate::plugins::values::store_list(a.arg(0)).map(|_| py_none()));
+    r.ext("vd_store", |a| crate::plugins::values::store_dict(a.arg(0)).map(|_| py_none()));
+    // get_status(): self.variables, its values the macro's own objects
+    r.method("klippy.extras.gcode_macro.GCodeMacro.get_status", |a| {
+        let m = a.this::<GCodeMacro>()?;
+        let d = crate::plugins::py::lookup("builtins", "dict")?.call(&[])?;
+        for (k, v) in m.variables.borrow().iter() {
+            d.call_method("__setitem__", &[&py_str(k), &crate::plugins::values::value_to_py(v)?])?;
+        }
+        Ok(d)
+    });
+
     // GCodeMacro.variables: {name: value}, values kaliru's jinja values
     r.dict(
         "klippy.extras.gcode_macro.GCodeMacro.variables",
         DictField {
             get: |o, _f, key| match objects::unwrap_as::<GCodeMacro>(o)?.variables.borrow().get(&key.as_string()?) {
-                Some(v) => Ok(from_pyval(&v.to_pyval())),
+                Some(v) => crate::plugins::values::value_to_py(v),
                 None => Err(KError::Py("KeyError".into(), key.repr()?)),
             },
             set: |o, _f, key, value| {
-                let v = Value::from_pyval(&to_pyval(value)?);
+                let v = crate::plugins::values::py_to_value(value)?;
                 objects::unwrap_as::<GCodeMacro>(o)?.variables.borrow_mut().insert(key.as_string()?, v);
                 Ok(())
             },
@@ -90,7 +106,11 @@ pub fn register(r: &mut Registry) {
 }
 
 fn template_function(o: &PyRef) -> KResult<PyRef> {
-    let (f, type_name) = objects::unwrap_as::<Template>(o)?.function();
+    let t = objects::unwrap_as::<Template>(o)?;
+    if let Some(obj) = t.host_python() {
+        return Ok(obj);
+    }
+    let (f, type_name) = t.function();
     objects::wrap_any(f, type_name)
 }
 

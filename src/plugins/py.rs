@@ -220,7 +220,14 @@ pub fn from_pyval(v: &PyVal) -> PyRef {
         PyVal::Float(f) => py_float(*f),
         PyVal::Str(s) => py_str(s),
         PyVal::List(l) => py_list(l.iter().map(from_pyval).collect()),
-        PyVal::Tuple(t) | PyVal::NamedTuple(_, _, t) => py_tuple(t.iter().map(from_pyval).collect()),
+        PyVal::Tuple(t) => py_tuple(t.iter().map(from_pyval).collect()),
+        PyVal::NamedTuple(name, fields, t) => {
+            let items: Vec<PyRef> = t.iter().map(from_pyval).collect();
+            match namedtuple_class(name, fields) {
+                Ok(cls) => cls.call(&items.iter().collect::<Vec<_>>()).unwrap_or_else(|_| py_tuple(items)),
+                Err(_) => py_tuple(items),
+            }
+        }
         PyVal::Dict(d) => unsafe {
             let o = PyRef::owned(PyDict_New()).unwrap();
             for (k, v) in d {
@@ -409,4 +416,22 @@ fn kerror_to_exception(e: &KError) -> KResult<PyRef> {
         KError::Other(m) => (lookup("builtins", "Exception")?, m.clone()),
     };
     cls.call(&[&py_str(&msg)])
+}
+
+// the namedtuple classes of status values: Kalico's own (from the mirror,
+// which copies their definitions), else one made like it
+static NAMEDTUPLES: super::gil::Gil<std::cell::RefCell<std::collections::HashMap<&'static str, PyRef>>> =
+    super::gil::Gil::new(|| std::cell::RefCell::new(std::collections::HashMap::new()));
+
+fn namedtuple_class(name: &'static str, fields: &'static [&'static str]) -> crate::error::KResult<PyRef> {
+    if let Some(c) = NAMEDTUPLES.with(|m| m.borrow().get(name).cloned()) {
+        return Ok(c);
+    }
+    let cls = match name {
+        "Coord" => lookup("klippy.gcode", "Coord")?,
+        "Position" => lookup("klippy.extras.tools_calibrate", "Position")?,
+        _ => lookup("collections", "namedtuple")?.call(&[&py_str(name), &py_list(fields.iter().map(|f| py_str(f)).collect())])?,
+    };
+    NAMEDTUPLES.with(|m| m.borrow_mut().insert(name, cls.clone()));
+    Ok(cls)
 }

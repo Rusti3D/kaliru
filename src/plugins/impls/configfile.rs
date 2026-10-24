@@ -14,6 +14,7 @@ type Parser = RefCell<RawConfigParser>;
 type Tracking = RefCell<AccessTracking>;
 
 pub fn register(r: &mut Registry) {
+    objects::register_class::<crate::printer::ConfigFileObject>("klippy.configfile", "PrinterConfig");
     objects::register_class::<Parser>("_k", "FileConfig");
     objects::register_class::<Tracking>("_k", "AccessTracking");
     fn cw(o: &PyRef) -> KResult<Rc<ConfigWrapper>> {

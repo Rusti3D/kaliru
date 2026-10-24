@@ -180,7 +180,7 @@ impl HeatedFan {
 
 /// the HeatedFan printer object; python adds it as "fan" before its heater
 /// and fan exist (the second field keeps the HeatedFan alive)
-struct HeatedFanObject(Rc<RefCell<Weak<HeatedFan>>>, RefCell<Option<Rc<HeatedFan>>>);
+pub(crate) struct HeatedFanObject(Rc<RefCell<Weak<HeatedFan>>>, RefCell<Option<Rc<HeatedFan>>>);
 
 impl HeatedFanObject {
     fn get(&self) -> Option<Rc<HeatedFan>> {

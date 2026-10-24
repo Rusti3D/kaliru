@@ -3,7 +3,6 @@
 use super::*;
 use crate::mcu::Mcu;
 use crate::method;
-use crate::plugins::convert::ToPy;
 
 pub fn register(r: &mut Registry) {
     method!(r, "klippy.mcu.MCU", Mcu, get_name(m) => m.get_name().to_string());

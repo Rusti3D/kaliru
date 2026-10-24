@@ -232,6 +232,9 @@ enum Function {
     Jinja(Rc<TemplateWrapperJinja>),
     #[cfg(feature = "python")]
     Python(Rc<crate::extras::gcode_python::TemplateWrapperPython>),
+    /// without RustPython: Kalico's TemplateWrapperPython on the host CPython
+    #[cfg(all(feature = "plugins", not(feature = "python")))]
+    HostPython(Rc<crate::plugins::macros::PyMacro>),
 }
 
 /// gcode_macro.Template: a jinja or a python script
@@ -251,7 +254,9 @@ impl Template {
         if script_type == "python" {
             #[cfg(feature = "python")]
             return Ok(Function::Python(Rc::new(crate::extras::gcode_python::TemplateWrapperPython::new(printer, name, script)?)));
-            #[cfg(not(feature = "python"))]
+            #[cfg(all(feature = "plugins", not(feature = "python")))]
+            return Ok(Function::HostPython(Rc::new(crate::plugins::macros::PyMacro::new(printer, name, script)?)));
+            #[cfg(not(any(feature = "python", feature = "plugins")))]
             return Err(KError::config(format!("Error loading template '{}': this Kaliru is built without python macros", name)));
         }
         Ok(Function::Jinja(Rc::new(TemplateWrapperJinja::new(printer, env, name, script)?)))
@@ -263,6 +268,18 @@ impl Template {
             Function::Jinja(f) => (f.clone(), std::any::type_name::<TemplateWrapperJinja>()),
             #[cfg(feature = "python")]
             Function::Python(f) => (f.clone(), std::any::type_name::<crate::extras::gcode_python::TemplateWrapperPython>()),
+            #[cfg(all(feature = "plugins", not(feature = "python")))]
+            Function::HostPython(f) => (f.clone(), std::any::type_name::<crate::plugins::macros::PyMacro>()),
+        }
+    }
+
+    /// the python object of a host-python template's function
+    #[cfg(feature = "plugins")]
+    pub(crate) fn host_python(&self) -> Option<crate::plugins::py::PyRef> {
+        match &*self.function.borrow() {
+            #[cfg(not(feature = "python"))]
+            Function::HostPython(f) => Some(f.obj.clone()),
+            _ => None,
         }
     }
 
@@ -280,6 +297,10 @@ impl Template {
             Function::Python(_) => {
                 Err(KError::Py("AttributeError".into(), "'TemplateWrapperPython' object has no attribute 'render'".into()))
             }
+            #[cfg(all(feature = "plugins", not(feature = "python")))]
+            Function::HostPython(_) => {
+                Err(KError::Py("AttributeError".into(), "'TemplateWrapperPython' object has no attribute 'render'".into()))
+            }
         }
     }
 
@@ -289,6 +310,8 @@ impl Template {
             Function::Jinja(f) => f.run_gcode_from_command(context),
             #[cfg(feature = "python")]
             Function::Python(f) => f.run_gcode_from_command(context),
+            #[cfg(all(feature = "plugins", not(feature = "python")))]
+            Function::HostPython(f) => f.run_gcode_from_command(context),
         }
     }
 
@@ -316,7 +339,7 @@ pub fn create_template_context(printer: &Rc<Printer>, eventtime: Option<f64>) ->
 
 // Main gcode macro template tracking
 pub struct PrinterGCodeMacro {
-    printer: Rc<Printer>,
+    pub(crate) printer: Rc<Printer>,
     env: Environment,
 }
 

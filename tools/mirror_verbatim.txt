@@ -49,3 +49,36 @@ klippy.mathutil.matrix_magsq
 klippy.mathutil.matrix_add
 klippy.mathutil.matrix_sub
 klippy.mathutil.matrix_mul
+
+# gcode_macro: python g-code macros on the host CPython (kaliru built
+# without RustPython): Kalico's own TemplateWrapperPython and its helpers
+klippy.extras.gcode_macro.GetStatusWrapperPython.__init__
+klippy.extras.gcode_macro.GetStatusWrapperPython.__getitem__
+klippy.extras.gcode_macro.GetStatusWrapperPython.__getattr__
+klippy.extras.gcode_macro.GetStatusWrapperPython.__contains__
+klippy.extras.gcode_macro.GetStatusWrapperPython.__iter__
+klippy.extras.gcode_macro.GetStatusWrapperPython.get
+klippy.extras.gcode_macro.TemplateWrapperPython.__init__
+klippy.extras.gcode_macro.TemplateWrapperPython.run_gcode_from_command
+klippy.extras.gcode_macro.TemplateWrapperPython._action_emit
+klippy.extras.gcode_macro.TemplateWrapperPython._action_wait_while
+klippy.extras.gcode_macro.TemplateWrapperPython._action_wait_until
+klippy.extras.gcode_macro.TemplateWrapperPython._action_wait_moves
+klippy.extras.gcode_macro.TemplateWrapperPython._action_blocking
+klippy.extras.gcode_macro.TemplateWrapperPython._action_sleep
+klippy.extras.gcode_macro.TemplateWrapperPython._action_set_gcode_variable
+klippy.extras.gcode_macro.TemplateVariableWrapperPython.__init__
+klippy.extras.gcode_macro.TemplateVariableWrapperPython.__setattr__
+klippy.extras.gcode_macro.TemplateVariableWrapperPython.__getattr__
+klippy.extras.gcode_macro.TemplateVariableWrapperPython.__contains__
+klippy.extras.gcode_macro.TemplateVariableWrapperPython.__iter__
+klippy.extras.gcode_macro.PrinterGCodeMacro._action_emergency_stop
+klippy.extras.gcode_macro.PrinterGCodeMacro._action_respond_info
+klippy.extras.gcode_macro.PrinterGCodeMacro._action_log
+klippy.extras.gcode_macro.PrinterGCodeMacro._action_raise_error
+klippy.extras.gcode_macro.PrinterGCodeMacro._action_call_remote_method
+klippy.extras.gcode_macro.GetStatusWrapperJinja.__init__
+klippy.extras.gcode_macro.GetStatusWrapperJinja.__getitem__
+klippy.extras.gcode_macro.GetStatusWrapperJinja.__contains__
+klippy.extras.gcode_macro.GetStatusWrapperJinja.__iter__
+klippy.extras.gcode_macro.PrinterGCodeMacro.create_template_context

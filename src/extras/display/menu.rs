@@ -1929,7 +1929,7 @@ impl Object for MenuAction {
 }
 
 /// the "menu" printer object (the MenuManager)
-struct MenuObject(Weak<MenuManager>);
+pub(crate) struct MenuObject(Weak<MenuManager>);
 
 impl PrinterObject for MenuObject {
     fn as_any(&self) -> &dyn Any {

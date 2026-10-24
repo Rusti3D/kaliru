@@ -273,6 +273,22 @@ fn dict_ops(a: &[PyRef]) -> KResult<(DictField, String)> {
 // set(obj, id, value)
 native!(k_set, |a| {
     let id = id_of(&a[1])?;
+    // a dict field replaced as a whole (macro.variables = v): its contents
+    // become the mapping's, in its order
+    if let Handler::Dict(n, f) = handler(id)? {
+        for k in (f.keys)(&a[0], n)? {
+            (f.del)(&a[0], n, &k)?;
+        }
+        let items = lookup("builtins", "list")?.call(&[&a[2].call_method("items", &[])?])?;
+        let len = lookup("builtins", "len")?.call(&[&items])?.as_i64()?;
+        for i in 0..len {
+            let kv = items.call_method("__getitem__", &[&py_int(i)])?;
+            let k = kv.call_method("__getitem__", &[&py_int(0)])?;
+            let v = kv.call_method("__getitem__", &[&py_int(1)])?;
+            (f.set)(&a[0], n, &k, &v)?;
+        }
+        return Ok(py_none());
+    }
     let Handler::Attr(_, set) = handler(id)? else { return Err(KError::Other("kaliru: not an attribute".into())) };
     let Some(set) = set else {
         return Err(KError::Py("NotImplementedError".into(), format!("kaliru: setting {} is not mirrored yet", IDS[id])));

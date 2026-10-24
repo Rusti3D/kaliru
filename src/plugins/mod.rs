@@ -13,8 +13,10 @@ mod greenlets;
 mod impls;
 mod mirror_ids;
 pub mod native;
+pub mod macros;
 pub mod objects;
 pub mod py;
+pub mod values;
 mod sources;
 
 use crate::plugins::gil::Gil;
