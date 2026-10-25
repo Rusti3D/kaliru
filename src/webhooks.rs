@@ -17,7 +17,6 @@ use crate::pyfmt::py_bytes_repr;
 use crate::pyval::PyVal;
 use crate::reactor::{FileHandler, ReactorCompletion, Timer, NEVER, NOW};
 use indexmap::IndexMap;
-use std::any::Any;
 use std::cell::{Cell, RefCell};
 use std::collections::VecDeque;
 use std::os::fd::RawFd;
@@ -498,9 +497,6 @@ pub struct WebHooks {
 }
 
 impl PrinterObject for WebHooks {
-    fn as_any(&self) -> &dyn Any {
-        self
-    }
     fn has_status(&self) -> bool {
         true
     }

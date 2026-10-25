@@ -2317,9 +2317,6 @@ impl TradRack {
 }
 
 impl PrinterObject for TradRack {
-    fn as_any(&self) -> &dyn Any {
-        self
-    }
     fn has_status(&self) -> bool {
         true
     }
@@ -2517,7 +2514,6 @@ impl Kinematics for TradRackKinematics {
         let (fil_max_velocity, fil_max_accel) = if (self.is_extruder_synced)() {
             let extruder = self.printer.lookup::<ToolHead>("toolhead")?.get_extruder();
             let pe = extruder
-                .as_any()
                 .downcast_ref::<PrinterExtruder>()
                 .ok_or_else(|| KError::Other("'DummyExtruder' object has no attribute 'max_e_velocity'".into()))?;
             (py_min(self.fil_max_velocity, pe.max_e_velocity), py_min(self.fil_max_accel, pe.max_e_accel))
@@ -2554,9 +2550,6 @@ impl Kinematics for TradRackKinematics {
         d
     }
 
-    fn as_any(&self) -> &dyn Any {
-        self
-    }
 }
 
 /// TradRackHoming.home_rails(rails, forcepos, movepos)
@@ -2746,7 +2739,7 @@ impl TradRackExtruderSyncManager {
 
     fn extruder(&self) -> KResult<Rc<PrinterExtruder>> {
         let ea = self.toolhead()?.get_extruder();
-        let any: &dyn Any = ea.as_any();
+        let any: &dyn Any = &*ea;
         if any.is::<PrinterExtruder>() {
             let obj = self.printer.lookup_object(&ea.get_name())?;
             return crate::printer::downcast_rc::<PrinterExtruder>(obj).ok_or_else(|| KError::Other("extruder has an unexpected type".into()));

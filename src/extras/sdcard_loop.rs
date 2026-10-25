@@ -9,7 +9,6 @@ use crate::extras::virtual_sdcard::VirtualSD;
 use crate::gcode::{GCodeCommand, GCodeDispatch};
 use crate::logging;
 use crate::printer::{PObj, PrinterObject};
-use std::any::Any;
 use std::cell::RefCell;
 use std::rc::Rc;
 
@@ -118,9 +117,6 @@ impl SDCardLoop {
 }
 
 impl PrinterObject for SDCardLoop {
-    fn as_any(&self) -> &dyn Any {
-        self
-    }
 }
 
 pub fn load_config(config: &ConfigWrapper) -> KResult<PObj> {

@@ -28,7 +28,7 @@ for i in $(seq $RUNS); do
         < /dev/null > /dev/null 2>&1
     awk -F, '/^[0-9.]+,[0-9.]+,[0-9]+$/ { cpu += $1 + $2; if ($3 > rss) rss = $3 } END { printf "suite_cpu_s %.2f\nsuite_peak_rss_kb %d\n", cpu, rss }' $t >> $results
     LIVE_KALIRU=$B python3 tools/live_run.py rs tests/perf/steady.live $W/steady > /dev/null 2>&1
-    sed -E 's/.*peak_rss_kb=([0-9]+).*pss_anon_kb=([0-9]+) cpu_s=[0-9.]+ cpu_ns=([0-9]+).*/steady_cpu_ms \3\nsteady_peak_rss_kb \1\nsteady_pss_anon_kb \2/' $W/steady/resources.txt \
+    sed -E 's/.*peak_rss_kb=([0-9]+).*rss_anon_kb=([0-9]+).*pss_anon_kb=([0-9]+) cpu_s=[0-9.]+ cpu_ns=([0-9]+).*/steady_cpu_ms \4\nsteady_peak_rss_kb \1\nsteady_rss_anon_kb \2\nsteady_pss_anon_kb \3/' $W/steady/resources.txt \
         | awk '$1 == "steady_cpu_ms" { printf "%s %.1f\n", $1, $2 / 1e6; next } { print }' >> $results
 done
 echo "size_x86_bytes $(stat -c %s $B)" >> $results
@@ -49,8 +49,12 @@ spread = {k: (max(v) - min(v)) / min(v) if min(v) else 0.0 for k, v in vals.item
 # noise tolerances (calibrated from repeated baseline runs: docs/RUSTIFY.md)
 # (spread over 5 runs of the baseline, 2026-10-25: suite cpu 6.7 %, suite peak
 # RSS 2.6 %, steady cpu 10.7 %, steady peak RSS 0.9 %, PSS 1.3 %; the minimum
-# of the runs varies less than that)
-tol = {"suite_cpu_s": 0.05, "suite_peak_rss_kb": 0.03, "steady_cpu_ms": 0.08, "steady_peak_rss_kb": 0.01,
+# of the runs varies less than that. Peak RSS counts the program's file pages
+# too, which move with the page cache: 11.0-11.4 MB over 5 runs of one
+# build, the anonymous part constant; own memory is steady_rss_anon_kb /
+# steady_pss_anon_kb, code memory the binary sizes)
+tol = {"suite_cpu_s": 0.05, "suite_peak_rss_kb": 0.03, "steady_cpu_ms": 0.08, "steady_peak_rss_kb": 0.03,
+       "steady_rss_anon_kb": 0.0,
        "steady_pss_anon_kb": 0.02, "size_x86_bytes": 0.0, "size_armv7_bytes": 0.0}
 if mode == "--baseline":
     with open(base_path, "w") as f:

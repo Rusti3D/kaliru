@@ -42,8 +42,8 @@ command to reload the config and restart the host software.
 Printer is halted
 ";
 
+crate::impl_downcast!(dyn PrinterObject);
 pub trait PrinterObject: Any {
-    fn as_any(&self) -> &dyn Any;
     /// the Rust type's path (python plugins find the Kalico class by it)
     fn type_name(&self) -> &'static str {
         std::any::type_name::<Self>()
@@ -106,9 +106,6 @@ pub type PObj = Rc<dyn PrinterObject>;
 pub struct NoneObject;
 
 impl PrinterObject for NoneObject {
-    fn as_any(&self) -> &dyn Any {
-        self
-    }
     fn is_none(&self) -> bool {
         true
     }
@@ -201,9 +198,6 @@ impl ConfigFileObject {
 }
 
 impl PrinterObject for ConfigFileObject {
-    fn as_any(&self) -> &dyn Any {
-        self
-    }
     fn has_status(&self) -> bool {
         true
     }
@@ -663,12 +657,9 @@ impl Printer {
 
 /// Rc<dyn PrinterObject> -> Rc<T>
 pub fn downcast_rc<T: 'static>(obj: PObj) -> Option<Rc<T>> {
-    if obj.as_any().is::<T>() {
-        let raw = Rc::into_raw(obj) as *const T;
-        Some(unsafe { Rc::from_raw(raw) })
-    } else {
-        None
-    }
+    // (trait upcasting: Rc<dyn PrinterObject> -> Rc<dyn Any>)
+    let obj: Rc<dyn Any> = obj;
+    obj.downcast::<T>().ok()
 }
 
 // ----------------------------------------------------------------------

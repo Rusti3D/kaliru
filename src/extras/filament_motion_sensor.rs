@@ -16,7 +16,6 @@ use crate::pyval::PyVal;
 use crate::reactor::{Reactor, Timer, NEVER, NOW};
 use crate::toolhead::ExtraAxis;
 use indexmap::IndexMap;
-use std::any::Any;
 use std::cell::{Cell, RefCell};
 use std::rc::{Rc, Weak};
 
@@ -24,10 +23,10 @@ pub const CHECK_RUNOUT_TIMEOUT: f64 = 0.250;
 
 /// extruder.find_past_position(print_time) of an extruder-like object
 pub fn find_past_position(obj: &PObj, print_time: f64) -> KResult<f64> {
-    if let Some(pe) = obj.as_any().downcast_ref::<PrinterExtruder>() {
+    if let Some(pe) = obj.downcast_ref::<PrinterExtruder>() {
         return Ok(pe.find_past_position(print_time));
     }
-    if let Some(es) = obj.as_any().downcast_ref::<crate::extras::extruder_stepper::PrinterExtruderStepper>() {
+    if let Some(es) = obj.downcast_ref::<crate::extras::extruder_stepper::PrinterExtruderStepper>() {
         return Ok(es.find_past_position(print_time));
     }
     Err(KError::Other("object has no attribute 'find_past_position'".into()))
@@ -209,9 +208,6 @@ impl DefinedSensor for EncoderSensor {
 }
 
 impl PrinterObject for EncoderSensor {
-    fn as_any(&self) -> &dyn Any {
-        self
-    }
     fn has_status(&self) -> bool {
         true
     }

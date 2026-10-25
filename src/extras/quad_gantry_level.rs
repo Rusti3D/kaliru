@@ -13,7 +13,6 @@ use crate::logging;
 use crate::printer::{PObj, PrinterObject};
 use crate::pyfmt::{py_float_repr, py_max};
 use crate::pyval::PyVal;
-use std::any::Any;
 use std::cell::RefCell;
 use std::rc::{Rc, Weak};
 
@@ -180,9 +179,6 @@ fn pct_06f(v: f64) -> String {
 }
 
 impl PrinterObject for QuadGantryLevel {
-    fn as_any(&self) -> &dyn Any {
-        self
-    }
     fn has_status(&self) -> bool {
         true
     }

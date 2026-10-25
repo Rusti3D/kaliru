@@ -9,7 +9,6 @@ use crate::extras::ad5206::byte;
 use crate::extras::bus::{mcu_i2c_from_config, McuI2c};
 use crate::gcode::{GCodeCommand, GCodeDispatch};
 use crate::printer::{PObj, PrinterObject};
-use std::any::Any;
 use std::rc::Rc;
 
 const CMD_SET_DIGIPOT_HELP: &str = "Set digipot value";
@@ -52,7 +51,4 @@ pub fn load_config_prefix(config: &ConfigWrapper) -> KResult<PObj> {
 }
 
 impl PrinterObject for Mcp4018 {
-    fn as_any(&self) -> &dyn Any {
-        self
-    }
 }

@@ -18,7 +18,6 @@ use crate::pyval::PyVal;
 use crate::stepper::{lookup_multi_rail, McuStepper, PrinterRail, Rail, RailRef};
 use crate::toolhead::{Move, ToolHead};
 use indexmap::IndexMap;
-use std::any::Any;
 use std::cell::Cell;
 use std::rc::Rc;
 
@@ -285,9 +284,6 @@ impl Kinematics for DeltaKinematics {
         }
     }
 
-    fn as_any(&self) -> &dyn Any {
-        self
-    }
 }
 
 // Delta parameter calibration for DELTA_CALIBRATE tool

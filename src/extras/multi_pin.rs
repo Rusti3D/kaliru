@@ -175,9 +175,6 @@ impl DigitalOutPin for PrinterMultiPin {
 }
 
 impl PrinterObject for PrinterMultiPin {
-    fn as_any(&self) -> &dyn Any {
-        self
-    }
 }
 
 pub fn load_config_prefix(config: &ConfigWrapper) -> KResult<PObj> {

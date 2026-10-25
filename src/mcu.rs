@@ -2328,9 +2328,6 @@ impl PinChip for Mcu {
 }
 
 impl PrinterObject for Mcu {
-    fn as_any(&self) -> &dyn Any {
-        self
-    }
     fn has_status(&self) -> bool {
         true
     }

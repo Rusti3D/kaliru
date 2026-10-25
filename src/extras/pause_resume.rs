@@ -12,7 +12,6 @@ use crate::printer::{downcast_rc, PObj, Printer, PrinterObject};
 use crate::pyval::PyVal;
 use crate::webhooks::WebHooks;
 use indexmap::IndexMap;
-use std::any::Any;
 use std::cell::{Cell, RefCell};
 use std::rc::Rc;
 
@@ -150,9 +149,6 @@ impl PauseResume {
 }
 
 impl PrinterObject for PauseResume {
-    fn as_any(&self) -> &dyn Any {
-        self
-    }
     fn has_status(&self) -> bool {
         true
     }

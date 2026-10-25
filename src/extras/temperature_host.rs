@@ -15,7 +15,6 @@ use crate::pyfmt::{py_float, py_float_error, py_round};
 use crate::pyval::PyVal;
 use crate::reactor::{Timer, NEVER, NOW};
 use indexmap::IndexMap;
-use std::any::Any;
 use std::cell::{Cell, RefCell};
 use std::io::{Read, Seek};
 use std::rc::{Rc, Weak};
@@ -134,15 +133,9 @@ impl TempSensor for TemperatureHost {
     fn get_report_time_delta(&self) -> f64 {
         HOST_REPORT_TIME
     }
-    fn as_any(&self) -> &dyn Any {
-        self
-    }
 }
 
 impl PrinterObject for TemperatureHost {
-    fn as_any(&self) -> &dyn Any {
-        self
-    }
     fn has_status(&self) -> bool {
         true
     }

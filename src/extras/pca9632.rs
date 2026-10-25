@@ -10,7 +10,6 @@ use crate::extras::led::{Color, LEDHelper};
 use crate::printer::{PObj, PrinterObject};
 use crate::pyval::PyVal;
 use indexmap::IndexMap;
-use std::any::Any;
 use std::cell::RefCell;
 use std::rc::{Rc, Weak};
 
@@ -102,9 +101,6 @@ impl PCA9632 {
 }
 
 impl PrinterObject for PCA9632 {
-    fn as_any(&self) -> &dyn Any {
-        self
-    }
     fn has_status(&self) -> bool {
         true
     }

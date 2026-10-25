@@ -242,9 +242,6 @@ pub fn event_args(args: &[&dyn Any]) -> (String, PyVal) {
 }
 
 impl PrinterObject for PrinterMcuError {
-    fn as_any(&self) -> &dyn Any {
-        self
-    }
 }
 
 pub fn load_config(config: &ConfigWrapper) -> KResult<PObj> {

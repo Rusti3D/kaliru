@@ -11,7 +11,6 @@ use crate::gcode::{GCodeCommand, GCodeDispatch};
 use crate::printer::{downcast_rc, PObj, PrinterObject};
 use crate::pyformat::percent_format;
 use crate::pyval::PyVal;
-use std::any::Any;
 use std::cell::{Cell, RefCell};
 use std::rc::{Rc, Weak};
 
@@ -192,9 +191,6 @@ impl MoveTransform for TuningTower {
 }
 
 impl PrinterObject for TuningTower {
-    fn as_any(&self) -> &dyn Any {
-        self
-    }
     fn teardown(&self) {
         *self.normal_transform.borrow_mut() = None;
     }

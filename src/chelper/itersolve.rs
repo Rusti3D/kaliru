@@ -9,7 +9,6 @@
 // plus calc_position_cb / post_cb.
 use super::stepcompress::StepCompress;
 use super::trapq::{Move, MoveRef, TrapQRef};
-use std::any::Any;
 use std::cell::RefCell;
 use std::rc::Rc;
 
@@ -30,15 +29,14 @@ pub struct SkState {
     pub gen_steps_post_active: f64,
 }
 
+crate::impl_downcast!(dyn Kinematic);
 /// calc_position_cb / post_cb of a kinematic
-pub trait Kinematic {
+pub trait Kinematic: std::any::Any {
     fn calc_position(&self, sk: &SkState, m: MoveRef, move_time: f64) -> f64;
     fn has_post(&self) -> bool {
         false
     }
     fn post(&self, _sk: &mut SkState) {}
-    fn as_any(&self) -> &dyn Any;
-    fn as_any_mut(&mut self) -> &mut dyn Any;
 }
 
 pub struct StepperKinematics {

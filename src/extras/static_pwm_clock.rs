@@ -10,7 +10,6 @@ use crate::logging;
 use crate::mcu::Mcu;
 use crate::pins::PinsObject;
 use crate::printer::{PObj, PrinterObject};
-use std::any::Any;
 use std::rc::Rc;
 
 pub struct PrinterClockOutputPin {
@@ -65,7 +64,4 @@ pub fn load_config_prefix(config: &ConfigWrapper) -> KResult<PObj> {
 }
 
 impl PrinterObject for PrinterClockOutputPin {
-    fn as_any(&self) -> &dyn Any {
-        self
-    }
 }

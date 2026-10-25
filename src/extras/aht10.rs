@@ -17,7 +17,6 @@ use crate::pyfmt::py_round;
 use crate::pyval::PyVal;
 use crate::reactor::{Timer, NEVER, NOW};
 use indexmap::IndexMap;
-use std::any::Any;
 use std::cell::{Cell, RefCell};
 use std::rc::{Rc, Weak};
 
@@ -302,15 +301,9 @@ impl TempSensor for AHTBase {
     fn get_report_time_delta(&self) -> f64 {
         self.report_time as f64
     }
-    fn as_any(&self) -> &dyn Any {
-        self
-    }
 }
 
 impl PrinterObject for AHTBase {
-    fn as_any(&self) -> &dyn Any {
-        self
-    }
     fn has_status(&self) -> bool {
         true
     }

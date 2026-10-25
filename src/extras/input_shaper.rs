@@ -15,7 +15,6 @@ use crate::gcode::{GCodeCommand, GCodeDispatch};
 use crate::printer::{PObj, Printer, PrinterObject};
 use crate::stepper::McuStepper;
 use crate::toolhead::ToolHead;
-use std::any::Any;
 use std::cell::{Cell, RefCell};
 use std::rc::Rc;
 
@@ -296,9 +295,6 @@ impl InputShaper {
 }
 
 impl PrinterObject for InputShaper {
-    fn as_any(&self) -> &dyn Any {
-        self
-    }
     fn teardown(&self) {
         *self.toolhead.borrow_mut() = None;
         self.input_shaper_stepper_kinematics.borrow_mut().clear();

@@ -13,7 +13,6 @@ use crate::printer::{PObj, Printer, PrinterObject};
 use crate::pyfmt::{py_float_repr, py_round};
 use crate::reactor::{Reactor, Timer, NEVER, NOW};
 use crate::toolhead::ToolHead;
-use std::any::Any;
 use std::cell::{Cell, RefCell};
 use std::rc::{Rc, Weak};
 
@@ -246,9 +245,6 @@ impl FilamentWidthSensor {
 }
 
 impl PrinterObject for FilamentWidthSensor {
-    fn as_any(&self) -> &dyn Any {
-        self
-    }
     fn teardown(&self) {
         if let Some(t) = self.extrude_factor_update_timer.borrow_mut().take() {
             self.reactor.forget_timer(&t);

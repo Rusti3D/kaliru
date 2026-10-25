@@ -15,7 +15,6 @@ use crate::printer::{downcast_rc, ConfigFileObject, PObj, Printer, PrinterObject
 use crate::pyfmt::py_float_repr;
 use crate::toolhead::ToolHead;
 use indexmap::IndexMap;
-use std::any::Any;
 use std::cell::{Cell, RefCell};
 use std::rc::{Rc, Weak};
 
@@ -104,9 +103,6 @@ impl MoveTransform for BedTilt {
 }
 
 impl PrinterObject for BedTilt {
-    fn as_any(&self) -> &dyn Any {
-        self
-    }
     fn teardown(&self) {
         *self.calibrate.borrow_mut() = None;
         *self.toolhead.borrow_mut() = None;

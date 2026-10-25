@@ -259,9 +259,6 @@ pub struct GCodeDispatch {
 }
 
 impl PrinterObject for GCodeDispatch {
-    fn as_any(&self) -> &dyn Any {
-        self
-    }
     fn has_status(&self) -> bool {
         true
     }
@@ -839,9 +836,6 @@ pub struct GCodeIO {
 }
 
 impl PrinterObject for GCodeIO {
-    fn as_any(&self) -> &dyn Any {
-        self
-    }
     fn teardown(&self) {
         self.fd_handle.borrow_mut().take();
     }

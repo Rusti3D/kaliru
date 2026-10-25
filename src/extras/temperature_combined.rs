@@ -14,7 +14,6 @@ use crate::pyfmt::{py_max, py_min, py_round, py_sum};
 use crate::pyval::PyVal;
 use crate::reactor::{Timer, NEVER};
 use indexmap::IndexMap;
-use std::any::Any;
 use std::cell::{Cell, RefCell};
 use std::rc::{Rc, Weak};
 
@@ -241,15 +240,9 @@ impl TempSensor for PrinterSensorCombined {
         REPORT_TIME
     }
 
-    fn as_any(&self) -> &dyn Any {
-        self
-    }
 }
 
 impl PrinterObject for PrinterSensorCombined {
-    fn as_any(&self) -> &dyn Any {
-        self
-    }
     fn has_status(&self) -> bool {
         true
     }

@@ -6,7 +6,6 @@
 // This file may be distributed under the terms of the GNU GPLv3 license.
 use super::itersolve::{Kinematic, SkRef, SkState, StepperKinematics, AF_X, AF_Y};
 use super::trapq::MoveRef;
-use std::any::Any;
 use std::f64::consts::PI;
 
 pub struct PolarStepper {
@@ -38,12 +37,6 @@ impl Kinematic for PolarStepper {
         } else if sk.commanded_pos > PI {
             sk.commanded_pos -= 2. * PI;
         }
-    }
-    fn as_any(&self) -> &dyn Any {
-        self
-    }
-    fn as_any_mut(&mut self) -> &mut dyn Any {
-        self
     }
 }
 

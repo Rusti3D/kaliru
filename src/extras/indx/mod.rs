@@ -13,7 +13,6 @@ use crate::mcu::{AdcCallback, AdcPin, Mcu};
 use crate::msgproto::Params;
 use crate::printer::{PObj, PrinterObject};
 use crate::pyfmt::py_float_repr;
-use std::any::Any;
 use std::rc::Rc;
 
 /// a python value of a compat.ConfigWrapper contents dict, as its str()
@@ -69,9 +68,6 @@ pub(crate) fn register_adc_callback(adc: &Rc<dyn AdcPin>, callback: AdcCallback)
 pub struct IndxFactories;
 
 impl PrinterObject for IndxFactories {
-    fn as_any(&self) -> &dyn Any {
-        self
-    }
 }
 
 fn register_factories(config: &ConfigWrapper) -> KResult<()> {

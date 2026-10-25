@@ -11,7 +11,6 @@ use crate::printer::{PObj, Printer, PrinterObject};
 use crate::pyval::PyVal;
 use crate::reactor::{Timer, NEVER, NOW};
 use indexmap::IndexMap;
-use std::any::Any;
 use std::cell::{Cell, RefCell};
 use std::io::{Read, Seek};
 use std::rc::Rc;
@@ -75,9 +74,6 @@ impl PrinterSysStats {
 }
 
 impl PrinterObject for PrinterSysStats {
-    fn as_any(&self) -> &dyn Any {
-        self
-    }
     fn has_stats(&self) -> bool {
         true
     }
@@ -164,9 +160,6 @@ impl PrinterStats {
 }
 
 impl PrinterObject for PrinterStats {
-    fn as_any(&self) -> &dyn Any {
-        self
-    }
     fn teardown(&self) {
         self.stats_cb.borrow_mut().clear();
         if let Some(t) = self.stats_timer.borrow_mut().take() {

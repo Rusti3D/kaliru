@@ -105,6 +105,7 @@ pub fn object_type_repr(obj: &Value) -> String {
     }
 }
 
+crate::impl_downcast!(dyn Object);
 /// python objects other than the builtin containers and numbers
 pub trait Object: Any {
     /// type(o).__name__
@@ -149,14 +150,13 @@ pub trait Object: Any {
     fn setitem(&self, _key: &str, _value: Value) -> Option<VResult<()>> {
         None
     }
-    fn as_any(&self) -> &dyn Any;
 }
 
+crate::impl_downcast!(dyn CallCtx);
 /// what a called object can reach of the running template (macros render
 /// with it, context functions read it)
-pub trait CallCtx {
+pub trait CallCtx: std::any::Any {
     fn call_macro(&mut self, m: &super::eval::MacroObj, args: Vec<Value>, kwargs: IndexMap<String, Value>) -> VResult<Value>;
-    fn as_any_mut(&mut self) -> &mut dyn Any;
 }
 
 #[derive(Clone)]
@@ -320,7 +320,7 @@ impl Value {
 
     pub fn as_object<T: 'static>(&self) -> Option<&T> {
         match self {
-            Value::Object(o) => o.as_any().downcast_ref::<T>(),
+            Value::Object(o) => o.downcast_ref::<T>(),
             _ => None,
         }
     }

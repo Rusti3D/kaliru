@@ -504,9 +504,6 @@ impl CallCtx for NoCtx {
     fn call_macro(&mut self, _m: &super::eval::MacroObj, _a: Vec<Value>, _k: IndexMap<String, Value>) -> VResult<Value> {
         Err(Exc::runtime("no template context"))
     }
-    fn as_any_mut(&mut self) -> &mut dyn std::any::Any {
-        self
-    }
 }
 
 /// the math module object

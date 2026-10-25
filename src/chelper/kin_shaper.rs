@@ -7,7 +7,6 @@
 // This file may be distributed under the terms of the GNU GPLv3 license.
 use super::itersolve::{Kinematic, SkRef, SkState, StepperKinematics, AF_X, AF_Y};
 use super::trapq::{Coord, Move, MoveRef};
-use std::any::Any;
 
 /****************************************************************
  * Shaper initialization
@@ -184,13 +183,7 @@ impl Kinematic for InputShaper {
         sk.commanded_pos = orig.st.commanded_pos;
     }
 
-    fn as_any(&self) -> &dyn Any {
-        self
-    }
 
-    fn as_any_mut(&mut self) -> &mut dyn Any {
-        self
-    }
 }
 
 fn shaper_note_generation_time(st: &mut SkState, is: &InputShaper) {
@@ -212,7 +205,7 @@ fn shaper_note_generation_time(st: &mut SkState, is: &InputShaper) {
 fn with_shaper<R>(sk: &SkRef, f: impl FnOnce(&mut SkState, &mut InputShaper) -> R) -> R {
     let mut s = sk.borrow_mut();
     let s = &mut *s;
-    let is = s.kin.as_any_mut().downcast_mut::<InputShaper>().expect("input shaper sk");
+    let is = s.kin.downcast_mut::<InputShaper>().expect("input shaper sk");
     f(&mut s.st, is)
 }
 

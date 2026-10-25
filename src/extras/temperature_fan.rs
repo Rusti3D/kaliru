@@ -13,7 +13,6 @@ use crate::mathutil::np_interp;
 use crate::printer::{PObj, PrinterObject};
 use crate::pyfmt::{py_max, py_min, py_round};
 use crate::pyval::PyVal;
-use std::any::Any;
 use std::cell::{Cell, RefCell};
 use std::rc::Rc;
 
@@ -201,9 +200,6 @@ impl TemperatureFan {
 }
 
 impl PrinterObject for TemperatureFan {
-    fn as_any(&self) -> &dyn Any {
-        self
-    }
     fn has_status(&self) -> bool {
         true
     }

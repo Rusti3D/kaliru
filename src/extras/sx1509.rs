@@ -152,9 +152,6 @@ impl PinChip for SX1509 {
 }
 
 impl PrinterObject for SX1509 {
-    fn as_any(&self) -> &dyn Any {
-        self
-    }
 }
 
 pub struct SX1509DigitalOut {

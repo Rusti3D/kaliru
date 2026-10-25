@@ -20,7 +20,6 @@ use crate::pyval::PyVal;
 use crate::stepper::{McuStepper, PrinterRail, Rail, RailRef};
 use crate::toolhead::{Move, ToolHead};
 use indexmap::IndexMap;
-use std::any::Any;
 use std::cell::Cell;
 use std::rc::Rc;
 
@@ -225,9 +224,6 @@ impl Kinematics for RotaryDeltaKinematics {
         }
     }
 
-    fn as_any(&self) -> &dyn Any {
-        self
-    }
 }
 
 // Rotary delta parameter calibration for DELTA_CALIBRATE tool

@@ -11,7 +11,6 @@ use crate::mcu::get_printer_mcu;
 use crate::pins::PinsObject;
 use crate::printer::{PObj, PrinterObject};
 use crate::pyval::PyVal;
-use std::any::Any;
 use std::cell::RefCell;
 use std::rc::{Rc, Weak};
 
@@ -96,9 +95,6 @@ impl PrinterDotstar {
 }
 
 impl PrinterObject for PrinterDotstar {
-    fn as_any(&self) -> &dyn Any {
-        self
-    }
     fn has_status(&self) -> bool {
         true
     }

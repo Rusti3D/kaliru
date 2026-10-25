@@ -14,7 +14,6 @@ use crate::printer::{downcast_rc, ConfigFileObject, PObj, Printer, PrinterObject
 use crate::pyval::PyVal;
 use crate::stepper::{parse_step_distance, RailRef};
 use indexmap::IndexMap;
-use std::any::Any;
 use std::cell::{Cell, RefCell};
 use std::rc::Rc;
 
@@ -220,9 +219,6 @@ impl EndstopPhase {
 }
 
 impl PrinterObject for EndstopPhase {
-    fn as_any(&self) -> &dyn Any {
-        self
-    }
 }
 
 // Support for ENDSTOP_PHASE_CALIBRATE command
@@ -380,9 +376,6 @@ impl EndstopPhases {
 }
 
 impl PrinterObject for EndstopPhases {
-    fn as_any(&self) -> &dyn Any {
-        self
-    }
     fn has_status(&self) -> bool {
         true
     }

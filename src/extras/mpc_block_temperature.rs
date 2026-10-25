@@ -11,7 +11,6 @@ use crate::extras::danger_options::get_danger_options;
 use crate::extras::heaters::{load_heaters, ControlRef, Heater, MpcSensor, PrinterHeaters, TempCallback, TempSensor, AMBIENT_TEMP};
 use crate::gcode::GCodeDispatch;
 use crate::printer::{none_object, PObj, Printer};
-use std::any::Any;
 use std::cell::{Cell, RefCell};
 use std::rc::Rc;
 
@@ -79,7 +78,7 @@ impl MpcSensor for MpcTempWrapper {
         let temp = match control.get_type() {
             "mpc" | "tuning" => {
                 let hc = heater.get_control();
-                let mpc = hc.as_any().downcast_ref::<ControlMPC>().ok_or_else(|| {
+                let mpc = hc.downcast_ref::<ControlMPC>().ok_or_else(|| {
                     KError::Other(format!("'{}' object has no attribute '{}'", control_class(hc.get_type()), attr))
                 })?;
                 if self.kind == Kind::Block {
@@ -136,9 +135,6 @@ impl TempSensor for MpcTempWrapper {
         self.heater.borrow().as_ref().map(|h| h.sensor().get_report_time_delta()).unwrap_or(0.0)
     }
 
-    fn as_any(&self) -> &dyn Any {
-        self
-    }
 }
 
 pub fn load_config(config: &ConfigWrapper) -> KResult<PObj> {

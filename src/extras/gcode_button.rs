@@ -13,7 +13,6 @@ use crate::logging;
 use crate::printer::{PObj, PrinterObject};
 use crate::pyval::PyVal;
 use indexmap::IndexMap;
-use std::any::Any;
 use std::cell::{Cell, RefCell};
 use std::rc::{Rc, Weak};
 
@@ -103,9 +102,6 @@ impl GCodeButton {
 }
 
 impl PrinterObject for GCodeButton {
-    fn as_any(&self) -> &dyn Any {
-        self
-    }
     fn has_status(&self) -> bool {
         true
     }

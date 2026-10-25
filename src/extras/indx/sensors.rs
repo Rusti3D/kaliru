@@ -6,7 +6,6 @@ use crate::configfile::ConfigWrapper;
 use crate::error::KResult;
 use crate::extras::heaters::{TempCallback, TempSensor};
 use crate::extras::thermistor::{custom_thermistor, printer_thermistor};
-use std::any::Any;
 use std::cell::RefCell;
 use std::rc::Rc;
 
@@ -85,9 +84,6 @@ impl TempSensor for IndxHeaterTemperatureSensor {
     fn get_report_time_delta(&self) -> f64 {
         TEMP_REPORT_TIME
     }
-    fn as_any(&self) -> &dyn Any {
-        self
-    }
 }
 
 fn ldc_coil_sensor(toolboard: &Rc<IndxToolboard>, config: &ConfigWrapper) -> KResult<Rc<dyn TempSensor>> {
@@ -127,8 +123,5 @@ impl TempSensor for IndxTempSensorWrapper {
     // sections never ask for it
     fn get_report_time_delta(&self) -> f64 {
         TEMP_REPORT_TIME
-    }
-    fn as_any(&self) -> &dyn Any {
-        self
     }
 }

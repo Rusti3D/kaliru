@@ -10,7 +10,6 @@ use crate::logging;
 use crate::printer::{PObj, Printer, PrinterObject};
 use crate::pyval::PyVal;
 use crate::reactor::{Timer, NEVER};
-use std::any::Any;
 use std::cell::{Cell, RefCell};
 use std::rc::{Rc, Weak};
 
@@ -62,7 +61,7 @@ impl HeatedFan {
             timeout_timer: RefCell::new(None),
         });
         *slot.borrow_mut() = Rc::downgrade(&hf);
-        if let Some(o) = obj.as_any().downcast_ref::<HeatedFanObject>() {
+        if let Some(o) = obj.downcast_ref::<HeatedFanObject>() {
             *o.1.borrow_mut() = Some(hf.clone());
         }
         type HCmd = fn(&HeatedFan, &GCodeCommand) -> KResult<()>;
@@ -189,9 +188,6 @@ impl HeatedFanObject {
 }
 
 impl PrinterObject for HeatedFanObject {
-    fn as_any(&self) -> &dyn Any {
-        self
-    }
     fn has_status(&self) -> bool {
         true
     }

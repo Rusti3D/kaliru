@@ -20,7 +20,6 @@ use crate::reactor::ReactorCompletion;
 use crate::stepper::{printer_stepper, McuStepper, PrinterRail, Rail};
 use crate::toolhead::{ExtraAxis, ExtraAxisRef, Move, ToolHead};
 use indexmap::IndexMap;
-use std::any::Any;
 use std::cell::{Cell, RefCell};
 use std::rc::{Rc, Weak};
 
@@ -337,9 +336,6 @@ impl ExtraAxis for ManualStepper {
         self.axis_gcode_id.borrow().clone().unwrap_or_default()
     }
 
-    fn as_any(&self) -> &dyn Any {
-        self
-    }
 }
 
 // Toolhead wrappers to support homing
@@ -389,9 +385,6 @@ impl HomingToolhead for ManualStepper {
 }
 
 impl PrinterObject for ManualStepper {
-    fn as_any(&self) -> &dyn Any {
-        self
-    }
 }
 
 pub fn load_config_prefix(config: &ConfigWrapper) -> KResult<PObj> {

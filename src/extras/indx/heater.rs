@@ -23,7 +23,6 @@ use crate::pyfmt::{py_float_repr, py_max, py_min, py_sum};
 use crate::pyval::PyVal;
 use crate::reactor::Reactor;
 use crate::toolhead::ToolHead;
-use std::any::Any;
 use std::cell::{Cell, RefCell};
 use std::f64::consts::PI;
 use std::io::Write as _;
@@ -400,7 +399,7 @@ pub struct IndxToolboardHeater {
 
 /// the fan of a fan-like printer object (python: hasattr(obj, "fan"))
 fn fan_of(obj: &PObj) -> Option<Rc<Fan>> {
-    let any = obj.as_any();
+    let any: &dyn std::any::Any = &**obj;
     if let Some(f) = any.downcast_ref::<crate::extras::fan::PrinterFan>() {
         return Some(f.fan.clone());
     }
@@ -1742,7 +1741,7 @@ impl IndxToolboardHeater {
         let stepper = es.stepper.clone();
         let current_helper = stepper
             .get_tmc_current_helper()
-            .and_then(|h| h.as_any().downcast_ref::<StepperCurrentHelper>().map(|s| s.0.clone()));
+            .and_then(|h| h.downcast_ref::<StepperCurrentHelper>().map(|s| s.0.clone()));
         let Some(current_helper) = current_helper else {
             return Err(gcmd.error("Active extruder does not have a TMC current helper"));
         };
@@ -1940,7 +1939,4 @@ impl Control for HeaterControlIndx {
         "indx"
     }
 
-    fn as_any(&self) -> &dyn Any {
-        self
-    }
 }

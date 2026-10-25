@@ -1917,9 +1917,6 @@ impl Object for MenuAction {
     fn type_name(&self) -> String {
         "method".into()
     }
-    fn as_any(&self) -> &dyn Any {
-        self
-    }
     fn call(&self, _ctx: &mut dyn CallCtx, args: Vec<Value>, kwargs: IndexMap<String, Value>) -> Option<VResult<Value>> {
         let m = self.manager.upgrade()?;
         let arg = |i: usize, name: &str, default: bool| args.get(i).or_else(|| kwargs.get(name)).map(|v| v.truthy()).unwrap_or(default);
@@ -1932,9 +1929,6 @@ impl Object for MenuAction {
 pub(crate) struct MenuObject(Weak<MenuManager>);
 
 impl PrinterObject for MenuObject {
-    fn as_any(&self) -> &dyn Any {
-        self
-    }
     fn has_status(&self) -> bool {
         true
     }

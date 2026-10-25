@@ -9,15 +9,11 @@ use crate::error::{KError, KResult};
 use crate::mcu::get_printer_mcu;
 use crate::pins::PinsObject;
 use crate::printer::{PObj, PrinterObject};
-use std::any::Any;
 use std::rc::Rc;
 
 pub struct PrinterStaticDigitalOut;
 
 impl PrinterObject for PrinterStaticDigitalOut {
-    fn as_any(&self) -> &dyn Any {
-        self
-    }
 }
 
 pub fn load_config_prefix(config: &ConfigWrapper) -> KResult<PObj> {

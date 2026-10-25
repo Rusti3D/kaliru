@@ -12,7 +12,6 @@ use crate::pyfmt::{py_bool, py_max};
 use crate::pyval::PyVal;
 use crate::toolhead::ToolHead;
 use indexmap::IndexMap;
-use std::any::Any;
 use std::cell::{Cell, RefCell};
 use std::rc::{Rc, Weak};
 
@@ -353,9 +352,6 @@ impl MoveTransform for FirmwareRetraction {
 }
 
 impl PrinterObject for FirmwareRetraction {
-    fn as_any(&self) -> &dyn Any {
-        self
-    }
     fn has_status(&self) -> bool {
         true
     }

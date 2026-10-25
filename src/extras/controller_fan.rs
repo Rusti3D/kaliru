@@ -13,7 +13,6 @@ use crate::logging;
 use crate::printer::{PObj, Printer, PrinterObject};
 use crate::pyfmt::py_str_repr;
 use crate::pyval::PyVal;
-use std::any::Any;
 use std::cell::{Cell, RefCell};
 use std::rc::{Rc, Weak};
 
@@ -154,9 +153,6 @@ impl ControllerFan {
 }
 
 impl PrinterObject for ControllerFan {
-    fn as_any(&self) -> &dyn Any {
-        self
-    }
     fn has_status(&self) -> bool {
         true
     }

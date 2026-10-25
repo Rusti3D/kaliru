@@ -5,7 +5,6 @@
 // This file may be distributed under the terms of the GNU GPLv3 license.
 use super::itersolve::{Kinematic, SkRef, SkState, StepperKinematics, AF_X, AF_Y, AF_Z};
 use super::trapq::{Coord, MoveRef};
-use std::any::Any;
 
 pub struct WinchStepper {
     anchor: Coord,
@@ -17,12 +16,6 @@ impl Kinematic for WinchStepper {
         let (dx, dy) = (self.anchor.x - c.x, self.anchor.y - c.y);
         let dz = self.anchor.z - c.z;
         (dx * dx + dy * dy + dz * dz).sqrt()
-    }
-    fn as_any(&self) -> &dyn Any {
-        self
-    }
-    fn as_any_mut(&mut self) -> &mut dyn Any {
-        self
     }
 }
 

@@ -16,7 +16,6 @@ use crate::mcu::Mcu;
 use crate::msgproto::{Params, Val};
 use crate::printer::{none_object, PObj};
 use crate::pyfmt::py_min;
-use std::any::Any;
 use std::cell::{Cell, RefCell};
 use std::rc::Rc;
 
@@ -278,9 +277,6 @@ impl TempSensor for SensorBase {
         REPORT_TIME
     }
 
-    fn as_any(&self) -> &dyn Any {
-        self
-    }
 }
 
 // ----------------------------------------------------------------------

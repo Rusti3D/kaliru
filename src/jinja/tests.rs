@@ -33,10 +33,10 @@ fn is_same(a: &Value, b: &Value) -> bool {
 fn callable(v: &Value) -> bool {
     match v {
         Value::Object(o) => {
-            o.as_any().is::<super::methods::BoundMethod>()
-                || o.as_any().is::<super::eval::MacroObj>()
-                || o.as_any().is::<super::runtime::BuiltinFn>()
-                || o.as_any().is::<super::runtime::Joiner>()
+            o.is::<super::methods::BoundMethod>()
+                || o.is::<super::eval::MacroObj>()
+                || o.is::<super::runtime::BuiltinFn>()
+                || o.is::<super::runtime::Joiner>()
                 || o.type_name() == "method"
                 || o.type_name().ends_with("function")
         }

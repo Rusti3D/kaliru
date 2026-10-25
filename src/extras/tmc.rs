@@ -824,9 +824,6 @@ impl TmcCurrentHelper for StepperCurrentHelper {
     fn set_current_for_homing(&self, print_time: f64, pre_homing: bool) -> KResult<f64> {
         self.0.set_current_for_homing_impl(print_time, pre_homing)
     }
-    fn as_any(&self) -> &dyn std::any::Any {
-        self
-    }
 }
 
 // ----------------------------------------------------------------------
@@ -1557,9 +1554,6 @@ impl TmcDriver {
 }
 
 impl crate::printer::PrinterObject for TmcDriver {
-    fn as_any(&self) -> &dyn Any {
-        self
-    }
     fn has_status(&self) -> bool {
         true
     }

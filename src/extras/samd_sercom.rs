@@ -8,7 +8,6 @@ use crate::error::{KError, KResult};
 use crate::extras::bus::{pin_mcu, same_rc};
 use crate::pins::{PinsObject, SharedPinParams};
 use crate::printer::{PObj, PrinterObject};
-use std::any::Any;
 use std::rc::Rc;
 
 pub fn load_config_prefix(config: &ConfigWrapper) -> KResult<PObj> {
@@ -51,7 +50,4 @@ pub fn load_config_prefix(config: &ConfigWrapper) -> KResult<PObj> {
 pub struct SamdSERCOM;
 
 impl PrinterObject for SamdSERCOM {
-    fn as_any(&self) -> &dyn Any {
-        self
-    }
 }

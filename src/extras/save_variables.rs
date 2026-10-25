@@ -15,7 +15,6 @@ use crate::printer::{PObj, PrinterObject};
 use crate::pyglob::expanduser;
 use crate::pyval::PyVal;
 use indexmap::IndexMap;
-use std::any::Any;
 use std::cell::RefCell;
 use std::rc::Rc;
 
@@ -113,9 +112,6 @@ impl SaveVariables {
 }
 
 impl PrinterObject for SaveVariables {
-    fn as_any(&self) -> &dyn Any {
-        self
-    }
     fn has_status(&self) -> bool {
         true
     }

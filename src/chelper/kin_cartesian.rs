@@ -6,7 +6,6 @@
 // This file may be distributed under the terms of the GNU GPLv3 license.
 use super::itersolve::{Kinematic, SkRef, SkState, StepperKinematics, AF_X, AF_Y, AF_Z};
 use super::trapq::MoveRef;
-use std::any::Any;
 
 pub struct CartesianStepper {
     axis: usize,
@@ -15,12 +14,6 @@ pub struct CartesianStepper {
 impl Kinematic for CartesianStepper {
     fn calc_position(&self, _sk: &SkState, m: MoveRef, move_time: f64) -> f64 {
         m.get_coord(move_time).axis(self.axis)
-    }
-    fn as_any(&self) -> &dyn Any {
-        self
-    }
-    fn as_any_mut(&mut self) -> &mut dyn Any {
-        self
     }
 }
 

@@ -14,7 +14,6 @@ use crate::printer::{downcast_rc, Printer, PrinterObject};
 use crate::reactor::ReactorMutex;
 use crate::chelper::serialqueue::CommandQueue;
 use indexmap::IndexMap;
-use std::any::Any;
 use std::cell::RefCell;
 use std::rc::Rc;
 
@@ -112,9 +111,6 @@ pub struct PrinterTMCUartMutexes {
 }
 
 impl PrinterObject for PrinterTMCUartMutexes {
-    fn as_any(&self) -> &dyn Any {
-        self
-    }
 }
 
 fn lookup_tmc_uart_mutex(mcu: &Rc<Mcu>) -> KResult<Rc<ReactorMutex>> {

@@ -6,7 +6,6 @@
 // This file may be distributed under the terms of the GNU GPLv3 license.
 use super::itersolve::{Kinematic, SkRef, SkState, StepperKinematics, AF_X, AF_Z};
 use super::trapq::MoveRef;
-use std::any::Any;
 
 pub struct DeltesianStepper {
     arm2: f64,
@@ -18,12 +17,6 @@ impl Kinematic for DeltesianStepper {
         let c = m.get_coord(move_time);
         let dx = c.x - self.arm_x;
         (self.arm2 - dx * dx).sqrt() + c.z
-    }
-    fn as_any(&self) -> &dyn Any {
-        self
-    }
-    fn as_any_mut(&mut self) -> &mut dyn Any {
-        self
     }
 }
 

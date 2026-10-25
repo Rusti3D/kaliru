@@ -8,15 +8,11 @@ use crate::configfile::{ConfigWrapper, Dflt};
 use crate::error::{KError, KResult};
 use crate::pins::PinsObject;
 use crate::printer::{PObj, PrinterObject};
-use std::any::Any;
 use std::rc::Rc;
 
 pub struct PrinterDupPinOverride;
 
 impl PrinterObject for PrinterDupPinOverride {
-    fn as_any(&self) -> &dyn Any {
-        self
-    }
 }
 
 pub fn load_config(config: &ConfigWrapper) -> KResult<PObj> {

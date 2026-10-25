@@ -20,7 +20,6 @@ use crate::pyval::PyVal;
 use crate::reactor::{Timer, NEVER, NOW};
 use crate::toolhead::ToolHead;
 use indexmap::IndexMap;
-use std::any::Any;
 use std::cell::{Cell, RefCell};
 use std::rc::{Rc, Weak};
 
@@ -212,9 +211,6 @@ impl Object for RenderFnRef {
             t.render(&context, &kw).map(Value::from).map_err(kerror_exc)
         })())
     }
-    fn as_any(&self) -> &dyn Any {
-        self
-    }
 }
 
 /// an active template: (uid, template, lparams, flush_callback)
@@ -399,9 +395,6 @@ impl PrinterTemplateEvaluator {
 }
 
 impl PrinterObject for PrinterTemplateEvaluator {
-    fn as_any(&self) -> &dyn Any {
-        self
-    }
     fn teardown(&self) {
         self.active_templates.borrow_mut().clear();
         if let Some(t) = self.render_timer.borrow_mut().take() {
@@ -559,9 +552,6 @@ impl PrinterOutputPin {
 }
 
 impl PrinterObject for PrinterOutputPin {
-    fn as_any(&self) -> &dyn Any {
-        self
-    }
     fn has_status(&self) -> bool {
         true
     }

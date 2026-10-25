@@ -9,7 +9,6 @@ use crate::extras::bus::{mcu_i2c_from_config, McuI2c};
 use crate::extras::led::{Color, LEDHelper};
 use crate::printer::{PObj, PrinterObject};
 use crate::pyval::PyVal;
-use std::any::Any;
 use std::cell::RefCell;
 use std::rc::{Rc, Weak};
 
@@ -65,9 +64,6 @@ impl PCA9533 {
 }
 
 impl PrinterObject for PCA9533 {
-    fn as_any(&self) -> &dyn Any {
-        self
-    }
     fn has_status(&self) -> bool {
         true
     }

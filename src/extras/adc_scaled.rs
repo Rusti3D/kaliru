@@ -173,9 +173,6 @@ impl PinChip for PrinterADCScaled {
 }
 
 impl PrinterObject for PrinterADCScaled {
-    fn as_any(&self) -> &dyn Any {
-        self
-    }
     fn teardown(&self) {
         self.scaled.borrow_mut().clear();
     }

@@ -13,7 +13,6 @@ use crate::printer::{ConfigFileObject, PObj, Printer, PrinterObject};
 use crate::pyfmt::{py_float_repr, py_sum};
 use crate::pyval::PyVal;
 use crate::toolhead::ToolHead;
-use std::any::Any;
 use std::cell::{Cell, RefCell};
 use std::rc::{Rc, Weak};
 
@@ -138,9 +137,6 @@ impl AxisTwistCompensation {
 }
 
 impl PrinterObject for AxisTwistCompensation {
-    fn as_any(&self) -> &dyn Any {
-        self
-    }
     fn teardown(&self) {
         *self.calibrater.borrow_mut() = None;
     }

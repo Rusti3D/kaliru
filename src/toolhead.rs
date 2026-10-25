@@ -21,7 +21,6 @@ use crate::printer::{downcast_rc, Printer, PrinterObject};
 use crate::pyval::PyVal;
 use crate::reactor::{Reactor, Timer, NEVER};
 use indexmap::IndexMap;
-use std::any::Any;
 use std::cell::{Cell, RefCell};
 use std::rc::Rc;
 
@@ -51,8 +50,9 @@ fn py_max_of(vals: &[f64]) -> f64 {
     vals[1..].iter().fold(vals[0], |a, &b| py_max(a, b))
 }
 
+crate::impl_downcast!(dyn ExtraAxis);
 /// an extra axis of the toolhead (extruders and the like); python duck types
-pub trait ExtraAxis {
+pub trait ExtraAxis: std::any::Any {
     fn check_move(&self, mv: &mut Move, ea_index: usize) -> KResult<()>;
     fn find_past_position(&self, print_time: f64) -> f64;
     fn calc_junction(&self, prev_move: &Move, mv: &Move, ea_index: usize) -> f64;
@@ -65,7 +65,6 @@ pub trait ExtraAxis {
     fn get_heater(&self) -> KResult<Rc<crate::extras::heaters::Heater>> {
         Err(KError::Other("object has no attribute 'get_heater'".into()))
     }
-    fn as_any(&self) -> &dyn Any;
 }
 
 pub type ExtraAxisRef = Rc<dyn ExtraAxis>;
@@ -928,9 +927,6 @@ impl ToolHead {
 }
 
 impl PrinterObject for ToolHead {
-    fn as_any(&self) -> &dyn Any {
-        self
-    }
     fn has_status(&self) -> bool {
         true
     }

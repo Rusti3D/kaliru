@@ -18,7 +18,6 @@ use crate::pyglob::gettempdir;
 use crate::pyval::PyVal;
 use crate::toolhead::ToolHead;
 use indexmap::IndexMap;
-use std::any::Any;
 use std::cell::{Cell, RefCell};
 use std::rc::{Rc, Weak};
 
@@ -598,9 +597,6 @@ impl AccelChip for ADXL345 {
 }
 
 impl PrinterObject for ADXL345 {
-    fn as_any(&self) -> &dyn Any {
-        self
-    }
     fn teardown(&self) {
         if let Some(bb) = self.batch_bulk.borrow_mut().take() {
             bb.teardown();

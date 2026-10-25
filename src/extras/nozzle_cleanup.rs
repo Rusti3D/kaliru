@@ -9,7 +9,6 @@ use crate::extras::probe::{as_printer_probe, probe_list_get_list, GcodeNozzleScr
 use crate::gcode::{GCodeCommand, GCodeDispatch};
 use crate::printer::{PObj, Printer, PrinterObject};
 use crate::toolhead::ToolHead;
-use std::any::Any;
 use std::cell::Cell;
 use std::rc::{Rc, Weak};
 
@@ -189,9 +188,6 @@ impl NozzleCleanup {
 }
 
 impl PrinterObject for NozzleCleanup {
-    fn as_any(&self) -> &dyn Any {
-        self
-    }
 }
 
 pub fn load_config(config: &ConfigWrapper) -> KResult<PObj> {

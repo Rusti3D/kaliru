@@ -19,7 +19,6 @@ use crate::pyval::PyVal;
 use crate::reactor::ReactorCompletion;
 use crate::toolhead::ToolHead;
 use indexmap::IndexMap;
-use std::any::Any;
 use std::cell::{Cell, RefCell};
 use std::rc::{Rc, Weak};
 
@@ -603,9 +602,6 @@ impl PrinterEddyProbe {
 }
 
 impl PrinterObject for PrinterEddyProbe {
-    fn as_any(&self) -> &dyn Any {
-        self
-    }
 }
 
 pub fn load_config_prefix(config: &ConfigWrapper) -> KResult<PObj> {

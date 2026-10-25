@@ -16,7 +16,6 @@ use crate::printer::{ConfigFileObject, PObj, Printer, PrinterObject};
 use crate::pyfmt::{py_float, py_float_repr};
 use crate::pyval::PyVal;
 use indexmap::IndexMap;
-use std::any::Any;
 use std::cell::{Cell, RefCell};
 use std::f64::consts::PI;
 use std::rc::{Rc, Weak};
@@ -263,9 +262,6 @@ impl MoveTransform for PrinterSkew {
 }
 
 impl PrinterObject for PrinterSkew {
-    fn as_any(&self) -> &dyn Any {
-        self
-    }
     fn has_status(&self) -> bool {
         true
     }

@@ -9,7 +9,6 @@ use crate::mcu::{Mcu, MIN_SCHEDULE_TIME_INIT};
 use crate::printer::{Printer, PrinterObject};
 use crate::pyval::PyVal;
 use crate::reactor::{Timer, NEVER};
-use std::any::Any;
 use std::cell::{Cell, RefCell};
 use std::rc::Rc;
 
@@ -153,9 +152,6 @@ impl IndxHeatsinkFan {
 }
 
 impl PrinterObject for IndxHeatsinkFan {
-    fn as_any(&self) -> &dyn Any {
-        self
-    }
     fn has_status(&self) -> bool {
         true
     }

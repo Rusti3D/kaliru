@@ -9,7 +9,6 @@ use crate::gcode::{GCodeCommand, GCodeDispatch, Handler};
 use crate::printer::{PObj, Printer, PrinterObject};
 use crate::toolhead::ToolHead;
 use indexmap::IndexMap;
-use std::any::Any;
 use std::cell::RefCell;
 use std::rc::Rc;
 
@@ -158,9 +157,6 @@ impl SafeZHoming {
 }
 
 impl PrinterObject for SafeZHoming {
-    fn as_any(&self) -> &dyn Any {
-        self
-    }
     fn teardown(&self) {
         *self.prev_g28.borrow_mut() = None;
     }

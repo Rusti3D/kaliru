@@ -9,7 +9,6 @@ use crate::error::KResult;
 use crate::kinematics::extruder::ExtruderStepper;
 use crate::printer::{PObj, PrinterObject};
 use crate::pyval::PyVal;
-use std::any::Any;
 use std::rc::Rc;
 
 pub struct PrinterExtruderStepper {
@@ -34,9 +33,6 @@ impl PrinterExtruderStepper {
 }
 
 impl PrinterObject for PrinterExtruderStepper {
-    fn as_any(&self) -> &dyn Any {
-        self
-    }
     fn has_status(&self) -> bool {
         true
     }

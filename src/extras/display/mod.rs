@@ -27,7 +27,6 @@ use crate::mcu::Mcu;
 use crate::printer::{PObj, Printer, PrinterObject};
 use crate::reactor::{Reactor, Timer, NOW};
 use indexmap::IndexMap;
-use std::any::Any;
 use std::cell::{Cell, RefCell};
 use std::rc::{Rc, Weak};
 
@@ -322,9 +321,6 @@ impl Object for DrawProgressBar {
     fn type_name(&self) -> String {
         "method".into()
     }
-    fn as_any(&self) -> &dyn Any {
-        self
-    }
     fn call(&self, _ctx: &mut dyn CallCtx, args: Vec<Value>, _kwargs: IndexMap<String, Value>) -> Option<VResult<Value>> {
         let lcd = self.lcd.upgrade()?;
         let num = |i: usize| args.get(i).and_then(|v| v.as_f64());
@@ -345,9 +341,6 @@ impl Object for RenderTemplate {
     fn type_name(&self) -> String {
         "function".into()
     }
-    fn as_any(&self) -> &dyn Any {
-        self
-    }
     fn call(&self, _ctx: &mut dyn CallCtx, args: Vec<Value>, kwargs: IndexMap<String, Value>) -> Option<VResult<Value>> {
         let name = args.first().map(|v| v.to_str()).unwrap_or_default();
         let Some(t) = self.templates.display_templates.get(&name) else {
@@ -359,9 +352,6 @@ impl Object for RenderTemplate {
 }
 
 impl PrinterObject for PrinterLCD {
-    fn as_any(&self) -> &dyn Any {
-        self
-    }
     fn teardown(&self) {
         if let Some(m) = self.menu.borrow_mut().take() {
             m.teardown();

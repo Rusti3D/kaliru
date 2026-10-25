@@ -13,7 +13,6 @@ use crate::pyval::PyVal;
 use crate::toolhead::ToolHead;
 use crate::webhooks::{WebHooks, WebRequest};
 use indexmap::IndexMap;
-use std::any::Any;
 use std::cell::RefCell;
 use std::rc::Rc;
 
@@ -90,9 +89,6 @@ impl QueryEndstops {
 }
 
 impl PrinterObject for QueryEndstops {
-    fn as_any(&self) -> &dyn Any {
-        self
-    }
     fn has_status(&self) -> bool {
         true
     }

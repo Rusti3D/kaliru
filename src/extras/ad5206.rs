@@ -7,7 +7,6 @@ use crate::configfile::{ConfigWrapper, Lim};
 use crate::error::{KError, KResult};
 use crate::extras::bus::{mcu_spi_from_config, McuSpi};
 use crate::printer::{PObj, PrinterObject};
-use std::any::Any;
 use std::rc::Rc;
 
 pub struct Ad5206 {
@@ -33,7 +32,4 @@ pub fn load_config_prefix(config: &ConfigWrapper) -> KResult<PObj> {
 }
 
 impl PrinterObject for Ad5206 {
-    fn as_any(&self) -> &dyn Any {
-        self
-    }
 }

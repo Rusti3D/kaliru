@@ -15,7 +15,6 @@ use crate::printer::{downcast_rc, PObj, PrinterObject};
 use crate::pyfmt::{py_float_repr, py_max};
 use crate::pyval::PyVal;
 use indexmap::IndexMap;
-use std::any::Any;
 use std::cell::Cell;
 use std::f64::consts::PI;
 use std::rc::Rc;
@@ -229,9 +228,6 @@ impl ArcSupport {
 }
 
 impl PrinterObject for ArcSupport {
-    fn as_any(&self) -> &dyn Any {
-        self
-    }
 }
 
 pub fn load_config(config: &ConfigWrapper) -> KResult<PObj> {

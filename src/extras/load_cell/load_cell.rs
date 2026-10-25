@@ -17,7 +17,6 @@ use crate::reactor::{Reactor, ReactorCompletion};
 use crate::toolhead::ToolHead;
 use crate::webhooks::WebHooks;
 use indexmap::IndexMap;
-use std::any::Any;
 use std::cell::{Cell, RefCell};
 use std::collections::VecDeque;
 use std::rc::{Rc, Weak};
@@ -1057,9 +1056,6 @@ impl LoadCell {
 }
 
 impl PrinterObject for LoadCell {
-    fn as_any(&self) -> &dyn Any {
-        self
-    }
     fn has_status(&self) -> bool {
         true
     }

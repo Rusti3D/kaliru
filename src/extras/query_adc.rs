@@ -11,7 +11,6 @@ use crate::mcu::AdcPin;
 use crate::printer::{PObj, PrinterObject};
 use crate::pyfmt::{py_max, py_min};
 use indexmap::IndexMap;
-use std::any::Any;
 use std::cell::RefCell;
 use std::rc::Rc;
 
@@ -58,9 +57,6 @@ impl QueryADC {
 }
 
 impl PrinterObject for QueryADC {
-    fn as_any(&self) -> &dyn Any {
-        self
-    }
     fn teardown(&self) {
         self.adc.borrow_mut().clear();
     }

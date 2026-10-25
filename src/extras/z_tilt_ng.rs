@@ -20,7 +20,6 @@ use crate::printer::{ConfigFileObject, PObj, Printer, PrinterObject};
 use crate::pyfmt::py_float_repr;
 use crate::pyval::PyVal;
 use indexmap::IndexMap;
-use std::any::Any;
 use std::cell::{Cell, RefCell};
 use std::rc::{Rc, Weak};
 
@@ -411,9 +410,6 @@ impl ZTilt {
 }
 
 impl PrinterObject for ZTilt {
-    fn as_any(&self) -> &dyn Any {
-        self
-    }
     fn has_status(&self) -> bool {
         true
     }

@@ -10,7 +10,6 @@ use crate::extras::homing::Homing;
 use crate::stepper::{McuStepper, PrinterRail, RailRef};
 use crate::toolhead::{Move, ToolHead};
 use indexmap::IndexMap;
-use std::any::Any;
 use std::cell::Cell;
 use std::rc::Rc;
 
@@ -25,8 +24,9 @@ pub mod polar;
 pub mod rotary_delta;
 pub mod winch;
 
+crate::impl_downcast!(dyn Kinematics);
 /// what toolhead.py uses of a kinematics object
-pub trait Kinematics {
+pub trait Kinematics: std::any::Any {
     /// the Rust type's path (python plugins find the Kalico class by it)
     fn type_name(&self) -> &'static str {
         std::any::type_name::<Self>()
@@ -62,7 +62,6 @@ pub trait Kinematics {
     fn get_calibration(&self) -> Option<Rc<dyn delta::Calibration>> {
         None
     }
-    fn as_any(&self) -> &dyn Any;
 }
 
 pub type LoadKinematics = fn(&Rc<ToolHead>, &ConfigWrapper) -> KResult<Rc<dyn Kinematics>>;

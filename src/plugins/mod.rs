@@ -140,9 +140,6 @@ impl PyPrinterObject {
 }
 
 impl PrinterObject for PyPrinterObject {
-    fn as_any(&self) -> &dyn Any {
-        self
-    }
     fn has_status(&self) -> bool {
         self.obj.hasattr("get_status").unwrap_or(false)
     }
@@ -196,7 +193,7 @@ impl PrinterObject for PyPrinterObject {
 
 /// A printer object as python sees it
 pub fn pobj_to_py(obj: &PObj) -> KResult<PyRef> {
-    if let Some(p) = obj.as_any().downcast_ref::<PyPrinterObject>() {
+    if let Some(p) = obj.downcast_ref::<PyPrinterObject>() {
         return Ok(p.obj.clone());
     }
     if obj.is_none() {

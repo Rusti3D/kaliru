@@ -16,7 +16,6 @@ use crate::pyval::PyVal;
 use crate::stepper::{printer_stepper, McuStepper};
 use crate::toolhead::{Move, ToolHead};
 use indexmap::IndexMap;
-use std::any::Any;
 use std::rc::Rc;
 
 pub struct WinchKinematics {
@@ -105,9 +104,6 @@ impl Kinematics for WinchKinematics {
         d
     }
 
-    fn as_any(&self) -> &dyn Any {
-        self
-    }
 }
 
 pub fn load_kinematics(toolhead: &Rc<ToolHead>, config: &ConfigWrapper) -> KResult<Rc<dyn Kinematics>> {

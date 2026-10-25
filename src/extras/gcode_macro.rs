@@ -16,7 +16,6 @@ use crate::logging;
 use crate::printer::{PObj, Printer, PrinterObject};
 use crate::pyval::PyVal;
 use indexmap::IndexMap;
-use std::any::Any;
 use std::cell::{Cell, RefCell};
 use std::rc::Rc;
 
@@ -91,9 +90,6 @@ impl Object for GetStatusWrapperJinja {
         }
         Some(Ok(out))
     }
-    fn as_any(&self) -> &dyn Any {
-        self
-    }
 }
 
 /// the PrinterGCodeMacro._action_* bound methods
@@ -112,9 +108,6 @@ impl Object for Action {
     }
     fn call(&self, _ctx: &mut dyn CallCtx, args: Vec<Value>, kwargs: IndexMap<String, Value>) -> Option<VResult<Value>> {
         Some(self.run(args, kwargs))
-    }
-    fn as_any(&self) -> &dyn Any {
-        self
     }
 }
 
@@ -369,7 +362,7 @@ impl PrinterGCodeMacro {
         let new_config = pconfig.read_main_config()?;
         let names: Vec<String> = new_config.get_prefix_sections("gcode_macro").iter().map(|s| s.get_name().to_string()).collect();
         for (name, obj) in self.printer.lookup_objects(Some("gcode_macro")) {
-            let Some(m) = obj.as_any().downcast_ref::<GCodeMacro>() else { continue };
+            let Some(m) = obj.downcast_ref::<GCodeMacro>() else { continue };
             if names.contains(&name) {
                 let new_section = new_config.getsection(&name);
                 let (script_type, new_script) = new_section.getscript("gcode", Dflt::Required)?;
@@ -381,9 +374,6 @@ impl PrinterGCodeMacro {
 }
 
 impl PrinterObject for PrinterGCodeMacro {
-    fn as_any(&self) -> &dyn Any {
-        self
-    }
 }
 
 pub fn load_config(config: &ConfigWrapper) -> KResult<PObj> {
@@ -520,9 +510,6 @@ impl GCodeMacro {
 }
 
 impl PrinterObject for GCodeMacro {
-    fn as_any(&self) -> &dyn Any {
-        self
-    }
     fn has_status(&self) -> bool {
         true
     }

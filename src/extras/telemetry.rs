@@ -12,7 +12,6 @@ use crate::logging;
 use crate::printer::{ConfigFileObject, PObj, Printer, PrinterObject};
 use crate::pyval::PyVal;
 use indexmap::IndexMap;
-use std::any::Any;
 use std::path::{Path, PathBuf};
 use std::rc::Rc;
 
@@ -288,9 +287,6 @@ fn send(collected_data: PyVal) {
 }
 
 impl PrinterObject for KalicoTelemetry {
-    fn as_any(&self) -> &dyn Any {
-        self
-    }
     fn has_status(&self) -> bool {
         true
     }

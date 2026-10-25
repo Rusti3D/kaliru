@@ -16,7 +16,6 @@ use crate::jinja::value::Value;
 use crate::printer::{downcast_rc, ConfigFileObject, PObj, Printer, PrinterObject};
 use crate::pyfmt::py_strip;
 use indexmap::IndexMap;
-use std::any::Any;
 use std::rc::Rc;
 
 /// klippy/extras/display/display.cfg (python reads it next to display.py)
@@ -221,9 +220,6 @@ impl PrinterDisplayTemplate {
 }
 
 impl PrinterObject for PrinterDisplayTemplate {
-    fn as_any(&self) -> &dyn Any {
-        self
-    }
 }
 
 pub fn lookup_display_templates(config: &ConfigWrapper) -> KResult<Rc<PrinterDisplayTemplate>> {

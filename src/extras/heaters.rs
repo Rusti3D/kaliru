@@ -18,7 +18,6 @@ use crate::pyval::PyVal;
 use crate::reactor::Reactor;
 use crate::toolhead::ToolHead;
 use indexmap::IndexMap;
-use std::any::Any;
 use std::cell::{Cell, RefCell};
 use std::rc::{Rc, Weak};
 
@@ -74,12 +73,12 @@ pub fn lookup_dual_loop_pid_inner_target_temp(config: &ConfigWrapper) -> KResult
 // Sensors and profiles
 // ----------------------------------------------------------------------
 
+crate::impl_downcast!(dyn TempSensor);
 /// a temperature sensor as a heater uses it (thermistors, adc sensors, ...)
-pub trait TempSensor {
+pub trait TempSensor: std::any::Any {
     fn setup_minmax(&self, min_temp: f64, max_temp: f64) -> KResult<()>;
     fn setup_callback(&self, cb: TempCallback);
     fn get_report_time_delta(&self) -> f64;
-    fn as_any(&self) -> &dyn Any;
 }
 
 /// a temperature callback: cb(read_time, temp)
@@ -138,8 +137,9 @@ fn pid_param(p: &Profile, key: &str) -> KResult<f64> {
 // Controls
 // ----------------------------------------------------------------------
 
+crate::impl_downcast!(dyn Control);
 /// the temperature control algorithm of a heater
-pub trait Control {
+pub trait Control: std::any::Any {
     /// temperature_update(read_time, temp, target_temp[, secondary_temp])
     fn temperature_update(&self, read_time: f64, temp: f64, target_temp: f64, secondary_temp: Option<f64>) -> KResult<()>;
     fn check_busy(&self, eventtime: f64, smoothed_temp: f64, target_temp: f64) -> bool;
@@ -156,7 +156,6 @@ pub trait Control {
     fn check_valid(&self) -> KResult<()> {
         Ok(())
     }
-    fn as_any(&self) -> &dyn Any;
 }
 
 pub type ControlRef = Rc<dyn Control>;
@@ -207,9 +206,6 @@ impl Control for ControlBangBang {
     }
     fn get_type(&self) -> &'static str {
         "watermark"
-    }
-    fn as_any(&self) -> &dyn Any {
-        self
     }
 }
 
@@ -320,9 +316,6 @@ impl Control for ControlPID {
     fn get_type(&self) -> &'static str {
         "pid"
     }
-    fn as_any(&self) -> &dyn Any {
-        self
-    }
 }
 
 // Velocity (PID) control algo
@@ -416,9 +409,6 @@ impl Control for ControlVelocityPID {
     fn get_type(&self) -> &'static str {
         "pid_v"
     }
-    fn as_any(&self) -> &dyn Any {
-        self
-    }
 }
 
 // Dual Loop PID control algo
@@ -477,9 +467,6 @@ impl Control for ControlDualLoopPID {
     }
     fn get_type(&self) -> &'static str {
         "dual_loop_pid"
-    }
-    fn as_any(&self) -> &dyn Any {
-        self
     }
 }
 
@@ -902,9 +889,9 @@ impl Heater {
 
     fn cmd_set_heater_pid(self: &Rc<Self>, gcmd: &GCodeCommand) -> KResult<()> {
         let control = self.get_control();
-        let (kp, ki, kd) = if let Some(c) = control.as_any().downcast_ref::<ControlPID>() {
+        let (kp, ki, kd) = if let Some(c) = control.downcast_ref::<ControlPID>() {
             (&c.kp, &c.ki, &c.kd)
-        } else if let Some(c) = control.as_any().downcast_ref::<ControlVelocityPID>() {
+        } else if let Some(c) = control.downcast_ref::<ControlVelocityPID>() {
             (&c.kp, &c.ki, &c.kd)
         } else {
             return Err(gcmd.error("Not a PID/PID_V controlled heater"));
@@ -1418,9 +1405,6 @@ impl Heater {
 }
 
 impl PrinterObject for Heater {
-    fn as_any(&self) -> &dyn Any {
-        self
-    }
     fn has_status(&self) -> bool {
         true
     }
@@ -1747,9 +1731,6 @@ impl PrinterHeaters {
 }
 
 impl PrinterObject for PrinterHeaters {
-    fn as_any(&self) -> &dyn Any {
-        self
-    }
     fn has_status(&self) -> bool {
         true
     }

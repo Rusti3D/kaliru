@@ -12,7 +12,6 @@ use crate::printer::{downcast_rc, PObj, Printer, PrinterObject};
 use crate::pyval::PyVal;
 use crate::reactor::{Reactor, NOW};
 use indexmap::IndexMap;
-use std::any::Any;
 use std::cell::RefCell;
 use std::rc::{Rc, Weak};
 
@@ -168,9 +167,6 @@ impl PrinterCANBusStats {
 }
 
 impl PrinterObject for PrinterCANBusStats {
-    fn as_any(&self) -> &dyn Any {
-        self
-    }
     fn has_stats(&self) -> bool {
         true
     }

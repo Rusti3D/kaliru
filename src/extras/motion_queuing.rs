@@ -15,7 +15,6 @@ use crate::logging;
 use crate::mcu::Mcu;
 use crate::printer::{downcast_rc, PObj, Printer, PrinterObject};
 use crate::reactor::{Reactor, ReactorCompletion, Timer, NEVER, NOW};
-use std::any::Any;
 use std::cell::{Cell, RefCell};
 use std::rc::Rc;
 use std::sync::Arc;
@@ -432,9 +431,6 @@ fn py_max3(a: f64, b: f64, c: f64) -> f64 {
 }
 
 impl PrinterObject for PrinterMotionQueuing {
-    fn as_any(&self) -> &dyn Any {
-        self
-    }
     fn has_stats(&self) -> bool {
         true
     }

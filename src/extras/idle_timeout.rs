@@ -14,7 +14,6 @@ use crate::pyval::PyVal;
 use crate::reactor::{Reactor, Timer, NEVER};
 use crate::toolhead::ToolHead;
 use indexmap::IndexMap;
-use std::any::Any;
 use std::cell::{Cell, RefCell};
 use std::rc::Rc;
 
@@ -237,9 +236,6 @@ impl IdleTimeout {
 }
 
 impl PrinterObject for IdleTimeout {
-    fn as_any(&self) -> &dyn Any {
-        self
-    }
     fn has_status(&self) -> bool {
         true
     }

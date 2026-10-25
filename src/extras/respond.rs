@@ -8,7 +8,6 @@ use crate::configfile::ConfigWrapper;
 use crate::error::KResult;
 use crate::gcode::{GCodeCommand, GCodeDispatch};
 use crate::printer::{PObj, PrinterObject};
-use std::any::Any;
 use std::rc::Rc;
 
 const RESPOND_TYPES: &[(&str, &str)] = &[("echo", "echo:"), ("command", "//"), ("error", "!!")];
@@ -76,9 +75,6 @@ impl HostResponder {
 }
 
 impl PrinterObject for HostResponder {
-    fn as_any(&self) -> &dyn Any {
-        self
-    }
 }
 
 pub fn load_config(config: &ConfigWrapper) -> KResult<PObj> {

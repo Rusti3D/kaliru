@@ -315,9 +315,6 @@ impl crate::jinja::value::Object for PyOpaque {
     fn str(&self) -> String {
         self.str.clone()
     }
-    fn as_any(&self) -> &dyn std::any::Any {
-        self
-    }
 }
 
 /// a template value (status, macro variable, param) as a python object
@@ -356,9 +353,9 @@ fn value_to_py(vm: &VirtualMachine, v: &Value) -> PyResult {
             }
         },
         Value::Object(o) => {
-            if let Some(a) = o.as_any().downcast_ref::<Action>() {
+            if let Some(a) = o.downcast_ref::<Action>() {
                 action_fn(vm, a.clone())
-            } else if let Some(p) = o.as_any().downcast_ref::<PyOpaque>() {
+            } else if let Some(p) = o.downcast_ref::<PyOpaque>() {
                 p.obj.clone()
             } else {
                 vm.ctx.none()

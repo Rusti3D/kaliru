@@ -4,7 +4,6 @@
 use super::value::{CallCtx, Exc, Key, Object, VResult, Value};
 use crate::pyfmt::py_isspace;
 use indexmap::IndexMap;
-use std::any::Any;
 use std::rc::Rc;
 
 /// a bound method of a builtin object
@@ -22,9 +21,6 @@ impl Object for BoundMethod {
     }
     fn call(&self, _ctx: &mut dyn CallCtx, args: Vec<Value>, kwargs: IndexMap<String, Value>) -> Option<VResult<Value>> {
         Some(call_method(&self.recv, &self.name, args, kwargs))
-    }
-    fn as_any(&self) -> &dyn Any {
-        self
     }
 }
 
@@ -46,9 +42,6 @@ impl Object for DictView {
     }
     fn len(&self) -> Option<usize> {
         Some(self.items.len())
-    }
-    fn as_any(&self) -> &dyn Any {
-        self
     }
 }
 

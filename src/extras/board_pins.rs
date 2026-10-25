@@ -8,7 +8,6 @@ use crate::error::{KError, KResult};
 use crate::pins::PinsObject;
 use crate::printer::{PObj, PrinterObject};
 use crate::pyval::PyVal;
-use std::any::Any;
 use std::rc::Rc;
 
 pub struct PrinterBoardAliases;
@@ -46,9 +45,6 @@ impl PrinterBoardAliases {
 }
 
 impl PrinterObject for PrinterBoardAliases {
-    fn as_any(&self) -> &dyn Any {
-        self
-    }
 }
 
 pub fn load_config(config: &ConfigWrapper) -> KResult<PObj> {

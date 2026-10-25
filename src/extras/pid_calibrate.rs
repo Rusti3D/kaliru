@@ -15,7 +15,6 @@ use crate::pyglob::gettempdir;
 use crate::pyval::PyVal;
 use crate::toolhead::ToolHead;
 use indexmap::IndexMap;
-use std::any::Any;
 use std::cell::{Cell, RefCell};
 use std::f64::consts::PI;
 use std::rc::Rc;
@@ -53,7 +52,7 @@ impl PIDCalibrate {
         calibrate_secondary: bool,
     ) -> KResult<(f64, f64, f64, ControlRef)> {
         let control = heater.get_control();
-        let calibrate = if let Some(dual) = control.as_any().downcast_ref::<ControlDualLoopPID>() {
+        let calibrate = if let Some(dual) = control.downcast_ref::<ControlDualLoopPID>() {
             if calibrate_secondary {
                 let delta = dual.inner_target_temp - target;
                 if delta <= 15.0 {
@@ -138,7 +137,7 @@ impl PIDCalibrate {
 
         let profile: Profile = Rc::new(RefCell::new(IndexMap::new()));
         let f = PyVal::Float;
-        if heater.get_control().as_any().is::<ControlDualLoopPID>() {
+        if heater.get_control().is::<ControlDualLoopPID>() {
             // Calibrate the inner (secondary) loop
             let (kp_s, ki_s, kd_s, _) = self.calibrate(&pheaters, &heater, target, tolerance, write_file, gcmd, true)?;
 
@@ -202,9 +201,6 @@ impl PIDCalibrate {
 }
 
 impl PrinterObject for PIDCalibrate {
-    fn as_any(&self) -> &dyn Any {
-        self
-    }
 }
 
 pub const TUNE_PID_DELTA: f64 = 5.0;
@@ -501,7 +497,7 @@ impl Control for ControlAutoTune {
         // set the pwm output based on the heater state
         let last_power = *self.powers.borrow().last().unwrap();
         if self.heating.get() {
-            match self.control.as_any().downcast_ref::<ControlDualLoopPID>() {
+            match self.control.downcast_ref::<ControlDualLoopPID>() {
                 Some(dual) if !self.calibrate_secondary => {
                     let pid = &dual.secondary_pid;
                     let secondary_target_temp = dual.inner_target_temp;
@@ -540,9 +536,6 @@ impl Control for ControlAutoTune {
         "autotune"
     }
 
-    fn as_any(&self) -> &dyn Any {
-        self
-    }
 }
 
 pub fn load_config(config: &ConfigWrapper) -> KResult<PObj> {

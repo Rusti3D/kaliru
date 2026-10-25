@@ -129,7 +129,7 @@ pub fn py_float_value(v: &Value) -> VResult<f64> {
     match v {
         Value::Str(s) => py_float(s).ok_or_else(|| Exc::value_error(format!("could not convert string to float: {}", py_str_repr(s)))),
         Value::Bool(_) | Value::Int(_) | Value::Float(_) => Ok(v.as_f64().unwrap()),
-        Value::Object(o) => match o.as_any().downcast_ref::<Markup>() {
+        Value::Object(o) => match o.downcast_ref::<Markup>() {
             Some(m) => py_float(&m.0).ok_or_else(|| Exc::value_error(format!("could not convert string to float: {}", py_str_repr(&m.0)))),
             None => Err(Exc::type_error(format!("float() argument must be a string or a real number, not '{}'", o.type_name()))),
         },
@@ -470,7 +470,7 @@ pub fn call_filter(r: &mut Renderer, name: &str, value: Value, args: Vec<Value>,
         "last" => {
             let a = b!("do_last", [("seq", None)]);
             let items = match &a[0] {
-                Value::Object(o) if o.as_any().is::<Generator>() => {
+                Value::Object(o) if o.is::<Generator>() => {
                     return Err(Exc::type_error(format!("'{}' object is not reversible", o.type_name())))
                 }
                 v => v.iter_items()?,
@@ -674,7 +674,7 @@ pub fn call_filter(r: &mut Renderer, name: &str, value: Value, args: Vec<Value>,
         "string" => {
             let a = b!("soft_str", [("s", None)]);
             match &a[0] {
-                Value::Object(o) if o.as_any().is::<Markup>() => Ok(a[0].clone()),
+                Value::Object(o) if o.is::<Markup>() => Ok(a[0].clone()),
                 v => Ok(Value::from(v.to_str())),
             }
         }
@@ -1032,7 +1032,7 @@ fn json_dumps_sorted(v: &Value) -> VResult<String> {
                 .collect::<VResult<_>>()?;
             format!("{{{}}}", parts.join(", "))
         }
-        Value::Object(o) if o.as_any().is::<Markup>() => crate::pyval::PyVal::Str(v.to_str()).json(),
+        Value::Object(o) if o.is::<Markup>() => crate::pyval::PyVal::Str(v.to_str()).json(),
         other => return Err(Exc::type_error(format!("Object of type {} is not JSON serializable", other.type_name()))),
     })
 }

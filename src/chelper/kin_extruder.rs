@@ -5,7 +5,6 @@
 // This file may be distributed under the terms of the GNU GPLv3 license.
 use super::itersolve::{Kinematic, SkRef, SkState, StepperKinematics, AF_X};
 use super::trapq::MoveRef;
-use std::any::Any;
 
 #[derive(Clone, Copy, Default)]
 struct PaParams {
@@ -121,18 +120,12 @@ impl Kinematic for ExtruderStepper {
         let area = pa_range_integrate(m, move_time, &self.pa_list, hst);
         start_x + area * self.inv_half_smooth_time2
     }
-    fn as_any(&self) -> &dyn Any {
-        self
-    }
-    fn as_any_mut(&mut self) -> &mut dyn Any {
-        self
-    }
 }
 
 pub fn extruder_set_pressure_advance(sk: &SkRef, print_time: f64, pressure_advance: f64, smooth_time: f64) {
     let mut sk = sk.borrow_mut();
     let sk = &mut *sk;
-    let es = sk.kin.as_any_mut().downcast_mut::<ExtruderStepper>().expect("extruder stepper");
+    let es = sk.kin.downcast_mut::<ExtruderStepper>().expect("extruder stepper");
     let hst = smooth_time * 0.5;
     let old_hst = es.half_smooth_time;
     es.half_smooth_time = hst;

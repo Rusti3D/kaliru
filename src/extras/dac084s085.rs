@@ -8,7 +8,6 @@ use crate::configfile::{ConfigWrapper, Lim};
 use crate::error::KResult;
 use crate::extras::bus::{mcu_spi_from_config, McuSpi};
 use crate::printer::{PObj, PrinterObject};
-use std::any::Any;
 use std::rc::Rc;
 
 pub struct Dac084S085 {
@@ -37,9 +36,6 @@ impl Dac084S085 {
 }
 
 impl PrinterObject for Dac084S085 {
-    fn as_any(&self) -> &dyn Any {
-        self
-    }
 }
 
 pub fn load_config_prefix(config: &ConfigWrapper) -> KResult<PObj> {

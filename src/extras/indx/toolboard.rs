@@ -160,9 +160,6 @@ impl IndxToolboard {
 }
 
 impl PrinterObject for IndxToolboard {
-    fn as_any(&self) -> &dyn Any {
-        self
-    }
     fn has_status(&self) -> bool {
         true
     }

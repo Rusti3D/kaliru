@@ -2,7 +2,6 @@
 use crate::configfile::{ConfigWrapper, Lim};
 use crate::error::KResult;
 use crate::printer::{PObj, PrinterObject};
-use std::any::Any;
 use std::cell::RefCell;
 use std::rc::Rc;
 
@@ -33,9 +32,6 @@ pub struct DangerOptions {
 }
 
 impl PrinterObject for DangerOptions {
-    fn as_any(&self) -> &dyn Any {
-        self
-    }
 }
 
 impl DangerOptions {

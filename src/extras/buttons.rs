@@ -14,7 +14,6 @@ use crate::printer::{PObj, Printer, PrinterObject};
 use crate::pyfmt::{py_max, py_min, py_strip};
 use crate::reactor::Reactor;
 use indexmap::IndexMap;
-use std::any::Any;
 use std::cell::{Cell, RefCell};
 use std::rc::Rc;
 
@@ -535,9 +534,6 @@ impl PrinterButtons {
 }
 
 impl PrinterObject for PrinterButtons {
-    fn as_any(&self) -> &dyn Any {
-        self
-    }
     fn teardown(&self) {
         self.mcu_buttons.borrow_mut().clear();
         self.adc_buttons.borrow_mut().clear();

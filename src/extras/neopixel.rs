@@ -12,7 +12,6 @@ use crate::msgproto::Val;
 use crate::pins::PinsObject;
 use crate::printer::{PObj, Printer, PrinterObject};
 use crate::pyval::PyVal;
-use std::any::Any;
 use std::cell::RefCell;
 use std::rc::{Rc, Weak};
 
@@ -203,9 +202,6 @@ impl PrinterNeoPixel {
 }
 
 impl PrinterObject for PrinterNeoPixel {
-    fn as_any(&self) -> &dyn Any {
-        self
-    }
     fn has_status(&self) -> bool {
         true
     }

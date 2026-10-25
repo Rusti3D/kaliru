@@ -9,7 +9,6 @@ use super::nodes::*;
 use super::value::{CallCtx, Exc, Key, Object, VResult, Value};
 use super::{filters, tests};
 use indexmap::IndexMap;
-use std::any::Any;
 use std::cell::RefCell;
 use std::rc::Rc;
 
@@ -52,9 +51,6 @@ impl Object for MacroObj {
     }
     fn call(&self, ctx: &mut dyn CallCtx, args: Vec<Value>, kwargs: IndexMap<String, Value>) -> Option<VResult<Value>> {
         Some(ctx.call_macro(self, args, kwargs))
-    }
-    fn as_any(&self) -> &dyn Any {
-        self
     }
 }
 
@@ -118,13 +114,10 @@ impl Object for LoopCtx {
         if args.len() != 1 {
             return Some(Err(Exc::type_error(format!("loop() takes 1 positional argument but {} were given", args.len()))));
         }
-        let Some(r) = ctx.as_any_mut().downcast_mut::<Renderer>() else {
+        let Some(r) = ctx.downcast_mut::<Renderer>() else {
             return Some(Err(Exc::runtime("loop called outside of a template")));
         };
         Some(r.render_loop_recursive(rec.clone(), &args[0], self.depth0 + 1))
-    }
-    fn as_any(&self) -> &dyn Any {
-        self
     }
 }
 
@@ -157,9 +150,6 @@ impl Object for LoopMethod {
         }
         Some(Ok(Value::Bool(changed)))
     }
-    fn as_any(&self) -> &dyn Any {
-        self
-    }
 }
 
 /// runtime's Namespace
@@ -184,9 +174,6 @@ impl Object for Namespace {
     fn setitem(&self, key: &str, value: Value) -> Option<VResult<()>> {
         self.attrs.borrow_mut().insert(key.to_string(), value);
         Some(Ok(()))
-    }
-    fn as_any(&self) -> &dyn Any {
-        self
     }
 }
 
@@ -567,9 +554,6 @@ impl CallCtx for Renderer {
         Ok(Value::from(res?))
     }
 
-    fn as_any_mut(&mut self) -> &mut dyn Any {
-        self
-    }
 }
 
 impl Renderer {
@@ -655,7 +639,7 @@ impl Renderer {
             ExprKind::NSRef(n, attr) => {
                 let ns = self.lookup(n);
                 match &ns {
-                    Value::Object(o) if o.as_any().is::<Namespace>() => {
+                    Value::Object(o) if o.is::<Namespace>() => {
                         o.setitem(attr, value);
                         Ok(())
                     }

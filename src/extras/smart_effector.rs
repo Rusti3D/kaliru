@@ -19,7 +19,6 @@ use crate::printer::{PObj, Printer, PrinterObject};
 use crate::pyval::PyVal;
 use crate::reactor::ReactorCompletion;
 use crate::toolhead::ToolHead;
-use std::any::Any;
 use std::cell::{Cell, RefCell};
 use std::rc::{Rc, Weak};
 
@@ -280,9 +279,6 @@ impl McuProbe for SmartEffectorEndstopWrapper {
 }
 
 impl PrinterObject for SmartEffectorEndstopWrapper {
-    fn as_any(&self) -> &dyn Any {
-        self
-    }
 }
 
 pub fn load_config(config: &ConfigWrapper) -> KResult<PObj> {

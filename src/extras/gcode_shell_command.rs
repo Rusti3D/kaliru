@@ -10,7 +10,6 @@ use crate::logging;
 use crate::printer::{PObj, Printer, PrinterObject};
 use crate::pyfmt::py_shlex_split;
 use crate::pyglob::{expanduser, expandvars};
-use std::any::Any;
 use std::cell::{Cell, RefCell};
 use std::os::fd::{FromRawFd, OwnedFd, RawFd};
 use std::rc::Rc;
@@ -157,9 +156,6 @@ impl ShellCommand {
 }
 
 impl PrinterObject for ShellCommand {
-    fn as_any(&self) -> &dyn Any {
-        self
-    }
 }
 
 pub fn load_config_prefix(config: &ConfigWrapper) -> KResult<PObj> {

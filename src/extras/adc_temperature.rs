@@ -15,7 +15,6 @@ use crate::mcu::AdcPin;
 use crate::printer::{none_object, PObj};
 use crate::pyfmt::{py_max, py_min};
 use crate::pyval::PyVal;
-use std::any::Any;
 use std::cell::{Cell, RefCell};
 use std::rc::Rc;
 
@@ -95,9 +94,6 @@ impl TempSensor for PrinterADCtoTemperature {
         Ok(())
     }
 
-    fn as_any(&self) -> &dyn Any {
-        self
-    }
 }
 
 pub type CalcTempCb = Rc<dyn Fn(f64) -> KResult<f64>>;

@@ -16,7 +16,6 @@ use crate::printer::{PObj, Printer, PrinterObject};
 use crate::pyfmt::{py_max, py_min};
 use crate::reactor::ReactorCompletion;
 use crate::toolhead::ToolHead;
-use std::any::Any;
 use std::cell::{Cell, RefCell};
 use std::rc::{Rc, Weak};
 
@@ -480,9 +479,6 @@ impl McuProbe for BLTouchEndstopWrapper {
 }
 
 impl PrinterObject for BLTouchEndstopWrapper {
-    fn as_any(&self) -> &dyn Any {
-        self
-    }
     fn teardown(&self) {
         *self.finish_home_complete.borrow_mut() = None;
         *self.wait_trigger_complete.borrow_mut() = None;

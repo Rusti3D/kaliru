@@ -11,7 +11,6 @@ use crate::gcode::{GCodeCommand, GCodeDispatch};
 use crate::logging;
 use crate::printer::{PObj, PrinterObject};
 use crate::reactor::{Reactor, Timer, NEVER};
-use std::any::Any;
 use std::cell::{Cell, RefCell};
 use std::rc::{Rc, Weak};
 
@@ -119,9 +118,6 @@ impl DelayedGcode {
 }
 
 impl PrinterObject for DelayedGcode {
-    fn as_any(&self) -> &dyn Any {
-        self
-    }
     fn teardown(&self) {
         if let Some(t) = self.timer_handler.borrow_mut().take() {
             self.reactor.forget_timer(&t);

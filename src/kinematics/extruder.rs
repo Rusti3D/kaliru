@@ -19,7 +19,6 @@ use crate::pyval::PyVal;
 use crate::stepper::{printer_stepper, McuStepper};
 use crate::toolhead::{ExtraAxis, ExtraAxisRef, Move, ToolHead};
 use indexmap::IndexMap;
-use std::any::Any;
 use std::cell::{Cell, RefCell};
 use std::f64::consts::PI;
 use std::rc::{Rc, Weak};
@@ -32,12 +31,12 @@ const CMD_SET_NOZZLE_DIAMETER_HELP: &str = "Set nozzle diameter";
 
 /// the PrinterExtruder behind the toolhead's active extra axis 0
 fn as_printer_extruder(ea: &ExtraAxisRef) -> Option<&PrinterExtruder> {
-    ea.as_any().downcast_ref::<PrinterExtruder>()
+    ea.downcast_ref::<PrinterExtruder>()
 }
 
 /// "'X' object has no attribute 'name'" for a non-PrinterExtruder axis
 fn no_attribute(ea: &ExtraAxisRef, attr: &str) -> KError {
-    let cls = if ea.as_any().is::<DummyExtruder>() { "DummyExtruder" } else { "object" };
+    let cls = if ea.is::<DummyExtruder>() { "DummyExtruder" } else { "object" };
     KError::Other(format!("'{}' object has no attribute '{}'", cls, attr))
 }
 
@@ -406,7 +405,7 @@ impl PrinterExtruder {
 
     /// extruder.get_heater() of a looked up object
     fn obj_heater(obj: &PObj) -> KResult<Rc<Heater>> {
-        match obj.as_any().downcast_ref::<PrinterExtruder>() {
+        match obj.downcast_ref::<PrinterExtruder>() {
             Some(pe) => Ok(pe.heater.clone()),
             None => Err(KError::Other("object has no attribute 'get_heater'".into())),
         }
@@ -589,15 +588,9 @@ impl ExtraAxis for PrinterExtruder {
         Ok(self.heater.clone())
     }
 
-    fn as_any(&self) -> &dyn Any {
-        self
-    }
 }
 
 impl PrinterObject for PrinterExtruder {
-    fn as_any(&self) -> &dyn Any {
-        self
-    }
     fn has_status(&self) -> bool {
         true
     }
@@ -614,7 +607,7 @@ impl PrinterObject for PrinterExtruder {
 
 /// extruder.get_trapq() of an "extruderN" printer object
 pub fn extruder_trapq(obj: &PObj) -> KResult<TrapQRef> {
-    match obj.as_any().downcast_ref::<PrinterExtruder>() {
+    match obj.downcast_ref::<PrinterExtruder>() {
         Some(pe) => Ok(pe.trapq.clone()),
         None => Err(KError::Other("object has no attribute 'get_trapq'".into())),
     }
@@ -665,9 +658,6 @@ impl ExtraAxis for DummyExtruder {
         Err(KError::command("Extruder not configured"))
     }
 
-    fn as_any(&self) -> &dyn Any {
-        self
-    }
 }
 
 pub fn add_printer_objects(config: &ConfigWrapper) -> KResult<()> {

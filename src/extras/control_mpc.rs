@@ -10,7 +10,6 @@ use crate::pyformat::percent_format;
 use crate::pyval::PyVal;
 use crate::toolhead::ToolHead;
 use indexmap::IndexMap;
-use std::any::Any;
 use std::cell::{Cell, RefCell};
 use std::f64::consts::PI;
 use std::rc::Rc;
@@ -416,9 +415,6 @@ impl Control for ControlMPC {
         )))
     }
 
-    fn as_any(&self) -> &dyn Any {
-        self
-    }
 }
 
 /// a dict of floats as the calibration passes build them
@@ -862,8 +858,5 @@ impl Control for TuningControl {
     }
     fn update_smooth_time(&self) -> KResult<()> {
         Err(KError::Other("'TuningControl' object has no attribute 'update_smooth_time'".into()))
-    }
-    fn as_any(&self) -> &dyn Any {
-        self
     }
 }

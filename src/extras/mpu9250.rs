@@ -15,7 +15,6 @@ use crate::mcu::{CommandWrapper, Mcu};
 use crate::msgproto::Val;
 use crate::printer::{PObj, Printer, PrinterObject};
 use crate::pyval::PyVal;
-use std::any::Any;
 use std::cell::{Cell, RefCell};
 use std::rc::{Rc, Weak};
 
@@ -267,9 +266,6 @@ impl AccelChip for MPU9250 {
 }
 
 impl PrinterObject for MPU9250 {
-    fn as_any(&self) -> &dyn Any {
-        self
-    }
     fn teardown(&self) {
         if let Some(bb) = self.batch_bulk.borrow_mut().take() {
             bb.teardown();

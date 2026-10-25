@@ -289,9 +289,6 @@ impl PrinterPins {
 pub struct PinsObject(pub RefCell<PrinterPins>);
 
 impl crate::printer::PrinterObject for PinsObject {
-    fn as_any(&self) -> &dyn Any {
-        self
-    }
 }
 
 pub fn add_printer_objects(printer: &Rc<crate::printer::Printer>, _config: &crate::configfile::ConfigWrapper) -> crate::error::KResult<()> {

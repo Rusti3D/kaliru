@@ -6,7 +6,6 @@
 // This file may be distributed under the terms of the GNU GPLv3 license.
 use super::itersolve::{Kinematic, SkRef, SkState, StepperKinematics, AF_X, AF_Y, AF_Z};
 use super::trapq::MoveRef;
-use std::any::Any;
 
 // The arm angle calculation is based on the following two formulas:
 //   elbow_x**2 + elbow_y**2 = upper_arm**2
@@ -47,12 +46,6 @@ impl Kinematic for RotaryStepper {
         let sjy = c.z - self.shoulder_height;
         // Calculate angle in radians
         rotary_two_arm_calc(sjx, sjy, self.upper_arm2, self.lower_arm2 - sjz * sjz)
-    }
-    fn as_any(&self) -> &dyn Any {
-        self
-    }
-    fn as_any_mut(&mut self) -> &mut dyn Any {
-        self
     }
 }
 

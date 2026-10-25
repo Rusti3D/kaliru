@@ -18,7 +18,6 @@ use crate::printer::{ConfigFileObject, PObj, Printer, PrinterObject};
 use crate::pyfmt::{py_float, py_float_repr};
 use crate::toolhead::ToolHead;
 use indexmap::IndexMap;
-use std::any::Any;
 use std::cell::RefCell;
 use std::rc::{Rc, Weak};
 
@@ -385,9 +384,6 @@ impl DeltaCalibrate {
 }
 
 impl PrinterObject for DeltaCalibrate {
-    fn as_any(&self) -> &dyn Any {
-        self
-    }
     fn teardown(&self) {
         *self.probe_helper.borrow_mut() = None;
     }

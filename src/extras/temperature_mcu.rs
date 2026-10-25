@@ -13,7 +13,6 @@ use crate::logging;
 use crate::mcu::{CommandQueryWrapper, McuAdc};
 use crate::msgproto::Val;
 use crate::printer::{none_object, PObj};
-use std::any::Any;
 use std::cell::{Cell, RefCell};
 use std::rc::Rc;
 
@@ -325,9 +324,6 @@ impl TempSensor for PrinterTemperatureMCU {
         REPORT_TIME
     }
 
-    fn as_any(&self) -> &dyn Any {
-        self
-    }
 }
 
 pub fn load_config(config: &ConfigWrapper) -> KResult<PObj> {

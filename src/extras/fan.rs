@@ -13,7 +13,6 @@ use crate::printer::{PObj, PrinterObject};
 use crate::pyfmt::{py_max, py_min};
 use crate::pyval::PyVal;
 use indexmap::IndexMap;
-use std::any::Any;
 use std::cell::{Cell, RefCell};
 use std::rc::Rc;
 
@@ -205,9 +204,6 @@ impl Fan {
 }
 
 impl PrinterObject for Fan {
-    fn as_any(&self) -> &dyn Any {
-        self
-    }
     fn has_status(&self) -> bool {
         true
     }
@@ -266,9 +262,6 @@ impl PrinterFan {
 }
 
 impl PrinterObject for PrinterFan {
-    fn as_any(&self) -> &dyn Any {
-        self
-    }
     fn has_status(&self) -> bool {
         true
     }

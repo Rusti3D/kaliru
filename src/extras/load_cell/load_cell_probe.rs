@@ -21,7 +21,6 @@ use crate::printer::{PObj, Printer, PrinterObject};
 use crate::pyval::PyVal;
 use crate::reactor::ReactorCompletion;
 use crate::toolhead::ToolHead;
-use std::any::Any;
 use std::cell::{Cell, RefCell};
 use std::rc::{Rc, Weak};
 
@@ -1070,9 +1069,6 @@ impl LoadCellPrinterProbe {
 }
 
 impl PrinterObject for LoadCellPrinterProbe {
-    fn as_any(&self) -> &dyn Any {
-        self
-    }
     fn has_status(&self) -> bool {
         true
     }

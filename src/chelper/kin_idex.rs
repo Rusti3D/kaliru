@@ -6,7 +6,6 @@
 // This file may be distributed under the terms of the GNU GPLv3 license.
 use super::itersolve::{Kinematic, SkRef, SkState, StepperKinematics, AF_X, AF_Y};
 use super::trapq::{Coord, Move, MoveRef};
-use std::any::Any;
 
 const DUMMY_T: f64 = 500.0;
 
@@ -26,18 +25,12 @@ impl Kinematic for DualCarriageStepper {
         let orig = self.orig_sk.as_ref().expect("orig sk").borrow();
         orig.kin.calc_position(&orig.st, MoveRef::standalone(&dm), DUMMY_T)
     }
-    fn as_any(&self) -> &dyn Any {
-        self
-    }
-    fn as_any_mut(&mut self) -> &mut dyn Any {
-        self
-    }
 }
 
 fn with_dc<R>(sk: &SkRef, f: impl FnOnce(&mut SkState, &mut DualCarriageStepper) -> R) -> R {
     let mut s = sk.borrow_mut();
     let s = &mut *s;
-    let dc = s.kin.as_any_mut().downcast_mut::<DualCarriageStepper>().expect("dual carriage sk");
+    let dc = s.kin.downcast_mut::<DualCarriageStepper>().expect("dual carriage sk");
     f(&mut s.st, dc)
 }
 

@@ -7,7 +7,6 @@ use crate::configfile::ConfigWrapper;
 use crate::error::{KError, KResult};
 use crate::printer::{PObj, PrinterObject};
 use indexmap::IndexMap;
-use std::any::Any;
 use std::cell::RefCell;
 use std::rc::Rc;
 
@@ -33,9 +32,6 @@ impl PrinterCANBus {
 }
 
 impl PrinterObject for PrinterCANBus {
-    fn as_any(&self) -> &dyn Any {
-        self
-    }
 }
 
 pub fn load_config(_config: &ConfigWrapper) -> KResult<PObj> {

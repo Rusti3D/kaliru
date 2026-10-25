@@ -13,7 +13,6 @@ use crate::pyval::PyVal;
 use crate::stepper::McuStepper;
 use crate::toolhead::{Move, ToolHead};
 use indexmap::IndexMap;
-use std::any::Any;
 use std::rc::Rc;
 
 pub struct NoneKinematics {
@@ -51,9 +50,6 @@ impl Kinematics for NoneKinematics {
         d
     }
 
-    fn as_any(&self) -> &dyn Any {
-        self
-    }
 }
 
 pub fn load_kinematics(_toolhead: &Rc<ToolHead>, _config: &ConfigWrapper) -> KResult<Rc<dyn Kinematics>> {

@@ -112,9 +112,6 @@ pub fn report_unhandled(e: &KError) {
 struct KinStatus(Rc<toolhead::KinRef>);
 
 impl crate::printer::PrinterObject for KinStatus {
-    fn as_any(&self) -> &dyn Any {
-        self
-    }
     fn has_status(&self) -> bool {
         true
     }

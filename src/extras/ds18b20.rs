@@ -11,7 +11,6 @@ use crate::logging;
 use crate::mcu::{get_printer_mcu, Mcu};
 use crate::msgproto::{Params, Val};
 use crate::printer::{none_object, PObj};
-use std::any::Any;
 use std::cell::{Cell, RefCell};
 use std::rc::Rc;
 
@@ -127,9 +126,6 @@ impl TempSensor for DS18B20 {
         self.report_time
     }
 
-    fn as_any(&self) -> &dyn Any {
-        self
-    }
 }
 
 pub fn load_config(config: &ConfigWrapper) -> KResult<PObj> {

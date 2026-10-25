@@ -15,7 +15,6 @@ use crate::reactor::{ReactorCompletion, NEVER, NOW};
 use crate::stepper::{McuStepper, RailRef};
 use crate::toolhead::ToolHead;
 use indexmap::IndexMap;
-use std::any::Any;
 use std::cell::{Cell, RefCell};
 use std::rc::Rc;
 
@@ -728,9 +727,6 @@ impl PrinterHoming {
 }
 
 impl PrinterObject for PrinterHoming {
-    fn as_any(&self) -> &dyn Any {
-        self
-    }
 }
 
 pub fn load_config(config: &ConfigWrapper) -> KResult<PObj> {

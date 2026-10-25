@@ -9,7 +9,6 @@ use crate::extras::heaters::{Heater, PrinterHeaters};
 use crate::logging;
 use crate::printer::{PObj, Printer, PrinterObject};
 use crate::reactor::{Timer, NEVER, NOW};
-use std::any::Any;
 use std::cell::{Cell, RefCell};
 use std::rc::Rc;
 
@@ -158,9 +157,6 @@ impl HeaterCheck {
 }
 
 impl PrinterObject for HeaterCheck {
-    fn as_any(&self) -> &dyn Any {
-        self
-    }
     fn teardown(&self) {
         *self.heater.borrow_mut() = None;
         if let Some(t) = self.check_timer.borrow_mut().take() {

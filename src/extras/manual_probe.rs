@@ -12,7 +12,6 @@ use crate::printer::{downcast_rc, ConfigFileObject, PObj, Printer, PrinterObject
 use crate::pyval::PyVal;
 use crate::toolhead::ToolHead;
 use indexmap::IndexMap;
-use std::any::Any;
 use std::cell::RefCell;
 use std::rc::Rc;
 
@@ -201,9 +200,6 @@ impl ManualProbe {
 }
 
 impl PrinterObject for ManualProbe {
-    fn as_any(&self) -> &dyn Any {
-        self
-    }
     fn has_status(&self) -> bool {
         true
     }

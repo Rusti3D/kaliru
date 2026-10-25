@@ -4,7 +4,6 @@
 use super::eval::Namespace;
 use super::value::{CallCtx, Exc, Key, Object, VResult, Value};
 use indexmap::IndexMap;
-use std::any::Any;
 use std::cell::RefCell;
 use std::rc::Rc;
 
@@ -44,9 +43,6 @@ impl Object for Generator {
     fn truthy(&self) -> bool {
         true
     }
-    fn as_any(&self) -> &dyn Any {
-        self
-    }
 }
 
 /// markupsafe.Markup (a str subclass)
@@ -76,9 +72,6 @@ impl Object for Markup {
     }
     fn getattr(&self, _me: &Value, name: &str) -> Option<Value> {
         super::methods::getattr(&Value::from(self.0.as_str()), name)
-    }
-    fn as_any(&self) -> &dyn Any {
-        self
     }
 }
 
@@ -125,9 +118,6 @@ impl Object for BuiltinFn {
     }
     fn call(&self, ctx: &mut dyn CallCtx, args: Vec<Value>, kwargs: IndexMap<String, Value>) -> Option<VResult<Value>> {
         Some((self.f)(ctx, args, kwargs))
-    }
-    fn as_any(&self) -> &dyn Any {
-        self
     }
 }
 
@@ -212,9 +202,6 @@ impl Object for Cycler {
             _ => None,
         }
     }
-    fn as_any(&self) -> &dyn Any {
-        self
-    }
 }
 
 struct CyclerMethod {
@@ -236,9 +223,6 @@ impl Object for CyclerMethod {
         let rv = c.items[*pos].clone();
         *pos = (*pos + 1) % c.items.len();
         Some(Ok(rv))
-    }
-    fn as_any(&self) -> &dyn Any {
-        self
     }
 }
 
@@ -269,9 +253,6 @@ impl Object for Joiner {
             return Some(Ok(Value::from("")));
         }
         Some(Ok(Value::from(self.sep.as_str())))
-    }
-    fn as_any(&self) -> &dyn Any {
-        self
     }
 }
 
@@ -312,9 +293,6 @@ impl Object for Module {
     }
     fn getattr(&self, _me: &Value, name: &str) -> Option<Value> {
         self.attrs.get(name).cloned()
-    }
-    fn as_any(&self) -> &dyn Any {
-        self
     }
 }
 

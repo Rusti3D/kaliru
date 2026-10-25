@@ -17,7 +17,6 @@ use crate::printer::{downcast_rc, PObj, Printer, PrinterObject};
 use crate::stepper::McuStepper;
 use crate::toolhead::ToolHead;
 use indexmap::IndexMap;
-use std::any::Any;
 use std::cell::RefCell;
 use std::rc::Rc;
 
@@ -202,9 +201,6 @@ impl ForceMove {
 }
 
 impl PrinterObject for ForceMove {
-    fn as_any(&self) -> &dyn Any {
-        self
-    }
 }
 
 pub fn load_config(config: &ConfigWrapper) -> KResult<PObj> {

@@ -12,7 +12,6 @@ use crate::jinja::value::Value;
 use crate::printer::{PObj, Printer, PrinterObject};
 use crate::pyval::PyVal;
 use crate::toolhead::ToolHead;
-use std::any::Any;
 use std::cell::{Cell, RefCell};
 use std::rc::Rc;
 
@@ -103,9 +102,6 @@ impl HomingOverride {
 }
 
 impl PrinterObject for HomingOverride {
-    fn as_any(&self) -> &dyn Any {
-        self
-    }
     fn teardown(&self) {
         *self.prev_g28.borrow_mut() = None;
     }

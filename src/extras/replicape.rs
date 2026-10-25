@@ -481,9 +481,6 @@ impl PinChip for Replicape {
 }
 
 impl PrinterObject for Replicape {
-    fn as_any(&self) -> &dyn Any {
-        self
-    }
 }
 
 pub fn load_config(config: &ConfigWrapper) -> KResult<PObj> {

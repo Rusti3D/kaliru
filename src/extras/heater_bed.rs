@@ -9,7 +9,6 @@ use crate::extras::heaters::{load_heaters, Heater, PrinterHeaters};
 use crate::gcode::{GCodeCommand, GCodeDispatch};
 use crate::printer::{PObj, Printer, PrinterObject};
 use crate::pyval::PyVal;
-use std::any::Any;
 use std::rc::Rc;
 
 pub struct PrinterHeaterBed {
@@ -41,9 +40,6 @@ impl PrinterHeaterBed {
 }
 
 impl PrinterObject for PrinterHeaterBed {
-    fn as_any(&self) -> &dyn Any {
-        self
-    }
     fn has_status(&self) -> bool {
         true
     }

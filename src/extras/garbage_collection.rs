@@ -11,15 +11,11 @@ use crate::configfile::ConfigWrapper;
 use crate::error::KResult;
 use crate::logging;
 use crate::printer::{PObj, PrinterObject};
-use std::any::Any;
 use std::rc::Rc;
 
 pub struct GarbageCollection;
 
 impl PrinterObject for GarbageCollection {
-    fn as_any(&self) -> &dyn Any {
-        self
-    }
 }
 
 pub fn load_config(config: &ConfigWrapper) -> KResult<PObj> {

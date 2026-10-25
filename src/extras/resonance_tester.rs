@@ -17,7 +17,6 @@ use crate::pyfmt::{py_float, py_max, py_sum};
 use crate::pyglob::gettempdir;
 use crate::pyval::PyVal;
 use crate::toolhead::ToolHead;
-use std::any::Any;
 use std::cell::{Cell, RefCell};
 use std::rc::Rc;
 
@@ -119,7 +118,7 @@ fn suspend_limits(printer: &Rc<Printer>, max_accel: f64, max_velocity: f64, inpu
         max_accel, max_velocity
     ))?;
     let kin = toolhead.get_kinematics();
-    let limited = kin.as_any().downcast_ref::<CartKinematics>().and_then(|k| k.limited.as_ref());
+    let limited = kin.downcast_ref::<CartKinematics>().and_then(|k| k.limited.as_ref());
     let snap = limited.map(|l| l.suspend_limits(max_accel, max_velocity));
     let res = body();
     // finally:
@@ -798,9 +797,6 @@ fn get_filename(base: &str, name_suffix: &str, axis: Option<&TestAxis>, point: O
 }
 
 impl PrinterObject for ResonanceTester {
-    fn as_any(&self) -> &dyn Any {
-        self
-    }
     fn teardown(&self) {
         self.accel_chips.borrow_mut().clear();
     }

@@ -11,7 +11,6 @@ use crate::gcode::{GCodeCommand, GCodeDispatch};
 use crate::logging;
 use crate::printer::{PObj, PrinterObject};
 use crate::pyval::PyVal;
-use std::any::Any;
 use std::cell::RefCell;
 use std::rc::Rc;
 
@@ -79,9 +78,6 @@ impl PrinterFanGeneric {
 }
 
 impl PrinterObject for PrinterFanGeneric {
-    fn as_any(&self) -> &dyn Any {
-        self
-    }
     fn has_status(&self) -> bool {
         true
     }
