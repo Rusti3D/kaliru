@@ -585,7 +585,7 @@ impl ConfigWrapper {
         }
         let msg = match value {
             None => format!("Option '{}' in section '{}' is deprecated.", option, self.section),
-            Some(v) => format!("PyVal '{}' in option '{}' in section '{}' is deprecated.", v, option, self.section),
+            Some(v) => format!("Value '{}' in option '{}' in section '{}' is deprecated.", v, option, self.section),
         };
         self.deprecated
             .borrow_mut()

@@ -11,12 +11,12 @@ reactor scenarios identical (3 runs)
 serialqueue exchange identical (3 runs)
 clippy: 0 warnings
 == cases
-63/63 identical
+64/64 identical
 == suite
 87/88 identical
 DIFF printers/13
 == plugins
-6/6 identical
+8/8 identical
 == live
 6/6 identical
 == api

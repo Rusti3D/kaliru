@@ -122,7 +122,20 @@ impl McuButtons {
         Ok(())
     }
 
-    fn handle_buttons_state(&self, params: &Params) -> KResult<()> {
+    /// The pins of this group as the config names them, in bit order
+    pub fn pin_names(&self) -> Vec<String> {
+        self.pin_list.borrow().iter().map(|(p, _)| p.clone()).collect()
+    }
+
+    /// (invert mask, last button state, ack count): what a buttons_state
+    /// message for this group is built against
+    pub fn state(&self) -> (i64, i64, i64) {
+        (self.invert.get(), self.last_button.get(), self.ack_count.get())
+    }
+
+    /// The MCU's buttons_state report (also the way to deliver a simulated
+    /// one, where no MCU sends them, as in batch mode)
+    pub fn handle_buttons_state(&self, params: &Params) -> KResult<()> {
         // Expand the message ack_count from 8-bit
         let ack_count = self.ack_count.get();
         let mut ack_diff = (pint(params, "ack_count") - ack_count) & 0xFF;
@@ -418,6 +431,9 @@ impl DebounceButton {
 pub struct PrinterButtons {
     printer: Rc<Printer>,
     mcu_buttons: RefCell<IndexMap<String, Rc<McuButtons>>>,
+    /// every button group by mcu name, in creation order (mcu_buttons keeps
+    /// only an mcu's newest one)
+    groups: RefCell<Vec<(String, Rc<McuButtons>)>>,
     adc_buttons: RefCell<IndexMap<String, Rc<McuAdcButtons>>>,
 }
 
@@ -425,7 +441,17 @@ impl PrinterButtons {
     fn new(config: &ConfigWrapper) -> KResult<Rc<Self>> {
         let printer = config.get_printer();
         printer.load_object(config, "query_adc", true)?;
-        Ok(Rc::new(PrinterButtons { printer, mcu_buttons: RefCell::new(IndexMap::default()), adc_buttons: RefCell::new(IndexMap::default()) }))
+        Ok(Rc::new(PrinterButtons {
+            printer,
+            mcu_buttons: RefCell::new(IndexMap::default()),
+            groups: RefCell::new(vec![]),
+            adc_buttons: RefCell::new(IndexMap::default()),
+        }))
+    }
+
+    /// The button groups of an mcu, in creation order
+    pub fn mcu_button_groups(&self, mcu_name: &str) -> Vec<Rc<McuButtons>> {
+        self.groups.borrow().iter().filter(|(n, _)| n == mcu_name).map(|(_, b)| b.clone()).collect()
     }
 
     pub fn register_adc_button(&self, pin: &str, min_val: f64, max_val: f64, pullup: f64, callback: ButtonCallback) -> KResult<()> {
@@ -503,6 +529,7 @@ impl PrinterButtons {
             _ => {
                 let mcu = get_printer_mcu(&self.printer, &mcu_name)?;
                 let b = McuButtons::new(&self.printer, &mcu);
+                self.groups.borrow_mut().push((mcu_name.clone(), b.clone()));
                 self.mcu_buttons.borrow_mut().insert(mcu_name, b.clone());
                 b
             }
@@ -536,6 +563,7 @@ impl PrinterButtons {
 impl PrinterObject for PrinterButtons {
     fn teardown(&self) {
         self.mcu_buttons.borrow_mut().clear();
+        self.groups.borrow_mut().clear();
         self.adc_buttons.borrow_mut().clear();
     }
 }

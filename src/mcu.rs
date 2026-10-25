@@ -559,6 +559,11 @@ pub trait Endstop {
     fn is_mcu_endstop(&self) -> bool {
         false
     }
+    /// MCU_endstop._pin, the pin as its mcu names it; None for an endstop
+    /// that is not an MCU_endstop
+    fn mcu_pin(&self) -> Option<String> {
+        None
+    }
 }
 
 pub type EndstopRef = Rc<dyn Endstop>;
@@ -575,6 +580,9 @@ pub fn any_to_endstop(obj: Rc<dyn Any>) -> Option<EndstopRef> {
 impl Endstop for McuEndstop {
     fn is_mcu_endstop(&self) -> bool {
         true
+    }
+    fn mcu_pin(&self) -> Option<String> {
+        Some(self.pin.clone())
     }
     fn get_mcu(&self) -> Rc<Mcu> {
         McuEndstop::get_mcu(self)

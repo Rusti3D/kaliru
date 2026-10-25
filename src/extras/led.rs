@@ -106,25 +106,36 @@ impl LEDHelper {
         self.led_state.borrow().clone()
     }
 
-    fn set_color(&self, index: Option<i64>, color: &Color) {
+    pub fn led_count(&self) -> i64 {
+        self.led_count
+    }
+
+    /// _set_color: index is 1-based (None: every LED), indexed as python
+    /// indexes led_state[index - 1]
+    pub fn set_color(&self, index: Option<i64>, color: &Color) -> KResult<()> {
         let mut state = self.led_state.borrow_mut();
         match index {
             None => {
                 let new_led_state = vec![color.clone(); self.led_count as usize];
                 if *state == new_led_state {
-                    return;
+                    return Ok(());
                 }
                 *state = new_led_state;
             }
             Some(index) => {
-                let i = (index - 1) as usize;
-                if state[i] == *color {
-                    return;
+                let len = state.len() as i64;
+                let i = if index - 1 < 0 { index - 1 + len } else { index - 1 };
+                if i < 0 || i >= len {
+                    return Err(KError::Py("IndexError".into(), "list index out of range".into()));
                 }
-                state[i] = color.clone();
+                if state[i as usize] == *color {
+                    return Ok(());
+                }
+                state[i as usize] = color.clone();
             }
         }
         self.need_transmit.set(true);
+        Ok(())
     }
 
     fn template_update(&self, index: i64, text: &str) -> KResult<()> {
@@ -146,11 +157,12 @@ impl LEDHelper {
         if parts.len() < 4 {
             parts.resize(4, 0.0);
         }
-        self.set_color(Some(index), &parts);
+        self.set_color(Some(index), &parts)?;
         Ok(())
     }
 
-    fn check_transmit(&self, print_time: Option<f64>) -> KResult<()> {
+    /// _check_transmit: the state to the LEDs, if it changed
+    pub fn check_transmit(&self, print_time: Option<f64>) -> KResult<()> {
         if !self.need_transmit.get() {
             return Ok(());
         }
@@ -193,7 +205,7 @@ impl LEDHelper {
         // Update and transmit data
         let me = self.me.upgrade().expect("led helper");
         let lookahead_bgfunc = move |print_time: Option<f64>| -> KResult<()> {
-            me.set_color(index, &color);
+            me.set_color(index, &color)?;
             if transmit != 0 {
                 me.check_transmit(print_time)?;
             }
