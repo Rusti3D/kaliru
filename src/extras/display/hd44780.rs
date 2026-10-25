@@ -15,7 +15,7 @@ use crate::mcu::{CommandWrapper, Mcu};
 use crate::msgproto::Val;
 use crate::pins::PinsObject;
 use crate::printer::Printer;
-use indexmap::IndexMap;
+use crate::IndexMap;
 use std::cell::RefCell;
 use std::rc::Rc;
 
@@ -45,7 +45,7 @@ impl TextFramebuffers {
                 // Glyph framebuffer
                 (vec![0; 64], vec![b'~'; 64], cmds[2]),
             ]),
-            icons: RefCell::new(IndexMap::new()),
+            icons: RefCell::new(IndexMap::default()),
         }
     }
 

@@ -17,7 +17,7 @@ use crate::pyfmt::{py_int_base0, py_min, py_round, py_sum};
 use crate::pyglob::gettempdir;
 use crate::pyval::PyVal;
 use crate::toolhead::ToolHead;
-use indexmap::IndexMap;
+use crate::IndexMap;
 use std::cell::{Cell, RefCell};
 use std::rc::{Rc, Weak};
 
@@ -68,10 +68,11 @@ pub fn batch_msg(samples: &[[f64; 4]], errors: i64, overflows: i64) -> PyVal {
         return PyVal::dict();
     }
     let data = samples.iter().map(|s| PyVal::Tuple(s.iter().map(|v| PyVal::Float(*v)).collect())).collect();
-    let mut d = IndexMap::new();
-    d.insert("data".to_string(), PyVal::List(data));
-    d.insert("errors".to_string(), PyVal::Int(errors));
-    d.insert("overflows".to_string(), PyVal::Int(overflows));
+    let d = crate::pydict! {
+        "data" => PyVal::List(data),
+        "errors" => PyVal::Int(errors),
+        "overflows" => PyVal::Int(overflows),
+    };
     PyVal::Dict(d)
 }
 
@@ -283,7 +284,7 @@ impl AccelCommandHelper {
         *self.bg_client.borrow_mut() = None;
         bg_client.finish_measurements()?;
         // Write data to file
-        let tmpdir = gettempdir();
+        let tmpdir = gettempdir()?;
         let filename = if self.base_name == self.name {
             format!("{}/{}-{}.csv", tmpdir, self.base_name, name)
         } else {
@@ -556,8 +557,8 @@ impl ADXL345 {
 /// {"header": ("time", "x_acceleration", "y_acceleration", "z_acceleration")}
 pub fn accel_header() -> PyVal {
     let hdr = ["time", "x_acceleration", "y_acceleration", "z_acceleration"];
-    let mut d = IndexMap::new();
-    d.insert("header".to_string(), PyVal::Tuple(hdr.iter().map(|s| PyVal::Str(s.to_string())).collect()));
+    let mut d = IndexMap::default();
+    d.insert("header".into(), PyVal::Tuple(hdr.iter().map(|s| PyVal::Str(s.to_string())).collect()));
     PyVal::Dict(d)
 }
 

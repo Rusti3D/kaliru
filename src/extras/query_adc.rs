@@ -10,7 +10,7 @@ use crate::gcode::{GCodeCommand, GCodeDispatch};
 use crate::mcu::AdcPin;
 use crate::printer::{PObj, PrinterObject};
 use crate::pyfmt::{py_max, py_min};
-use indexmap::IndexMap;
+use crate::IndexMap;
 use std::cell::RefCell;
 use std::rc::Rc;
 
@@ -23,7 +23,7 @@ pub struct QueryADC {
 impl QueryADC {
     fn new(config: &ConfigWrapper) -> KResult<Rc<Self>> {
         let printer = config.get_printer();
-        let q = Rc::new(QueryADC { adc: RefCell::new(IndexMap::new()) });
+        let q = Rc::new(QueryADC { adc: RefCell::new(IndexMap::default()) });
         let gcode = printer.lookup::<GCodeDispatch>("gcode")?;
         let qq = q.clone();
         gcode.register_command("QUERY_ADC", Some(Rc::new(move |g| qq.cmd_query_adc(g))), false, Some(CMD_QUERY_ADC_HELP))?;

@@ -91,7 +91,7 @@ pub fn percent_format(format: &str, args: &PyVal) -> Result<String, FmtError> {
             }
             let key: String = fmt[keystart..i - 1].iter().collect();
             let PyVal::Dict(m) = d else { unreachable!() };
-            match m.get(&key) {
+            match m.get(key.as_str()) {
                 Some(v) => key_arg = Some(v.clone()),
                 None => return Err(("KeyError", py_str_repr(&key))),
             }

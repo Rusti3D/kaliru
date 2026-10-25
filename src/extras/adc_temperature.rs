@@ -148,8 +148,6 @@ impl HelperTemperatureDiagnostics {
     }
 }
 
-/// printer.load_object(config, name) as a concrete type
-
 // ----------------------------------------------------------------------
 // Linear interpolation
 // ----------------------------------------------------------------------

@@ -19,7 +19,7 @@ use crate::msgproto::Val;
 use crate::pins::{PinsObject, SharedPinParams};
 use crate::printer::{downcast_rc, Printer};
 use crate::serialhdl::params_time;
-use indexmap::IndexMap;
+use crate::IndexMap;
 use std::cell::{Cell, RefCell};
 use std::rc::{Rc, Weak};
 
@@ -534,8 +534,6 @@ pub type RailRef = Rc<dyn Rail>;
 // Stepper and rail construction from config sections
 // ----------------------------------------------------------------------
 
-/// printer.load_object(config, name) as a concrete type
-
 fn lookup_pin(printer: &Printer, pin_desc: &str, can_invert: bool, can_pullup: bool) -> KResult<SharedPinParams> {
     let ppins = printer.lookup::<PinsObject>("pins")?;
     let r = ppins.0.borrow_mut().lookup_pin(pin_desc, can_invert, can_pullup, None);
@@ -602,7 +600,7 @@ impl PrinterRail {
             stepper_units_in_radians: units_in_radians,
             steppers: RefCell::new(vec![]),
             endstops: RefCell::new(vec![]),
-            endstop_map: RefCell::new(IndexMap::new()),
+            endstop_map: RefCell::new(IndexMap::default()),
             tmc_current_helpers: RefCell::new(None),
             position_endstop: Cell::new(0.0),
             position_min: Cell::new(0.0),

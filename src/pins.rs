@@ -4,7 +4,7 @@
 //
 // This file may be distributed under the terms of the GNU GPLv3 license.
 use crate::pyfmt::{py_isspace, py_strip};
-use indexmap::IndexMap;
+use crate::IndexMap;
 use std::any::Any;
 use std::cell::RefCell;
 use std::collections::HashMap;
@@ -76,9 +76,9 @@ impl PinResolver {
     pub fn new(validate_aliases: bool) -> Self {
         PinResolver {
             validate_aliases,
-            reserved: IndexMap::new(),
-            aliases: IndexMap::new(),
-            active_pins: IndexMap::new(),
+            reserved: IndexMap::default(),
+            aliases: IndexMap::default(),
+            active_pins: IndexMap::default(),
         }
     }
 
@@ -162,9 +162,9 @@ impl Default for PrinterPins {
 impl PrinterPins {
     pub fn new() -> Self {
         PrinterPins {
-            chips: IndexMap::new(),
-            active_pins: IndexMap::new(),
-            pin_resolvers: IndexMap::new(),
+            chips: IndexMap::default(),
+            active_pins: IndexMap::default(),
+            pin_resolvers: IndexMap::default(),
             allow_multi_use_pins: HashMap::new(),
         }
     }

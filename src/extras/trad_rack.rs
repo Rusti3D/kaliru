@@ -29,11 +29,11 @@ use crate::pins::PinsObject;
 use crate::printer::{PObj, Printer, PrinterObject};
 use crate::pyfmt::{py_float_repr, py_max, py_min, py_round};
 use crate::pyglob::expanduser;
-use crate::pyval::PyVal;
+use crate::pyval::{PyDict, PyVal};
 use crate::reactor::{Reactor, NOW};
 use crate::stepper::{lookup_multi_rail, McuStepper, PrinterRail, Rail, RailRef};
 use crate::toolhead::{Move, ToolHead, ToolHeadLimits};
-use indexmap::IndexMap;
+use crate::IndexMap;
 use std::any::Any;
 use std::cell::{Cell, RefCell};
 use std::collections::VecDeque;
@@ -593,7 +593,7 @@ impl TradRack {
 
         // unload filament and reload from a new lane
         self.runout_steps_done.set(0);
-        let g = self.gcode.create_gcode_command("TR_RESUME", "TR_RESUME", IndexMap::new());
+        let g = self.gcode.create_gcode_command("TR_RESUME", "TR_RESUME", IndexMap::default());
         self.cmd_tr_resume(&g)
     }
 
@@ -946,8 +946,8 @@ impl TradRack {
                         // set selector position and enable motor
                         // (this allows printing again without reloading the
                         // toolhead if the motor was disabled after the last print)
-                        let mut params = IndexMap::new();
-                        params.insert("LANE".to_string(), active.to_string());
+                        let mut params = IndexMap::default();
+                        params.insert("LANE".into(), active.to_string());
                         let g = self.gcode.create_gcode_command("TR_SET_ACTIVE_LANE", "TR_SET_ACTIVE_LANE", params);
                         self.cmd_tr_set_active_lane(&g)?;
                         gcmd.respond_info(&format!("Set lane {} as the active lane", active), true);
@@ -966,7 +966,7 @@ impl TradRack {
 
     /// cmd_TR_HOME(create_gcode_command("TR_HOME", "TR_HOME", {}))
     fn home(&self) -> KResult<()> {
-        let g = self.gcode.create_gcode_command("TR_HOME", "TR_HOME", IndexMap::new());
+        let g = self.gcode.create_gcode_command("TR_HOME", "TR_HOME", IndexMap::default());
         self.cmd_tr_home(&g)
     }
 
@@ -1173,7 +1173,7 @@ impl TradRack {
 
     fn check_lane_valid(&self, lane: Option<i64>) -> KResult<i64> {
         match lane {
-            Some(l) if l <= self.lane_count - 1 && l >= 0 => Ok(l),
+            Some(l) if l < self.lane_count && l >= 0 => Ok(l),
             _ => Err(KError::command("Invalid LANE")),
         }
     }
@@ -2283,9 +2283,9 @@ impl TradRack {
     fn unload_toolhead_and_resume(&self) -> KResult<()> {
         if self.is_paused()? {
             self.gcode.respond_info("Unloading toolhead", true);
-            let g = self.gcode.create_gcode_command("TR_UNLOAD_TOOLHEAD", "TR_UNLOAD_TOOLHEAD", IndexMap::new());
+            let g = self.gcode.create_gcode_command("TR_UNLOAD_TOOLHEAD", "TR_UNLOAD_TOOLHEAD", IndexMap::default());
             self.cmd_tr_unload_toolhead(&g)?;
-            let g = self.gcode.create_gcode_command("TR_RESUME", "TR_RESUME", IndexMap::new());
+            let g = self.gcode.create_gcode_command("TR_RESUME", "TR_RESUME", IndexMap::default());
             self.cmd_tr_resume(&g)?;
         }
         Ok(())
@@ -2316,13 +2316,14 @@ impl PrinterObject for TradRack {
     }
     fn get_status(&self, _eventtime: f64) -> Option<PyVal> {
         let opt = |v: Option<i64>| v.map(PyVal::Int).unwrap_or(PyVal::None);
-        let mut d = IndexMap::new();
-        d.insert("curr_lane".to_string(), opt(self.curr_lane.get()));
-        d.insert("active_lane".to_string(), opt(self.active_lane.get()));
-        d.insert("next_lane".to_string(), opt(self.next_lane.get()));
-        d.insert("next_tool".to_string(), opt(self.next_tool.get()));
-        d.insert("tool_map".to_string(), PyVal::List(self.tool_map.borrow().iter().map(|t| PyVal::Int(*t)).collect()));
-        d.insert("selector_homed".to_string(), PyVal::Bool(self.is_selector_homed().unwrap_or(false)));
+        let d = crate::pydict! {
+            "curr_lane" => opt(self.curr_lane.get()),
+            "active_lane" => opt(self.active_lane.get()),
+            "next_lane" => opt(self.next_lane.get()),
+            "next_tool" => opt(self.next_tool.get()),
+            "tool_map" => PyVal::List(self.tool_map.borrow().iter().map(|t| PyVal::Int(*t)).collect()),
+            "selector_homed" => PyVal::Bool(self.is_selector_homed().unwrap_or(false)),
+        };
         Some(PyVal::Dict(d))
     }
     fn teardown(&self) {
@@ -2534,13 +2535,14 @@ impl Kinematics for TradRackKinematics {
         self.rails.iter().map(|r| r.clone() as RailRef).collect()
     }
 
-    fn get_status(&self, _eventtime: f64) -> IndexMap<String, PyVal> {
+    fn get_status(&self, _eventtime: f64) -> PyDict {
         let limits = self.limits.borrow();
         let axes: String = "xy".chars().zip(limits.iter()).filter(|(_, (l, h))| l <= h).map(|(a, _)| a).collect();
-        let mut d = IndexMap::new();
-        d.insert("homed_axes".to_string(), PyVal::Str(axes));
-        d.insert("selector_min".to_string(), PyVal::Float(self.selector_min));
-        d.insert("selector_max".to_string(), PyVal::Float(self.selector_max));
+        let d = crate::pydict! {
+            "homed_axes" => PyVal::Str(axes),
+            "selector_min" => PyVal::Float(self.selector_min),
+            "selector_max" => PyVal::Float(self.selector_max),
+        };
         d
     }
 
@@ -2717,7 +2719,7 @@ impl TradRackExtruderSyncManager {
             prev_rotation_dists: RefCell::new(vec![]),
         });
         let mm = m.clone();
-        crate::events::KlippyConnect::on(&printer, move || {
+        crate::events::KlippyConnect::on(printer, move || {
             *mm.toolhead.borrow_mut() = Some(mm.printer.lookup::<ToolHead>("toolhead")?);
             Ok(())
         });

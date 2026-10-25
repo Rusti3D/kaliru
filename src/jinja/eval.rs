@@ -8,14 +8,14 @@
 use super::nodes::*;
 use super::value::{CallCtx, Exc, Key, Object, VResult, Value};
 use super::{filters, tests};
-use indexmap::IndexMap;
+use crate::IndexMap;
 use std::cell::RefCell;
 use std::rc::Rc;
 
 pub type Frame = Rc<RefCell<IndexMap<String, Value>>>;
 
 fn new_frame() -> Frame {
-    Rc::new(RefCell::new(IndexMap::new()))
+    Rc::new(RefCell::new(IndexMap::default()))
 }
 
 /// a macro (or the caller of a call block)
@@ -54,6 +54,9 @@ impl Object for MacroObj {
     }
 }
 
+/// a recursive for loop: (target, body, filter, the frames it runs in)
+type LoopRecurse = (Expr, Vec<Stmt>, Option<Expr>, Vec<Frame>);
+
 /// runtime.LoopContext
 pub struct LoopCtx {
     items: Vec<Value>,
@@ -61,7 +64,7 @@ pub struct LoopCtx {
     depth0: usize,
     last_changed: RefCell<Option<Vec<Value>>>,
     /// the loop body for recursive loops: (target, body, test)
-    recurse: Option<Rc<(Expr, Vec<Stmt>, Option<Expr>, Vec<Frame>)>>,
+    recurse: Option<Rc<LoopRecurse>>,
 }
 
 impl Object for LoopCtx {
@@ -785,7 +788,7 @@ impl Renderer {
         it: &Value,
         body: &[Stmt],
         test: Option<&Expr>,
-        rec: Option<Rc<(Expr, Vec<Stmt>, Option<Expr>, Vec<Frame>)>>,
+        rec: Option<Rc<LoopRecurse>>,
         depth0: usize,
     ) -> VResult<bool> {
         let mut items = it.iter_items()?;
@@ -829,7 +832,7 @@ impl Renderer {
         Ok(iterated)
     }
 
-    fn render_loop_recursive(&mut self, rec: Rc<(Expr, Vec<Stmt>, Option<Expr>, Vec<Frame>)>, it: &Value, depth0: usize) -> VResult<Value> {
+    fn render_loop_recursive(&mut self, rec: Rc<LoopRecurse>, it: &Value, depth0: usize) -> VResult<Value> {
         let saved = std::mem::replace(&mut self.scopes, rec.3.clone());
         self.out.push(String::new());
         let r = self.run_loop(&rec.0, it, &rec.1, rec.2.as_ref(), Some(rec.clone()), depth0);
@@ -861,7 +864,7 @@ impl Renderer {
                 Ok(Value::list(v))
             }
             ExprKind::Dict(items) => {
-                let mut d = IndexMap::new();
+                let mut d = IndexMap::default();
                 for (k, v) in items {
                     let k = self.eval(k)?;
                     let v = self.eval(v)?;
@@ -981,7 +984,7 @@ impl Renderer {
         for a in &ca.args {
             args.push(self.eval(a)?);
         }
-        let mut kwargs = IndexMap::new();
+        let mut kwargs = IndexMap::default();
         for k in &ca.kwargs {
             let v = self.eval(&k.value)?;
             kwargs.insert(k.key.clone(), v);

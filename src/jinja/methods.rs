@@ -3,7 +3,7 @@
 // and the bound method calls.
 use super::value::{CallCtx, Exc, Key, Object, VResult, Value};
 use crate::pyfmt::py_isspace;
-use indexmap::IndexMap;
+use crate::IndexMap;
 use std::rc::Rc;
 
 /// a bound method of a builtin object
@@ -396,7 +396,7 @@ fn str_method(s: &str, name: &str, args: Vec<Value>, kwargs: IndexMap<String, Va
         "format" => return super::strformat::str_format(s, &args, &kwargs).map(Value::from),
         "format_map" => {
             nargs("format_map", &args, 1, 1)?;
-            let mut kw = IndexMap::new();
+            let mut kw = IndexMap::default();
             if let Value::Dict(d) = &args[0] {
                 for (k, v) in d.borrow().iter() {
                     kw.insert(k.0.to_str(), v.clone());

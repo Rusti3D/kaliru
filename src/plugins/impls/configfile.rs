@@ -38,7 +38,7 @@ pub fn register(r: &mut Registry) {
         Ok(py_none())
     });
     r.ext("fc_remove_section", |a| Ok(py_bool(fc(a)?.borrow_mut().remove_section(&a.string(1)?))));
-    r.ext("fc_options", |a| Ok(fc(a)?.borrow().options(&a.string(1)?)?.to_py()?));
+    r.ext("fc_options", |a| fc(a)?.borrow().options(&a.string(1)?)?.to_py());
     r.ext("fc_has_option", |a| Ok(py_bool(fc(a)?.borrow().has_option(&a.string(1)?, &a.string(2)?))));
     r.ext("fc_get", |a| {
         let v = fc(a)?.borrow().get_raw(&a.string(1)?, &a.string(2)?, a.bool(3)?)?;
@@ -91,7 +91,7 @@ pub fn config_from_py(o: &PyRef) -> KResult<Rc<ConfigWrapper>> {
     };
     let access_tracking = match objects::unwrap_as::<Tracking>(&o.getattr("access_tracking")?) {
         Ok(t) => t,
-        Err(_) => Rc::new(RefCell::new(AccessTracking::new())),
+        Err(_) => Rc::new(RefCell::new(AccessTracking::default())),
     };
     let section = o.getattr("section")?.as_string()?;
     Ok(Rc::new(ConfigWrapper::from_parts(&printer, fileconfig, access_tracking, &section)))

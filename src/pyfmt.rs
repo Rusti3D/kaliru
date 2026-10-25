@@ -2,44 +2,140 @@
 // Moonruster/src/pyfmt.rs). klippy embeds str()/repr() output of python
 // objects in messages and logs; these reproduce it.
 
+use crate::pyfmt_tables::{DIGIT_ZEROS, NONPRINTABLE, WHITESPACE};
 use serde_json::Value;
+use std::borrow::Cow;
+
+/// is `cp` in one of the sorted, disjoint (first, last) ranges
+fn in_ranges(table: &[(u32, u32)], cp: u32) -> bool {
+    table
+        .binary_search_by(|&(a, b)| {
+            if b < cp {
+                std::cmp::Ordering::Less
+            } else if a > cp {
+                std::cmp::Ordering::Greater
+            } else {
+                std::cmp::Ordering::Equal
+            }
+        })
+        .is_ok()
+}
+
+/// The value of a Unicode decimal digit (unicodedata.decimal)
+fn py_decimal(c: char) -> Option<u32> {
+    let cp = c as u32;
+    let i = DIGIT_ZEROS.partition_point(|&z| z <= cp);
+    let zero = *DIGIT_ZEROS.get(i.checked_sub(1)?)?;
+    (cp - zero < 10).then_some(cp - zero)
+}
+
+/// `s` with its Unicode decimal digits as ASCII ones (int() and float()
+/// accept any Nd digit)
+fn ascii_decimals(s: &str) -> Cow<'_, str> {
+    if s.is_ascii() {
+        return Cow::Borrowed(s);
+    }
+    Cow::Owned(
+        s.chars()
+            .map(|c| match py_decimal(c) {
+                Some(d) if !c.is_ascii() => char::from_digit(d, 10).unwrap_or(c),
+                _ => c,
+            })
+            .collect(),
+    )
+}
 
 /// Python's repr() for a float
 pub fn py_float_repr(f: f64) -> String {
+    let mut out = String::new();
+    py_float_repr_into(&mut out, f);
+    out
+}
+
+/// A fixed buffer for a formatted number (no heap allocation)
+struct NumBuf {
+    buf: [u8; 32],
+    len: usize,
+}
+
+impl std::fmt::Write for NumBuf {
+    fn write_str(&mut self, s: &str) -> std::fmt::Result {
+        let b = s.as_bytes();
+        let end = self.len + b.len();
+        if end > self.buf.len() {
+            return Err(std::fmt::Error);
+        }
+        self.buf[self.len..end].copy_from_slice(b);
+        self.len = end;
+        Ok(())
+    }
+}
+
+/// Python's repr() for a float, appended to `out`
+pub fn py_float_repr_into(out: &mut String, f: f64) {
+    use std::fmt::Write;
     if f.is_nan() {
-        return "nan".into();
+        return out.push_str("nan");
     }
     if f.is_infinite() {
-        return if f > 0.0 { "inf".into() } else { "-inf".into() };
+        return out.push_str(if f > 0.0 { "inf" } else { "-inf" });
     }
     if f == 0.0 {
-        return if f.is_sign_negative() { "-0.0".into() } else { "0.0".into() };
+        return out.push_str(if f.is_sign_negative() { "-0.0" } else { "0.0" });
     }
-    // Rust's {:e} produces the shortest round trip digits
-    let sci = format!("{:e}", f);
-    let (mantissa, exp) = sci.split_once('e').unwrap();
-    let exp: i32 = exp.parse().unwrap();
-    let neg = mantissa.starts_with('-');
-    let digits: String = mantissa.chars().filter(|c| c.is_ascii_digit()).collect();
-    let sign = if neg { "-" } else { "" };
+    // Rust's {:e} produces the shortest round trip digits: "-d.ddde-7"
+    let mut sci = NumBuf { buf: [0; 32], len: 0 };
+    write!(sci, "{:e}", f).expect("a float fits 32 bytes");
+    let sci = &sci.buf[..sci.len];
+    let e = sci.iter().position(|&c| c == b'e').expect("exponent");
+    let (mantissa, exp) = (&sci[..e], &sci[e + 1..]);
+    let exp: i32 = std::str::from_utf8(exp).expect("ascii").parse().expect("exponent");
+    let neg = mantissa[0] == b'-';
+    let mut digits = [0u8; 24];
+    let mut nd = 0;
+    for &c in mantissa {
+        if c.is_ascii_digit() {
+            digits[nd] = c;
+            nd += 1;
+        }
+    }
+    let digits = std::str::from_utf8(&digits[..nd]).expect("ascii");
+    if neg {
+        out.push('-');
+    }
+    let zeros = |out: &mut String, n: i32| {
+        for _ in 0..n {
+            out.push('0');
+        }
+    };
     if (-4..16).contains(&exp) {
         // fixed notation
-        let ndigits = digits.len() as i32;
-        let s = if exp >= 0 {
+        let ndigits = nd as i32;
+        if exp >= 0 {
             let int_len = exp + 1;
             if ndigits <= int_len {
-                format!("{}{}.0", digits, "0".repeat((int_len - ndigits) as usize))
+                out.push_str(digits);
+                zeros(out, int_len - ndigits);
+                out.push_str(".0");
             } else {
-                format!("{}.{}", &digits[..int_len as usize], &digits[int_len as usize..])
+                out.push_str(&digits[..int_len as usize]);
+                out.push('.');
+                out.push_str(&digits[int_len as usize..]);
             }
         } else {
-            format!("0.{}{}", "0".repeat((-exp - 1) as usize), digits)
-        };
-        format!("{}{}", sign, s)
+            out.push_str("0.");
+            zeros(out, -exp - 1);
+            out.push_str(digits);
+        }
     } else {
-        let m = if digits.len() > 1 { format!("{}.{}", &digits[..1], &digits[1..]) } else { digits.clone() };
-        let esign = if exp < 0 { "-" } else { "+" };
-        format!("{}{}e{}{:02}", sign, m, esign, exp.abs())
+        out.push_str(&digits[..1]);
+        if nd > 1 {
+            out.push('.');
+            out.push_str(&digits[1..]);
+        }
+        out.push('e');
+        out.push(if exp < 0 { '-' } else { '+' });
+        let _ = write!(out, "{:02}", exp.abs());
     }
 }
 
@@ -59,7 +155,17 @@ pub fn py_str_repr(s: &str) -> String {
                 out.push('\\');
                 out.push(c);
             }
-            c if (c as u32) < 0x20 || c as u32 == 0x7f => out.push_str(&format!("\\x{:02x}", c as u32)),
+            // what str.isprintable() rejects, escaped as repr() does
+            c if in_ranges(NONPRINTABLE, c as u32) => {
+                let cp = c as u32;
+                if cp < 0x100 {
+                    out.push_str(&format!("\\x{:02x}", cp));
+                } else if cp < 0x10000 {
+                    out.push_str(&format!("\\u{:04x}", cp));
+                } else {
+                    out.push_str(&format!("\\U{:08x}", cp));
+                }
+            }
             c => out.push(c),
         }
     }
@@ -161,10 +267,9 @@ pub fn py_round(x: f64, ndigits: usize) -> f64 {
     format!("{:.*}", ndigits, x).parse().unwrap_or(x)
 }
 
-/// Python's str.isspace() for one char (also the `\s` class of `re`):
-/// Rust's char::is_whitespace() plus the \x1c-\x1f separators
+/// Python's str.isspace() for one char (also the `\s` class of `re`)
 pub fn py_isspace(c: char) -> bool {
-    c.is_whitespace() || ('\x1c'..='\x1f').contains(&c)
+    in_ranges(WHITESPACE, c as u32)
 }
 
 /// Python's str.strip() / lstrip() / rstrip() without arguments
@@ -195,6 +300,7 @@ pub fn py_int(s: &str) -> Option<i64> {
         b'-' => (-1, &t[1..]),
         _ => (1, t),
     };
+    let body = ascii_decimals(body);
     if body.is_empty() || body.starts_with('_') || body.ends_with('_') || body.contains("__") {
         return None;
     }
@@ -263,7 +369,7 @@ pub fn py_float(s: &str) -> Option<f64> {
     if t.is_empty() {
         return None;
     }
-    let lower = t.to_lowercase();
+    let lower = ascii_decimals(t).to_lowercase();
     let (sign, body) = match lower.as_bytes()[0] {
         b'+' => (1.0, &lower[1..]),
         b'-' => (-1.0, &lower[1..]),
@@ -428,9 +534,21 @@ pub fn py_shlex_split(s: &str, commenters: &str) -> Result<Vec<String>, String> 
 
 /// str() of the python OSError an io failure on `path` raises:
 /// "[Errno 2] No such file or directory: 'path'"
+/// os.strerror(errno) (thread-safe: the serial thread reports errors too)
+pub fn strerror(errno: i32) -> String {
+    let mut buf = [0 as libc::c_char; 256];
+    // SAFETY: buf is a live buffer of buf.len() bytes (the XSI strerror_r:
+    // glibc's __xpg_strerror_r, musl's own), NUL-terminated on success
+    if unsafe { libc::strerror_r(errno, buf.as_mut_ptr(), buf.len()) } != 0 {
+        return format!("Unknown error {}", errno);
+    }
+    // SAFETY: NUL-terminated by strerror_r
+    unsafe { std::ffi::CStr::from_ptr(buf.as_ptr()) }.to_string_lossy().into_owned()
+}
+
 pub fn py_oserror(e: &std::io::Error, path: &str) -> String {
     let errno = e.raw_os_error().unwrap_or(0);
-    let msg = unsafe { std::ffi::CStr::from_ptr(libc::strerror(errno)) }.to_string_lossy().into_owned();
+    let msg = strerror(errno);
     format!("[Errno {}] {}: {}", errno, msg, py_str_repr(path))
 }
 
@@ -485,12 +603,19 @@ pub fn py_float_error(s: &str) -> String {
 
 /// json.dumps() of a python float
 pub fn py_json_float(f: f64) -> String {
+    let mut out = String::new();
+    py_json_float_into(&mut out, f);
+    out
+}
+
+/// json.dumps() of a float, appended to `out`
+pub fn py_json_float_into(out: &mut String, f: f64) {
     if f.is_nan() {
-        "NaN".into()
+        out.push_str("NaN")
     } else if f.is_infinite() {
-        if f > 0. { "Infinity".into() } else { "-Infinity".into() }
+        out.push_str(if f > 0. { "Infinity" } else { "-Infinity" })
     } else {
-        py_float_repr(f)
+        py_float_repr_into(out, f)
     }
 }
 
@@ -510,7 +635,7 @@ pub fn py_bytes_repr(b: &[u8]) -> String {
                 out.push('\\');
                 out.push(c as char);
             }
-            c if c < 0x20 || c >= 0x7f => out.push_str(&format!("\\x{:02x}", c)),
+            c if !(0x20..0x7f).contains(&c) => out.push_str(&format!("\\x{:02x}", c)),
             c => out.push(c as char),
         }
     }
@@ -582,6 +707,132 @@ pub fn py_int_base(s: &str, base: u32) -> Option<i64> {
 mod tests {
     use super::*;
     use serde_json::json;
+
+    // the allocating py_float_repr the in-place one replaced (rustify): the
+    // oracle the property test compares with
+    fn old_py_float_repr(f: f64) -> String {
+        if f.is_nan() {
+            return "nan".into();
+        }
+        if f.is_infinite() {
+            return if f > 0.0 { "inf".into() } else { "-inf".into() };
+        }
+        if f == 0.0 {
+            return if f.is_sign_negative() { "-0.0".into() } else { "0.0".into() };
+        }
+        let sci = format!("{:e}", f);
+        let (mantissa, exp) = sci.split_once('e').unwrap();
+        let exp: i32 = exp.parse().unwrap();
+        let neg = mantissa.starts_with('-');
+        let digits: String = mantissa.chars().filter(|c| c.is_ascii_digit()).collect();
+        let sign = if neg { "-" } else { "" };
+        if (-4..16).contains(&exp) {
+            let ndigits = digits.len() as i32;
+            let s = if exp >= 0 {
+                let int_len = exp + 1;
+                if ndigits <= int_len {
+                    format!("{}{}.0", digits, "0".repeat((int_len - ndigits) as usize))
+                } else {
+                    format!("{}.{}", &digits[..int_len as usize], &digits[int_len as usize..])
+                }
+            } else {
+                format!("0.{}{}", "0".repeat((-exp - 1) as usize), digits)
+            };
+            format!("{}{}", sign, s)
+        } else {
+            let m = if digits.len() > 1 { format!("{}.{}", &digits[..1], &digits[1..]) } else { digits.clone() };
+            let esign = if exp < 0 { "-" } else { "+" };
+            format!("{}{}e{}{:02}", sign, m, esign, exp.abs())
+        }
+    }
+
+    /// a deterministic stream of f64 bit patterns (xorshift64*): every
+    /// exponent range, subnormals, NaN payloads
+    fn bit_patterns(n: usize) -> impl Iterator<Item = f64> {
+        let mut x: u64 = 0x9E37_79B9_7F4A_7C15;
+        (0..n).map(move |_| {
+            x ^= x >> 12;
+            x ^= x << 25;
+            x ^= x >> 27;
+            f64::from_bits(x.wrapping_mul(0x2545_F491_4F6C_DD1D))
+        })
+    }
+
+    #[test]
+    fn float_repr_matches_the_allocating_one() {
+        let special = [
+            0.0, -0.0, 1.0, -1.0, 0.1, 0.5, 1e-4, 9.999e-5, 1e15, 9.99e15, 1e16, 1e17, 123456789012345680.0,
+            f64::MIN_POSITIVE, f64::MAX, f64::MIN, f64::EPSILON, 5e-324, 1e300, 1e-300, 2.5, 100.0, 1e22, 0.001,
+            f64::NAN, f64::INFINITY, f64::NEG_INFINITY,
+        ];
+        for f in special.into_iter().chain(bit_patterns(1_000_000)) {
+            assert_eq!(py_float_repr(f), old_py_float_repr(f), "bits {:#x}", f.to_bits());
+        }
+        // values a printer reports: short decimals, temperatures, positions
+        for i in -200_000..200_000i64 {
+            let f = i as f64 / 1000.0;
+            assert_eq!(py_float_repr(f), old_py_float_repr(f));
+        }
+    }
+
+    /// CPython 3.13's own results (tools/gen_pyfmt_vectors.py, the reference
+    /// interpreter): every mismatch is listed, not only the first
+    #[test]
+    fn vectors() {
+        let v: Value = serde_json::from_str(include_str!("../tests/data/pyfmt_vectors.json")).unwrap();
+        let mut bad: Vec<String> = Vec::new();
+        for e in v["float_repr"].as_array().unwrap() {
+            let f = f64::from_bits(e[0].as_u64().unwrap());
+            let got = py_float_repr(f);
+            if got != e[1].as_str().unwrap() {
+                bad.push(format!("float_repr {:e}: {} != {}", f, got, e[1]));
+            }
+        }
+        for e in v["str_repr"].as_array().unwrap() {
+            let got = py_str_repr(e[0].as_str().unwrap());
+            if got != e[1].as_str().unwrap() {
+                bad.push(format!("str_repr {:?}: {} != {}", e[0], got, e[1]));
+            }
+        }
+        for e in v["int"].as_array().unwrap() {
+            let got = py_int(e[0].as_str().unwrap()).map(Value::from).unwrap_or(Value::Null);
+            // python ints beyond i64 are out of range here
+            if got != e[1] && !(e[1].is_number() && e[1].as_i64().is_none()) {
+                bad.push(format!("int {:?}: {} != {}", e[0], got, e[1]));
+            }
+        }
+        for e in v["float"].as_array().unwrap() {
+            let got = match py_float(e[0].as_str().unwrap()) {
+                None => Value::Null,
+                Some(f) if !f.is_finite() => Value::from(py_float_repr(f)),
+                Some(f) => Value::from(f),
+            };
+            let want = match &e[1] {
+                Value::Number(n) => Value::from(n.as_f64().unwrap()),
+                other => other.clone(),
+            };
+            if got != want {
+                bad.push(format!("float {:?}: {} != {}", e[0], got, want));
+            }
+        }
+        for e in v["round"].as_array().unwrap() {
+            let f = f64::from_bits(e[0].as_u64().unwrap());
+            let got = py_float_repr(py_round(f, e[1].as_u64().unwrap() as usize));
+            if got != e[2].as_str().unwrap() {
+                bad.push(format!("round({:e}, {}): {} != {}", f, e[1], got, e[2]));
+            }
+        }
+        assert!(bad.is_empty(), "{} mismatches:\n{}", bad.len(), bad.join("\n"));
+    }
+
+    #[test]
+    fn json_float_appends() {
+        let mut out = String::from("x");
+        py_json_float_into(&mut out, f64::NAN);
+        py_json_float_into(&mut out, f64::NEG_INFINITY);
+        py_json_float_into(&mut out, 2.5);
+        assert_eq!(out, "xNaN-Infinity2.5");
+    }
 
     #[test]
     fn bytes_repr_and_int_base() {

@@ -12,10 +12,10 @@ use crate::extras::homing::Homing;
 use crate::gcode::coord_pyval;
 use crate::mathutil::trilateration;
 use crate::pyfmt::{py_max, py_min};
-use crate::pyval::PyVal;
+use crate::pyval::{PyDict, PyVal};
 use crate::stepper::{printer_stepper, McuStepper};
 use crate::toolhead::{Move, ToolHead};
-use indexmap::IndexMap;
+use crate::IndexMap;
 use std::rc::Rc;
 
 pub struct WinchKinematics {
@@ -95,12 +95,13 @@ impl Kinematics for WinchKinematics {
         Ok(())
     }
 
-    fn get_status(&self, _eventtime: f64) -> IndexMap<String, PyVal> {
+    fn get_status(&self, _eventtime: f64) -> PyDict {
         // XXX - homed_checks and rail limits not implemented
-        let mut d = IndexMap::new();
-        d.insert("homed_axes".to_string(), PyVal::from("xyz"));
-        d.insert("axis_minimum".to_string(), coord_pyval(&self.axes_min));
-        d.insert("axis_maximum".to_string(), coord_pyval(&self.axes_max));
+        let d = crate::pydict! {
+            "homed_axes" => PyVal::from("xyz"),
+            "axis_minimum" => coord_pyval(&self.axes_min),
+            "axis_maximum" => coord_pyval(&self.axes_max),
+        };
         d
     }
 

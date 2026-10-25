@@ -15,7 +15,7 @@ use crate::gcode::{GCodeCommand, GCodeDispatch};
 use crate::printer::{ConfigFileObject, PObj, Printer, PrinterObject};
 use crate::pyfmt::{py_float, py_float_repr};
 use crate::pyval::PyVal;
-use indexmap::IndexMap;
+use crate::IndexMap;
 use std::cell::{Cell, RefCell};
 use std::f64::consts::PI;
 use std::rc::{Rc, Weak};
@@ -66,7 +66,7 @@ impl PrinterSkew {
             xy_factor: Cell::new(0.0),
             xz_factor: Cell::new(0.0),
             yz_factor: Cell::new(0.0),
-            skew_profiles: RefCell::new(IndexMap::new()),
+            skew_profiles: RefCell::new(IndexMap::default()),
             next_transform: RefCell::new(None),
         });
         s.load_storage(config)?;
@@ -263,8 +263,8 @@ impl PrinterObject for PrinterSkew {
         true
     }
     fn get_status(&self, _eventtime: f64) -> Option<PyVal> {
-        let mut d = IndexMap::new();
-        d.insert("current_profile_name".to_string(), PyVal::Str(self.current_profile_name.borrow().clone()));
+        let mut d = IndexMap::default();
+        d.insert("current_profile_name".into(), PyVal::Str(self.current_profile_name.borrow().clone()));
         Some(PyVal::Dict(d))
     }
     fn teardown(&self) {

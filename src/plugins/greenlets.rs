@@ -27,8 +27,10 @@ thread_local! {
 /// load_config): that greenlet keeps the thread state python started on
 /// (its frames are there) and the main context gets a new one.
 pub fn install() {
+    // SAFETY: called with the GIL held (above)
     let current = unsafe { PyThreadState_Get() };
     match getcurrent() {
+        // SAFETY: current is this thread's live state; g's stack bounds are its own (the greenlet is alive)
         Some(g) => unsafe {
             STATES.with(|s| s.borrow_mut().insert(key(&g), current));
             let (lo, size) = g.stack();
@@ -47,6 +49,7 @@ fn key(g: &Greenlet) -> usize {
 }
 
 fn hook(ev: SwitchEvent) {
+    // SAFETY: runs on the reactor thread holding the GIL; every state swapped in was made by PyThreadState_New for this interpreter and is deleted only once, when its greenlet is dead
     unsafe {
         match ev {
             SwitchEvent::Enter(g) => {

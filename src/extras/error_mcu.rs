@@ -10,7 +10,7 @@ use crate::logging;
 use crate::printer::{PObj, Printer, PrinterObject};
 use crate::pyfmt::py_float_repr;
 use crate::pyval::PyVal;
-use indexmap::IndexMap;
+use crate::IndexMap;
 use std::cell::RefCell;
 use std::rc::Rc;
 
@@ -110,7 +110,7 @@ fn join_lines(text: &str) -> String {
 impl PrinterMcuError {
     pub fn new(config: &ConfigWrapper) -> Rc<Self> {
         let printer = config.get_printer();
-        let me = Rc::new(PrinterMcuError { printer: printer.clone(), clarify_callbacks: RefCell::new(IndexMap::new()) });
+        let me = Rc::new(PrinterMcuError { printer: printer.clone(), clarify_callbacks: RefCell::new(IndexMap::default()) });
         let m = me.clone();
         crate::events::KlippyAnalyzeShutdown::on(&printer, move |msg, details| {
             m.handle_analyze_shutdown(&msg, &details);

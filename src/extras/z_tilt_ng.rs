@@ -19,7 +19,7 @@ use crate::mathutil::{coordinate_descent, np_cross3, np_dot3, np_mean_axis0, np_
 use crate::printer::{ConfigFileObject, PObj, Printer, PrinterObject};
 use crate::pyfmt::py_float_repr;
 use crate::pyval::PyVal;
-use indexmap::IndexMap;
+use crate::IndexMap;
 use std::cell::{Cell, RefCell};
 use std::rc::{Rc, Weak};
 
@@ -198,10 +198,10 @@ impl ZTilt {
         // Setup for coordinate descent analysis
         let z_offset = offsets.2;
         logging::info(&format!("Calculating bed tilt with: {}", positions_repr(positions)));
-        let mut params = IndexMap::new();
-        params.insert("x_adjust".to_string(), 0.0);
-        params.insert("y_adjust".to_string(), 0.0);
-        params.insert("z_adjust".to_string(), z_offset);
+        let mut params = IndexMap::default();
+        params.insert("x_adjust".into(), 0.0);
+        params.insert("y_adjust".into(), 0.0);
+        params.insert("z_adjust".into(), z_offset);
         // Perform coordinate descent
         let adjusted_height = |pos: &[f64], params: &IndexMap<String, f64>| {
             let (x, y, z) = (pos[0], pos[1], pos[2]);

@@ -21,11 +21,11 @@ use crate::msgproto::{MessageFormat, MessageParser, Params, Val};
 use crate::pins::{PinChip, PinsObject, SharedPinParams};
 use crate::printer::{ConfigFileObject, Printer, PrinterObject};
 use crate::pyfmt::{py_float, py_int, py_str, py_str_repr};
-use crate::pyval::PyVal;
+use crate::pyval::{PyDict, PyVal};
 use crate::reactor::{Reactor, ReactorCompletion, Timer, NEVER, NOW};
 use crate::serialhdl::{params_time, SerialDev, SerialReader, SerialRetryCommand};
 use crate::stepper::McuStepper;
-use indexmap::IndexMap;
+use crate::IndexMap;
 use std::any::Any;
 use std::cell::{Cell, RefCell};
 use std::rc::{Rc, Weak};
@@ -1222,7 +1222,7 @@ struct ConnHelper {
 // Handle statistics reporting (MCUStatsHelper)
 struct StatsHelper {
     mcu_freq: Cell<f64>,
-    get_status_info: RefCell<IndexMap<String, PyVal>>,
+    get_status_info: RefCell<PyDict>,
     stats_sumsq_base: Cell<f64>,
     mcu_tick_avg: Cell<f64>,
     mcu_tick_stddev: Cell<f64>,
@@ -1332,7 +1332,7 @@ impl Mcu {
             cfg: ConfigHelper::default(),
             stats_h: StatsHelper {
                 mcu_freq: Cell::new(0.0),
-                get_status_info: RefCell::new(IndexMap::new()),
+                get_status_info: RefCell::new(IndexMap::default()),
                 stats_sumsq_base: Cell::new(0.0),
                 mcu_tick_avg: Cell::new(0.0),
                 mcu_tick_stddev: Cell::new(0.0),
@@ -1578,11 +1578,12 @@ impl Mcu {
             None => PyVal::None,
         };
         let event_type = params.get("#name").map(|v| v.py_str()).unwrap_or_default();
-        let mut details = IndexMap::new();
-        details.insert("reason".to_string(), PyVal::Str(msg));
-        details.insert("mcu".to_string(), PyVal::Str(self.name.clone()));
-        details.insert("event_type".to_string(), PyVal::Str(event_type));
-        details.insert("shutdown_clock".to_string(), shutdown_clock);
+        let details = crate::pydict! {
+            "reason" => PyVal::Str(msg),
+            "mcu" => PyVal::Str(self.name.clone()),
+            "event_type" => PyVal::Str(event_type),
+            "shutdown_clock" => shutdown_clock,
+        };
         self.printer.invoke_async_shutdown("MCU shutdown", Some(PyVal::Dict(details)));
         Ok(())
     }
@@ -1780,13 +1781,15 @@ impl Mcu {
         let app = msgparser.get_app_info();
         let (version, build_versions) = msgparser.get_version_info();
         {
+            // (shared: get_status hands out the same values every poll, as
+            // python's dict(self._get_status_info) does, instead of copies)
             let mut info = self.stats_h.get_status_info.borrow_mut();
-            info.insert("app".into(), PyVal::from(app));
-            info.insert("mcu_version".into(), PyVal::from(version));
-            info.insert("mcu_build_versions".into(), PyVal::from(build_versions));
-            let constants = msgparser.get_constants().iter().map(|(k, v)| (k.clone(), PyVal::from(v))).collect();
-            info.insert("mcu_constants".into(), PyVal::Dict(constants));
-            info.insert("mcu_kconfig".into(), PyVal::from(msgparser.get_kconfig()));
+            info.insert("app".into(), PyVal::shared(PyVal::from(app)));
+            info.insert("mcu_version".into(), PyVal::shared(PyVal::from(version)));
+            info.insert("mcu_build_versions".into(), PyVal::shared(PyVal::from(build_versions)));
+            let constants = msgparser.get_constants().iter().map(|(k, v)| (k.clone().into(), PyVal::from(v))).collect();
+            info.insert("mcu_constants".into(), PyVal::shared(PyVal::Dict(constants)));
+            info.insert("mcu_kconfig".into(), PyVal::shared(PyVal::from(msgparser.get_kconfig())));
         }
         if app.as_str() == Some("Klipper") || app.as_str() == Some("Danger-Klipper") {
             let pconfig = self.printer.lookup::<ConfigFileObject>("configfile")?;
@@ -1822,7 +1825,7 @@ impl Mcu {
     }
 
     fn stats_set_status_info(&self, key: &str, value: PyVal) {
-        self.stats_h.get_status_info.borrow_mut().insert(key.to_string(), value);
+        self.stats_h.get_status_info.borrow_mut().insert(key.to_string().into(), value);
     }
 
     fn stats_stats(&self, eventtime: f64) -> (bool, String) {
@@ -1834,7 +1837,7 @@ impl Mcu {
             s.mcu_tick_stddev.get()
         );
         let stats = [load, self.serial.stats(eventtime), self.clocksync.stats(eventtime)].join(" ");
-        let mut last_stats = IndexMap::new();
+        let mut last_stats = IndexMap::default();
         for part in stats.split_whitespace() {
             let (k, v) = part.split_once('=').unwrap_or((part, ""));
             let v = if v.contains('.') {
@@ -1842,9 +1845,9 @@ impl Mcu {
             } else {
                 PyVal::Int(py_int(v).unwrap_or(0))
             };
-            last_stats.insert(k.to_string(), v);
+            last_stats.insert(k.to_string().into(), v);
         }
-        s.get_status_info.borrow_mut().insert("last_stats".into(), PyVal::Dict(last_stats));
+        s.get_status_info.borrow_mut().insert("last_stats".into(), PyVal::shared(PyVal::Dict(last_stats)));
         (false, format!("{}: {}", self.name, stats))
     }
 

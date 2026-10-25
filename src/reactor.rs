@@ -12,7 +12,7 @@
 // serialhdl).
 use crate::chelper::pyhelper;
 use crate::greenlet::{self, Greenlet, Target, G};
-use indexmap::IndexMap;
+use crate::IndexMap;
 use std::cell::{Cell, RefCell};
 use std::collections::VecDeque;
 use std::os::fd::RawFd;
@@ -181,6 +181,7 @@ impl AsyncHandle {
         self.queue.lock().unwrap().push_back((callback, waketime));
         if let Some(fd) = *self.pipe_w.lock().unwrap() {
             // errors (eg EAGAIN with a full pipe) are ignored like python
+            // SAFETY: a one-byte write from a static buffer to the reactor's pipe (open while pipe_w is set)
             unsafe { libc::write(fd, b".".as_ptr() as *const libc::c_void, 1) };
         }
     }
@@ -224,8 +225,8 @@ impl Reactor {
                 read_callback: Rc::new(|_| {}),
                 write_callback: Some(Rc::new(|_| {})),
             }),
-            fds: RefCell::new(IndexMap::new()),
-            poll_fds: RefCell::new(IndexMap::new()),
+            fds: RefCell::new(IndexMap::default()),
+            poll_fds: RefCell::new(IndexMap::default()),
             read_mask: libc::POLLIN | libc::POLLHUP,
             write_mask: libc::POLLOUT,
             g_dispatch: RefCell::new(None),
@@ -395,19 +396,22 @@ impl Reactor {
     fn got_pipe_signal(self: &Rc<Self>, _eventtime: f64) {
         if let Some((r, _)) = self.pipe_fds.get() {
             let mut buf = [0u8; 4096];
+            // SAFETY: buf is a live buffer of buf.len() bytes
             unsafe { libc::read(r, buf.as_mut_ptr() as *mut libc::c_void, buf.len()) };
         }
         loop {
             let item = self.async_handle.queue.lock().unwrap().pop_front();
             let Some((callback, waketime)) = item else { break };
             // ReactorCallback(self, callback, waketime)
-            self.register_callback(move |e| callback(e), waketime);
+            self.register_callback(callback, waketime);
         }
     }
 
     fn setup_async_callbacks(self: &Rc<Self>) {
         let mut fds = [0 as RawFd; 2];
-        unsafe { libc::pipe(fds.as_mut_ptr()) };
+        // (os.pipe(): non-inheritable)
+        // SAFETY: fds is a live [c_int; 2]
+        unsafe { libc::pipe2(fds.as_mut_ptr(), libc::O_CLOEXEC) };
         crate::util::set_nonblock(fds[0]);
         crate::util::set_nonblock(fds[1]);
         self.pipe_fds.set(Some((fds[0], fds[1])));
@@ -569,8 +573,10 @@ impl Reactor {
             .collect();
         // python plugins: other python threads run while the reactor waits
         #[cfg(feature = "plugins")]
+        // SAFETY: pfds is a live Vec of pfds.len() pollfd entries
         let n = crate::plugins::allow_threads(|| unsafe { libc::poll(pfds.as_mut_ptr(), pfds.len() as libc::nfds_t, timeout_ms) });
         #[cfg(not(feature = "plugins"))]
+        // SAFETY: pfds is a live Vec of pfds.len() pollfd entries
         let n = unsafe { libc::poll(pfds.as_mut_ptr(), pfds.len() as libc::nfds_t, timeout_ms) };
         if n <= 0 {
             // ponytail: python raises on poll errors other than EINTR (which it retries)
@@ -628,6 +634,7 @@ impl Reactor {
         }
         if let Some((r, w)) = self.pipe_fds.take() {
             *self.async_handle.pipe_w.lock().unwrap() = None;
+            // SAFETY: the pipe's own fds, taken out of pipe_fds: closed once
             unsafe {
                 libc::close(r);
                 libc::close(w);

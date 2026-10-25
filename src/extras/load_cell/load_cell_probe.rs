@@ -753,7 +753,7 @@ impl LoadCellPrimitives {
             PyVal::Dict(d) => d,
             _ => return None,
         };
-        status.insert("last_trigger_time".to_string(), PyVal::Float(self.last_trigger_time.get()));
+        status.insert("last_trigger_time".into(), PyVal::Float(self.last_trigger_time.get()));
         Some(PyVal::Dict(status))
     }
 }
@@ -838,7 +838,7 @@ impl TappingMove {
             PyVal::Dict(d) => d,
             _ => return None,
         };
-        status.insert("is_last_tap_valid".to_string(), PyVal::Bool(self.is_last_result_valid.get()));
+        status.insert("is_last_tap_valid".into(), PyVal::Bool(self.is_last_result_valid.get()));
         Some(PyVal::Dict(status))
     }
 }

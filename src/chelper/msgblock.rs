@@ -86,7 +86,7 @@ pub fn msgblock_check(need_sync: &mut bool, buf: &[u8]) -> isize {
             break 'error;
         }
         let msglen = buf[MESSAGE_POS_LEN] as usize;
-        if msglen < MESSAGE_MIN || msglen > MESSAGE_MAX {
+        if !(MESSAGE_MIN..=MESSAGE_MAX).contains(&msglen) {
             break 'error;
         }
         let msgseq = buf[MESSAGE_POS_SEQ];
@@ -120,13 +120,13 @@ pub fn msgblock_check(need_sync: &mut bool, buf: &[u8]) -> isize {
 // Encode an integer as a variable length quantity (vlq)
 fn encode_int(out: &mut Vec<u8>, v: u32) {
     let sv = v as i32 as i64;
-    let n = if sv < (3 << 5) && sv >= -(1 << 5) {
+    let n = if (-(1 << 5)..(3 << 5)).contains(&sv) {
         1
-    } else if sv < (3 << 12) && sv >= -(1 << 12) {
+    } else if (-(1 << 12)..(3 << 12)).contains(&sv) {
         2
-    } else if sv < (3 << 19) && sv >= -(1 << 19) {
+    } else if (-(1 << 19)..(3 << 19)).contains(&sv) {
         3
-    } else if sv < (3 << 26) && sv >= -(1 << 26) {
+    } else if (-(1 << 26)..(3 << 26)).contains(&sv) {
         4
     } else {
         5

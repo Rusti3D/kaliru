@@ -5,10 +5,11 @@
 use super::*;
 use crate::gcode::{GCodeCommand, GCodeDispatch, Handler};
 use crate::method;
+use crate::pyval::PyDict;
 use crate::plugins::callable::py_function;
 use crate::plugins::convert::{FromPy, ToPy};
 use crate::plugins::native::{Args, DictField};
-use indexmap::IndexMap;
+use crate::IndexMap;
 
 fn gc(o: &PyRef) -> KResult<Rc<GCodeCommand>> {
     objects::unwrap_as::<GCodeCommand>(o)
@@ -78,7 +79,7 @@ pub fn register(r: &mut Registry) {
     method!(r, "klippy.gcode.GCodeDispatch", GCodeDispatch, increment_interrupt_counter(g) => g.increment_interrupt_counter());
     method!(r, "klippy.gcode.GCodeDispatch", GCodeDispatch, is_traditional_gcode(g, cmd: String) => g.is_traditional_gcode(&cmd));
     method!(r, "klippy.gcode.GCodeDispatch", GCodeDispatch, get_command_help(g) => {
-        let d: IndexMap<String, PyVal> = g.get_command_help().into_iter().map(|(k, v)| (k, PyVal::Str(v))).collect();
+        let d: PyDict = g.get_command_help().into_iter().map(|(k, v)| (k.into(), PyVal::Str(v))).collect();
         PyVal::Dict(d)
     });
     method!(r, "klippy.gcode.GCodeDispatch", GCodeDispatch, run_script_from_command(g, script: String) => g.run_script_from_command(&script));
@@ -173,8 +174,8 @@ pub fn gcmd_from_py(o: &PyRef) -> KResult<Rc<GCodeCommand>> {
     }
     let gcode = printer().ok_or_else(|| KError::Other("kaliru: no printer".into()))?.lookup::<GCodeDispatch>("gcode")?;
     let params: IndexMap<String, String> = match PyVal::from_py(&o.getattr("_params")?)? {
-        PyVal::Dict(d) => d.into_iter().map(|(k, v)| (k, v.str())).collect(),
-        _ => IndexMap::new(),
+        PyVal::Dict(d) => d.into_iter().map(|(k, v)| (k.into_owned(), v.str())).collect(),
+        _ => IndexMap::default(),
     };
     let cmd = gcode.create_gcode_command(&o.getattr("_command")?.as_string()?, &o.getattr("_commandline")?.as_string()?, params);
     cmd.set_need_ack(o.getattr("_need_ack")?.is_true()?);

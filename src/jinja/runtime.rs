@@ -3,7 +3,7 @@
 // python callables
 use super::eval::Namespace;
 use super::value::{CallCtx, Exc, Key, Object, VResult, Value};
-use indexmap::IndexMap;
+use crate::IndexMap;
 use std::cell::RefCell;
 use std::rc::Rc;
 
@@ -153,13 +153,13 @@ fn dict_fn(_: &mut dyn CallCtx, args: Vec<Value>, kwargs: IndexMap<String, Value
     if args.len() > 1 {
         return Err(Exc::type_error(format!("dict expected at most 1 argument, got {}", args.len())));
     }
-    let d = Value::dict(IndexMap::new());
+    let d = Value::dict(IndexMap::default());
     super::methods::call_method(&d, "update", args, kwargs)?;
     Ok(d)
 }
 
 fn namespace_fn(_: &mut dyn CallCtx, args: Vec<Value>, kwargs: IndexMap<String, Value>) -> VResult<Value> {
-    let mut attrs = IndexMap::new();
+    let mut attrs = IndexMap::default();
     for a in args {
         match a {
             Value::Dict(d) => {
@@ -268,7 +268,7 @@ fn lipsum_fn(_: &mut dyn CallCtx, _args: Vec<Value>, _kwargs: IndexMap<String, V
 
 /// jinja2.defaults.DEFAULT_NAMESPACE
 pub fn default_namespace() -> IndexMap<String, Value> {
-    let mut g = IndexMap::new();
+    let mut g = IndexMap::default();
     g.insert("range".into(), builtin("range", "type", range_fn));
     g.insert("dict".into(), builtin("dict", "type", dict_fn));
     g.insert("lipsum".into(), builtin("generate_lorem_ipsum", "function", lipsum_fn));

@@ -9,7 +9,7 @@ use crate::extras::bus::{mcu_i2c_from_config, McuI2c};
 use crate::extras::led::{Color, LEDHelper};
 use crate::printer::{PObj, PrinterObject};
 use crate::pyval::PyVal;
-use indexmap::IndexMap;
+use crate::IndexMap;
 use std::cell::RefCell;
 use std::rc::{Rc, Weak};
 
@@ -48,7 +48,7 @@ impl PCA9632 {
             return Err(KError::config(format!("Invalid color_order '{}'", color_order)));
         }
         let color_map = color_order.chars().map(|c| "RGBW".find(c).unwrap_or(0)).collect();
-        let p = Rc::new(PCA9632 { i2c, color_map, prev_regs: RefCell::new(IndexMap::new()), led_helper: RefCell::new(None) });
+        let p = Rc::new(PCA9632 { i2c, color_map, prev_regs: RefCell::new(IndexMap::default()), led_helper: RefCell::new(None) });
         let w: Weak<Self> = Rc::downgrade(&p);
         let helper = LEDHelper::new(
             config,

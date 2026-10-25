@@ -73,12 +73,12 @@ pub fn np_interp(x: f64, xp: &[f64], fp: &[f64]) -> f64 {
 /// order
 pub fn coordinate_descent(
     adj_params: &[String],
-    params: &indexmap::IndexMap<String, f64>,
-    error_func: &dyn Fn(&indexmap::IndexMap<String, f64>) -> f64,
-) -> indexmap::IndexMap<String, f64> {
+    params: &crate::IndexMap<String, f64>,
+    error_func: &dyn Fn(&crate::IndexMap<String, f64>) -> f64,
+) -> crate::IndexMap<String, f64> {
     // Define potential changes
     let mut params = params.clone();
-    let mut dp: indexmap::IndexMap<String, f64> = adj_params.iter().map(|p| (p.clone(), 1.0)).collect();
+    let mut dp: crate::IndexMap<String, f64> = adj_params.iter().map(|p| (p.clone(), 1.0)).collect();
     // Calculate the error
     let mut best_err = error_func(&params);
     crate::logging::info(&format!("Coordinate descent initial error: {}", crate::pyfmt::py_float_repr(best_err)));
@@ -645,7 +645,7 @@ mod hypot_tests {
 #[cfg(test)]
 pub(crate) mod numpy_tests {
     use super::*;
-    use indexmap::IndexMap;
+    use crate::IndexMap;
 
     /// a python float.hex() value
     pub(crate) fn parse_hex(s: &str) -> f64 {
@@ -678,7 +678,7 @@ pub(crate) mod numpy_tests {
     fn numpy_vs_python() {
         let Ok(path) = std::env::var("RK_NUMPY_CASES") else { return };
         let text = std::fs::read_to_string(path).unwrap();
-        let mut bad: IndexMap<String, (usize, usize)> = IndexMap::new();
+        let mut bad: IndexMap<String, (usize, usize)> = IndexMap::default();
         for line in text.lines() {
             let (lhs, rhs) = line.split_once(" = ").unwrap();
             let mut it = lhs.split_whitespace();

@@ -12,7 +12,7 @@ use crate::gcode::{GCodeCommand, GCodeDispatch};
 use crate::logging;
 use crate::printer::{PObj, PrinterObject};
 use crate::pyval::PyVal;
-use indexmap::IndexMap;
+use crate::IndexMap;
 use std::cell::{Cell, RefCell};
 use std::rc::{Rc, Weak};
 
@@ -29,7 +29,7 @@ pub struct GCodeButton {
 impl GCodeButton {
     fn new(config: &ConfigWrapper) -> KResult<Rc<Self>> {
         let printer = config.get_printer();
-        let name = config.get_name().split(' ').last().unwrap_or_default().to_string();
+        let name = config.get_name().split(' ').next_back().unwrap_or_default().to_string();
         let pin = config.get("pin", Dflt::Required)?;
         let gcode = printer.lookup::<GCodeDispatch>("gcode")?;
         let b = Rc::new(GCodeButton {
@@ -106,8 +106,8 @@ impl PrinterObject for GCodeButton {
         true
     }
     fn get_status(&self, _eventtime: f64) -> Option<PyVal> {
-        let mut d = IndexMap::new();
-        d.insert("state".to_string(), PyVal::Str(self.state().into()));
+        let mut d = IndexMap::default();
+        d.insert("state".into(), PyVal::Str(self.state().into()));
         Some(PyVal::Dict(d))
     }
 }

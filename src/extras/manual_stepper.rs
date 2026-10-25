@@ -19,7 +19,7 @@ use crate::pyfmt::{py_max, py_min};
 use crate::reactor::ReactorCompletion;
 use crate::stepper::{printer_stepper, McuStepper, PrinterRail, Rail};
 use crate::toolhead::{ExtraAxis, ExtraAxisRef, Move, ToolHead};
-use indexmap::IndexMap;
+use crate::IndexMap;
 use std::cell::{Cell, RefCell};
 use std::rc::{Rc, Weak};
 

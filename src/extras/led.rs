@@ -14,7 +14,7 @@ use crate::pyfmt::{py_max, py_min};
 use crate::pyval::PyVal;
 use crate::reactor::{ReactorMutex, NOW};
 use crate::toolhead::ToolHead;
-use indexmap::IndexMap;
+use crate::IndexMap;
 use std::cell::{Cell, RefCell};
 use std::rc::{Rc, Weak};
 
@@ -97,8 +97,8 @@ impl LEDHelper {
 
     pub fn get_status(&self) -> PyVal {
         let cd: Vec<PyVal> = self.led_state.borrow().iter().map(|c| PyVal::Tuple(c.iter().map(|v| PyVal::Float(*v)).collect())).collect();
-        let mut d = IndexMap::new();
-        d.insert("color_data".to_string(), PyVal::List(cd));
+        let mut d = IndexMap::default();
+        d.insert("color_data".into(), PyVal::List(cd));
         PyVal::Dict(d)
     }
 

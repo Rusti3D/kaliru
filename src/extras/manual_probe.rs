@@ -9,9 +9,9 @@ use crate::error::{KError, KResult};
 use crate::extras::gcode_move::GCodeMove;
 use crate::gcode::{GCodeCommand, GCodeDispatch};
 use crate::printer::{downcast_rc, ConfigFileObject, PObj, Printer, PrinterObject};
-use crate::pyval::PyVal;
+use crate::pyval::{PyDict, PyVal};
 use crate::toolhead::ToolHead;
-use indexmap::IndexMap;
+use crate::IndexMap;
 use std::cell::RefCell;
 use std::rc::Rc;
 
@@ -30,7 +30,7 @@ pub struct ManualProbe {
     a_position_endstop: Option<f64>,
     b_position_endstop: Option<f64>,
     c_position_endstop: Option<f64>,
-    pub status: RefCell<IndexMap<String, PyVal>>,
+    pub status: RefCell<PyDict>,
 }
 
 fn opt_f(v: Option<f64>) -> PyVal {
@@ -61,7 +61,7 @@ impl ManualProbe {
             a_position_endstop,
             b_position_endstop,
             c_position_endstop,
-            status: RefCell::new(IndexMap::new()),
+            status: RefCell::new(IndexMap::default()),
         });
         let m = mp.clone();
         gcode.register_command("MANUAL_PROBE", Some(Rc::new(move |g| m.cmd_manual_probe(g))), false, Some(CMD_MANUAL_PROBE_HELP))?;
@@ -105,11 +105,12 @@ impl ManualProbe {
     }
 
     pub fn reset_status(&self) {
-        let mut s = IndexMap::new();
-        s.insert("is_active".to_string(), PyVal::Bool(false));
-        s.insert("z_position".to_string(), PyVal::None);
-        s.insert("z_position_lower".to_string(), PyVal::None);
-        s.insert("z_position_upper".to_string(), PyVal::None);
+        let s = crate::pydict! {
+            "is_active" => PyVal::Bool(false),
+            "z_position" => PyVal::None,
+            "z_position_lower" => PyVal::None,
+            "z_position_upper" => PyVal::None,
+        };
         *self.status.borrow_mut() = s;
     }
 
@@ -346,11 +347,12 @@ impl ManualProbeHelper {
             next_pos_val = Some(v);
             next_str = format!("{:.3}", v);
         }
-        let mut s = IndexMap::new();
-        s.insert("is_active".to_string(), PyVal::Bool(true));
-        s.insert("z_position".to_string(), PyVal::Float(z_pos));
-        s.insert("z_position_lower".to_string(), opt_f(prev_pos_val));
-        s.insert("z_position_upper".to_string(), opt_f(next_pos_val));
+        let s = crate::pydict! {
+            "is_active" => PyVal::Bool(true),
+            "z_position" => PyVal::Float(z_pos),
+            "z_position_lower" => opt_f(prev_pos_val),
+            "z_position_upper" => opt_f(next_pos_val),
+        };
         *self.manual_probe.status.borrow_mut() = s;
         // Find recent positions
         self.gcode.respond_info(&format!("Z position: {} --> {:.3} <-- {}", prev_str, z_pos, next_str), true);

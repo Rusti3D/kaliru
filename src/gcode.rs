@@ -8,9 +8,9 @@ use crate::error::{KError, KResult};
 use crate::logging;
 use crate::printer::{Printer, PrinterObject};
 use crate::pyfmt::{py_float, py_int, py_isspace, py_shlex_split, py_str_repr, py_strip};
-use crate::pyval::PyVal;
+use crate::pyval::{PyDict, PyVal};
 use crate::reactor::{FileHandler, ReactorMutex};
-use indexmap::IndexMap;
+use crate::IndexMap;
 use std::any::Any;
 use std::cell::{Cell, RefCell};
 use std::collections::VecDeque;
@@ -269,8 +269,8 @@ impl PrinterObject for GCodeDispatch {
         self.output_callbacks.borrow_mut().clear();
     }
     fn get_status(&self, _eventtime: f64) -> Option<PyVal> {
-        let mut d = IndexMap::new();
-        d.insert("commands".to_string(), self.status_commands.borrow().clone());
+        let mut d = IndexMap::default();
+        d.insert("commands".into(), self.status_commands.borrow().clone());
         Some(PyVal::Dict(d))
     }
 }
@@ -284,20 +284,20 @@ impl GCodeDispatch {
             mutex: printer.get_reactor().mutex(false),
             output_callbacks: RefCell::new(vec![]),
             active: Cell::new(Active::Base),
-            base_gcode_handlers: RefCell::new(IndexMap::new()),
-            ready_gcode_handlers: RefCell::new(IndexMap::new()),
-            mux_commands: RefCell::new(IndexMap::new()),
-            gcode_help: RefCell::new(IndexMap::new()),
+            base_gcode_handlers: RefCell::new(IndexMap::default()),
+            ready_gcode_handlers: RefCell::new(IndexMap::default()),
+            mux_commands: RefCell::new(IndexMap::default()),
+            gcode_help: RefCell::new(IndexMap::default()),
             status_commands: RefCell::new(PyVal::dict()),
             interrupt_counter: Cell::new(0),
             script_context: Cell::new(0),
         });
         let g = gcode.clone();
-        crate::events::KlippyReady::on(&printer, move || g.handle_ready());
+        crate::events::KlippyReady::on(printer, move || g.handle_ready());
         let g = gcode.clone();
-        crate::events::KlippyShutdown::on(&printer, move || g.handle_shutdown());
+        crate::events::KlippyShutdown::on(printer, move || g.handle_shutdown());
         let g = gcode.clone();
-        crate::events::KlippyDisconnect::on(&printer, move || g.handle_disconnect());
+        crate::events::KlippyDisconnect::on(printer, move || g.handle_disconnect());
         // Register commands needed before config file is loaded
         type Cmd = fn(&Rc<GCodeDispatch>, &GCodeCommand) -> KResult<()>;
         let handlers: [(&str, Cmd, Option<&str>); 10] = [
@@ -427,7 +427,7 @@ impl GCodeDispatch {
             let g = self.clone();
             let c = cmd.to_string();
             self.register_command(cmd, Some(Rc::new(move |gcmd: &GCodeCommand| g.cmd_mux(&c, gcmd))), false, desc)?;
-            self.mux_commands.borrow_mut().insert(cmd.to_string(), (key.to_string(), IndexMap::new()));
+            self.mux_commands.borrow_mut().insert(cmd.to_string(), (key.to_string(), IndexMap::default()));
         }
         let mut mux = self.mux_commands.borrow_mut();
         let (prev_key, prev_values) = mux.get_mut(cmd).unwrap();
@@ -480,13 +480,13 @@ impl GCodeDispatch {
     }
 
     fn build_status_commands(&self) {
-        let mut commands: IndexMap<String, PyVal> = IndexMap::new();
+        let mut commands: PyDict = IndexMap::default();
         for cmd in self.handler_names() {
-            commands.insert(cmd, PyVal::dict());
+            commands.insert(cmd.into(), PyVal::dict());
         }
         for (cmd, help) in self.gcode_help.borrow().iter() {
-            if let Some(PyVal::Dict(d)) = commands.get_mut(cmd) {
-                d.insert("help".to_string(), PyVal::Str(help.clone()));
+            if let Some(PyVal::Dict(d)) = commands.get_mut(cmd.as_str()) {
+                d.insert("help".into(), PyVal::Str(help.clone()));
             }
         }
         // (a new dict each time, handed out by reference: PyVal::Shared)
@@ -575,7 +575,7 @@ impl GCodeDispatch {
                 py_strip(&parts[..parts.len().min(3)].concat()).to_string()
             };
             // Build gcode "params" dictionary
-            let mut params = IndexMap::new();
+            let mut params = IndexMap::default();
             let mut i = 1;
             while i < parts.len() {
                 params.insert(parts[i].clone(), py_strip(parts.get(i + 1).map(|s| s.as_str()).unwrap_or("")).to_string());
@@ -687,7 +687,7 @@ impl GCodeDispatch {
         // Extract args while allowing shell style quoting
         let malformed = || KError::command(format!("Malformed command '{}'", gcmd.get_commandline()));
         let args = py_shlex_split(&rawparams, "#;").map_err(|_| malformed())?;
-        let mut eparams = IndexMap::new();
+        let mut eparams = IndexMap::default();
         for earg in args {
             // earg.split("=", 1) unpacked into k, v
             let (k, v) = earg.split_once('=').ok_or_else(malformed)?;
@@ -896,11 +896,11 @@ impl GCodeIO {
             io.register_fd();
         }
         let i = io.clone();
-        crate::events::KlippyReady::on(&printer, move || i.handle_ready());
+        crate::events::KlippyReady::on(printer, move || i.handle_ready());
         let i = io.clone();
-        crate::events::KlippyShutdown::on(&printer, move || i.handle_shutdown());
+        crate::events::KlippyShutdown::on(printer, move || i.handle_shutdown());
         let i = io.clone();
-        crate::events::KlippyAnalyzeShutdown::on(&printer, move |_, _| {
+        crate::events::KlippyAnalyzeShutdown::on(printer, move |_, _| {
             i.handle_analyze_shutdown();
             Ok(())
         });
@@ -956,6 +956,7 @@ impl GCodeIO {
     fn process_data_inner(self: &Rc<Self>, eventtime: f64) -> KResult<()> {
         // Read input, separate by newline, and add to pending_commands
         let mut buf = [0u8; 4096];
+        // SAFETY: buf is a live buffer of buf.len() bytes
         let n = unsafe { libc::read(self.fd, buf.as_mut_ptr() as *mut libc::c_void, buf.len()) };
         if n < 0 {
             logging::exception("Read g-code");
@@ -1022,6 +1023,7 @@ impl GCodeIO {
     fn respond_raw(&self, msg: &str) {
         if self.pipe_is_active.get() {
             let data = format!("{}\n", msg);
+            // SAFETY: data is a live slice of data.len() bytes
             let r = unsafe { libc::write(self.fd, data.as_ptr() as *const libc::c_void, data.len()) };
             if r < 0 {
                 logging::exception("Write g-code response");

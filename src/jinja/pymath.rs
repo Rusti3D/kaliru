@@ -3,16 +3,17 @@
 use super::filters::bind;
 use super::runtime::{builtin, Module};
 use super::value::{CallCtx, Exc, VResult, Value};
-use indexmap::IndexMap;
+use crate::IndexMap;
 
-extern "C" {
-    fn erf(x: f64) -> f64;
-    fn erfc(x: f64) -> f64;
-    fn tgamma(x: f64) -> f64;
-    fn lgamma(x: f64) -> f64;
-    fn nextafter(x: f64, y: f64) -> f64;
-    fn remainder(x: f64, y: f64) -> f64;
-    fn fma(x: f64, y: f64, z: f64) -> f64;
+// pure libm functions of f64 values: safe to call
+unsafe extern "C" {
+    safe fn erf(x: f64) -> f64;
+    safe fn erfc(x: f64) -> f64;
+    safe fn tgamma(x: f64) -> f64;
+    safe fn lgamma(x: f64) -> f64;
+    safe fn nextafter(x: f64, y: f64) -> f64;
+    safe fn remainder(x: f64, y: f64) -> f64;
+    safe fn fma(x: f64, y: f64, z: f64) -> f64;
 }
 
 fn domain() -> Exc {
@@ -89,8 +90,8 @@ unary!(m_acosh, "acosh", f64::acosh, false);
 unary!(m_atanh, "atanh", f64::atanh, false);
 unary!(m_cbrt, "cbrt", f64::cbrt, false);
 unary!(m_fabs, "fabs", f64::abs, false);
-unary!(m_erf, "erf", |x| unsafe { erf(x) }, false);
-unary!(m_erfc, "erfc", |x| unsafe { erfc(x) }, false);
+unary!(m_erf, "erf", |x| erf(x), false);
+unary!(m_erfc, "erfc", |x| erfc(x), false);
 unary!(m_log10, "log10", |x| if x <= 0.0 { f64::NAN } else { x.log10() }, false);
 unary!(m_log2, "log2", |x| if x <= 0.0 { f64::NAN } else { x.log2() }, false);
 unary!(m_log1p, "log1p", |x| if x <= -1.0 { f64::NAN } else { x.ln_1p() }, false);
@@ -102,7 +103,7 @@ fn m_gamma(_: &mut dyn CallCtx, args: Vec<Value>, kwargs: IndexMap<String, Value
     if x.is_finite() && x <= 0.0 && x.fract() == 0.0 {
         return Err(domain());
     }
-    Ok(Value::Float(math_1(x, |x| unsafe { tgamma(x) }, true)?))
+    Ok(Value::Float(math_1(x, |x| tgamma(x), true)?))
 }
 
 fn m_lgamma(_: &mut dyn CallCtx, args: Vec<Value>, kwargs: IndexMap<String, Value>) -> VResult<Value> {
@@ -110,7 +111,7 @@ fn m_lgamma(_: &mut dyn CallCtx, args: Vec<Value>, kwargs: IndexMap<String, Valu
     if x.is_finite() && x <= 0.0 && x.fract() == 0.0 {
         return Err(domain());
     }
-    Ok(Value::Float(math_1(x, |x| unsafe { lgamma(x) }, true)?))
+    Ok(Value::Float(math_1(x, |x| lgamma(x), true)?))
 }
 
 fn to_int(f: f64) -> VResult<Value> {
@@ -217,7 +218,7 @@ fn m_fmod(_: &mut dyn CallCtx, args: Vec<Value>, _kw: IndexMap<String, Value>) -
 fn m_remainder(_: &mut dyn CallCtx, args: Vec<Value>, _kw: IndexMap<String, Value>) -> VResult<Value> {
     let (a, b) = two("remainder", args)?;
     let (x, y) = (real(&a)?, real(&b)?);
-    let r = unsafe { remainder(x, y) };
+    let r = remainder(x, y);
     if r.is_nan() && !x.is_nan() && !y.is_nan() {
         return Err(domain());
     }
@@ -452,7 +453,7 @@ fn m_comb(_: &mut dyn CallCtx, args: Vec<Value>, _kw: IndexMap<String, Value>) -
 
 fn m_perm(_: &mut dyn CallCtx, args: Vec<Value>, _kw: IndexMap<String, Value>) -> VResult<Value> {
     if args.len() == 1 {
-        return m_factorial(&mut NoCtx, args, IndexMap::new());
+        return m_factorial(&mut NoCtx, args, IndexMap::default());
     }
     let (a, b) = two("perm", args)?;
     let (n, k) = (int_arg(&a)?, int_arg(&b)?);
@@ -474,7 +475,7 @@ fn m_perm(_: &mut dyn CallCtx, args: Vec<Value>, _kw: IndexMap<String, Value>) -
 
 fn m_nextafter(_: &mut dyn CallCtx, args: Vec<Value>, _kw: IndexMap<String, Value>) -> VResult<Value> {
     let (a, b) = two("nextafter", args)?;
-    Ok(Value::Float(unsafe { nextafter(real(&a)?, real(&b)?) }))
+    Ok(Value::Float(nextafter(real(&a)?, real(&b)?)))
 }
 
 fn m_ulp(_: &mut dyn CallCtx, args: Vec<Value>, kwargs: IndexMap<String, Value>) -> VResult<Value> {
@@ -482,9 +483,9 @@ fn m_ulp(_: &mut dyn CallCtx, args: Vec<Value>, kwargs: IndexMap<String, Value>)
     if x.is_nan() || x.is_infinite() {
         return Ok(Value::Float(x));
     }
-    let next = unsafe { nextafter(x, f64::INFINITY) };
+    let next = nextafter(x, f64::INFINITY);
     if next.is_infinite() {
-        let prev = unsafe { nextafter(x, 0.0) };
+        let prev = nextafter(x, 0.0);
         return Ok(Value::Float(x - prev));
     }
     Ok(Value::Float(next - x))
@@ -495,7 +496,7 @@ fn m_fma(_: &mut dyn CallCtx, args: Vec<Value>, _kw: IndexMap<String, Value>) ->
         return Err(Exc::type_error(format!("fma expected 3 arguments, got {}", args.len())));
     }
     let (x, y, z) = (real(&args[0])?, real(&args[1])?, real(&args[2])?);
-    Ok(Value::Float(unsafe { fma(x, y, z) }))
+    Ok(Value::Float(fma(x, y, z)))
 }
 
 struct NoCtx;
@@ -508,7 +509,7 @@ impl CallCtx for NoCtx {
 
 /// the math module object
 pub fn math_module() -> Value {
-    let mut attrs: IndexMap<&'static str, Value> = IndexMap::new();
+    let mut attrs: IndexMap<&'static str, Value> = IndexMap::default();
     let f = |name: &'static str, p: super::runtime::BuiltinFnPtr| builtin(name, "builtin_function_or_method", p);
     let funcs: &[(&'static str, super::runtime::BuiltinFnPtr)] = &[
         ("acos", m_acos),

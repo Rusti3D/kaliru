@@ -15,7 +15,6 @@ use crate::printer::{none_object, PObj, Printer, PrinterObject};
 use crate::pyfmt::py_round;
 use crate::pyval::PyVal;
 use crate::reactor::{Timer, NEVER, NOW};
-use indexmap::IndexMap;
 use std::cell::{Cell, RefCell};
 use std::rc::{Rc, Weak};
 
@@ -339,9 +338,10 @@ impl PrinterObject for HTU21D {
             true => PyVal::Int(self.humidity.get() as i64),
             false => PyVal::Float(self.humidity.get()),
         };
-        let mut d = IndexMap::new();
-        d.insert("temperature".to_string(), PyVal::Float(py_round(self.temp.get(), 2)));
-        d.insert("humidity".to_string(), humidity);
+        let d = crate::pydict! {
+            "temperature" => PyVal::Float(py_round(self.temp.get(), 2)),
+            "humidity" => humidity,
+        };
         Some(PyVal::Dict(d))
     }
 }

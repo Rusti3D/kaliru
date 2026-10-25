@@ -10,7 +10,6 @@ use crate::logging;
 use crate::printer::{PObj, Printer, PrinterObject};
 use crate::pyval::PyVal;
 use crate::reactor::{Timer, NEVER, NOW};
-use indexmap::IndexMap;
 use std::cell::{Cell, RefCell};
 use std::io::{Read, Seek};
 use std::rc::Rc;
@@ -26,6 +25,7 @@ pub struct PrinterSysStats {
 /// time.process_time()
 fn process_time() -> f64 {
     let mut ts = libc::timespec { tv_sec: 0, tv_nsec: 0 };
+    // SAFETY: ts is a live timespec
     unsafe { libc::clock_gettime(libc::CLOCK_PROCESS_CPUTIME_ID, &mut ts) };
     ts.tv_sec as f64 + ts.tv_nsec as f64 * 1e-9
 }
@@ -33,6 +33,7 @@ fn process_time() -> f64 {
 /// os.getloadavg()[0]
 fn getloadavg() -> f64 {
     let mut loadavg = [0f64; 3];
+    // SAFETY: loadavg holds the 3 values asked for
     unsafe { libc::getloadavg(loadavg.as_mut_ptr(), 3) };
     loadavg[0]
 }
@@ -95,10 +96,11 @@ impl PrinterObject for PrinterSysStats {
         true
     }
     fn get_status(&self, _eventtime: f64) -> Option<PyVal> {
-        let mut d = IndexMap::new();
-        d.insert("sysload".to_string(), PyVal::Float(self.last_load_avg.get()));
-        d.insert("cputime".to_string(), PyVal::Float(self.total_process_time.get()));
-        d.insert("memavail".to_string(), PyVal::Int(self.last_mem_avail.get()));
+        let d = crate::pydict! {
+            "sysload" => PyVal::Float(self.last_load_avg.get()),
+            "cputime" => PyVal::Float(self.total_process_time.get()),
+            "memavail" => PyVal::Int(self.last_mem_avail.get()),
+        };
         Some(PyVal::Dict(d))
     }
 }

@@ -13,10 +13,9 @@ use crate::logging;
 use crate::mcu::Mcu;
 use crate::printer::{PObj, Printer, PrinterObject};
 use crate::pyfmt::py_max;
-use crate::pyval::PyVal;
+use crate::pyval::{PyDict, PyVal};
 use crate::reactor::{Reactor, Timer, NEVER, NOW};
 use crate::toolhead::ToolHead;
-use indexmap::IndexMap;
 use std::cell::{Cell, RefCell};
 use std::rc::{Rc, Weak};
 
@@ -28,7 +27,7 @@ const CMD_SET_FILAMENT_SENSOR_HELP: &str = "Sets the filament sensor on/off";
 /// what RunoutHelper uses of its sensor (python's defined_sensor)
 pub trait DefinedSensor {
     fn get_extruder_pos(&self, eventtime: Option<f64>) -> KResult<f64>;
-    fn sensor_get_status(&self, eventtime: f64) -> IndexMap<String, PyVal>;
+    fn sensor_get_status(&self, eventtime: f64) -> PyDict;
     fn get_info(&self, gcmd: &GCodeCommand) -> KResult<bool>;
     fn reset_needed(&self, enable: Option<i64>, always_fire_events: Option<i64>) -> bool;
     fn set_filament_sensor(&self, gcmd: &GCodeCommand) -> KResult<bool>;
@@ -323,11 +322,12 @@ impl RunoutHelper {
     }
 
     pub fn get_status(&self, eventtime: f64) -> PyVal {
-        let mut status = IndexMap::new();
-        status.insert("filament_detected".to_string(), PyVal::Bool(self.filament_present.get()));
-        status.insert("enabled".to_string(), PyVal::Bool(self.sensor_enabled.get()));
-        status.insert("smart".to_string(), PyVal::Bool(self.smart.get()));
-        status.insert("always_fire_events".to_string(), PyVal::Bool(self.always_fire_events.get()));
+        let mut status = crate::pydict! {
+            "filament_detected" => PyVal::Bool(self.filament_present.get()),
+            "enabled" => PyVal::Bool(self.sensor_enabled.get()),
+            "smart" => PyVal::Bool(self.smart.get()),
+            "always_fire_events" => PyVal::Bool(self.always_fire_events.get()),
+        };
         if let Ok(s) = self.sensor() {
             status.extend(s.sensor_get_status(eventtime));
         }
@@ -464,11 +464,12 @@ impl DefinedSensor for SwitchSensor {
         Ok(extruder.find_past_position(print_time))
     }
 
-    fn sensor_get_status(&self, _eventtime: f64) -> IndexMap<String, PyVal> {
-        let mut d = IndexMap::new();
-        d.insert("runout_distance".to_string(), PyVal::Float(self.runout_helper.runout_distance.get()));
-        d.insert("runout_elapsed".to_string(), PyVal::Float(self.runout_helper.runout_elapsed.get()));
-        d.insert("check_on_print_start".to_string(), PyVal::Bool(self.check_on_print_start.get()));
+    fn sensor_get_status(&self, _eventtime: f64) -> PyDict {
+        let d = crate::pydict! {
+            "runout_distance" => PyVal::Float(self.runout_helper.runout_distance.get()),
+            "runout_elapsed" => PyVal::Float(self.runout_helper.runout_elapsed.get()),
+            "check_on_print_start" => PyVal::Bool(self.check_on_print_start.get()),
+        };
         d
     }
 

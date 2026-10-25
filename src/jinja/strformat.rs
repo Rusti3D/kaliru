@@ -4,7 +4,7 @@
 use super::value::{Exc, Key, VResult, Value};
 use crate::pyfmt::py_float_repr;
 use crate::pyformat::float_body;
-use indexmap::IndexMap;
+use crate::IndexMap;
 
 /// str.format(*args, **kwargs)
 pub fn str_format(fmt: &str, args: &[Value], kwargs: &IndexMap<String, Value>) -> VResult<String> {
@@ -261,7 +261,7 @@ fn group_digits(digits: &str, sep: char, every: usize) -> String {
     let chars: Vec<char> = digits.chars().collect();
     let mut out = String::new();
     for (i, ch) in chars.iter().enumerate() {
-        if i > 0 && (chars.len() - i) % every == 0 {
+        if i > 0 && (chars.len() - i).is_multiple_of(every) {
             out.push(sep);
         }
         out.push(*ch);
@@ -332,10 +332,7 @@ pub fn format_value(v: &Value, spec: &str) -> VResult<String> {
             }
             let sp = parse_spec(spec)?;
             let i = v.as_int().unwrap();
-            match sp.ty {
-                Some('e' | 'E' | 'f' | 'F' | 'g' | 'G' | '%') => return format_float(i as f64, &sp),
-                _ => {}
-            }
+            if let Some('e' | 'E' | 'f' | 'F' | 'g' | 'G' | '%') = sp.ty { return format_float(i as f64, &sp) }
             if sp.precision.is_some() {
                 return Err(Exc::value_error("Precision not allowed in integer format specifier"));
             }
@@ -397,8 +394,8 @@ fn format_float(f: f64, sp: &Spec) -> VResult<String> {
             }
             None => match sp.precision {
                 None => {
-                    let r = py_float_repr(f.abs());
-                    r
+                    
+                    py_float_repr(f.abs())
                 }
                 Some(p) => {
                     // like 'g' but keeps a ".0" in fixed notation

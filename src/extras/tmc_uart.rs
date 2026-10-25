@@ -13,7 +13,7 @@ use crate::pins::{PinsObject, SharedPinParams};
 use crate::printer::{downcast_rc, Printer, PrinterObject};
 use crate::reactor::ReactorMutex;
 use crate::chelper::serialqueue::CommandQueue;
-use indexmap::IndexMap;
+use crate::IndexMap;
 use std::cell::RefCell;
 use std::rc::Rc;
 

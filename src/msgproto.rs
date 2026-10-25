@@ -5,7 +5,7 @@
 // This file may be distributed under the terms of the GNU GPLv3 license.
 use crate::chelper::msgblock;
 use crate::pyfmt::{py_bytes_repr, py_float, py_int, py_int_base, py_int_digits, py_str, py_str_repr};
-use indexmap::IndexMap;
+use crate::IndexMap;
 use serde_json::Value;
 use std::collections::HashMap;
 use std::fmt;
@@ -163,16 +163,16 @@ impl BaseType {
     }
 
     fn encode_int(out: &mut Vec<u8>, v: i64) {
-        if v >= 0xC000000 || v < -0x4000000 {
+        if !(-0x4000000..0xC000000).contains(&v) {
             out.push((((v >> 28) & 0x7F) | 0x80) as u8);
         }
-        if v >= 0x180000 || v < -0x80000 {
+        if !(-0x80000..0x180000).contains(&v) {
             out.push((((v >> 21) & 0x7F) | 0x80) as u8);
         }
-        if v >= 0x3000 || v < -0x1000 {
+        if !(-0x1000..0x3000).contains(&v) {
             out.push((((v >> 14) & 0x7F) | 0x80) as u8);
         }
-        if v >= 0x60 || v < -0x20 {
+        if !(-0x20..0x60).contains(&v) {
             out.push((((v >> 7) & 0x7F) | 0x80) as u8);
         }
         out.push((v & 0x7F) as u8);
@@ -313,11 +313,7 @@ pub fn lookup_params(msgformat: &str, enumerations: &Enumerations) -> Result<Vec
 pub fn lookup_output_params(msgformat: &str) -> Result<Vec<BaseType>> {
     let mut param_types = vec![];
     let mut args = msgformat;
-    loop {
-        let pos = match args.find('%') {
-            Some(p) => p,
-            None => break,
-        };
+    while let Some(pos) = args.find('%') {
         if pos + 1 >= args.len() || args.as_bytes()[pos + 1] != b'%' {
             let mut found = None;
             for i in 0..4 {
@@ -408,7 +404,7 @@ impl MessageFormat {
     }
     pub fn parse(&self, s: &[u8], pos: usize) -> Result<(Params, usize)> {
         let mut pos = pos + self.msgid_bytes.len();
-        let mut out = Params::new();
+        let mut out = Params::default();
         for (name, t) in &self.param_names {
             let (v, p) = t.parse(s, pos)?;
             pos = p;
@@ -454,7 +450,7 @@ impl OutputFormat {
             out.push(if t.is_dynamic_string() { v.py_repr() } else { v.py_str() });
         }
         let outmsg = percent_format(&self.debugformat, &out)?;
-        let mut params = Params::new();
+        let mut params = Params::default();
         params.insert("#msg".into(), Val::Str(outmsg));
         Ok((params, pos))
     }
@@ -469,7 +465,7 @@ impl UnknownFormat {
     pub const NAME: &'static str = "#unknown";
     pub fn parse(&self, s: &[u8], pos: usize) -> Result<(Params, usize)> {
         let (msgid, _param_pos) = BaseType::Int32.parse(s, pos)?;
-        let mut params = Params::new();
+        let mut params = Params::default();
         params.insert("#msgid".into(), msgid);
         params.insert("#msg".into(), Val::Bytes(s.to_vec()));
         Ok((params, s.len().saturating_sub(MESSAGE_TRAILER_SIZE)))
@@ -534,7 +530,7 @@ impl MessageParser {
         let mut mp = MessageParser {
             warn_prefix: warn_prefix.to_string(),
             unknown: UnknownFormat,
-            enumerations: Enumerations::new(),
+            enumerations: Enumerations::default(),
             messages: vec![],
             messages_by_id: HashMap::new(),
             messages_by_name: HashMap::new(),
@@ -547,7 +543,7 @@ impl MessageParser {
             raw_identify_data: vec![],
         };
         let defaults: Vec<(String, i64)> = DEFAULT_MESSAGES.iter().map(|(f, i)| (f.to_string(), *i)).collect();
-        mp.init_messages(&defaults, &[], &[]).ok().expect("default messages");
+        mp.init_messages(&defaults, &[], &[]).expect("default messages");
         mp
     }
 
@@ -560,7 +556,7 @@ impl MessageParser {
             return 0;
         }
         let msglen = s[MESSAGE_POS_LEN] as usize;
-        if msglen < MESSAGE_MIN || msglen > MESSAGE_MAX {
+        if !(MESSAGE_MIN..=MESSAGE_MAX).contains(&msglen) {
             return -1;
         }
         let msgseq = s[MESSAGE_POS_SEQ];
@@ -710,7 +706,7 @@ impl MessageParser {
             .get(msgname)
             .ok_or_else(|| self.error(format!("Unknown command: {}", msgname)))?;
         let extract_err = || self.error(format!("Unable to extract params from: {}", msgname));
-        let mut argparts = Params::new();
+        let mut argparts = Params::default();
         for arg in &parts[1..] {
             let (name, value) = arg.split_once('=').ok_or_else(extract_err)?;
             argparts.insert(name.to_string(), Val::Str(value.to_string()));
@@ -831,7 +827,7 @@ impl MessageParser {
             let commands = get_obj("commands").ok_or_else(not_iterable)?;
             let responses = get_obj("responses").ok_or_else(not_iterable)?;
             let output = get_obj("output").unwrap_or(&empty);
-            let mut all_messages: IndexMap<String, i64> = IndexMap::new();
+            let mut all_messages: IndexMap<String, i64> = IndexMap::default();
             let id = |v: &Value| v.as_i64().ok_or_else(|| Err("invalid message id".to_string()));
             for m in [commands, responses, output] {
                 for (k, v) in m {

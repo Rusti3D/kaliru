@@ -9,10 +9,10 @@ use crate::configfile::ConfigWrapper;
 use crate::error::KResult;
 use crate::gcode::Coord;
 use crate::extras::homing::Homing;
-use crate::pyval::PyVal;
+use crate::pyval::{PyDict, PyVal};
 use crate::stepper::McuStepper;
 use crate::toolhead::{Move, ToolHead};
-use indexmap::IndexMap;
+use crate::IndexMap;
 use std::rc::Rc;
 
 pub struct NoneKinematics {
@@ -42,11 +42,12 @@ impl Kinematics for NoneKinematics {
         Ok(())
     }
 
-    fn get_status(&self, _eventtime: f64) -> IndexMap<String, PyVal> {
-        let mut d = IndexMap::new();
-        d.insert("homed_axes".to_string(), PyVal::from(""));
-        d.insert("axis_minimum".to_string(), self.axes_minmax.to_pyval());
-        d.insert("axis_maximum".to_string(), self.axes_minmax.to_pyval());
+    fn get_status(&self, _eventtime: f64) -> PyDict {
+        let d = crate::pydict! {
+            "homed_axes" => PyVal::from(""),
+            "axis_minimum" => self.axes_minmax.to_pyval(),
+            "axis_maximum" => self.axes_minmax.to_pyval(),
+        };
         d
     }
 

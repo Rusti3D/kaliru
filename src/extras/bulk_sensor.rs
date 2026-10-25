@@ -207,7 +207,7 @@ impl BatchWebhooksClient {
             PyVal::Dict(d) => d.clone(),
             _ => Default::default(),
         };
-        tmp.insert("params".to_string(), msg.clone());
+        tmp.insert("params".into(), msg.clone());
         cconn.send(&PyVal::Dict(tmp));
         true
     }

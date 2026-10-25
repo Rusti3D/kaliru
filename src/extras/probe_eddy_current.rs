@@ -18,7 +18,7 @@ use crate::pyfmt::{py_float, py_str_repr, py_sum};
 use crate::pyval::PyVal;
 use crate::reactor::ReactorCompletion;
 use crate::toolhead::ToolHead;
-use indexmap::IndexMap;
+use crate::IndexMap;
 use std::cell::{Cell, RefCell};
 use std::rc::{Rc, Weak};
 

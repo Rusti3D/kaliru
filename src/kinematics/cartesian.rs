@@ -19,10 +19,10 @@ use crate::configfile::{ConfigWrapper, Dflt, Lim};
 use crate::error::{KError, KResult};
 use crate::extras::homing::Homing;
 use crate::gcode::coord_pyval;
-use crate::pyval::PyVal;
+use crate::pyval::{PyDict, PyVal};
 use crate::stepper::{lookup_multi_rail, McuStepper, PrinterRail, Rail, RailRef};
 use crate::toolhead::{Move, ToolHead};
-use indexmap::IndexMap;
+use crate::IndexMap;
 use std::cell::{Cell, RefCell};
 use std::rc::{Rc, Weak};
 
@@ -335,13 +335,14 @@ impl Kinematics for CartKinematics {
         self.rails.iter().map(|r| r.clone() as RailRef).collect()
     }
 
-    fn get_status(&self, _eventtime: f64) -> IndexMap<String, PyVal> {
+    fn get_status(&self, _eventtime: f64) -> PyDict {
         let limits = self.limits.borrow();
         let axes: String = "xyz".chars().zip(limits.iter()).filter(|(_, (l, h))| l <= h).map(|(a, _)| a).collect();
-        let mut d = IndexMap::new();
-        d.insert("homed_axes".to_string(), PyVal::Str(axes));
-        d.insert("axis_minimum".to_string(), coord_pyval(&self.axes_min));
-        d.insert("axis_maximum".to_string(), coord_pyval(&self.axes_max));
+        let d = crate::pydict! {
+            "homed_axes" => PyVal::Str(axes),
+            "axis_minimum" => coord_pyval(&self.axes_min),
+            "axis_maximum" => coord_pyval(&self.axes_max),
+        };
         d
     }
 

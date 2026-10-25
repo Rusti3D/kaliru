@@ -9,10 +9,10 @@ use crate::error::KResult;
 use crate::gcode::{GCodeCommand, GCodeDispatch};
 use crate::mcu::EndstopRef;
 use crate::printer::{PObj, Printer, PrinterObject};
-use crate::pyval::PyVal;
+use crate::pyval::{PyDict, PyVal};
 use crate::toolhead::ToolHead;
 use crate::webhooks::{WebHooks, WebRequest};
-use indexmap::IndexMap;
+use crate::IndexMap;
 use std::cell::RefCell;
 use std::rc::Rc;
 
@@ -73,8 +73,8 @@ impl QueryEndstops {
         let res = self.query();
         gc_mutex.unlock();
         res?;
-        let d: IndexMap<String, PyVal> =
-            self.last_state.borrow().iter().map(|(name, t)| (name.clone(), PyVal::from(state_str(*t)))).collect();
+        let d: PyDict =
+            self.last_state.borrow().iter().map(|(name, t)| (name.clone().into(), PyVal::from(state_str(*t)))).collect();
         web_request.send(PyVal::Dict(d))
     }
 
@@ -93,9 +93,9 @@ impl PrinterObject for QueryEndstops {
         true
     }
     fn get_status(&self, _eventtime: f64) -> Option<PyVal> {
-        let lq: IndexMap<String, PyVal> = self.last_state.borrow().iter().map(|(n, v)| (n.clone(), PyVal::Int(*v))).collect();
-        let mut d = IndexMap::new();
-        d.insert("last_query".to_string(), PyVal::Dict(lq));
+        let lq: PyDict = self.last_state.borrow().iter().map(|(n, v)| (n.clone().into(), PyVal::Int(*v))).collect();
+        let mut d = IndexMap::default();
+        d.insert("last_query".into(), PyVal::Dict(lq));
         Some(PyVal::Dict(d))
     }
     fn teardown(&self) {

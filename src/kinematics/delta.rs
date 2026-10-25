@@ -14,10 +14,10 @@ use crate::logging;
 use crate::mathutil::{trilateration, MathError};
 use crate::printer::{ConfigFileObject, Printer};
 use crate::pyfmt::{py_max, py_min};
-use crate::pyval::PyVal;
+use crate::pyval::{PyDict, PyVal};
 use crate::stepper::{lookup_multi_rail, McuStepper, PrinterRail, Rail, RailRef};
 use crate::toolhead::{Move, ToolHead};
-use indexmap::IndexMap;
+use crate::IndexMap;
 use std::cell::Cell;
 use std::rc::Rc;
 
@@ -267,12 +267,13 @@ impl Kinematics for DeltaKinematics {
         self.rails.iter().map(|r| r.clone() as RailRef).collect()
     }
 
-    fn get_status(&self, _eventtime: f64) -> IndexMap<String, PyVal> {
-        let mut d = IndexMap::new();
-        d.insert("homed_axes".to_string(), PyVal::from(if self.need_home.get() { "" } else { "xyz" }));
-        d.insert("axis_minimum".to_string(), self.axes_min.clone());
-        d.insert("axis_maximum".to_string(), self.axes_max.clone());
-        d.insert("cone_start_z".to_string(), PyVal::Float(self.limit_z));
+    fn get_status(&self, _eventtime: f64) -> PyDict {
+        let d = crate::pydict! {
+            "homed_axes" => PyVal::from(if self.need_home.get() { "" } else { "xyz" }),
+            "axis_minimum" => self.axes_min.clone(),
+            "axis_maximum" => self.axes_max.clone(),
+            "cone_start_z" => PyVal::Float(self.limit_z),
+        };
         d
     }
 
@@ -331,8 +332,8 @@ impl Calibration for DeltaCalibration {
         if is_extended {
             adj_params.extend(["arm_a", "arm_b", "arm_c"].iter().map(|s| s.to_string()));
         }
-        let mut params = IndexMap::new();
-        params.insert("radius".to_string(), self.radius);
+        let mut params = IndexMap::default();
+        params.insert("radius".into(), self.radius);
         for (i, axis) in ["a", "b", "c"].iter().enumerate() {
             params.insert(format!("angle_{}", axis), self.angles[i]);
             params.insert(format!("arm_{}", axis), self.arms[i]);

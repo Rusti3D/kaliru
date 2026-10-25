@@ -1,10 +1,11 @@
 // klippy/webhooks.py: WebHooks, WebRequest
 use super::*;
 use crate::method;
+use crate::pyval::PyDict;
 use crate::plugins::convert::{FromPy, ToPy};
 use crate::plugins::native::Args;
 use crate::webhooks::{Ty, WebHooks, WebRequest};
-use indexmap::IndexMap;
+use crate::IndexMap;
 
 pub fn register(r: &mut Registry) {
     r.method("klippy.webhooks.WebHooks.register_endpoint", |a| {
@@ -27,7 +28,7 @@ pub fn register(r: &mut Registry) {
     // _remote_methods: {method: {...}}; plugins test membership
     r.attr("klippy.webhooks.WebHooks._remote_methods", |o| {
         let names = objects::unwrap_as::<WebHooks>(o)?.remote_method_names();
-        let d: IndexMap<String, PyVal> = names.into_iter().map(|n| (n, PyVal::Dict(IndexMap::new()))).collect();
+        let d: PyDict = names.into_iter().map(|n| (n.into(), PyVal::Dict(IndexMap::default()))).collect();
         Ok(from_pyval(&PyVal::Dict(d)))
     }, None);
 
@@ -61,7 +62,7 @@ fn get_item(a: &Args, get: impl FnOnce(&WebRequest, &str, Option<PyVal>) -> KRes
     let w = a.this::<WebRequest>()?;
     let item = a.string(0)?;
     let sentinel = lookup("klippy.webhooks", "Sentinel")?;
-    if !w.params.contains_key(&item) && !a.arg(1).is(sentinel.as_ptr()) {
+    if !w.params.contains_key(item.as_str()) && !a.arg(1).is(sentinel.as_ptr()) {
         return Ok(a.arg(1).clone());
     }
     Ok(from_pyval(&get(&w, &item, None)?))

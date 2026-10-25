@@ -10,7 +10,7 @@ use crate::extras::gcode_macro::{load_gcode_macro, Template};
 use crate::gcode::{GCodeCommand, GCodeDispatch, Handler};
 use crate::jinja::value::Value;
 use crate::printer::{PObj, Printer, PrinterObject};
-use crate::pyval::PyVal;
+use crate::pyval::{PyDict, PyVal};
 use crate::toolhead::ToolHead;
 use std::cell::{Cell, RefCell};
 use std::rc::Rc;
@@ -90,10 +90,10 @@ impl HomingOverride {
         toolhead.set_position(&pos, &homing_axes)?;
         // Perform homing
         let mut context = self.template.create_template_context();
-        let params: indexmap::IndexMap<String, PyVal> =
-            gcmd.get_command_parameters().into_iter().map(|(k, v)| (k, PyVal::Str(v))).collect();
-        context.insert("params".to_string(), Value::from_pyval(&PyVal::Dict(params)));
-        context.insert("rawparams".to_string(), Value::from(gcmd.get_raw_command_parameters()));
+        let params: PyDict =
+            gcmd.get_command_parameters().into_iter().map(|(k, v)| (k.into(), PyVal::Str(v))).collect();
+        context.insert("params".into(), Value::from_pyval(&PyVal::Dict(params)));
+        context.insert("rawparams".into(), Value::from(gcmd.get_raw_command_parameters()));
         self.in_script.set(true);
         let r = self.template.run_gcode_from_command(Some(context));
         self.in_script.set(false);

@@ -11,7 +11,6 @@ use crate::printer::{downcast_rc, PObj, Printer, PrinterObject};
 use crate::pyfmt::{py_bool, py_max};
 use crate::pyval::PyVal;
 use crate::toolhead::ToolHead;
-use indexmap::IndexMap;
 use std::cell::{Cell, RefCell};
 use std::rc::{Rc, Weak};
 
@@ -354,15 +353,16 @@ impl PrinterObject for FirmwareRetraction {
     }
     fn get_status(&self, _eventtime: f64) -> Option<PyVal> {
         let p = self.p.get();
-        let mut d = IndexMap::new();
-        d.insert("retract_length".to_string(), PyVal::Float(p.retract_length));
-        d.insert("retract_speed".to_string(), PyVal::Float(p.retract_speed));
-        d.insert("unretract_extra_length".to_string(), PyVal::Float(p.unretract_extra_length));
-        d.insert("unretract_speed".to_string(), PyVal::Float(p.unretract_speed));
-        d.insert("z_hop_height".to_string(), PyVal::Float(p.z_hop_height));
-        d.insert("unretract_length".to_string(), PyVal::Float(p.unretract_length));
-        d.insert("retract_state".to_string(), PyVal::Bool(self.is_retracted.get()));
-        d.insert("zhop_state".to_string(), PyVal::Bool(self.do_zhop.get()));
+        let d = crate::pydict! {
+            "retract_length" => PyVal::Float(p.retract_length),
+            "retract_speed" => PyVal::Float(p.retract_speed),
+            "unretract_extra_length" => PyVal::Float(p.unretract_extra_length),
+            "unretract_speed" => PyVal::Float(p.unretract_speed),
+            "z_hop_height" => PyVal::Float(p.z_hop_height),
+            "unretract_length" => PyVal::Float(p.unretract_length),
+            "retract_state" => PyVal::Bool(self.is_retracted.get()),
+            "zhop_state" => PyVal::Bool(self.do_zhop.get()),
+        };
         Some(PyVal::Dict(d))
     }
 }

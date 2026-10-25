@@ -16,7 +16,7 @@ const MAX_INT32: i64 = 1 << 31;
 const MIN_INT32: i64 = -(1 << 31) - 1;
 
 fn assert_is_int32(value: i64, error: String) -> KResult<i64> {
-    if value > MAX_INT32 || value < MIN_INT32 {
+    if !(MIN_INT32..=MAX_INT32).contains(&value) {
         return Err(KError::Py("OverflowError".into(), error));
     }
     Ok(value)

@@ -26,7 +26,7 @@ use crate::logging;
 use crate::mcu::Mcu;
 use crate::printer::{PObj, Printer, PrinterObject};
 use crate::reactor::{Reactor, Timer, NOW};
-use indexmap::IndexMap;
+use crate::IndexMap;
 use std::cell::{Cell, RefCell};
 use std::rc::{Rc, Weak};
 

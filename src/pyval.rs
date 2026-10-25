@@ -3,8 +3,29 @@
 // webhooks payloads. Unlike serde_json::Value it keeps int vs float, allows
 // inf / nan and tells tuples from lists, and it formats like python's str(),
 // repr() and json.dumps().
-use crate::pyfmt::{py_float_repr, py_json_float, py_str_repr};
-use indexmap::IndexMap;
+use crate::pyfmt::{py_float_repr, py_json_float_into, py_str_repr};
+use crate::IndexMap;
+
+/// a dict key: field names are static, so a status dict built every poll
+/// allocates no key strings (and clones of it copy none)
+pub type PyKey = std::borrow::Cow<'static, str>;
+pub type PyDict = IndexMap<PyKey, PyVal>;
+
+/// A dict of static field names, sized up front (a status built every poll
+/// allocates its table once instead of growing it):
+/// `pydict! { "power" => v, "value" => w }` inserts in that order
+#[macro_export]
+macro_rules! pydict {
+    ($($k:literal => $v:expr),* $(,)?) => {{
+        let mut d = $crate::pyval::PyDict::with_capacity_and_hasher(
+            <[()]>::len(&[$($crate::pydict!(@one $k)),*]),
+            ::std::default::Default::default(),
+        );
+        $( d.insert(::std::borrow::Cow::Borrowed($k), $v); )*
+        d
+    }};
+    (@one $k:literal) => { () };
+}
 
 #[derive(Clone, Debug, PartialEq)]
 pub enum PyVal {
@@ -17,7 +38,7 @@ pub enum PyVal {
     Tuple(Vec<PyVal>),
     /// a collections.namedtuple instance: (type name, field names, values)
     NamedTuple(&'static str, &'static [&'static str], Vec<PyVal>),
-    Dict(IndexMap<String, PyVal>),
+    Dict(PyDict),
     /// a value handed out by reference, as python hands out its objects:
     /// a big status dict kept by its owner (configfile, gcode commands);
     /// copies share it and py_eq of the same object is immediate
@@ -87,8 +108,11 @@ impl PyVal {
         match self {
             PyVal::None => out.push_str("null"),
             PyVal::Bool(b) => out.push_str(if *b { "true" } else { "false" }),
-            PyVal::Int(i) => out.push_str(&i.to_string()),
-            PyVal::Float(f) => out.push_str(&py_json_float(*f)),
+            PyVal::Int(i) => {
+                use std::fmt::Write;
+                let _ = write!(out, "{}", i);
+            }
+            PyVal::Float(f) => py_json_float_into(out, *f),
             PyVal::Str(s) => json_str_into(out, s),
             PyVal::List(a) | PyVal::Tuple(a) | PyVal::NamedTuple(_, _, a) => {
                 out.push('[');
@@ -165,14 +189,19 @@ impl PyVal {
     }
 
     pub fn dict() -> Self {
-        PyVal::Dict(IndexMap::new())
+        PyVal::Dict(IndexMap::default())
     }
 
     /// json.dumps(v, separators=(",", ":")) (webhooks responses)
     pub fn json_compact(&self) -> String {
         let mut out = String::new();
-        self.json_sep(&mut out, ",", ":");
+        self.json_compact_into(&mut out);
         out
+    }
+
+    /// json_compact() appended to `out`
+    pub fn json_compact_into(&self, out: &mut String) {
+        self.json_sep(out, ",", ":");
     }
 
     fn json_sep(&self, out: &mut String, item: &str, key: &str) {
@@ -423,7 +452,7 @@ impl JsonParser<'_> {
     }
     fn object(&mut self) -> Result<PyVal, String> {
         self.pos += 1;
-        let mut out = IndexMap::new();
+        let mut out = IndexMap::default();
         self.ws();
         if self.s.get(self.pos) == Some(&'}') {
             self.pos += 1;
@@ -443,7 +472,7 @@ impl JsonParser<'_> {
             self.pos += 1;
             self.ws();
             let v = self.value()?;
-            out.insert(k, v);
+            out.insert(k.into(), v);
             self.ws();
             match self.s.get(self.pos) {
                 Some(',') => self.pos += 1,
@@ -459,6 +488,12 @@ impl JsonParser<'_> {
 
 fn json_str_into(out: &mut String, s: &str) {
     out.push('"');
+    // (the common case: printable ascii without quotes or backslashes, as is)
+    if s.bytes().all(|b| (0x20..=0x7e).contains(&b) && b != b'"' && b != b'\\') {
+        out.push_str(s);
+        out.push('"');
+        return;
+    }
     for c in s.chars() {
         match c {
             '"' => out.push_str("\\\""),
@@ -517,23 +552,6 @@ impl<T: Into<PyVal>> From<Option<T>> for PyVal {
     }
 }
 
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn formats_like_python() {
-        let mut d = IndexMap::new();
-        d.insert("a".to_string(), PyVal::Tuple(vec![PyVal::Int(1), PyVal::Float(2.0)]));
-        d.insert("b".to_string(), PyVal::Float(f64::INFINITY));
-        d.insert("é".to_string(), PyVal::None);
-        let v = PyVal::Dict(d);
-        assert_eq!(v.repr(), "{'a': (1, 2.0), 'b': inf, 'é': None}");
-        assert_eq!(v.json(), "{\"a\": [1, 2.0], \"b\": Infinity, \"\\u00e9\": null}");
-        assert_eq!(PyVal::Tuple(vec![PyVal::Str("x".into())]).repr(), "('x',)");
-    }
-}
-
 /// a json value (as python's json.loads() would have made it)
 impl From<&serde_json::Value> for PyVal {
     fn from(v: &serde_json::Value) -> Self {
@@ -547,7 +565,70 @@ impl From<&serde_json::Value> for PyVal {
             },
             Value::String(s) => PyVal::Str(s.clone()),
             Value::Array(a) => PyVal::List(a.iter().map(PyVal::from).collect()),
-            Value::Object(o) => PyVal::Dict(o.iter().map(|(k, v)| (k.clone(), PyVal::from(v))).collect()),
+            Value::Object(o) => PyVal::Dict(o.iter().map(|(k, v)| (k.clone().into(), PyVal::from(v))).collect()),
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    // the per-character escaping without the ascii fast path (rustify): the
+    // oracle for json_str_into
+    fn old_json_str(s: &str) -> String {
+        let mut out = String::from('"');
+        for c in s.chars() {
+            match c {
+                '"' => out.push_str("\\\""),
+                '\\' => out.push_str("\\\\"),
+                '\n' => out.push_str("\\n"),
+                '\r' => out.push_str("\\r"),
+                '\t' => out.push_str("\\t"),
+                '\x08' => out.push_str("\\b"),
+                '\x0c' => out.push_str("\\f"),
+                c if (c as u32) < 0x20 || (c as u32) > 0x7e => {
+                    let mut buf = [0u16; 2];
+                    for u in c.encode_utf16(&mut buf) {
+                        out.push_str(&format!("\\u{:04x}", u));
+                    }
+                }
+                c => out.push(c),
+            }
+        }
+        out.push('"');
+        out
+    }
+
+    #[test]
+    fn json_str_matches_the_per_char_escaping() {
+        let mut cases: Vec<String> = ["", "status", "a b", "q\"x", "back\\slash", "tab\t", "nl\n", "~", "\x7f", "é", "日本", "😀", "\x00\x1f"]
+            .iter()
+            .map(|s| s.to_string())
+            .collect();
+        // every single ascii character and pairs of them
+        for a in 0u8..128 {
+            cases.push((a as char).to_string());
+            for b in [b'a', b'"', b'\\', 0x1f, 0x7e, 0x7f] {
+                cases.push(format!("{}{}", a as char, b as char));
+            }
+        }
+        for s in &cases {
+            let mut out = String::new();
+            json_str_into(&mut out, s);
+            assert_eq!(out, old_json_str(s), "{:?}", s);
+        }
+    }
+
+    #[test]
+    fn formats_like_python() {
+        let mut d = IndexMap::default();
+        d.insert("a".into(), PyVal::Tuple(vec![PyVal::Int(1), PyVal::Float(2.0)]));
+        d.insert("b".into(), PyVal::Float(f64::INFINITY));
+        d.insert("é".into(), PyVal::None);
+        let v = PyVal::Dict(d);
+        assert_eq!(v.repr(), "{'a': (1, 2.0), 'b': inf, 'é': None}");
+        assert_eq!(v.json(), "{\"a\": [1, 2.0], \"b\": Infinity, \"\\u00e9\": null}");
+        assert_eq!(PyVal::Tuple(vec![PyVal::Str("x".into())]).repr(), "('x',)");
     }
 }

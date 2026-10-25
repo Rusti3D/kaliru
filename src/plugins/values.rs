@@ -10,7 +10,7 @@ use super::objects;
 use super::py::{self, PyRef};
 use crate::error::KResult;
 use crate::jinja::value::{Key, Value};
-use indexmap::IndexMap;
+use crate::IndexMap;
 use std::cell::RefCell;
 use std::rc::Rc;
 
@@ -76,7 +76,7 @@ fn seq(o: &PyRef) -> KResult<Vec<Value>> {
 fn pairs(o: &PyRef) -> KResult<IndexMap<Key, Value>> {
     let items = py::lookup("builtins", "list")?.call(&[&o.call_method("items", &[])?])?;
     let n = py::lookup("builtins", "len")?.call(&[&items])?.as_i64()?;
-    let mut out = IndexMap::new();
+    let mut out = IndexMap::default();
     for i in 0..n {
         let kv = items.call_method("__getitem__", &[&py::py_int(i)])?;
         let k = py_to_value(&kv.call_method("__getitem__", &[&py::py_int(0)])?)?;

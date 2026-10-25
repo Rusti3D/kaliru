@@ -1,5 +1,13 @@
 // Kaliru - Kalico (Klipper fork) ported to Rust
 
+/// IndexMap / IndexSet with FxHasher (rustc-hash): a few instructions per
+/// word, deterministic. The default (SipHash, built against hash flooding)
+/// was a fifth of the status poll's instructions; the maps' order is their
+/// insertion order with either.
+pub type FxBuild = std::hash::BuildHasherDefault<rustc_hash::FxHasher>;
+pub type IndexMap<K, V> = indexmap::IndexMap<K, V, FxBuild>;
+pub type IndexSet<K> = indexmap::IndexSet<K, FxBuild>;
+
 /// The typed downcasts of a trait object whose trait has `Any` as a
 /// supertrait: `obj.downcast_ref::<T>()`, `obj.downcast_mut::<T>()`,
 /// `obj.is::<T>()` (trait upcasting to `dyn Any`; no `as_any` per type).
@@ -45,10 +53,9 @@ pub mod pins;
 pub mod plugins;
 pub mod printer;
 pub mod pyfmt;
+pub mod pyfmt_tables;
 pub mod pyformat;
 pub mod pyliteral;
-#[cfg(feature = "python")]
-pub mod pysyntax;
 pub mod pyglob;
 pub mod pyval;
 pub mod queuelogger;

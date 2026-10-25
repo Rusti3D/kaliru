@@ -14,7 +14,7 @@ use crate::extras::bus::{mcu_spi_from_config, McuSpi};
 use crate::extras::display_templates::Glyph;
 use crate::mcu::Mcu;
 use crate::printer::Printer;
-use indexmap::IndexMap;
+use crate::IndexMap;
 use std::rc::Rc;
 
 pub struct HD44780Spi {

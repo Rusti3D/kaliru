@@ -11,7 +11,7 @@ use crate::gcode::{GCodeCommand, GCodeDispatch};
 use crate::logging;
 use crate::printer::{ConfigFileObject, PObj, Printer, PrinterObject};
 use crate::pyval::PyVal;
-use indexmap::IndexMap;
+use crate::IndexMap;
 use std::path::{Path, PathBuf};
 use std::rc::Rc;
 
@@ -153,14 +153,14 @@ impl KalicoTelemetry {
     fn collect_anonymized_config(&self) -> KResult<PyVal> {
         let configfile = self.printer.lookup::<ConfigFileObject>("configfile")?;
         let pconfig = configfile.pconfig.borrow();
-        let mut res = IndexMap::new();
+        let mut res = IndexMap::default();
         let raw_config = match pconfig.status_raw_config.get() {
             PyVal::Dict(d) => d.clone(),
-            _ => IndexMap::new(),
+            _ => IndexMap::default(),
         };
         for (section, options) in &raw_config {
             let keys = match options {
-                PyVal::Dict(d) => d.keys().map(|k| PyVal::Str(k.clone())).collect(),
+                PyVal::Dict(d) => d.keys().map(|k| PyVal::Str(k.to_string())).collect(),
                 _ => vec![],
             };
             res.insert(section.clone(), PyVal::List(keys));
@@ -170,15 +170,19 @@ impl KalicoTelemetry {
 
     // Collect basic platform information
     fn collect_platform(&self) -> PyVal {
+        // SAFETY: utsname is plain data: zeroed is valid
         let mut uts: libc::utsname = unsafe { std::mem::zeroed() };
+        // SAFETY: uts is a live utsname
         unsafe { libc::uname(&mut uts) };
+        // SAFETY: utsname fields are NUL-terminated (zeroed, then filled by uname)
         let field = |f: &[libc::c_char]| unsafe { std::ffi::CStr::from_ptr(f.as_ptr()) }.to_string_lossy().into_owned();
-        let mut d = IndexMap::new();
-        d.insert("machine".to_string(), PyVal::Str(field(&uts.machine)));
-        d.insert("os_release".to_string(), collect_os_release());
-        d.insert("version".to_string(), PyVal::Str(field(&uts.version)));
+        let mut d = crate::pydict! {
+            "machine" => PyVal::Str(field(&uts.machine)),
+            "os_release" => collect_os_release(),
+            "version" => PyVal::Str(field(&uts.version)),
+        };
         // sys.version: kaliru is not python
-        d.insert("python".to_string(), PyVal::Str(format!("Kaliru {}", env!("CARGO_PKG_VERSION"))));
+        d.insert("python".into(), PyVal::Str(format!("Kaliru {}", env!("CARGO_PKG_VERSION"))));
         PyVal::Dict(d)
     }
 
@@ -186,15 +190,16 @@ impl KalicoTelemetry {
     fn collect_telemetry(&self) -> KResult<PyVal> {
         let machine_id = self.get_machine_id()?;
         let arg = |k: &str| self.printer.start_arg(k).unwrap_or_else(|| PyVal::from("unknown"));
-        let mut d = IndexMap::new();
-        d.insert("id".to_string(), PyVal::Str(machine_id));
-        d.insert("version".to_string(), arg("software_version"));
-        d.insert("branch".to_string(), arg("git_branch"));
-        d.insert("cpu_info".to_string(), arg("cpu_info"));
-        d.insert("platform".to_string(), self.collect_platform());
-        d.insert("config".to_string(), self.collect_anonymized_config()?);
+        let mut d = crate::pydict! {
+            "id" => PyVal::Str(machine_id),
+            "version" => arg("software_version"),
+            "branch" => arg("git_branch"),
+            "cpu_info" => arg("cpu_info"),
+            "platform" => self.collect_platform(),
+            "config" => self.collect_anonymized_config()?,
+        };
         let objects = self.printer.lookup_objects(None).into_iter().map(|(n, _)| PyVal::Str(n)).collect();
-        d.insert("objects".to_string(), PyVal::List(objects));
+        d.insert("objects".into(), PyVal::List(objects));
         Ok(PyVal::Dict(d))
     }
 }
@@ -204,12 +209,12 @@ fn collect_os_release() -> PyVal {
     let paths = ["/etc/os-release", "/usr/lib/os-release"];
     let Some(path) = paths.iter().find(|p| Path::new(p).exists()) else { return PyVal::None };
     let Ok(text) = std::fs::read_to_string(path) else { return PyVal::None };
-    let mut result = IndexMap::new();
+    let mut result = IndexMap::default();
     for line in text.split_inclusive('\n') {
         let Some((key, value)) = line.split_once('=') else { continue };
         if let Ok(parts) = crate::pyfmt::py_shlex_split(value, "") {
             if let Some(first) = parts.into_iter().next() {
-                result.insert(key.to_string(), PyVal::Str(first));
+                result.insert(key.to_string().into(), PyVal::Str(first));
             }
         }
     }
@@ -240,7 +245,7 @@ fn json_indent(v: &PyVal, indent: usize, level: usize) -> String {
         PyVal::Dict(d) if !d.is_empty() => {
             let items: Vec<String> = d
                 .iter()
-                .map(|(k, x)| format!("{}{}: {}", pad(level + 1), PyVal::Str(k.clone()).json(), json_indent(x, indent, level + 1)))
+                .map(|(k, x)| format!("{}{}: {}", pad(level + 1), PyVal::Str(k.to_string()).json(), json_indent(x, indent, level + 1)))
                 .collect();
             format!("{{\n{}\n{}}}", items.join(",\n"), pad(level))
         }
@@ -285,8 +290,8 @@ impl PrinterObject for KalicoTelemetry {
         true
     }
     fn get_status(&self, _eventtime: f64) -> Option<PyVal> {
-        let mut d = IndexMap::new();
-        d.insert("enabled".to_string(), self.enabled.map(PyVal::Bool).unwrap_or(PyVal::None));
+        let mut d = IndexMap::default();
+        d.insert("enabled".into(), self.enabled.map(PyVal::Bool).unwrap_or(PyVal::None));
         Some(PyVal::Dict(d))
     }
 }

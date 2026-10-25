@@ -7,9 +7,9 @@ use crate::gcode::{GCodeCommand, GCodeDispatch};
 use crate::logging;
 use crate::printer::{ConfigFileObject, PObj, Printer};
 use crate::pyformat::percent_format;
-use crate::pyval::PyVal;
+use crate::pyval::{PyDict, PyVal};
 use crate::toolhead::ToolHead;
-use indexmap::IndexMap;
+use crate::IndexMap;
 use std::cell::{Cell, RefCell};
 use std::f64::consts::PI;
 use std::rc::Rc;
@@ -391,17 +391,17 @@ impl Control for ControlMPC {
     }
 
     fn get_status(&self, _eventtime: f64) -> Option<PyVal> {
-        let mut d = IndexMap::new();
+        let mut d = IndexMap::default();
         let f = |v: f64| PyVal::Float(v);
-        d.insert("temp_block".to_string(), f(self.state_block_temp.get()));
-        d.insert("temp_sensor".to_string(), f(self.state_sensor_temp.get()));
-        d.insert("temp_ambient".to_string(), f(self.state_ambient_temp.get()));
-        d.insert("power".to_string(), f(self.last_power.get()));
-        d.insert("loss_ambient".to_string(), f(self.last_loss_ambient.get()));
-        d.insert("loss_filament".to_string(), f(self.last_loss_filament.get()));
-        d.insert("filament_temp".to_string(), self.filament_temp_src.borrow().clone());
-        d.insert("filament_heat_capacity".to_string(), f(self.const_filament_heat_capacity.get()));
-        d.insert("filament_density".to_string(), f(self.const_filament_density.get()));
+        d.insert("temp_block".into(), f(self.state_block_temp.get()));
+        d.insert("temp_sensor".into(), f(self.state_sensor_temp.get()));
+        d.insert("temp_ambient".into(), f(self.state_ambient_temp.get()));
+        d.insert("power".into(), f(self.last_power.get()));
+        d.insert("loss_ambient".into(), f(self.last_loss_ambient.get()));
+        d.insert("loss_filament".into(), f(self.last_loss_filament.get()));
+        d.insert("filament_temp".into(), self.filament_temp_src.borrow().clone());
+        d.insert("filament_heat_capacity".into(), f(self.const_filament_heat_capacity.get()));
+        d.insert("filament_density".into(), f(self.const_filament_density.get()));
         Some(PyVal::Dict(d))
     }
 
@@ -421,7 +421,7 @@ impl Control for ControlMPC {
 type Res = IndexMap<&'static str, f64>;
 
 fn res_repr(r: &Res) -> String {
-    let d: IndexMap<String, PyVal> = r.iter().map(|(k, v)| (k.to_string(), PyVal::Float(*v))).collect();
+    let d: PyDict = r.iter().map(|(k, v)| (k.to_string().into(), PyVal::Float(*v))).collect();
     PyVal::Dict(d).repr()
 }
 
@@ -776,7 +776,7 @@ impl MpcCalibrate {
         let post_block_temp = asymp_t + (start_temp - asymp_t) * (-block_responsiveness * heat_time).exp();
         let post_sensor_temp = all_samples[all_samples.len() - 1].1;
 
-        let mut r = Res::new();
+        let mut r = Res::default();
         r.insert("post_block_temp", post_block_temp);
         r.insert("post_sensor_temp", post_sensor_temp);
         r.insert("block_responsiveness", block_responsiveness);
@@ -805,7 +805,7 @@ impl MpcCalibrate {
 
         let fan_ambient_transfer = transfer_res.fan_powers.iter().map(|(_speed, power)| power / target_ambient_temp).collect();
 
-        let mut r = Res::new();
+        let mut r = Res::default();
         r.insert("ambient_transfer", ambient_transfer);
         r.insert("block_responsiveness", block_responsiveness);
         r.insert("block_heat_capacity", block_heat_capacity);
@@ -849,7 +849,7 @@ impl Control for TuningControl {
         self.value.get() != 0.0 || self.target.get() != Some(0.0)
     }
     fn get_profile(&self) -> Profile {
-        let p: Profile = Rc::new(RefCell::new(IndexMap::new()));
+        let p: Profile = Rc::new(RefCell::new(IndexMap::default()));
         p.borrow_mut().insert("name".into(), ProfVal::V(PyVal::from("tuning")));
         p
     }

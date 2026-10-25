@@ -14,7 +14,7 @@ use crate::printer::{PObj, Printer, PrinterObject};
 use crate::pyfmt::{py_max, py_min};
 use crate::pyval::PyVal;
 use crate::toolhead::ToolHead;
-use indexmap::IndexMap;
+use crate::IndexMap;
 use std::cell::Cell;
 use std::rc::{Rc, Weak};
 
@@ -291,8 +291,8 @@ impl PrinterObject for PrinterOutputPin {
         true
     }
     fn get_status(&self, _eventtime: f64) -> Option<PyVal> {
-        let mut d = IndexMap::new();
-        d.insert("value".to_string(), PyVal::Float(self.last_value.get()));
+        let mut d = IndexMap::default();
+        d.insert("value".into(), PyVal::Float(self.last_value.get()));
         Some(PyVal::Dict(d))
     }
 }

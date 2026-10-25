@@ -23,7 +23,6 @@ use crate::pins::PinsObject;
 use crate::printer::{PObj, Printer, SubsystemComponentCollection};
 use crate::pyfmt::py_round;
 use crate::pyval::PyVal;
-use indexmap::IndexMap;
 use std::rc::Rc;
 
 /// BulkAdcSensor: clients receive the BulkAdcData dict ({"data": [rows],
@@ -130,10 +129,11 @@ pub(crate) fn adc_row(ptime: f64, val: i64) -> PyVal {
 
 /// the {"data": samples, "errors": n, "overflows": n} batch message
 pub(crate) fn adc_batch(data: Vec<PyVal>, errors: i64, overflows: i64) -> PyVal {
-    let mut d = IndexMap::new();
-    d.insert("data".to_string(), PyVal::List(data));
-    d.insert("errors".to_string(), PyVal::Int(errors));
-    d.insert("overflows".to_string(), PyVal::Int(overflows));
+    let d = crate::pydict! {
+        "data" => PyVal::List(data),
+        "errors" => PyVal::Int(errors),
+        "overflows" => PyVal::Int(overflows),
+    };
     PyVal::Dict(d)
 }
 

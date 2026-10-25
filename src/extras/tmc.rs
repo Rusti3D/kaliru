@@ -16,11 +16,11 @@ use crate::mcu::{any_to_endstop, EndstopRef, Mcu};
 use crate::pins::{PinChip, PinsObject, SharedPinParams};
 use crate::printer::{downcast_rc, Printer};
 use crate::pyfmt::{py_bool, py_float_repr, py_min, py_round};
-use crate::pyval::PyVal;
+use crate::pyval::{PyDict, PyVal};
 use crate::reactor::{ReactorMutex, Timer, NEVER, NOW};
 use crate::stepper::{parse_step_distance, McuStepper, TmcCurrentHelper};
 use crate::toolhead::ToolHead;
-use indexmap::IndexMap;
+use crate::IndexMap;
 use std::any::Any;
 use std::cell::{Cell, RefCell};
 use std::rc::{Rc, Weak};
@@ -65,7 +65,7 @@ fn no_formatters(_f: &str, _v: i64) -> Option<String> {
 
 impl FieldHelper {
     pub fn new(all_fields: IndexMap<String, IndexMap<String, i64>>, signed_fields: &[&str], field_formatters: Option<FieldFormatter>) -> Self {
-        let mut field_to_register = IndexMap::new();
+        let mut field_to_register = IndexMap::default();
         for (r, fields) in &all_fields {
             for f in fields.keys() {
                 field_to_register.insert(f.clone(), r.clone());
@@ -75,7 +75,7 @@ impl FieldHelper {
             all_fields,
             signed_fields: signed_fields.iter().map(|s| s.to_string()).collect(),
             field_formatters: field_formatters.unwrap_or(no_formatters),
-            registers: RefCell::new(IndexMap::new()),
+            registers: RefCell::new(IndexMap::default()),
             field_to_register,
         }
     }
@@ -470,11 +470,11 @@ impl TMCErrorCheck {
         Ok(false)
     }
 
-    pub fn get_status(&self) -> IndexMap<String, PyVal> {
-        let mut d = IndexMap::new();
+    pub fn get_status(&self) -> PyDict {
+        let mut d = IndexMap::default();
         if self.check_timer.borrow().is_none() {
-            d.insert("drv_status".to_string(), PyVal::None);
-            d.insert("temperature".to_string(), PyVal::None);
+            d.insert("drv_status".into(), PyVal::None);
+            d.insert("temperature".into(), PyVal::None);
             return d;
         }
         let mut temp = PyVal::None;
@@ -488,10 +488,10 @@ impl TMCErrorCheck {
             let fields = self.fields.get_reg_fields(&info.reg_name, info.last_value);
             *self.last_drv_fields.borrow_mut() = Some(fields.into_iter().filter(|(_, v)| *v != 0).collect());
         }
-        let drv: IndexMap<String, PyVal> =
-            self.last_drv_fields.borrow().clone().unwrap_or_default().into_iter().map(|(k, v)| (k, PyVal::Int(v))).collect();
-        d.insert("drv_status".to_string(), PyVal::Dict(drv));
-        d.insert("temperature".to_string(), temp);
+        let drv: PyDict =
+            self.last_drv_fields.borrow().clone().unwrap_or_default().into_iter().map(|(k, v)| (k.into(), PyVal::Int(v))).collect();
+        d.insert("drv_status".into(), PyVal::Dict(drv));
+        d.insert("temperature".into(), temp);
         d
     }
 
@@ -576,9 +576,9 @@ impl TMCStallguardDump {
             })),
             BATCH_INTERVAL,
         );
-        let mut hdr = IndexMap::new();
+        let mut hdr = IndexMap::default();
         hdr.insert(
-            "header".to_string(),
+            "header".into(),
             PyVal::Tuple(vec![PyVal::from("time"), PyVal::from("sg_result"), PyVal::from("cs_actual")]),
         );
         bb.add_mux_endpoint("tmc/stallguard_dump", "name", &stepper_name, PyVal::Dict(hdr))?;
@@ -662,8 +662,8 @@ impl TMCStallguardDump {
         let samples = std::mem::take(&mut *self.samples.borrow_mut());
         let data: Vec<PyVal> =
             samples.into_iter().map(|(t, s, c)| PyVal::Tuple(vec![PyVal::Float(t), PyVal::Int(s), PyVal::Int(c)])).collect();
-        let mut d = IndexMap::new();
-        d.insert("data".to_string(), PyVal::List(data));
+        let mut d = IndexMap::default();
+        d.insert("data".into(), PyVal::List(data));
         Ok(PyVal::Dict(d))
     }
 
@@ -1182,11 +1182,12 @@ impl TMCCommandHelper {
             cpos = PyVal::Float(stepper.mcu_to_commanded_position(off));
         }
         let current = self.current_helper.get_current();
-        let mut res = IndexMap::new();
-        res.insert("mcu_phase_offset".to_string(), self.mcu_phase_offset.get().map(PyVal::Int).unwrap_or(PyVal::None));
-        res.insert("phase_offset_position".to_string(), cpos);
-        res.insert("run_current".to_string(), PyVal::Float(current.0));
-        res.insert("hold_current".to_string(), current.1.map(PyVal::Float).unwrap_or(PyVal::None));
+        let mut res = crate::pydict! {
+            "mcu_phase_offset" => self.mcu_phase_offset.get().map(PyVal::Int).unwrap_or(PyVal::None),
+            "phase_offset_position" => cpos,
+            "run_current" => PyVal::Float(current.0),
+            "hold_current" => current.1.map(PyVal::Float).unwrap_or(PyVal::None),
+        };
         res.extend(self.echeck_helper.get_status());
         PyVal::Dict(res)
     }
@@ -1288,8 +1289,8 @@ impl TMCVirtualPinHelper {
             diag_pin,
             diag_pin_field,
             mcu_endstop: RefCell::new(None),
-            dirty_regs: RefCell::new(IndexMap::new()),
-            prev_state: RefCell::new(IndexMap::new()),
+            dirty_regs: RefCell::new(IndexMap::default()),
+            prev_state: RefCell::new(IndexMap::default()),
         });
         // Register virtual_endstop pin
         let name_parts: Vec<&str> = config.get_name().split_whitespace().collect();

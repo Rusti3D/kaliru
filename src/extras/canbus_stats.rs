@@ -11,7 +11,6 @@ use crate::msgproto::{Params, Val};
 use crate::printer::{downcast_rc, PObj, Printer, PrinterObject};
 use crate::pyval::PyVal;
 use crate::reactor::{Reactor, NOW};
-use indexmap::IndexMap;
 use std::cell::RefCell;
 use std::rc::{Rc, Weak};
 
@@ -185,11 +184,12 @@ impl PrinterObject for PrinterCANBusStats {
     fn get_status(&self, _eventtime: f64) -> Option<PyVal> {
         let status = self.status.borrow();
         let opt = |v: Option<i64>| v.map(PyVal::Int).unwrap_or(PyVal::None);
-        let mut d = IndexMap::new();
-        d.insert("rx_error".to_string(), opt(status.rx_error));
-        d.insert("tx_error".to_string(), opt(status.tx_error));
-        d.insert("tx_retries".to_string(), opt(status.tx_retries));
-        d.insert("bus_state".to_string(), status.bus_state.clone().unwrap_or(PyVal::None));
+        let d = crate::pydict! {
+            "rx_error" => opt(status.rx_error),
+            "tx_error" => opt(status.tx_error),
+            "tx_retries" => opt(status.tx_retries),
+            "bus_state" => status.bus_state.clone().unwrap_or(PyVal::None),
+        };
         Some(PyVal::Dict(d))
     }
 }

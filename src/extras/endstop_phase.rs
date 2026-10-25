@@ -13,7 +13,7 @@ use crate::logging;
 use crate::printer::{downcast_rc, ConfigFileObject, PObj, Printer, PrinterObject};
 use crate::pyval::PyVal;
 use crate::stepper::{parse_step_distance, RailRef};
-use indexmap::IndexMap;
+use crate::IndexMap;
 use std::cell::{Cell, RefCell};
 use std::rc::Rc;
 
@@ -225,7 +225,7 @@ impl EndstopPhases {
     fn new(config: &ConfigWrapper) -> KResult<Rc<Self>> {
         let printer = config.get_printer();
         let gcode = printer.lookup::<GCodeDispatch>("gcode")?;
-        let e = Rc::new(EndstopPhases { printer: printer.clone(), tracking: RefCell::new(IndexMap::new()), gcode: gcode.clone() });
+        let e = Rc::new(EndstopPhases { printer: printer.clone(), tracking: RefCell::new(IndexMap::default()), gcode: gcode.clone() });
         // Register handlers
         let ee = Rc::downgrade(&e);
         crate::events::HomingHomeRailsEnd::on(&printer, move |homing_state, rails| match ee.upgrade() {
@@ -366,19 +366,20 @@ impl PrinterObject for EndstopPhases {
     }
     fn get_status(&self, _eventtime: f64) -> Option<PyVal> {
         let opt = |v: Option<i64>| v.map(PyVal::Int).unwrap_or(PyVal::None);
-        let mut lh = IndexMap::new();
+        let mut lh = IndexMap::default();
         for (name, pc) in self.tracking.borrow().iter() {
             if pc.phase_history.borrow().is_none() {
                 continue;
             }
-            let mut d = IndexMap::new();
-            d.insert("phase".to_string(), opt(pc.last_phase.get()));
-            d.insert("phases".to_string(), opt(pc.phases.get()));
-            d.insert("mcu_position".to_string(), opt(pc.last_mcu_position.get()));
-            lh.insert(name.clone(), PyVal::Dict(d));
+            let d = crate::pydict! {
+                "phase" => opt(pc.last_phase.get()),
+                "phases" => opt(pc.phases.get()),
+                "mcu_position" => opt(pc.last_mcu_position.get()),
+            };
+            lh.insert(name.clone().into(), PyVal::Dict(d));
         }
-        let mut res = IndexMap::new();
-        res.insert("last_home".to_string(), PyVal::Dict(lh));
+        let mut res = IndexMap::default();
+        res.insert("last_home".into(), PyVal::Dict(lh));
         Some(PyVal::Dict(res))
     }
 }

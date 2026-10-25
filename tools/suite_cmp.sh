@@ -5,6 +5,11 @@
 # The full diff goes to ~/rk/rs.diff; the summary is printed.
 # usage: suite_cmp.sh [test names without .test...]
 cd "$(dirname "$0")"
+# python macros and plugins run on the host's CPython 3.15 (kaliru has no
+# embedded python): Kalico's klippy directory and the uv build's libpython,
+# as plugin_cmp.sh
+export KALIRU_KLIPPY_DIR=${KALIRU_KLIPPY_DIR:-$HOME/rk/kalico/klippy}
+export KALIRU_LIBPYTHON=${KALIRU_LIBPYTHON:-$HOME/.local/share/uv/python/cpython-3.15-linux-x86_64-gnu/lib/libpython3.15.so.1.0}
 tests=()
 for t in "$@"; do tests+=(~/rk/kalico/test/klippy/$t.test); done
 rm -rf ~/rk/rs

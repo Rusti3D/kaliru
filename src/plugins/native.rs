@@ -165,11 +165,16 @@ fn greenlet_key() -> usize {
 pub fn bypassing(addr: usize, qualname: &str) -> bool {
     let Some(id) = IDS.iter().position(|n| *n == qualname) else { return false };
     let g = greenlet_key();
-    BYPASS.with(|b| b.borrow().iter().any(|e| *e == (addr, id, g)))
+    BYPASS.with(|b| b.borrow().contains(&(addr, id, g)))
 }
 
 // ------------------------------------------------------------------ module
 
+/// The vectorcall arguments as owned references
+///
+/// # Safety
+/// `args` / `nargs` are a vectorcall's own (nargs live objects, the offset
+/// flag aside), with the GIL held
 unsafe fn args_vec(args: *const *mut PyObject, nargs: Py_ssize_t, skip: usize) -> Vec<PyRef> {
     let n = (nargs as usize) & !(1usize << (usize::BITS - 1)); // PY_VECTORCALL_ARGUMENTS_OFFSET
     (skip..n).map(|i| PyRef::borrowed(*args.add(i))).collect()
@@ -287,6 +292,16 @@ native!(k_set, |a| {
             let v = kv.call_method("__getitem__", &[&py_int(1)])?;
             (f.set)(&a[0], n, &k, &v)?;
         }
+        return Ok(py_none());
+    }
+    // a list field replaced as a whole (AFC: gcode_move.base_position =
+    // list(...)): python binds the new list; its items become the field's
+    // (read through a snapshot: the value may be a view of the field itself)
+    if let Handler::List(n, f) = handler(id)? {
+        let items = lookup("builtins", "list")?.call(&[&a[2]])?;
+        let len = lookup("builtins", "len")?.call(&[&items])?.as_i64()?;
+        let items = (0..len).map(|i| items.call_method("__getitem__", &[&py_int(i)])).collect::<KResult<Vec<_>>>()?;
+        (f.set)(&a[0], n, items)?;
         return Ok(py_none());
     }
     let Handler::Attr(_, set) = handler(id)? else { return Err(KError::Other("kaliru: not an attribute".into())) };
@@ -416,6 +431,7 @@ static DEFS: [PyMethodDef; 12] = [
 
 /// Create `_kaliru` in sys.modules
 pub fn create_module() -> KResult<()> {
+    // SAFETY: DEFS are static method tables (alive for the process); m is an owned module
     unsafe {
         let m = PyRef::owned_or_err(PyImport_AddModuleRef(c"_kaliru".as_ptr()))?;
         for d in DEFS.iter() {

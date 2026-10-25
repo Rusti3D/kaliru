@@ -10,7 +10,7 @@ use crate::extras::tmc::{
 use crate::extras::tmc2130::{self, McuTmcSpi};
 use crate::printer::{PObj, Printer};
 use crate::pyfmt::py_min;
-use indexmap::IndexMap;
+use crate::IndexMap;
 use std::cell::RefCell;
 use std::rc::{Rc, Weak};
 
@@ -256,7 +256,8 @@ pub fn load_config_prefix(config: &ConfigWrapper) -> KResult<PObj> {
     set("slope_control", 3)?;
 
     // Write the chopper configuration last.
-    for register in ["CHOPCONF"] {
+    {
+        let register = "CHOPCONF";
         let mut regs = fields.registers.borrow_mut();
         let value = regs.shift_remove(register).ok_or_else(|| KError::Other(format!("'{}'", register)))?;
         regs.insert(register.to_string(), value);

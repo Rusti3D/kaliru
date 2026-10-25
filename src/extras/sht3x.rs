@@ -16,7 +16,6 @@ use crate::printer::{none_object, PObj, Printer, PrinterObject};
 use crate::pyfmt::py_round;
 use crate::pyval::PyVal;
 use crate::reactor::{Timer, NEVER, NOW};
-use indexmap::IndexMap;
 use std::cell::{Cell, RefCell};
 use std::rc::{Rc, Weak};
 
@@ -243,9 +242,10 @@ impl PrinterObject for SHT3X {
         true
     }
     fn get_status(&self, _eventtime: f64) -> Option<PyVal> {
-        let mut d = IndexMap::new();
-        d.insert("temperature".to_string(), PyVal::Float(py_round(self.temp.get(), 2)));
-        d.insert("humidity".to_string(), PyVal::Float(py_round(self.humidity.get(), 1)));
+        let d = crate::pydict! {
+            "temperature" => PyVal::Float(py_round(self.temp.get(), 2)),
+            "humidity" => PyVal::Float(py_round(self.humidity.get(), 1)),
+        };
         Some(PyVal::Dict(d))
     }
 }

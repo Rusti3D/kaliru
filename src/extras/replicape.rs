@@ -14,7 +14,7 @@ use crate::pins::{setup_digital_out_pin, PinChip, PinParams, PinsObject, SharedP
 use crate::printer::{PObj, Printer, PrinterObject};
 use crate::pyfmt::{py_max, py_min};
 use crate::reactor::NOW;
-use indexmap::IndexMap;
+use crate::IndexMap;
 use std::any::Any;
 use std::cell::{Cell, RefCell};
 use std::rc::{Rc, Weak};
@@ -348,7 +348,7 @@ impl Replicape {
         .map(|(n, c)| (n.to_string(), (PinClass::Pca9685, *c)))
         .collect();
         // Setup stepper config
-        let mut stepper_dacs = IndexMap::new();
+        let mut stepper_dacs = IndexMap::default();
         let mut shift_registers: Vec<i64> = vec![1, 0, 0, 1, 1];
         for (port, name) in "xyzeh".chars().enumerate() {
             let prefix = format!("stepper_{}_", name);

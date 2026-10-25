@@ -19,7 +19,7 @@ use crate::pyfmt::py_max;
 use crate::pyval::PyVal;
 use crate::reactor::{Timer, NEVER, NOW};
 use crate::toolhead::ToolHead;
-use indexmap::IndexMap;
+use crate::IndexMap;
 use std::cell::{Cell, RefCell};
 use std::rc::{Rc, Weak};
 
@@ -203,7 +203,7 @@ impl Object for RenderFnRef {
         Some((|| {
             let (a, _, kw) = bind("render", &[("name", None)], args, kwargs, false, true)?;
             let name = a[0].to_str();
-            let t = self.0.templates.get(&name).cloned().ok_or_else(|| Exc::new("KeyError", &a[0].repr()))?;
+            let t = self.0.templates.get(&name).cloned().ok_or_else(|| Exc::new("KeyError", a[0].repr()))?;
             let context = self.0.context.borrow().clone();
             t.render(&context, &kw).map(Value::from).map_err(kerror_exc)
         })())
@@ -309,7 +309,7 @@ impl PrinterTemplateEvaluator {
         context.borrow_mut().insert("render".into(), Value::object(render_fn));
         // Render all templates
         let mut flush_callbacks: Vec<TemplateFlush> = vec![];
-        let mut render_cache: IndexMap<String, String> = IndexMap::new();
+        let mut render_cache: IndexMap<String, String> = IndexMap::default();
         type Entry = (TemplateCallback, Option<String>, Rc<DisplayTemplate>, IndexMap<String, Value>, Option<TemplateFlush>);
         let active: Vec<Entry> = self
             .active_templates
@@ -358,7 +358,7 @@ impl PrinterTemplateEvaluator {
 
     pub fn set_template(&self, gcmd: &GCodeCommand, callback: TemplateCallback, flush_callback: Option<TemplateFlush>) -> KResult<()> {
         let mut template = None;
-        let mut lparams = IndexMap::new();
+        let mut lparams = IndexMap::default();
         let tpl_name = gcmd.get("TEMPLATE")?;
         if !tpl_name.is_empty() {
             let Some(t) = self.templates.get(&tpl_name).cloned() else {
@@ -553,8 +553,8 @@ impl PrinterObject for PrinterOutputPin {
         true
     }
     fn get_status(&self, _eventtime: f64) -> Option<PyVal> {
-        let mut d = IndexMap::new();
-        d.insert("value".to_string(), PyVal::Float(self.last_value.get()));
+        let mut d = IndexMap::default();
+        d.insert("value".into(), PyVal::Float(self.last_value.get()));
         Some(PyVal::Dict(d))
     }
     fn teardown(&self) {

@@ -17,7 +17,7 @@ use crate::printer::{ConfigFileObject, PObj, Printer, PrinterObject};
 use crate::pyval::PyVal;
 use crate::reactor::Reactor;
 use crate::toolhead::ToolHead;
-use indexmap::IndexMap;
+use crate::IndexMap;
 use std::cell::{Cell, RefCell};
 use std::rc::{Rc, Weak};
 
@@ -123,7 +123,7 @@ pub fn prof_set(p: &Profile, key: &str, v: PyVal) {
 }
 
 fn new_profile(name: &str) -> Profile {
-    let p: Profile = Rc::new(RefCell::new(IndexMap::new()));
+    let p: Profile = Rc::new(RefCell::new(IndexMap::default()));
     prof_set(&p, "name", PyVal::from(name));
     p
 }
@@ -589,7 +589,7 @@ impl Heater {
             last_pwm_value: Cell::new(0.0),
             mcu_pwm,
             gcode: RefCell::new(None),
-            profiles: RefCell::new(IndexMap::new()),
+            profiles: RefCell::new(IndexMap::default()),
             incompatible_profiles: RefCell::new(vec![]),
             control: RefCell::new(None),
             set_temp_hook: RefCell::new(None),
@@ -817,13 +817,14 @@ impl Heater {
     pub fn get_status(&self, eventtime: f64) -> PyVal {
         let control = self.get_control();
         let control_stats = control.get_status(eventtime);
-        let mut ret = IndexMap::new();
-        ret.insert("temperature".to_string(), PyVal::Float(crate::pyfmt::py_round(self.smoothed_temp.get(), 2)));
-        ret.insert("target".to_string(), PyVal::Float(self.target_temp.get()));
-        ret.insert("power".to_string(), PyVal::Float(self.last_pwm_value.get()));
-        ret.insert("pid_profile".to_string(), prof_get(&control.get_profile(), "name"));
+        let mut ret = crate::pydict! {
+            "temperature" => PyVal::Float(crate::pyfmt::py_round(self.smoothed_temp.get(), 2)),
+            "target" => PyVal::Float(self.target_temp.get()),
+            "power" => PyVal::Float(self.last_pwm_value.get()),
+            "pid_profile" => prof_get(&control.get_profile(), "name"),
+        };
         if let Some(cs) = control_stats {
-            ret.insert("control_stats".to_string(), cs);
+            ret.insert("control_stats".into(), cs);
         }
         PyVal::Dict(ret)
     }
@@ -927,7 +928,7 @@ impl Heater {
             self.incompatible_profiles.borrow_mut().push(name.to_string());
             return Ok(None);
         }
-        let temp_profile: Profile = Rc::new(RefCell::new(IndexMap::new()));
+        let temp_profile: Profile = Rc::new(RefCell::new(IndexMap::default()));
         let control = self.pm_check_value_config("control", config_section, false, false)?.str();
         let fv = |v: Option<f64>| v.map(PyVal::Float).unwrap_or(PyVal::None);
         if control == "watermark" {
@@ -1473,9 +1474,9 @@ impl PrinterHeaters {
         let gcode = printer.lookup::<GCodeDispatch>("gcode")?;
         let ph = Rc::new(PrinterHeaters {
             printer: printer.clone(),
-            sensor_factories: RefCell::new(IndexMap::new()),
-            heaters: RefCell::new(IndexMap::new()),
-            gcode_id_to_sensor: RefCell::new(IndexMap::new()),
+            sensor_factories: RefCell::new(IndexMap::default()),
+            heaters: RefCell::new(IndexMap::default()),
+            gcode_id_to_sensor: RefCell::new(IndexMap::default()),
             available_heaters: RefCell::new(vec![]),
             available_sensors: RefCell::new(vec![]),
             available_monitors: RefCell::new(vec![]),
@@ -1730,10 +1731,11 @@ impl PrinterObject for PrinterHeaters {
     }
     fn get_status(&self, _eventtime: f64) -> Option<PyVal> {
         let list = |v: &RefCell<Vec<String>>| PyVal::List(v.borrow().iter().map(|s| PyVal::from(s.as_str())).collect());
-        let mut d = IndexMap::new();
-        d.insert("available_heaters".to_string(), list(&self.available_heaters));
-        d.insert("available_sensors".to_string(), list(&self.available_sensors));
-        d.insert("available_monitors".to_string(), list(&self.available_monitors));
+        let d = crate::pydict! {
+            "available_heaters" => list(&self.available_heaters),
+            "available_sensors" => list(&self.available_sensors),
+            "available_monitors" => list(&self.available_monitors),
+        };
         Some(PyVal::Dict(d))
     }
     fn teardown(&self) {

@@ -15,7 +15,6 @@ use crate::pyfmt::{py_float, py_strip, py_sum};
 use crate::pyval::PyVal;
 use crate::stepper::McuStepper;
 use crate::toolhead::ToolHead;
-use indexmap::IndexMap;
 use std::cell::{Cell, RefCell};
 use std::rc::{Rc, Weak};
 
@@ -471,9 +470,10 @@ impl PrinterObject for MixingExtruder {
         true
     }
     fn get_status(&self, _eventtime: f64) -> Option<PyVal> {
-        let mut d = IndexMap::new();
-        d.insert("mixing".to_string(), PyVal::Str(pct_list(&self.active_mixing(), "")));
-        d.insert("ticks".to_string(), PyVal::Str(self.ticks()));
+        let d = crate::pydict! {
+            "mixing" => PyVal::Str(pct_list(&self.active_mixing(), "")),
+            "ticks" => PyVal::Str(self.ticks()),
+        };
         Some(PyVal::Dict(d))
     }
     fn teardown(&self) {

@@ -12,9 +12,9 @@ use crate::gcode::{GCodeCommand, GCodeDispatch};
 use crate::logging;
 use crate::printer::{downcast_rc, ConfigFileObject, PObj, Printer, PrinterObject};
 use crate::pyfmt::{py_float_repr, py_max, py_min, py_round, py_strip};
-use crate::pyval::PyVal;
+use crate::pyval::{PyDict, PyVal};
 use crate::toolhead::ToolHead;
-use indexmap::IndexMap;
+use crate::IndexMap;
 use std::cell::{Cell, RefCell};
 use std::rc::{Rc, Weak};
 
@@ -34,7 +34,7 @@ pub const PROFILE_OPTIONS: &[(&str, char)] = &[
 ];
 
 /// mesh parameters (a python dict of ints, floats and str)
-pub type MeshParams = IndexMap<String, PyVal>;
+pub type MeshParams = PyDict;
 
 fn pf(p: &MeshParams, k: &str) -> f64 {
     p.get(k).and_then(|v| v.as_f64()).unwrap_or(0.0)
@@ -432,21 +432,22 @@ impl BedMesh {
     }
 
     pub fn update_status(&self) {
-        let mut st = IndexMap::new();
-        st.insert("profile_name".to_string(), PyVal::from(""));
-        st.insert("mesh_min".to_string(), PyVal::Tuple(vec![PyVal::Float(0.0), PyVal::Float(0.0)]));
-        st.insert("mesh_max".to_string(), PyVal::Tuple(vec![PyVal::Float(0.0), PyVal::Float(0.0)]));
-        st.insert("probed_matrix".to_string(), PyVal::List(vec![PyVal::List(vec![])]));
-        st.insert("mesh_matrix".to_string(), PyVal::List(vec![PyVal::List(vec![])]));
-        st.insert("profiles".to_string(), self.pmgr().profiles_pyval());
+        let mut st = crate::pydict! {
+            "profile_name" => PyVal::from(""),
+            "mesh_min" => PyVal::Tuple(vec![PyVal::Float(0.0), PyVal::Float(0.0)]),
+            "mesh_max" => PyVal::Tuple(vec![PyVal::Float(0.0), PyVal::Float(0.0)]),
+            "probed_matrix" => PyVal::List(vec![PyVal::List(vec![])]),
+            "mesh_matrix" => PyVal::List(vec![PyVal::List(vec![])]),
+            "profiles" => self.pmgr().profiles_pyval(),
+        };
         if let Some(z_mesh) = self.z_mesh.borrow().as_ref() {
             let params = z_mesh.get_mesh_params();
             let t = |a: f64, b: f64| PyVal::Tuple(vec![PyVal::Float(a), PyVal::Float(b)]);
-            st.insert("profile_name".to_string(), PyVal::Str(z_mesh.get_profile_name()));
-            st.insert("mesh_min".to_string(), t(pf(&params, "min_x"), pf(&params, "min_y")));
-            st.insert("mesh_max".to_string(), t(pf(&params, "max_x"), pf(&params, "max_y")));
-            st.insert("probed_matrix".to_string(), matrix_pyval(&z_mesh.get_probed_matrix()));
-            st.insert("mesh_matrix".to_string(), matrix_pyval(&z_mesh.get_mesh_matrix()));
+            st.insert("profile_name".into(), PyVal::Str(z_mesh.get_profile_name()));
+            st.insert("mesh_min".into(), t(pf(&params, "min_x"), pf(&params, "min_y")));
+            st.insert("mesh_max".into(), t(pf(&params, "max_x"), pf(&params, "max_y")));
+            st.insert("probed_matrix".into(), matrix_pyval(&z_mesh.get_probed_matrix()));
+            st.insert("mesh_matrix".into(), matrix_pyval(&z_mesh.get_mesh_matrix()));
         }
         *self.status.borrow_mut() = PyVal::Dict(st);
     }
@@ -473,10 +474,11 @@ impl BedMesh {
             Some(z_mesh) => {
                 let params = z_mesh.get_mesh_params();
                 let t = |a: f64, b: f64| PyVal::Tuple(vec![PyVal::Float(a), PyVal::Float(b)]);
-                let mut outdict = IndexMap::new();
-                outdict.insert("mesh_min".to_string(), t(pf(&params, "min_x"), pf(&params, "min_y")));
-                outdict.insert("mesh_max".to_string(), t(pf(&params, "max_x"), pf(&params, "max_y")));
-                outdict.insert("z_positions".to_string(), matrix_pyval(&z_mesh.get_probed_matrix()));
+                let outdict = crate::pydict! {
+                    "mesh_min" => t(pf(&params, "min_x"), pf(&params, "min_y")),
+                    "mesh_max" => t(pf(&params, "max_x"), pf(&params, "max_y")),
+                    "z_positions" => matrix_pyval(&z_mesh.get_probed_matrix()),
+                };
                 gcmd.respond_raw(&format!("mesh_map_output {}", PyVal::Dict(outdict).json()));
             }
             None => gcmd.respond_info("Bed has not been probed", true),
@@ -687,8 +689,8 @@ impl BedMeshCalibrateConfig {
             origin: None,
             mesh_min: (0.0, 0.0),
             mesh_max: (0.0, 0.0),
-            mesh_config: IndexMap::new(),
-            orig_config: OrigConfig { radius: None, origin: None, mesh_min: (0.0, 0.0), mesh_max: (0.0, 0.0), mesh_config: IndexMap::new() },
+            mesh_config: IndexMap::default(),
+            orig_config: OrigConfig { radius: None, origin: None, mesh_min: (0.0, 0.0), mesh_max: (0.0, 0.0), mesh_config: IndexMap::default() },
             faulty_regions: vec![],
         };
         c.init_mesh_config(config)?;
@@ -874,7 +876,7 @@ impl BedMeshCalibrate {
             zero_ref_pos: cfg.zero_ref_pos,
             zero_reference_mode: Cell::new(ZrefMode::Disabled),
             faulty_regions: cfg.faulty_regions,
-            substituted_indices: RefCell::new(IndexMap::new()),
+            substituted_indices: RefCell::new(IndexMap::default()),
             bedmesh: Rc::downgrade(bedmesh),
             mesh_config: RefCell::new(cfg.mesh_config),
             points: RefCell::new(vec![]),
@@ -1209,7 +1211,7 @@ impl BedMeshCalibrate {
         self.mesh_max.set(self.orig_config.mesh_max);
         {
             let mut mc = self.mesh_config.borrow_mut();
-            let keys: Vec<String> = mc.keys().cloned().collect();
+            let keys: Vec<crate::pyval::PyKey> = mc.keys().cloned().collect();
             for key in keys {
                 let v = self.orig_config.mesh_config.get(&key).cloned().unwrap_or(PyVal::None);
                 mc.insert(key, v);
@@ -1448,7 +1450,7 @@ impl BedMeshCalibrate {
                 let (first, last) = (row[0], row[row_size - 1]);
                 let mut new_row = vec![first; buf_cnt];
                 new_row.extend_from_slice(row);
-                new_row.extend(std::iter::repeat(last).take(buf_cnt));
+                new_row.extend(std::iter::repeat_n(last, buf_cnt));
                 *row = new_row;
             }
         }
@@ -2068,12 +2070,12 @@ impl ProfileManager {
         let name = config.get_name().to_string();
         let printer = config.get_printer();
         let gcode = printer.lookup::<GCodeDispatch>("gcode")?;
-        let mut profiles = IndexMap::new();
+        let mut profiles = IndexMap::default();
         let mut incompatible_profiles = vec![];
         // Fetch stored profiles from Config
         let stored_profs: Vec<ConfigWrapper> = config.get_prefix_sections(&name).into_iter().filter(|s| s.get_name() != name).collect();
         for profile in stored_profs {
-            let pname = profile.get_name().splitn(2, ' ').nth(1).unwrap_or("").to_string();
+            let pname = profile.get_name().split_once(' ').map(|x| x.1).unwrap_or("").to_string();
             let version = profile.getint("version", 0, Lim::new())?;
             if version != PROFILE_VERSION {
                 logging::info(&format!(
@@ -2091,14 +2093,14 @@ impl ProfileManager {
                 .iter()
                 .map(|r| r.items().unwrap_or(&[]).iter().map(|v| v.as_f64().unwrap_or(0.0)).collect())
                 .collect();
-            let mut params = IndexMap::new();
+            let mut params = IndexMap::default();
             for (key, t) in PROFILE_OPTIONS {
                 let v = match t {
                     'i' => PyVal::Int(profile.getint(key, Dflt::Required, Lim::new())?),
                     'f' => PyVal::Float(profile.getfloat(key, Dflt::Required, Lim::new())?),
                     _ => PyVal::Str(profile.get(key, Dflt::Required)?),
                 };
-                params.insert(key.to_string(), v);
+                params.insert(key.to_string().into(), v);
             }
             profiles.insert(pname, MeshProfile { points, mesh_params: params });
         }
@@ -2121,15 +2123,16 @@ impl ProfileManager {
     }
 
     fn profiles_pyval(&self) -> PyVal {
-        let d: IndexMap<String, PyVal> = self
+        let d: PyDict = self
             .profiles
             .borrow()
             .iter()
             .map(|(k, p)| {
-                let mut pd = IndexMap::new();
-                pd.insert("points".to_string(), matrix_pyval(&p.points));
-                pd.insert("mesh_params".to_string(), PyVal::Dict(p.mesh_params.clone()));
-                (k.clone(), PyVal::Dict(pd))
+                let pd = crate::pydict! {
+                    "points" => matrix_pyval(&p.points),
+                    "mesh_params" => PyVal::Dict(p.mesh_params.clone()),
+                };
+                (k.clone().into(), PyVal::Dict(pd))
             })
             .collect();
         PyVal::Dict(d)

@@ -12,7 +12,7 @@ use crate::mcu::{CommandWrapper, Mcu};
 use crate::msgproto::Val;
 use crate::printer::Printer;
 use crate::pyval::PyVal;
-use indexmap::IndexMap;
+use crate::IndexMap;
 use std::cell::{Cell, RefCell};
 use std::rc::Rc;
 
@@ -60,7 +60,7 @@ impl CS1237 {
             printer: printer.clone(),
             name,
             last_error_count: Cell::new(0),
-            sensor_errors: RefCell::new(IndexMap::new()),
+            sensor_errors: RefCell::new(IndexMap::default()),
             sps,
             mcu: mcu.clone(),
             oid,
@@ -93,10 +93,11 @@ impl CS1237 {
     }
 
     pub fn get_status(&self, _eventtime: f64) -> PyVal {
-        let mut d = IndexMap::new();
-        d.insert("errors".to_string(), PyVal::Int(self.last_error_count.get()));
-        d.insert("overflows".to_string(), PyVal::Int(self.ffreader.get_last_overflows()));
-        d.insert("sample_rate".to_string(), PyVal::Int(self.sps));
+        let d = crate::pydict! {
+            "errors" => PyVal::Int(self.last_error_count.get()),
+            "overflows" => PyVal::Int(self.ffreader.get_last_overflows()),
+            "sample_rate" => PyVal::Int(self.sps),
+        };
         PyVal::Dict(d)
     }
 

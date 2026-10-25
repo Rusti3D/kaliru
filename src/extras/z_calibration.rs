@@ -21,7 +21,7 @@ use crate::pyfmt::{py_float, py_float_repr, py_max, py_min, py_sum};
 use crate::pyval::PyVal;
 use crate::stepper::RailRef;
 use crate::toolhead::ToolHead;
-use indexmap::IndexMap;
+use crate::IndexMap;
 use std::cell::{Cell, RefCell};
 use std::rc::{Rc, Weak};
 
@@ -468,9 +468,10 @@ impl PrinterObject for ZCalibrationHelper {
         true
     }
     fn get_status(&self, _eventtime: f64) -> Option<PyVal> {
-        let mut d = IndexMap::new();
-        d.insert("last_query".to_string(), PyVal::Bool(self.last_state.get()));
-        d.insert("last_z_offset".to_string(), PyVal::Float(self.last_z_offset.get()));
+        let d = crate::pydict! {
+            "last_query" => PyVal::Bool(self.last_state.get()),
+            "last_z_offset" => PyVal::Float(self.last_z_offset.get()),
+        };
         Some(PyVal::Dict(d))
     }
 }
@@ -620,13 +621,13 @@ impl<'a> CalibrationState<'a> {
 
     fn set_new_gcode_offset(&self, offset: f64) -> KResult<()> {
         // reset gcode z offset to 0
-        let mut params = IndexMap::new();
-        params.insert("Z".to_string(), "0.0".to_string());
+        let mut params = IndexMap::default();
+        params.insert("Z".into(), "0.0".to_string());
         let gcmd_offset = self.gcode.create_gcode_command("SET_GCODE_OFFSET", "SET_GCODE_OFFSET", params);
         self.gcode_move.cmd_set_gcode_offset(&gcmd_offset)?;
         // set new gcode z offset
-        let mut params = IndexMap::new();
-        params.insert("Z_ADJUST".to_string(), py_float_repr(offset));
+        let mut params = IndexMap::default();
+        params.insert("Z_ADJUST".into(), py_float_repr(offset));
         let gcmd_offset = self.gcode.create_gcode_command("SET_GCODE_OFFSET", "SET_GCODE_OFFSET", params);
         self.gcode_move.cmd_set_gcode_offset(&gcmd_offset)
     }

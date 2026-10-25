@@ -14,7 +14,7 @@ use crate::mathutil::np_std;
 use crate::printer::Printer;
 use crate::pyfmt::py_str_repr;
 use crate::pyval::PyVal;
-use indexmap::IndexMap;
+use crate::IndexMap;
 use std::f64::consts::PI;
 use std::rc::Rc;
 
@@ -47,9 +47,10 @@ impl TapValidationError {
     }
 
     fn to_dict(&self) -> PyVal {
-        let mut d = IndexMap::new();
-        d.insert("error_code".to_string(), PyVal::Str(self.error_code.clone()));
-        d.insert("message".to_string(), PyVal::Str(self.message.clone()));
+        let d = crate::pydict! {
+            "error_code" => PyVal::Str(self.error_code.clone()),
+            "message" => PyVal::Str(self.message.clone()),
+        };
         PyVal::Dict(d)
     }
 }
@@ -91,7 +92,7 @@ impl TrapezoidalMove {
     }
 
     fn to_dict(&self) -> PyVal {
-        let mut d = IndexMap::new();
+        let mut d = IndexMap::default();
         for (k, v) in [
             ("print_time", self.print_time),
             ("move_t", self.move_t),
@@ -104,7 +105,7 @@ impl TrapezoidalMove {
             ("y_r", self.y_r),
             ("z_r", self.z_r),
         ] {
-            d.insert(k.to_string(), PyVal::Float(v));
+            d.insert(k.to_string().into(), PyVal::Float(v));
         }
         PyVal::Dict(d)
     }
@@ -119,9 +120,10 @@ pub struct ForcePoint {
 
 impl ForcePoint {
     fn to_dict(self) -> PyVal {
-        let mut d = IndexMap::new();
-        d.insert("time".to_string(), PyVal::Float(self.time));
-        d.insert("force".to_string(), PyVal::Float(self.force));
+        let d = crate::pydict! {
+            "time" => PyVal::Float(self.time),
+            "force" => PyVal::Float(self.force),
+        };
         PyVal::Dict(d)
     }
 }
@@ -164,9 +166,10 @@ impl ForceLine {
     }
 
     fn to_dict(self) -> PyVal {
-        let mut d = IndexMap::new();
-        d.insert("slope".to_string(), PyVal::Float(self.slope));
-        d.insert("intercept".to_string(), PyVal::Float(self.intercept));
+        let d = crate::pydict! {
+            "slope" => PyVal::Float(self.slope),
+            "intercept" => PyVal::Float(self.intercept),
+        };
         PyVal::Dict(d)
     }
 }
@@ -672,24 +675,25 @@ impl TapAnalysis {
     fn to_dict(&self) -> PyVal {
         let floats = |v: &[f64]| PyVal::List(v.iter().map(|f| PyVal::Float(*f)).collect());
         let opt = |v: Option<f64>| v.map(PyVal::Float).unwrap_or(PyVal::None);
-        let mut d = IndexMap::new();
-        d.insert("time".to_string(), floats(&self.time));
-        d.insert("force".to_string(), floats(&self.force));
-        d.insert("tap_points".to_string(), PyVal::List(self.tap_points.iter().map(|p| p.to_dict()).collect()));
-        d.insert("tap_lines".to_string(), PyVal::List(self.tap_lines.iter().map(|l| l.to_dict()).collect()));
-        d.insert("tap_angles".to_string(), floats(&self.tap_angles));
+        let mut d = crate::pydict! {
+            "time" => floats(&self.time),
+            "force" => floats(&self.force),
+            "tap_points" => PyVal::List(self.tap_points.iter().map(|p| p.to_dict()).collect()),
+            "tap_lines" => PyVal::List(self.tap_lines.iter().map(|l| l.to_dict()).collect()),
+            "tap_angles" => floats(&self.tap_angles),
+        };
         d.insert(
-            "tap_pos".to_string(),
+            "tap_pos".into(),
             self.tap_pos.map(|(x, y, z)| PyVal::Tuple(vec![PyVal::Float(x), PyVal::Float(y), PyVal::Float(z)])).unwrap_or(PyVal::None),
         );
-        d.insert("moves".to_string(), PyVal::List(self.moves.iter().map(|m| m.to_dict()).collect()));
-        d.insert("home_end_time".to_string(), opt(self.home_end_time));
-        d.insert("pullback_start_time".to_string(), opt(self.pullback_start_time));
-        d.insert("pullback_end_time".to_string(), opt(self.pullback_end_time));
-        d.insert("collection_time".to_string(), PyVal::Float(self.collection_time));
-        d.insert("elapsed".to_string(), PyVal::Float(self.elapsed));
-        d.insert("is_valid".to_string(), PyVal::Bool(self.is_valid));
-        d.insert("error".to_string(), self.error.as_ref().map(|e| e.to_dict()).unwrap_or(PyVal::None));
+        d.insert("moves".into(), PyVal::List(self.moves.iter().map(|m| m.to_dict()).collect()));
+        d.insert("home_end_time".into(), opt(self.home_end_time));
+        d.insert("pullback_start_time".into(), opt(self.pullback_start_time));
+        d.insert("pullback_end_time".into(), opt(self.pullback_end_time));
+        d.insert("collection_time".into(), PyVal::Float(self.collection_time));
+        d.insert("elapsed".into(), PyVal::Float(self.elapsed));
+        d.insert("is_valid".into(), PyVal::Bool(self.is_valid));
+        d.insert("error".into(), self.error.as_ref().map(|e| e.to_dict()).unwrap_or(PyVal::None));
         PyVal::Dict(d)
     }
 }
@@ -706,8 +710,8 @@ impl TapAnalysisHelper {
     pub fn new(printer: &Rc<Printer>, name: &str, tap_classifier: Rc<dyn TapClassifier>) -> KResult<Self> {
         // webhooks support
         let clients = ApiClientHelper::<PyVal>::new(printer);
-        let mut header = IndexMap::new();
-        header.insert("header".to_string(), PyVal::List(vec![PyVal::Str("probe_tap_event".into())]));
+        let mut header = IndexMap::default();
+        header.insert("header".into(), PyVal::List(vec![PyVal::Str("probe_tap_event".into())]));
         clients.add_mux_endpoint("load_cell_probe/dump_taps", "load_cell_probe", name, PyVal::Dict(header))?;
         Ok(TapAnalysisHelper { printer: printer.clone(), tap_classifier, clients })
     }
@@ -737,8 +741,8 @@ impl TapAnalysisHelper {
         tap_analysis.elapsed = t_start.elapsed().as_secs_f64();
         tap_analysis.collection_time = collection_time;
         // broadcast tap event data:
-        let mut msg = IndexMap::new();
-        msg.insert("tap".to_string(), tap_analysis.to_dict());
+        let mut msg = IndexMap::default();
+        msg.insert("tap".into(), tap_analysis.to_dict());
         self.clients.send(&PyVal::Dict(msg));
         Self::log_errors(&tap_analysis);
         Ok(tap_analysis)

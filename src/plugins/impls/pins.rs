@@ -4,7 +4,6 @@ use crate::plugins::callable::py_function;
 use crate::plugins::convert::ToPy;
 
 use crate::pins::{PinChip, PinParams, PinsObject, SharedPinParams};
-use indexmap::IndexMap;
 
 pub fn register(r: &mut Registry) {
     objects::register_class::<PinsObject>("klippy.pins", "PrinterPins");
@@ -38,11 +37,12 @@ pub fn register(r: &mut Registry) {
 
 /// The pin_params dict python gets (a copy: kaliru keeps the shared one)
 fn pin_params_dict(p: &PinParams) -> KResult<PyRef> {
-    let mut d: IndexMap<String, PyVal> = IndexMap::new();
-    d.insert("chip_name".into(), PyVal::Str(p.chip_name.clone()));
-    d.insert("pin".into(), PyVal::Str(p.pin.clone()));
-    d.insert("invert".into(), PyVal::Int(p.invert));
-    d.insert("pullup".into(), PyVal::Int(p.pullup));
+    let mut d = crate::pydict! {
+        "chip_name" => PyVal::Str(p.chip_name.clone()),
+        "pin" => PyVal::Str(p.pin.clone()),
+        "invert" => PyVal::Int(p.invert),
+        "pullup" => PyVal::Int(p.pullup),
+    };
     if let Some(s) = &p.share_type {
         d.insert("share_type".into(), PyVal::Str(s.clone()));
     }

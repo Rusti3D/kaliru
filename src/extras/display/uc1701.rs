@@ -15,7 +15,7 @@ use crate::extras::bus::{mcu_i2c_from_config, mcu_spi_from_config, McuBusDigital
 use crate::extras::display_templates::Glyph;
 use crate::mcu::Mcu;
 use crate::printer::Printer;
-use indexmap::IndexMap;
+use crate::IndexMap;
 use std::cell::RefCell;
 use std::rc::Rc;
 
@@ -146,7 +146,7 @@ impl DisplayBase {
             x_offset,
             vram: RefCell::new((0..8).map(|_| (vec![0; columns], vec![b'~'; columns])).collect()),
             font: VGA_FONT.iter().map(|c| swizzle_bits(c)).collect(),
-            icons: RefCell::new(IndexMap::new()),
+            icons: RefCell::new(IndexMap::default()),
             reset,
             chip,
         }

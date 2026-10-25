@@ -13,7 +13,6 @@ use crate::printer::{PObj, Printer, PrinterObject};
 use crate::pyval::PyVal;
 use crate::reactor::{Reactor, Timer, NEVER};
 use crate::toolhead::ToolHead;
-use indexmap::IndexMap;
 use std::cell::{Cell, RefCell};
 use std::rc::Rc;
 
@@ -237,10 +236,11 @@ impl PrinterObject for IdleTimeout {
         if *self.state.borrow() == "Printing" {
             printing_time = eventtime - self.last_print_start_systime.get();
         }
-        let mut d = IndexMap::new();
-        d.insert("state".to_string(), PyVal::from(*self.state.borrow()));
-        d.insert("printing_time".to_string(), PyVal::Float(printing_time));
-        d.insert("idle_timeout".to_string(), PyVal::Float(self.idle_timeout.get()));
+        let d = crate::pydict! {
+            "state" => PyVal::from(*self.state.borrow()),
+            "printing_time" => PyVal::Float(printing_time),
+            "idle_timeout" => PyVal::Float(self.idle_timeout.get()),
+        };
         Some(PyVal::Dict(d))
     }
     fn teardown(&self) {

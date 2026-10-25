@@ -169,6 +169,7 @@ impl Shared {
 
     // Write to the internal pipe to wake the background thread if in poll
     fn kick_bg_thread(&self) {
+        // SAFETY: a one-byte write from a static buffer to the queue's own pipe
         let ret = unsafe { libc::write(self.pipe_fds[1], b".".as_ptr() as *const libc::c_void, 1) };
         if ret < 0 {
             report_errno("pipe write", ret as i32);
@@ -352,6 +353,7 @@ impl Bg {
         let sh = self.sh.clone();
         if sh.serial_fd_type == SQT_CAN {
             let mut cf = CanFrame::default();
+            // SAFETY: cf is a live #[repr(C)] can_frame of the size read
             let ret = unsafe {
                 libc::read(sh.serial_fd, &mut cf as *mut CanFrame as *mut libc::c_void, std::mem::size_of::<CanFrame>())
             };
@@ -367,6 +369,7 @@ impl Bg {
             self.input_buf[self.input_pos..self.input_pos + dlc].copy_from_slice(&cf.data[..dlc]);
             self.input_pos += dlc;
         } else {
+            // SAFETY: input_buf[input_pos..] is live and its length is passed
             let ret = unsafe {
                 libc::read(
                     sh.serial_fd,
@@ -412,6 +415,7 @@ impl Bg {
     // Callback for input activity on the pipe fd (wakes command_event)
     fn kick_event(&mut self, pr: &mut PollReactor, _eventtime: f64) {
         let mut dummy = [0u8; 4096];
+        // SAFETY: dummy is a live buffer of dummy.len() bytes
         let ret = unsafe { libc::read(self.sh.pipe_fds[0], dummy.as_mut_ptr() as *mut libc::c_void, dummy.len()) };
         if ret < 0 {
             report_errno("pipe read", ret as i32);
@@ -423,6 +427,7 @@ impl Bg {
     fn do_write(&self, pr: &mut PollReactor, st: &mut State, buf: &[u8]) {
         let sh = &self.sh;
         if sh.serial_fd_type != SQT_CAN {
+            // SAFETY: buf is a live slice of buf.len() bytes
             let ret = unsafe { libc::write(sh.serial_fd, buf.as_ptr() as *const libc::c_void, buf.len()) };
             if ret < 0 {
                 report_errno("write", ret as i32);
@@ -435,6 +440,7 @@ impl Bg {
             let size = buf.len().min(8);
             let mut cf = CanFrame { can_id: sh.client_id, can_dlc: size as u8, ..Default::default() };
             cf.data[..size].copy_from_slice(&buf[..size]);
+            // SAFETY: cf is a live #[repr(C)] can_frame of the size written
             let ret = unsafe {
                 libc::write(sh.serial_fd, &cf as *const CanFrame as *const libc::c_void, std::mem::size_of::<CanFrame>())
             };
@@ -458,6 +464,7 @@ impl Bg {
     fn retransmit_event(&mut self, pr: &mut PollReactor, eventtime: f64) -> f64 {
         let sh = self.sh.clone();
         if sh.serial_fd_type == SQT_UART {
+            // SAFETY: integer arguments only
             let ret = unsafe { libc::tcflush(sh.serial_fd, libc::TCOFLUSH) };
             if ret < 0 {
                 report_errno("tcflush", ret);
@@ -735,6 +742,7 @@ impl SerialQueue {
             name.pop();
         }
         let mut pipe_fds = [0 as RawFd; 2];
+        // SAFETY: pipe_fds is a live [c_int; 2] (inheritable, as the C serialqueue's)
         let ret = unsafe { libc::pipe(pipe_fds.as_mut_ptr()) };
         if ret != 0 {
             report_errno("init", ret);
@@ -1028,6 +1036,7 @@ impl Drop for SerialQueue {
             lists.upcoming_queue.clear();
         }
         drop(st);
+        // SAFETY: the queue's own pipe, closed once (the background thread has exited)
         unsafe {
             libc::close(self.shared.pipe_fds[0]);
             libc::close(self.shared.pipe_fds[1]);

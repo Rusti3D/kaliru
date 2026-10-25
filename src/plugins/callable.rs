@@ -42,6 +42,7 @@ static DEF: PyMethodDef = PyMethodDef {
 
 /// A python callable running `f`
 pub fn py_function(f: RustFn) -> KResult<PyRef> {
+    // SAFETY: the capsule owns the boxed RustFn (freed by destructor once); DEF is a static
     unsafe {
         let cap = PyRef::owned_or_err(PyCapsule_New(
             Box::into_raw(Box::new(f)) as *mut _,

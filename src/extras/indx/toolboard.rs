@@ -13,7 +13,7 @@ use crate::printer::{downcast_rc, Printer, PrinterObject};
 use crate::pyfmt::py_float;
 use crate::pyval::PyVal;
 use crate::toolhead::ToolHead;
-use indexmap::IndexMap;
+use crate::IndexMap;
 use std::any::Any;
 use std::cell::RefCell;
 use std::rc::{Rc, Weak};
@@ -83,7 +83,7 @@ impl IndxToolboard {
             let mut pins = ppins.0.borrow_mut();
             let chip: Rc<dyn PinChip> = Rc::new(IndxToolboardPins { toolboard: Rc::downgrade(&tb) });
             pins.register_chip(&name, chip).map_err(|e| KError::Pins(e.0))?;
-            let resolver = pins.get_pin_resolver(&mcu.get_name()).map_err(|e| KError::Pins(e.0))?;
+            let resolver = pins.get_pin_resolver(mcu.get_name()).map_err(|e| KError::Pins(e.0))?;
             for (alias, pin) in PIN_ALIASES {
                 resolver.alias_pin(alias, pin).map_err(|e| KError::Pins(e.0))?;
             }
@@ -165,8 +165,8 @@ impl PrinterObject for IndxToolboard {
     }
     fn get_status(&self, _eventtime: f64) -> Option<PyVal> {
         let last = self.dock_measurement.borrow().as_ref().and_then(|d| d.last_dock_measurement.borrow().clone()).unwrap_or(PyVal::None);
-        let mut d = IndexMap::new();
-        d.insert("last_dock_measurement".to_string(), last);
+        let mut d = IndexMap::default();
+        d.insert("last_dock_measurement".into(), last);
         Some(PyVal::Dict(d))
     }
     fn teardown(&self) {
@@ -288,11 +288,12 @@ impl IndxDockMeasurement {
             start_position[axis] = final_position[axis] + kinematic_position_before[axis] - kinematic_position_after[axis];
         }
 
-        let mut m = IndexMap::new();
-        m.insert("position".to_string(), PyVal::List(start_position.iter().map(|v| PyVal::Float(*v)).collect()));
-        m.insert("x".to_string(), PyVal::Float(start_position[0]));
-        m.insert("y".to_string(), PyVal::Float(start_position[1]));
-        m.insert("axis_order".to_string(), PyVal::Str(axes.iter().map(|a| ['X', 'Y'][*a]).collect()));
+        let m = crate::pydict! {
+            "position" => PyVal::List(start_position.iter().map(|v| PyVal::Float(*v)).collect()),
+            "x" => PyVal::Float(start_position[0]),
+            "y" => PyVal::Float(start_position[1]),
+            "axis_order" => PyVal::Str(axes.iter().map(|a| ['X', 'Y'][*a]).collect()),
+        };
         *self.last_dock_measurement.borrow_mut() = Some(PyVal::Dict(m));
         Ok((start_position[0], start_position[1]))
     }

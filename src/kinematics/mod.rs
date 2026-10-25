@@ -5,11 +5,11 @@
 // which raise like a load failure).
 use crate::configfile::ConfigWrapper;
 use crate::error::KResult;
-use crate::pyval::PyVal;
 use crate::extras::homing::Homing;
+use crate::pyval::PyDict;
 use crate::stepper::{McuStepper, PrinterRail, RailRef};
 use crate::toolhead::{Move, ToolHead};
-use indexmap::IndexMap;
+use crate::IndexMap;
 use std::cell::Cell;
 use std::rc::Rc;
 
@@ -42,7 +42,7 @@ pub trait Kinematics: std::any::Any {
     }
     fn set_position(&self, newpos: &[f64], homing_axes: &str) -> KResult<()>;
     fn clear_homing_state(&self, clear_axes: &str);
-    fn get_status(&self, eventtime: f64) -> IndexMap<String, PyVal>;
+    fn get_status(&self, eventtime: f64) -> PyDict;
     /// self.supports_dual_carriage
     fn supports_dual_carriage(&self) -> bool {
         false

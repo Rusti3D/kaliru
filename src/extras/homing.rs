@@ -14,7 +14,7 @@ use crate::printer::{PObj, Printer, PrinterObject};
 use crate::reactor::{ReactorCompletion, NEVER, NOW};
 use crate::stepper::{McuStepper, RailRef};
 use crate::toolhead::ToolHead;
-use indexmap::IndexMap;
+use crate::IndexMap;
 use std::cell::{Cell, RefCell};
 use std::rc::Rc;
 
@@ -270,7 +270,7 @@ impl HomingMove {
             Ok(()) => {}
         }
         // Wait for endstops to trigger
-        let mut trigger_times = IndexMap::new();
+        let mut trigger_times = IndexMap::default();
         let move_end_print_time = self.toolhead.get_last_move_time()?;
         for (mcu_endstop, name) in &self.endstops {
             let trigger_time = match mcu_endstop.home_wait(move_end_print_time) {
@@ -403,8 +403,8 @@ impl Homing {
             printer: printer.clone(),
             toolhead: printer.lookup::<ToolHead>("toolhead")?,
             changed_axes: RefCell::new(vec![]),
-            trigger_mcu_pos: RefCell::new(IndexMap::new()),
-            adjust_pos: RefCell::new(IndexMap::new()),
+            trigger_mcu_pos: RefCell::new(IndexMap::default()),
+            adjust_pos: RefCell::new(IndexMap::default()),
             saved_accel: Cell::new(None),
         }))
     }
@@ -416,8 +416,8 @@ impl Homing {
             printer: printer.clone(),
             toolhead,
             changed_axes: RefCell::new(vec![]),
-            trigger_mcu_pos: RefCell::new(IndexMap::new()),
-            adjust_pos: RefCell::new(IndexMap::new()),
+            trigger_mcu_pos: RefCell::new(IndexMap::default()),
+            adjust_pos: RefCell::new(IndexMap::default()),
             saved_accel: Cell::new(None),
         })
     }

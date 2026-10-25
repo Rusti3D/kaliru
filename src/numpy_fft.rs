@@ -95,11 +95,11 @@ impl Rfftp {
         let mut fact: Vec<Factor> = vec![];
         // factorize
         let mut len = length;
-        while len % 4 == 0 {
+        while len.is_multiple_of(4) {
             fact.push(Factor { fct: 4, tw: vec![] });
             len >>= 2;
         }
-        if len % 2 == 0 {
+        if len.is_multiple_of(2) {
             len >>= 1;
             // factor 2 should be at the front of the factor list
             fact.push(Factor { fct: 2, tw: vec![] });
@@ -281,7 +281,7 @@ mod tests {
             let mut it = lhs.split_whitespace();
             let kind = it.next().unwrap();
             let args: Vec<&str> = it.collect();
-            let want: Vec<f64> = rhs.split(|c| c == ' ' || c == ',').filter(|s| !s.is_empty()).map(parse_hex).collect();
+            let want: Vec<f64> = rhs.split([' ', ',']).filter(|s| !s.is_empty()).map(parse_hex).collect();
             let got: Vec<f64> = match kind {
                 "rfft" => {
                     let x: Vec<f64> = args.iter().map(|a| parse_hex(a)).collect();

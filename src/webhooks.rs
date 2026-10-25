@@ -5,8 +5,9 @@
 //
 // This file may be distributed under the terms of the GNU GPLv3 license
 //
-// Differences: "klipper_path" / "python_path" in the info response are the
-// directory above the kaliru binary / the binary itself; client ids are rust
+// Differences: "klipper_path" in the info response is the directory above
+// KALIRU_KLIPPY_DIR, else above the binary's directory, and "python_path"
+// the binary itself; client ids are rust
 // pointer values like python's id(); numpy conversion in send() is not
 // needed (PyVal is always serializable).
 use crate::error::{KError, KResult};
@@ -14,9 +15,9 @@ use crate::gcode::GCodeDispatch;
 use crate::logging;
 use crate::printer::{Printer, PrinterObject, APP_NAME};
 use crate::pyfmt::py_bytes_repr;
-use crate::pyval::PyVal;
+use crate::pyval::{PyDict, PyKey, PyVal};
 use crate::reactor::{FileHandler, ReactorCompletion, Timer, NEVER, NOW};
-use indexmap::IndexMap;
+use crate::IndexMap;
 use std::cell::{Cell, RefCell};
 use std::collections::VecDeque;
 use std::os::fd::RawFd;
@@ -30,9 +31,10 @@ fn web_error(msg: impl Into<String>) -> KError {
 }
 
 fn error_dict(message: &str) -> PyVal {
-    let mut d = IndexMap::new();
-    d.insert("error".to_string(), PyVal::Str("WebRequestError".into()));
-    d.insert("message".to_string(), PyVal::Str(message.to_string()));
+    let d = crate::pydict! {
+        "error" => PyVal::Str("WebRequestError".into()),
+        "message" => PyVal::Str(message.to_string()),
+    };
     PyVal::Dict(d)
 }
 
@@ -42,7 +44,7 @@ pub struct WebRequest {
     client_conn: Option<Rc<ClientConnection>>,
     pub id: PyVal,
     pub method: String,
-    pub params: IndexMap<String, PyVal>,
+    pub params: PyDict,
     response: RefCell<Option<PyVal>>,
     is_error: Cell<bool>,
 }
@@ -138,9 +140,9 @@ impl WebRequest {
         // No error was set and the user never executed send, default
         // response is {}
         let response = self.response.borrow().clone().unwrap_or_else(PyVal::dict);
-        let mut d = IndexMap::new();
-        d.insert("id".to_string(), self.id.clone());
-        d.insert(rtype.to_string(), response);
+        let mut d = IndexMap::default();
+        d.insert("id".into(), self.id.clone());
+        d.insert(rtype.to_string().into(), response);
         Some(PyVal::Dict(d))
     }
 }
@@ -154,7 +156,7 @@ pub struct ServerSocket {
 
 impl ServerSocket {
     fn new(webhooks: &Rc<WebHooks>, printer: &Rc<Printer>) -> KResult<Rc<Self>> {
-        let ss = Rc::new(ServerSocket { printer: printer.clone(), sock: Cell::new(-1), fd_handle: RefCell::new(None), clients: RefCell::new(IndexMap::new()) });
+        let ss = Rc::new(ServerSocket { printer: printer.clone(), sock: Cell::new(-1), fd_handle: RefCell::new(None), clients: RefCell::new(IndexMap::default()) });
         let server_address = printer.start_arg("apiserver_file").map(|v| v.str());
         let is_fileinput = printer.start_arg("debuginput").is_some();
         let Some(server_address) = server_address.filter(|s| !s.is_empty() && !is_fileinput) else {
@@ -162,11 +164,14 @@ impl ServerSocket {
             return Ok(ss);
         };
         ss.remove_socket_file(&server_address)?;
-        let sock = unsafe { libc::socket(libc::AF_UNIX, libc::SOCK_STREAM, 0) };
+        // (python sockets are non-inheritable: shell commands do not get them)
+        // SAFETY: a plain syscall with constant arguments; the fd is checked below
+        let sock = unsafe { libc::socket(libc::AF_UNIX, libc::SOCK_STREAM | libc::SOCK_CLOEXEC, 0) };
         if sock < 0 {
             return Err(KError::Other(std::io::Error::last_os_error().to_string()));
         }
         crate::util::set_nonblock(sock);
+        // SAFETY: sockaddr_un is plain data: all zero is valid (and NUL-terminates the path)
         let mut addr: libc::sockaddr_un = unsafe { std::mem::zeroed() };
         addr.sun_family = libc::AF_UNIX as libc::sa_family_t;
         let bytes = server_address.as_bytes();
@@ -176,6 +181,7 @@ impl ServerSocket {
         for (i, b) in bytes.iter().enumerate() {
             addr.sun_path[i] = *b as libc::c_char;
         }
+        // SAFETY: addr is a live sockaddr_un and the length is its size
         let r = unsafe {
             libc::bind(sock, &addr as *const libc::sockaddr_un as *const libc::sockaddr, std::mem::size_of::<libc::sockaddr_un>() as libc::socklen_t)
         };
@@ -183,6 +189,7 @@ impl ServerSocket {
             return Err(KError::Other(crate::pyfmt::py_oserror(&std::io::Error::last_os_error(), &server_address)));
         }
         apply_permission_options_to_socket(&server_address, printer)?;
+        // SAFETY: sock is the open socket created above
         unsafe { libc::listen(sock, 1) };
         ss.sock.set(sock);
         let (s, w) = (ss.clone(), Rc::downgrade(webhooks));
@@ -197,12 +204,12 @@ impl ServerSocket {
         );
         *ss.fd_handle.borrow_mut() = Some(h);
         let s = ss.clone();
-        crate::events::KlippyDisconnect::on(&printer, move || {
+        crate::events::KlippyDisconnect::on(printer, move || {
             s.handle_disconnect();
             Ok(())
         });
         let s = ss.clone();
-        crate::events::KlippyAnalyzeShutdown::on(&printer, move |_, _| {
+        crate::events::KlippyAnalyzeShutdown::on(printer, move |_, _| {
             for client in s.clients.borrow().values() {
                 client.dump_request_log();
             }
@@ -212,7 +219,8 @@ impl ServerSocket {
     }
 
     fn handle_accept(self: &Rc<Self>, webhooks: &Rc<WebHooks>) {
-        let fd = unsafe { libc::accept(self.sock.get(), std::ptr::null_mut(), std::ptr::null_mut()) };
+        // SAFETY: null address pointers are allowed (the peer address is not wanted)
+        let fd = unsafe { libc::accept4(self.sock.get(), std::ptr::null_mut(), std::ptr::null_mut(), libc::SOCK_CLOEXEC) };
         if fd < 0 {
             return;
         }
@@ -226,11 +234,13 @@ impl ServerSocket {
         for client in clients {
             client.close();
         }
-        if self.sock.get() >= 0 {
+        let sock = self.sock.replace(-1);
+        if sock >= 0 {
             if let Some(h) = self.fd_handle.borrow_mut().take() {
                 self.printer.reactor.unregister_fd(&h);
             }
-            unsafe { libc::close(self.sock.get()) };
+            // SAFETY: the server's own fd, taken out of self.sock: closed once
+            unsafe { libc::close(sock) };
         }
     }
 
@@ -268,37 +278,45 @@ fn apply_permission_options_to_socket(socket_path: &str, printer: &Printer) -> K
     let user = printer.start_arg("apiserver_user").map(|v| v.str());
     let group = printer.start_arg("apiserver_group").map(|v| v.str());
     let file_mode = printer.start_arg("apiserver_file_mode").map(|v| v.str());
-    let cpath = std::ffi::CString::new(socket_path).unwrap();
+    // (os.chown / os.chmod raise OSError, as the bind above)
+    let oserror = |e: std::io::Error| KError::Other(crate::pyfmt::py_oserror(&e, socket_path));
     if user.is_some() || group.is_some() {
         let uid = match &user {
-            None => u32::MAX,
+            None => None,
             Some(u) => {
                 let c = std::ffi::CString::new(u.as_str()).unwrap();
+                // SAFETY: getpwnam reads a NUL-terminated name and returns
+                // null or a pointer to static storage, read before any other
+                // passwd call (single-threaded here)
                 let pw = unsafe { libc::getpwnam(c.as_ptr()) };
                 if pw.is_null() {
                     return Err(KError::Other(format!("getpwnam(): name not found: {}", crate::pyfmt::py_str_repr(u))));
                 }
-                unsafe { (*pw).pw_uid }
+                // SAFETY: non-null, see above
+                Some(unsafe { (*pw).pw_uid })
             }
         };
         let gid = match &group {
-            None => u32::MAX,
+            None => None,
             Some(g) => {
                 let c = std::ffi::CString::new(g.as_str()).unwrap();
+                // SAFETY: as getpwnam above
                 let gr = unsafe { libc::getgrnam(c.as_ptr()) };
                 if gr.is_null() {
                     return Err(KError::Other(format!("getgrnam(): name not found: {}", crate::pyfmt::py_str_repr(g))));
                 }
-                unsafe { (*gr).gr_gid }
+                // SAFETY: non-null, see above
+                Some(unsafe { (*gr).gr_gid })
             }
         };
-        unsafe { libc::chown(cpath.as_ptr(), uid, gid) };
+        std::os::unix::fs::chown(socket_path, uid, gid).map_err(oserror)?;
     }
     if let Some(mode) = file_mode {
         let mode_int = crate::pyfmt::py_int_digits(&mode, 8)
             .and_then(|(neg, _, d)| if neg { None } else { Some(d.iter().fold(0u32, |a, x| a * 8 + *x as u32)) })
             .ok_or_else(|| KError::Other(format!("invalid literal for int() with base 8: {}", crate::pyfmt::py_str_repr(&mode))))?;
-        unsafe { libc::chmod(cpath.as_ptr(), mode_int as libc::mode_t) };
+        use std::os::unix::fs::PermissionsExt;
+        std::fs::set_permissions(socket_path, std::fs::Permissions::from_mode(mode_int)).map_err(oserror)?;
     }
     Ok(())
 }
@@ -312,6 +330,8 @@ pub struct ClientConnection {
     fd_handle: RefCell<Option<FileHandler>>,
     partial_data: RefCell<Vec<u8>>,
     send_buffer: RefCell<Vec<u8>>,
+    /// the reply being serialized (kept between replies)
+    json_scratch: RefCell<String>,
     is_blocking: Cell<bool>,
     blocking_count: Cell<i64>,
     request_log: RefCell<VecDeque<(f64, Vec<u8>)>>,
@@ -329,6 +349,7 @@ impl ClientConnection {
             fd_handle: RefCell::new(None),
             partial_data: RefCell::new(vec![]),
             send_buffer: RefCell::new(vec![]),
+            json_scratch: RefCell::new(String::new()),
             is_blocking: Cell::new(false),
             blocking_count: Cell::new(0),
             request_log: RefCell::new(VecDeque::new()),
@@ -368,6 +389,7 @@ impl ClientConnection {
         let Some(h) = self.fd_handle.borrow_mut().take() else { return };
         self.set_client_info(None, Some("Disconnected"));
         self.printer.reactor.unregister_fd(&h);
+        // SAFETY: the client's own fd; close() runs once (fd_handle was taken above)
         unsafe { libc::close(self.sock) };
         if let Some(s) = self.server.upgrade() {
             s.pop_client(self.uid);
@@ -380,6 +402,7 @@ impl ClientConnection {
 
     fn process_received(self: &Rc<Self>, eventtime: f64) {
         let mut buf = [0u8; 4096];
+        // SAFETY: buf is a live buffer of buf.len() bytes
         let n = unsafe { libc::recv(self.sock, buf.as_mut_ptr() as *mut libc::c_void, buf.len(), 0) };
         let data: &[u8] = if n < 0 {
             // If bad file descriptor allow connection to be closed by the
@@ -446,11 +469,18 @@ impl ClientConnection {
     }
 
     pub fn send(&self, data: &PyVal) {
-        let jmsg = data.json_compact();
         {
+            // (serialized into a reused string: no allocation per message)
+            let mut jmsg = self.json_scratch.borrow_mut();
+            jmsg.clear();
+            data.json_compact_into(&mut jmsg);
             let mut buf = self.send_buffer.borrow_mut();
             buf.extend_from_slice(jmsg.as_bytes());
             buf.push(0x03);
+            // (the first, large replies are not kept: the steady ones are small)
+            if jmsg.capacity() > 16384 {
+                *jmsg = String::new();
+            }
         }
         if !self.is_blocking.get() {
             self.do_send();
@@ -459,8 +489,11 @@ impl ClientConnection {
 
     fn do_send(&self) {
         let Some(h) = self.fd_handle.borrow().clone() else { return };
-        let buf = self.send_buffer.borrow().clone();
-        let sent = unsafe { libc::send(self.sock, buf.as_ptr() as *const libc::c_void, buf.len(), libc::MSG_NOSIGNAL) };
+        let (sent, len) = {
+            let buf = self.send_buffer.borrow();
+            // SAFETY: buf is borrowed for the call and buf.len() bytes long
+            (unsafe { libc::send(self.sock, buf.as_ptr() as *const libc::c_void, buf.len(), libc::MSG_NOSIGNAL) }, buf.len())
+        };
         let sent = if sent < 0 {
             let err = std::io::Error::last_os_error().raw_os_error();
             if err != Some(libc::EAGAIN) && err != Some(libc::EWOULDBLOCK) {
@@ -472,7 +505,7 @@ impl ClientConnection {
         } else {
             sent as usize
         };
-        if sent < buf.len() {
+        if sent < len {
             if !self.is_blocking.get() {
                 self.printer.reactor.set_fd_wake(&h, false, true);
                 self.is_blocking.set(true);
@@ -482,7 +515,12 @@ impl ClientConnection {
             self.printer.reactor.set_fd_wake(&h, true, false);
             self.is_blocking.set(false);
         }
-        self.send_buffer.borrow_mut().drain(..sent);
+        let mut buf = self.send_buffer.borrow_mut();
+        buf.drain(..sent);
+        // (a large reply's buffer is not kept once it is sent)
+        if buf.is_empty() && buf.capacity() > 16384 {
+            *buf = Vec::new();
+        }
     }
 }
 
@@ -502,9 +540,10 @@ impl PrinterObject for WebHooks {
     }
     fn get_status(&self, _eventtime: f64) -> Option<PyVal> {
         let (state_message, state) = self.printer.get_state_message();
-        let mut d = IndexMap::new();
-        d.insert("state".to_string(), PyVal::Str(state.into()));
-        d.insert("state_message".to_string(), PyVal::Str(state_message));
+        let d = crate::pydict! {
+            "state" => PyVal::Str(state.into()),
+            "state_message" => PyVal::Str(state_message),
+        };
         Some(PyVal::Dict(d))
     }
     fn has_stats(&self) -> bool {
@@ -528,9 +567,9 @@ impl WebHooks {
     fn new(printer: &Rc<Printer>) -> KResult<Rc<Self>> {
         let wh = Rc::new(WebHooks {
             printer: printer.clone(),
-            endpoints: RefCell::new(IndexMap::new()),
-            remote_methods: RefCell::new(IndexMap::new()),
-            mux_endpoints: RefCell::new(IndexMap::new()),
+            endpoints: RefCell::new(IndexMap::default()),
+            remote_methods: RefCell::new(IndexMap::default()),
+            mux_endpoints: RefCell::new(IndexMap::default()),
             sconn: RefCell::new(None),
         });
         let w = Rc::downgrade(&wh);
@@ -539,8 +578,8 @@ impl WebHooks {
             Rc::new(move |wr: &WebRequest| {
                 let wh = w.upgrade().unwrap();
                 let names: Vec<PyVal> = wh.endpoints.borrow().keys().map(|k| PyVal::Str(k.clone())).collect();
-                let mut d = IndexMap::new();
-                d.insert("endpoints".to_string(), PyVal::List(names));
+                let mut d = IndexMap::default();
+                d.insert("endpoints".into(), PyVal::List(names));
                 wr.send(PyVal::Dict(d))
             }),
         );
@@ -575,7 +614,7 @@ impl WebHooks {
         if !self.mux_endpoints.borrow().contains_key(path) {
             let w = Rc::downgrade(self);
             self.register_endpoint(path, Rc::new(move |wr| w.upgrade().unwrap().handle_mux(wr)))?;
-            self.mux_endpoints.borrow_mut().insert(path.to_string(), (key.to_string(), IndexMap::new()));
+            self.mux_endpoints.borrow_mut().insert(path.to_string(), (key.to_string(), IndexMap::default()));
         }
         let mut mux = self.mux_endpoints.borrow_mut();
         let (prev_key, prev_values) = mux.get_mut(path).unwrap();
@@ -623,22 +662,29 @@ impl WebHooks {
         }
         let (state_message, state) = self.printer.get_state_message();
         let exe = std::env::current_exe().map(|p| p.to_string_lossy().into_owned()).unwrap_or_default();
-        let klipper_path = crate::pyglob::normpath(&crate::pyglob::join(&crate::pyglob::dirname(&exe), &[".."]));
+        // klippy/.. as python: the klippy tree kaliru reads its python from
+        // (KALIRU_KLIPPY_DIR) when there is one; Moonraker registers
+        // klipper_path/config and /docs from it
+        let src_path = std::env::var("KALIRU_KLIPPY_DIR").unwrap_or_else(|_| crate::pyglob::dirname(&exe));
+        let klipper_path = crate::pyglob::normpath(&crate::pyglob::join(&src_path, &[".."]));
         let mut hostname = [0u8; 256];
+        // SAFETY: hostname is a live buffer of hostname.len() bytes
         unsafe { libc::gethostname(hostname.as_mut_ptr() as *mut libc::c_char, hostname.len()) };
         let hostname = String::from_utf8_lossy(&hostname[..hostname.iter().position(|b| *b == 0).unwrap_or(0)]).into_owned();
-        let mut response = IndexMap::new();
-        response.insert("app".to_string(), PyVal::Str(APP_NAME.into()));
-        response.insert("state".to_string(), PyVal::Str(state.into()));
-        response.insert("state_message".to_string(), PyVal::Str(state_message));
-        response.insert("hostname".to_string(), PyVal::Str(hostname));
-        response.insert("klipper_path".to_string(), PyVal::Str(klipper_path));
-        response.insert("python_path".to_string(), PyVal::Str(exe));
-        response.insert("process_id".to_string(), PyVal::Int(std::process::id() as i64));
-        response.insert("user_id".to_string(), PyVal::Int(unsafe { libc::getuid() } as i64));
-        response.insert("group_id".to_string(), PyVal::Int(unsafe { libc::getgid() } as i64));
+        let mut response = crate::pydict! {
+            "app" => PyVal::Str(APP_NAME.into()),
+            "state" => PyVal::Str(state.into()),
+            "state_message" => PyVal::Str(state_message),
+            "hostname" => PyVal::Str(hostname),
+            "klipper_path" => PyVal::Str(klipper_path),
+            "python_path" => PyVal::Str(exe),
+            "process_id" => PyVal::Int(std::process::id() as i64),
+        };
+        // SAFETY: getuid / getgid cannot fail and take no pointers
+        response.insert("user_id".into(), PyVal::Int(unsafe { libc::getuid() } as i64));
+        response.insert("group_id".into(), PyVal::Int(unsafe { libc::getgid() } as i64));
         for sa in ["log_file", "config_file", "software_version", "cpu_info"] {
-            response.insert(sa.to_string(), self.printer.start_arg(sa).unwrap_or(PyVal::None));
+            response.insert(sa.to_string().into(), self.printer.start_arg(sa).unwrap_or(PyVal::None));
         }
         web_request.send(PyVal::Dict(response))
     }
@@ -675,18 +721,18 @@ impl WebHooks {
     }
 
     /// call_remote_method(method, **kwargs)
-    pub fn call_remote_method(&self, method: &str, kwargs: IndexMap<String, PyVal>) -> KResult<()> {
+    pub fn call_remote_method(&self, method: &str, kwargs: PyDict) -> KResult<()> {
         let conn_map = self
             .remote_methods
             .borrow()
             .get(method)
             .cloned()
             .ok_or_else(|| KError::command(format!("Remote method '{}' not registered", method)))?;
-        let mut valid_conns = IndexMap::new();
+        let mut valid_conns = IndexMap::default();
         for (uid, (conn, template)) in conn_map {
             if !conn.is_closed() {
-                let mut out = IndexMap::new();
-                out.insert("params".to_string(), PyVal::Dict(kwargs.clone()));
+                let mut out = IndexMap::default();
+                out.insert("params".into(), PyVal::Dict(kwargs.clone()));
                 if let PyVal::Dict(t) = &template {
                     for (k, v) in t {
                         out.insert(k.clone(), v.clone());
@@ -716,7 +762,7 @@ impl GCodeHelper {
         let gh = Rc::new(GCodeHelper {
             gcode: printer.lookup::<GCodeDispatch>("gcode")?,
             is_output_registered: Cell::new(false),
-            clients: RefCell::new(IndexMap::new()),
+            clients: RefCell::new(IndexMap::default()),
         });
         // Register webhooks
         let wh = printer.lookup::<WebHooks>("webhooks")?;
@@ -724,7 +770,7 @@ impl GCodeHelper {
         wh.register_endpoint(
             "gcode/help",
             Rc::new(move |wr| {
-                let help: IndexMap<String, PyVal> = g.gcode.get_command_help().into_iter().map(|(k, v)| (k, PyVal::Str(v))).collect();
+                let help: PyDict = g.gcode.get_command_help().into_iter().map(|(k, v)| (k.into(), PyVal::Str(v))).collect();
                 wr.send(PyVal::Dict(help))
             }),
         )?;
@@ -748,11 +794,11 @@ impl GCodeHelper {
             }
             let mut tmp = match template {
                 PyVal::Dict(d) => d,
-                _ => IndexMap::new(),
+                _ => IndexMap::default(),
             };
-            let mut params = IndexMap::new();
-            params.insert("response".to_string(), PyVal::Str(msg.to_string()));
-            tmp.insert("params".to_string(), PyVal::Dict(params));
+            let mut params = IndexMap::default();
+            params.insert("response".into(), PyVal::Str(msg.to_string()));
+            tmp.insert("params".into(), PyVal::Dict(params));
             cconn.send(&PyVal::Dict(tmp));
         }
     }
@@ -776,7 +822,7 @@ pub const SUBSCRIPTION_REFRESH_TIME: f64 = 0.25;
 
 /// a subscription dict (shared: python keeps the same dict in the pending
 /// query and in the client subscription)
-type Subscription = Rc<RefCell<IndexMap<String, PyVal>>>;
+type Subscription = Rc<RefCell<PyDict>>;
 
 enum SendFunc {
     Complete(Rc<ReactorCompletion<PyVal>>),
@@ -804,8 +850,10 @@ impl Status {
 
     fn keys(&self) -> Vec<String> {
         match self {
-            Status::Val(PyVal::Dict(d)) => d.keys().cloned().collect(),
-            Status::Val(_) => vec![],
+            Status::Val(v) => match v.get() {
+                PyVal::Dict(d) => d.keys().map(|k| k.to_string()).collect(),
+                _ => vec![],
+            },
             #[cfg(feature = "plugins")]
             Status::Py(d) => crate::plugins::py::dict_keys(d).unwrap_or_default(),
         }
@@ -816,19 +864,15 @@ impl Status {
         match self {
             Status::Val(v) => {
                 let none = PyVal::None;
-                let field = |s: &'_ PyVal| -> Option<PyVal> {
-                    match s {
-                        PyVal::Dict(d) => d.get(key).cloned(),
-                        _ => None,
-                    }
-                };
-                let a = match v {
+                let a = match v.get() {
                     PyVal::Dict(d) => d.get(key).unwrap_or(&none),
                     _ => &none,
                 };
                 match last {
-                    Some(Status::Val(PyVal::Dict(l))) => !a.py_eq(l.get(key).unwrap_or(&none)),
-                    Some(Status::Val(l)) => !a.py_eq(&field(l).unwrap_or(PyVal::None)),
+                    Some(Status::Val(l)) => match l.get() {
+                        PyVal::Dict(l) => !a.py_eq(l.get(key).unwrap_or(&none)),
+                        _ => !a.py_eq(&none),
+                    },
                     #[cfg(feature = "plugins")]
                     Some(Status::Py(_)) => true,
                     None => !a.py_eq(&none),
@@ -850,15 +894,24 @@ impl Status {
         }
     }
 
-    /// res[key] as a value (None when missing)
-    fn value(&self, key: &str) -> PyVal {
+    /// (key, res[key]) for the response (None when missing); the key is the
+    /// status dict's own (static field names cost no allocation)
+    fn entry(&self, key: &str) -> (PyKey, PyVal) {
         match self {
-            Status::Val(PyVal::Dict(d)) => d.get(key).cloned().unwrap_or(PyVal::None),
-            Status::Val(_) => PyVal::None,
+            Status::Val(v) => match v.get() {
+                PyVal::Dict(d) => match d.get_key_value(key) {
+                    Some((k, v)) => (k.clone(), v.clone()),
+                    None => (key.to_string().into(), PyVal::None),
+                },
+                _ => (key.to_string().into(), PyVal::None),
+            },
             #[cfg(feature = "plugins")]
-            Status::Py(d) => crate::plugins::py::dict_get(d, key)
-                .and_then(|v| crate::plugins::py::to_pyval(&v))
-                .unwrap_or(PyVal::None),
+            Status::Py(d) => (
+                key.to_string().into(),
+                crate::plugins::py::dict_get(d, key)
+                    .and_then(|v| crate::plugins::py::to_pyval(&v))
+                    .unwrap_or(PyVal::None),
+            ),
         }
     }
 }
@@ -868,17 +921,17 @@ struct QueryStatusHelper {
     clients: RefCell<IndexMap<usize, (Rc<ClientConnection>, Subscription, PyVal)>>,
     pending_queries: RefCell<Vec<(Option<Rc<ClientConnection>>, Subscription, SendFunc, PyVal)>>,
     query_timer: RefCell<Option<Timer>>,
-    last_query: RefCell<IndexMap<String, Status>>,
+    last_query: RefCell<IndexMap<PyKey, Status>>,
 }
 
 impl QueryStatusHelper {
     fn new(printer: &Rc<Printer>) -> KResult<Rc<Self>> {
         let q = Rc::new(QueryStatusHelper {
             printer: printer.clone(),
-            clients: RefCell::new(IndexMap::new()),
+            clients: RefCell::new(IndexMap::default()),
             pending_queries: RefCell::new(vec![]),
             query_timer: RefCell::new(None),
-            last_query: RefCell::new(IndexMap::new()),
+            last_query: RefCell::new(IndexMap::default()),
         });
         // Register webhooks
         let wh = printer.lookup::<WebHooks>("webhooks")?;
@@ -893,8 +946,8 @@ impl QueryStatusHelper {
                     .filter(|(_, o)| o.has_status())
                     .map(|(n, _)| PyVal::Str(n))
                     .collect();
-                let mut d = IndexMap::new();
-                d.insert("objects".to_string(), PyVal::List(objects));
+                let mut d = IndexMap::default();
+                d.insert("objects".into(), PyVal::List(objects));
                 wr.send(PyVal::Dict(d))
             }),
         )?;
@@ -907,7 +960,7 @@ impl QueryStatusHelper {
 
     fn do_query(self: &Rc<Self>, eventtime: f64) -> f64 {
         let last_query = std::mem::take(&mut *self.last_query.borrow_mut());
-        let mut query: IndexMap<String, Status> = IndexMap::new();
+        let mut query: IndexMap<PyKey, Status> = IndexMap::default();
         let mut msglist = std::mem::take(&mut *self.pending_queries.borrow_mut());
         for (_, (cconn, sub, template)) in self.clients.borrow().iter() {
             msglist.push((Some(cconn.clone()), sub.clone(), SendFunc::Conn(cconn.clone()), template.clone()));
@@ -923,8 +976,8 @@ impl QueryStatusHelper {
             }
             // Query each requested printer object (borrowed: python iterates
             // the subscription dict; a None field list becomes the keys)
-            let mut cquery = IndexMap::new();
-            let mut filled: Vec<(String, PyVal)> = vec![];
+            let mut cquery = IndexMap::default();
+            let mut filled: Vec<(PyKey, PyVal)> = vec![];
             {
                 let sub = subscription.borrow();
                 for (obj_name, req) in sub.iter() {
@@ -947,15 +1000,15 @@ impl QueryStatusHelper {
                         req
                     };
                     let lres = last_query.get(obj_name);
-                    let mut cres = IndexMap::new();
+                    let mut cres = IndexMap::default();
                     for ri in req_items.items().unwrap_or(&[]) {
                         let key = match ri.as_str() {
                             Some(k) => std::borrow::Cow::Borrowed(k),
                             None => std::borrow::Cow::Owned(ri.str()),
                         };
                         if is_query || res.changed(&key, lres) {
-                            let v = res.value(&key);
-                            cres.insert(key.into_owned(), v);
+                            let (k, v) = res.entry(&key);
+                            cres.insert(k, v);
                         }
                     }
                     if !cres.is_empty() || is_query {
@@ -973,12 +1026,13 @@ impl QueryStatusHelper {
             if !cquery.is_empty() || is_query {
                 let mut tmp = match template {
                     PyVal::Dict(d) => d,
-                    _ => IndexMap::new(),
+                    _ => IndexMap::default(),
                 };
-                let mut params = IndexMap::new();
-                params.insert("eventtime".to_string(), PyVal::Float(eventtime));
-                params.insert("status".to_string(), PyVal::Dict(cquery));
-                tmp.insert("params".to_string(), PyVal::Dict(params));
+                let params = crate::pydict! {
+                    "eventtime" => PyVal::Float(eventtime),
+                    "status" => PyVal::Dict(cquery),
+                };
+                tmp.insert("params".into(), PyVal::Dict(params));
                 let msg = PyVal::Dict(tmp);
                 match send_func {
                     SendFunc::Complete(c) => c.complete(msg),

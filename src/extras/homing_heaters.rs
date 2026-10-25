@@ -11,7 +11,7 @@ use crate::mcu::EndstopRef;
 use crate::printer::{PObj, Printer, PrinterObject};
 use crate::pyval::PyVal;
 use crate::toolhead::ToolHead;
-use indexmap::IndexMap;
+use crate::IndexMap;
 use std::cell::RefCell;
 use std::rc::{Rc, Weak};
 
@@ -39,7 +39,7 @@ impl HomingHeaters {
             disable_heaters: RefCell::new(disable_heaters),
             flaky_steppers,
             pheaters,
-            target_save: RefCell::new(IndexMap::new()),
+            target_save: RefCell::new(IndexMap::default()),
         });
         let w: Weak<HomingHeaters> = Rc::downgrade(&h);
         crate::events::KlippyConnect::on(&printer, move || match w.upgrade() {

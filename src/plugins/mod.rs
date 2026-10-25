@@ -42,8 +42,10 @@ pub fn allow_threads<R>(f: impl FnOnce() -> R) -> R {
     if !started() {
         return f();
     }
+    // SAFETY: python is started and this thread holds the GIL; it is taken back below
     let ts = unsafe { capi::PyEval_SaveThread() };
     let r = f();
+    // SAFETY: ts is the state SaveThread returned above
     unsafe { capi::PyEval_RestoreThread(ts) };
     r
 }
@@ -101,11 +103,14 @@ pub fn ensure_started() -> KResult<()> {
         return Ok(());
     }
     capi::load().map_err(|e| KError::config(format!("Python plugins need CPython: {}", e)))?;
+    // SAFETY: libpython is loaded (capi::load) and python not started yet
     unsafe { capi::Py_InitializeEx(0) };
     native::create_module()?;
     // the prelude as module `_k`
+    // SAFETY: a static C string; python is started
     let m = unsafe { PyRef::owned_or_err(capi::PyImport_AddModuleRef(c"_k".as_ptr()))? };
     let src = std::ffi::CString::new(include_str!("prelude.py")).unwrap();
+    // SAFETY: the module's live dict (borrowed from m) and C strings; code and builtins are owned PyRefs
     unsafe {
         let code = PyRef::owned_or_err(capi::Py_CompileString(src.as_ptr(), c"<kaliru prelude>".as_ptr(), 257))?;
         let globals = capi::PyModule_GetDict(m.as_ptr());
@@ -216,9 +221,8 @@ pub fn load_config(config: &ConfigWrapper, section: &str, package: &Package) -> 
     ensure_started()?;
     let name = section.split_whitespace().next().unwrap_or("");
     let modname = format!("klippy.{}.{}", package.dir(), name);
-    let module = py::import(&modname).map_err(|e| {
-        crate::logging::exception_err(&format!("Failed to load module '{}'.", name), &e);
-        e
+    let module = py::import(&modname).inspect_err(|e| {
+        crate::logging::exception_err(&format!("Failed to load module '{}'.", name), e);
     })?;
     let is_prefix = name != section;
     let func = if is_prefix { "load_config_prefix" } else { "load_config" };

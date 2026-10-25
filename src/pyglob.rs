@@ -1,6 +1,8 @@
 // Ports of the python 3.13 stdlib path helpers klippy uses: glob.glob (with
 // recursive), glob.has_magic, fnmatch matching and the posixpath functions
 // join, split, dirname, normpath, abspath (sources in kaliru/ref/).
+use crate::error::{KError, KResult};
+use std::os::unix::fs::OpenOptionsExt;
 use std::path::Path;
 
 // ------------------------------------------------------------ posixpath
@@ -61,16 +63,59 @@ pub fn normpath(path: &str) -> String {
     }
 }
 
-/// tempfile.gettempdir()
-pub fn gettempdir() -> String {
-    for var in ["TMPDIR", "TEMP", "TMP"] {
-        if let Ok(v) = std::env::var(var) {
-            if !v.is_empty() && std::path::Path::new(&v).is_dir() {
-                return v;
+/// tempfile.gettempdir(): the first candidate (_candidate_tempdir_list) a
+/// file can be created in (_get_default_tempdir), absolute, found once
+pub fn gettempdir() -> KResult<String> {
+    thread_local! {
+        static TEMPDIR: std::cell::OnceCell<String> = const { std::cell::OnceCell::new() };
+    }
+    if let Some(d) = TEMPDIR.with(|t| t.get().cloned()) {
+        return Ok(d);
+    }
+    let mut dirlist: Vec<String> =
+        ["TMPDIR", "TEMP", "TMP"].iter().filter_map(|v| std::env::var(v).ok()).filter(|d| !d.is_empty()).collect();
+    dirlist.extend(["/tmp", "/var/tmp", "/usr/tmp"].map(String::from));
+    dirlist.push(std::env::current_dir().map(|d| d.to_string_lossy().into_owned()).unwrap_or_else(|_| ".".into()));
+    // (_RandomNameSequence: names only need to be unlikely to exist)
+    let mut seed = std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).map_or(0, |d| d.as_nanos() as u64)
+        ^ ((std::process::id() as u64) << 32);
+    let mut name = || -> String {
+        const CHARS: &[u8] = b"abcdefghijklmnopqrstuvwxyz0123456789_";
+        (0..8)
+            .map(|_| {
+                seed ^= seed << 13;
+                seed ^= seed >> 7;
+                seed ^= seed << 17;
+                CHARS[(seed % CHARS.len() as u64) as usize] as char
+            })
+            .collect()
+    };
+    for dir in &dirlist {
+        let dir = if dir == "." { dir.clone() } else { abspath(dir) };
+        // Try only a few names per directory.
+        for _ in 0..100 {
+            let filename = join(&dir, &[&name()]);
+            let file = std::fs::OpenOptions::new().read(true).write(true).create_new(true).mode(0o600).open(&filename);
+            match file {
+                Ok(mut f) => {
+                    use std::io::Write;
+                    let _ = f.write_all(b"blat");
+                    drop(f);
+                    let _ = std::fs::remove_file(&filename);
+                    TEMPDIR.with(|t| t.get_or_init(|| dir.clone()).clone());
+                    return Ok(dir);
+                }
+                Err(e) if e.kind() == std::io::ErrorKind::AlreadyExists => continue,
+                // no point trying more names in this directory
+                Err(_) => break,
             }
         }
     }
-    "/tmp".into()
+    let repr: Vec<String> = dirlist.iter().map(|d| crate::pyfmt::py_str_repr(d)).collect();
+    Err(KError::Py(
+        "FileNotFoundError".into(),
+        format!("[Errno 2] No usable temporary directory found in [{}]", repr.join(", ")),
+    ))
 }
 
 /// posixpath.expanduser(path)

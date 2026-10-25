@@ -30,6 +30,7 @@ struct LocalTm {
 }
 
 fn localtime(t: i64) -> LocalTm {
+    // SAFETY: tm is plain data (zeroed is valid) filled by the reentrant localtime_r
     unsafe {
         let tt = t as libc::time_t;
         let mut tm: libc::tm = std::mem::zeroed();
@@ -38,17 +39,7 @@ fn localtime(t: i64) -> LocalTm {
     }
 }
 
-fn strftime_local(fmt: &str, t: i64) -> String {
-    let f = std::ffi::CString::new(fmt).unwrap();
-    let mut buf = [0u8; 64];
-    unsafe {
-        let tt = t as libc::time_t;
-        let mut tm: libc::tm = std::mem::zeroed();
-        libc::localtime_r(&tt, &mut tm);
-        let n = libc::strftime(buf.as_mut_ptr() as *mut libc::c_char, buf.len(), f.as_ptr(), &tm);
-        String::from_utf8_lossy(&buf[..n]).into_owned()
-    }
-}
+use crate::util::strftime_local;
 
 fn now() -> i64 {
     std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).map(|d| d.as_secs() as i64).unwrap_or(0)

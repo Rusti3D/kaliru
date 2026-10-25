@@ -16,7 +16,7 @@ use crate::pins::PinsObject;
 use crate::printer::{PObj, Printer};
 use crate::pyfmt::py_min;
 use crate::reactor::ReactorMutex;
-use indexmap::IndexMap;
+use crate::IndexMap;
 use std::cell::RefCell;
 use std::rc::Rc;
 
@@ -146,7 +146,7 @@ impl McuTmcSpiChain {
     fn build_cmd(&self, data: &[u8], chain_pos: i64) -> Vec<u8> {
         let mut cmd = vec![0u8; ((self.chain_len - chain_pos) * 5) as usize];
         cmd.extend_from_slice(data);
-        cmd.extend(std::iter::repeat(0u8).take(((chain_pos - 1) * 5) as usize));
+        cmd.extend(std::iter::repeat_n(0u8, ((chain_pos - 1) * 5) as usize));
         cmd
     }
 

@@ -213,7 +213,7 @@ fn zpk2sos(z: &[C64], p: &[C64], k: f64) -> Vec<[f64; 6]> {
     while z.len() < p.len() {
         z.push(C64::real(0.0));
     }
-    let n_sections = (p.len().max(z.len()) + 1) / 2;
+    let n_sections = p.len().max(z.len()).div_ceil(2);
     if p.len() % 2 == 1 {
         p.push(C64::real(0.0));
         z.push(C64::real(0.0));

@@ -3,7 +3,7 @@
 // hash()), for the object types templates meet in klippy.
 use crate::pyfmt::{py_float_repr, py_str_repr};
 use crate::pyval::PyVal;
-use indexmap::IndexMap;
+use crate::IndexMap;
 use std::any::Any;
 use std::cell::RefCell;
 use std::hash::{Hash, Hasher};
@@ -107,6 +107,7 @@ pub fn object_type_repr(obj: &Value) -> String {
 
 crate::impl_downcast!(dyn Object);
 /// python objects other than the builtin containers and numbers
+#[allow(clippy::len_without_is_empty)]
 pub trait Object: Any {
     /// type(o).__name__
     fn type_name(&self) -> String;
@@ -742,7 +743,8 @@ impl Value {
         }
     }
 
-    /// len(v)
+    /// len(v) (templates only call python's len(); no is_empty)
+    #[allow(clippy::len_without_is_empty)]
     pub fn len(&self) -> VResult<usize> {
         match self {
             Value::Str(s) => Ok(s.chars().count()),
@@ -814,7 +816,7 @@ impl Value {
             Value::Str(s) => PyVal::Str(s.to_string()),
             Value::Tuple(t) => PyVal::Tuple(t.iter().map(|v| v.to_pyval_shallow()).collect()),
             Value::List(l) => PyVal::List(l.borrow().iter().map(|v| v.to_pyval_shallow()).collect()),
-            Value::Dict(d) => PyVal::Dict(d.borrow().iter().map(|(k, v)| (k.0.to_str(), v.to_pyval_shallow())).collect()),
+            Value::Dict(d) => PyVal::Dict(d.borrow().iter().map(|(k, v)| (k.0.to_str().into(), v.to_pyval_shallow())).collect()),
             // other objects format through their str() / repr()
             v => PyVal::Str(v.to_str()),
         }
@@ -836,7 +838,7 @@ impl Value {
                 values.iter().map(Value::from_pyval).collect(),
             ))),
             PyVal::Dict(d) => {
-                Value::dict(d.iter().map(|(k, v)| (Key(Value::from(k.as_str())), Value::from_pyval(v))).collect())
+                Value::dict(d.iter().map(|(k, v)| (Key(Value::from(&**k)), Value::from_pyval(v))).collect())
             }
             PyVal::Shared(v) => Value::from_pyval(v),
         }

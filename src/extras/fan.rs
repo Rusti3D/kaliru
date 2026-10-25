@@ -12,7 +12,6 @@ use crate::mcu::{DigitalOutPin, Mcu, PwmPin};
 use crate::printer::{PObj, PrinterObject};
 use crate::pyfmt::{py_max, py_min};
 use crate::pyval::PyVal;
-use indexmap::IndexMap;
 use std::cell::{Cell, RefCell};
 use std::rc::Rc;
 
@@ -183,11 +182,12 @@ impl Fan {
 
     pub fn get_status(&self, eventtime: f64) -> PyVal {
         let tachometer_status = self.tachometer.get_status(eventtime);
-        let mut d = IndexMap::new();
-        d.insert("power".to_string(), PyVal::Float(self.last_pwm_value.get()));
-        d.insert("value".to_string(), PyVal::Float(self.last_req_value.get()));
-        d.insert("speed".to_string(), PyVal::Float(self.last_req_value.get() * self.max_power));
-        d.insert("rpm".to_string(), tachometer_status);
+        let d = crate::pydict! {
+            "power" => PyVal::Float(self.last_pwm_value.get()),
+            "value" => PyVal::Float(self.last_req_value.get()),
+            "speed" => PyVal::Float(self.last_req_value.get() * self.max_power),
+            "rpm" => tachometer_status,
+        };
         PyVal::Dict(d)
     }
 

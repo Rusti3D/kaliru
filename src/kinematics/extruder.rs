@@ -15,10 +15,10 @@ use crate::extras::motion_queuing::PrinterMotionQueuing;
 use crate::gcode::{GCodeCommand, GCodeDispatch};
 use crate::logging;
 use crate::printer::{downcast_rc, PObj, Printer, PrinterObject};
-use crate::pyval::PyVal;
+use crate::pyval::{PyDict, PyVal};
 use crate::stepper::{printer_stepper, McuStepper};
 use crate::toolhead::{ExtraAxis, ExtraAxisRef, Move, ToolHead};
-use indexmap::IndexMap;
+use crate::IndexMap;
 use std::cell::{Cell, RefCell};
 use std::f64::consts::PI;
 use std::rc::{Rc, Weak};
@@ -121,11 +121,12 @@ impl ExtruderStepper {
         Ok(es)
     }
 
-    pub fn get_status(&self, _eventtime: f64) -> IndexMap<String, PyVal> {
-        let mut d = IndexMap::new();
-        d.insert("pressure_advance".to_string(), PyVal::Float(self.pressure_advance.get()));
-        d.insert("smooth_time".to_string(), PyVal::Float(self.pressure_advance_smooth_time.get()));
-        d.insert("motion_queue".to_string(), self.motion_queue.borrow().clone().map(PyVal::Str).unwrap_or(PyVal::None));
+    pub fn get_status(&self, _eventtime: f64) -> PyDict {
+        let d = crate::pydict! {
+            "pressure_advance" => PyVal::Float(self.pressure_advance.get()),
+            "smooth_time" => PyVal::Float(self.pressure_advance_smooth_time.get()),
+            "motion_queue" => self.motion_queue.borrow().clone().map(PyVal::Str).unwrap_or(PyVal::None),
+        };
         d
     }
 
@@ -384,10 +385,11 @@ impl PrinterExtruder {
     pub fn get_status(&self, eventtime: f64) -> PyVal {
         let mut sts = match self.heater.get_status(eventtime) {
             PyVal::Dict(d) => d,
-            _ => IndexMap::new(),
+            _ => IndexMap::default(),
         };
-        sts.insert("can_extrude".to_string(), PyVal::Bool(self.heater.can_extrude.get()));
-        sts.insert("nozzle_diameter".to_string(), PyVal::Float(self.nozzle_diameter.get()));
+        sts.reserve(2);
+        sts.insert("can_extrude".into(), PyVal::Bool(self.heater.can_extrude.get()));
+        sts.insert("nozzle_diameter".into(), PyVal::Float(self.nozzle_diameter.get()));
         if let Some(es) = &self.extruder_stepper {
             sts.extend(es.get_status(eventtime));
         }

@@ -147,7 +147,9 @@ impl<T: FromPy> FromPy for Option<T> {
 impl<T: FromPy> FromPy for Vec<T> {
     fn from_py(o: &PyRef) -> KResult<Self> {
         let list = lookup("builtins", "list")?.call(&[o])?;
+        // SAFETY: list is the new list list(o) just returned (no one else holds it)
         let n = unsafe { PyList_Size(list.as_ptr()) };
+        // SAFETY: i < n: a live borrowed item, owned at once
         (0..n).map(|i| T::from_py(&unsafe { PyRef::borrowed(PyList_GetItem(list.as_ptr(), i)) })).collect()
     }
 }

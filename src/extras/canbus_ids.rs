@@ -6,7 +6,7 @@
 use crate::configfile::ConfigWrapper;
 use crate::error::{KError, KResult};
 use crate::printer::{PObj, PrinterObject};
-use indexmap::IndexMap;
+use crate::IndexMap;
 use std::cell::RefCell;
 use std::rc::Rc;
 
@@ -35,5 +35,5 @@ impl PrinterObject for PrinterCANBus {
 }
 
 pub fn load_config(_config: &ConfigWrapper) -> KResult<PObj> {
-    Ok(Rc::new(PrinterCANBus { ids: RefCell::new(IndexMap::new()) }))
+    Ok(Rc::new(PrinterCANBus { ids: RefCell::new(IndexMap::default()) }))
 }

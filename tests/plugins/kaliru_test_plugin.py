@@ -22,6 +22,7 @@ class TestPlugin:
         gcode.register_command("TEST_PLUGIN_COUNT", self.cmd_TEST_PLUGIN_COUNT)
         gcode.register_command("TEST_PLUGIN_CHECK", self.cmd_TEST_PLUGIN_CHECK)
         gcode.register_command("TEST_PLUGIN_SET", self.cmd_TEST_PLUGIN_SET)
+        gcode.register_command("TEST_PLUGIN_GCODE_STATE", self.cmd_TEST_PLUGIN_GCODE_STATE)
         self.counted = 0
         self.printer.register_event_handler("klippy:ready", self._ready)
         logging.info(
@@ -64,6 +65,25 @@ class TestPlugin:
         # changes the status (webhooks subscriptions: tests/live_api/plugin.live)
         self.label = gcmd.get("LABEL", self.label)
         self.value = gcmd.get_float("V", self.value)
+
+    def cmd_TEST_PLUGIN_GCODE_STATE(self, gcmd):
+        # AFC's restore_pos: gcode_move's state attributes assigned as a whole
+        # (list attributes too), then an item of one changed in place
+        gm = self.printer.lookup_object("gcode_move")
+        saved = list(gm.base_position)
+        gm.base_position = [1.0, 2.0, 3.0, 4.5]
+        gm.homing_position = list(gm.homing_position)
+        gm.absolute_coord = False
+        gm.extrude_factor = 0.5
+        gm.speed = 20.0
+        gm.speed_factor = 1.0 / 60.0
+        gm.base_position[3] = 7.25
+        gcmd.respond_info("gcode state base=%r homing=%r abs=%r ef=%r speed=%r sf=%r" % (
+            list(gm.base_position), list(gm.homing_position), gm.absolute_coord,
+            gm.extrude_factor, gm.speed, gm.speed_factor))
+        gm.base_position = saved
+        gm.absolute_coord = True
+        gm.extrude_factor = 1.0
 
     def get_status(self, eventtime):
         return {"value": self.value, "label": self.label,

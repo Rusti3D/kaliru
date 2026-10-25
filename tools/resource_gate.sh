@@ -14,6 +14,13 @@
 #        resource_gate.sh --baseline  measure and store as the baseline
 # Build kaliru first (tools/build.sh).
 cd "$(dirname "$0")/.."
+# (one gate run at a time across kaliru and Moonruster, which share this
+# WSL: a resource measurement must not share the cpu with the other
+# project's suites. The flock process holds the lock (-o: nothing this
+# script starts inherits it, so a process left running can't keep it))
+if [ -z "$RUSTIFY_GATE_LOCKED" ]; then
+    RUSTIFY_GATE_LOCKED=1 exec flock -o /tmp/rustify_gates.lock bash "$PWD/tools/$(basename "$0")" "$@"
+fi
 B=${KALIRU_BIN:-$HOME/rk/target/release/kaliru}
 RUNS=${RUNS:-3}
 W=~/rk/resource_gate

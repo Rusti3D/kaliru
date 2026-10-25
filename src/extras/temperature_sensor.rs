@@ -9,7 +9,6 @@ use crate::extras::heaters::{load_heaters, TempSensor};
 use crate::printer::{PObj, PrinterObject};
 use crate::pyfmt::{py_max, py_min, py_round};
 use crate::pyval::PyVal;
-use indexmap::IndexMap;
 use std::cell::Cell;
 use std::rc::Rc;
 
@@ -71,10 +70,11 @@ impl PrinterObject for PrinterSensorGeneric {
         true
     }
     fn get_status(&self, _eventtime: f64) -> Option<PyVal> {
-        let mut d = IndexMap::new();
-        d.insert("temperature".to_string(), PyVal::Float(py_round(self.last_temp.get(), 2)));
-        d.insert("measured_min_temp".to_string(), PyVal::Float(py_round(self.measured_min.get(), 2)));
-        d.insert("measured_max_temp".to_string(), PyVal::Float(py_round(self.measured_max.get(), 2)));
+        let d = crate::pydict! {
+            "temperature" => PyVal::Float(py_round(self.last_temp.get(), 2)),
+            "measured_min_temp" => PyVal::Float(py_round(self.measured_min.get(), 2)),
+            "measured_max_temp" => PyVal::Float(py_round(self.measured_max.get(), 2)),
+        };
         Some(PyVal::Dict(d))
     }
     fn has_stats(&self) -> bool {

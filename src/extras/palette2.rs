@@ -16,7 +16,6 @@ use crate::pyval::PyVal;
 use crate::reactor::{Reactor, Timer, NEVER, NOW};
 use crate::serialhdl::Uart;
 use crate::toolhead::ToolHead;
-use indexmap::IndexMap;
 use std::cell::{Cell, RefCell};
 use std::collections::VecDeque;
 use std::rc::{Rc, Weak};
@@ -810,15 +809,17 @@ impl PrinterObject for Palette2 {
     }
     fn get_status(&self, _eventtime: f64) -> Option<PyVal> {
         let st = self.st.borrow();
-        let mut status = IndexMap::new();
-        status.insert("ping".to_string(), PyVal::None);
-        status.insert("remaining_load_length".to_string(), st.remaining_load_length.map(PyVal::Int).unwrap_or(PyVal::None));
-        status.insert("is_splicing".to_string(), PyVal::Bool(st.is_splicing));
+        let mut status = crate::pydict! {
+            "ping" => PyVal::None,
+            "remaining_load_length" => st.remaining_load_length.map(PyVal::Int).unwrap_or(PyVal::None),
+            "is_splicing" => PyVal::Bool(st.is_splicing),
+        };
         if let Some((number, percent)) = st.pings.last() {
-            let mut d = IndexMap::new();
-            d.insert("number".to_string(), PyVal::Int(*number));
-            d.insert("percent".to_string(), PyVal::Float(*percent));
-            status.insert("ping".to_string(), PyVal::Dict(d));
+            let d = crate::pydict! {
+                "number" => PyVal::Int(*number),
+                "percent" => PyVal::Float(*percent),
+            };
+            status.insert("ping".into(), PyVal::Dict(d));
         }
         Some(PyVal::Dict(status))
     }

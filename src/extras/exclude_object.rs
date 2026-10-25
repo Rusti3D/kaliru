@@ -11,9 +11,9 @@ use crate::extras::tuning_tower::TuningTower;
 use crate::gcode::{GCodeCommand, GCodeDispatch};
 use crate::logging;
 use crate::printer::{downcast_rc, PObj, Printer, PrinterObject};
-use crate::pyval::PyVal;
+use crate::pyval::{PyDict, PyVal};
 use crate::toolhead::ToolHead;
-use indexmap::IndexMap;
+use crate::IndexMap;
 use std::cell::{Cell, RefCell};
 use std::rc::{Rc, Weak};
 
@@ -36,7 +36,7 @@ struct State {
     next_transform: Option<MoveTransformRef>,
     last_position_extruded: Vec<f64>,
     last_position_excluded: Vec<f64>,
-    objects: Vec<IndexMap<String, PyVal>>,
+    objects: Vec<PyDict>,
     excluded_objects: Vec<String>,
     current_object: Option<String>,
     in_excluded_region: bool,
@@ -295,8 +295,8 @@ impl ExcludeObject {
         let name = gcmd.get("NAME")?.to_uppercase();
         let known = self.st.borrow().objects.iter().any(|obj| obj.get("name").map(|n| n.str()) == Some(name.clone()));
         if !known {
-            let mut def = IndexMap::new();
-            def.insert("name".to_string(), PyVal::Str(name.clone()));
+            let mut def = IndexMap::default();
+            def.insert("name".into(), PyVal::Str(name.clone()));
             self.add_object_definition(def);
         }
         self.st.borrow_mut().current_object = Some(name);
@@ -368,18 +368,18 @@ impl ExcludeObject {
             let center = parameters.shift_remove("CENTER");
             let polygon = parameters.shift_remove("POLYGON");
 
-            let mut obj = IndexMap::new();
-            obj.insert("name".to_string(), PyVal::Str(name.to_uppercase()));
+            let mut obj = IndexMap::default();
+            obj.insert("name".into(), PyVal::Str(name.to_uppercase()));
             for (k, v) in parameters {
-                obj.insert(k, PyVal::Str(v));
+                obj.insert(k.into(), PyVal::Str(v));
             }
 
             if let Some(center) = center {
-                obj.insert("center".to_string(), PyVal::json_loads(&format!("[{}]", center)).map_err(KError::Other)?);
+                obj.insert("center".into(), PyVal::json_loads(&format!("[{}]", center)).map_err(KError::Other)?);
             }
 
             if let Some(polygon) = polygon {
-                obj.insert("polygon".to_string(), PyVal::json_loads(&polygon).map_err(KError::Other)?);
+                obj.insert("polygon".into(), PyVal::json_loads(&polygon).map_err(KError::Other)?);
             }
 
             self.add_object_definition(obj);
@@ -389,12 +389,12 @@ impl ExcludeObject {
         Ok(())
     }
 
-    fn add_object_definition(&self, definition: IndexMap<String, PyVal>) {
+    fn add_object_definition(&self, definition: PyDict) {
         let mut st = self.st.borrow_mut();
         st.objects.push(definition);
         // sorted(..., key=lambda o: o["name"]): a stable sort
         st.objects.sort_by(|a, b| {
-            let name = |o: &IndexMap<String, PyVal>| o.get("name").map(|n| n.str()).unwrap_or_default();
+            let name = |o: &PyDict| o.get("name").map(|n| n.str()).unwrap_or_default();
             name(a).cmp(&name(b))
         });
     }
@@ -479,13 +479,13 @@ impl PrinterObject for ExcludeObject {
     }
     fn get_status(&self, _eventtime: f64) -> Option<PyVal> {
         let st = self.st.borrow();
-        let mut status = IndexMap::new();
-        status.insert("objects".to_string(), PyVal::List(st.objects.iter().cloned().map(PyVal::Dict).collect()));
+        let mut status = IndexMap::default();
+        status.insert("objects".into(), PyVal::List(st.objects.iter().cloned().map(PyVal::Dict).collect()));
         status.insert(
-            "excluded_objects".to_string(),
+            "excluded_objects".into(),
             PyVal::List(st.excluded_objects.iter().cloned().map(PyVal::Str).collect()),
         );
-        status.insert("current_object".to_string(), st.current_object.clone().map(PyVal::Str).unwrap_or(PyVal::None));
+        status.insert("current_object".into(), st.current_object.clone().map(PyVal::Str).unwrap_or(PyVal::None));
         Some(PyVal::Dict(status))
     }
     fn try_get_status(&self, eventtime: f64) -> KResult<Option<PyVal>> {

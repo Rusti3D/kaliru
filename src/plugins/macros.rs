@@ -8,7 +8,7 @@ use super::{ensure_started, objects};
 use crate::error::KResult;
 use crate::jinja::value::Value;
 use crate::printer::Printer;
-use indexmap::IndexMap;
+use crate::IndexMap;
 use std::rc::Rc;
 
 pub struct PyMacro {

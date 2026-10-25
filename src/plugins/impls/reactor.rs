@@ -52,7 +52,7 @@ pub fn register(r: &mut Registry) {
     // self.lock = self.__enter__; self.unlock = self.__exit__
     r.attr("klippy.reactor.ReactorMutex.lock", |o| {
         let m = objects::unwrap_as::<ReactorMutex>(o)?;
-        py_function(Rc::new(move |_a: &[PyRef]| m.lock().map_err(|e| KError::Reactor(e.0)).and_then(|_| Ok(py_none()))))
+        py_function(Rc::new(move |_a: &[PyRef]| m.lock().map_err(|e| KError::Reactor(e.0)).map(|_| py_none())))
     }, None);
     r.attr("klippy.reactor.ReactorMutex.unlock", |o| {
         let m = objects::unwrap_as::<ReactorMutex>(o)?;

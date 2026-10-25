@@ -12,10 +12,10 @@ use crate::error::{KError, KResult};
 use crate::extras::homing::Homing;
 use crate::logging;
 use crate::pyfmt::{py_max, py_min, py_sum};
-use crate::pyval::PyVal;
+use crate::pyval::{PyDict, PyVal};
 use crate::stepper::{lookup_multi_rail, McuStepper, PrinterRail, Rail, RailRef};
 use crate::toolhead::{Move, ToolHead};
-use indexmap::IndexMap;
+use crate::IndexMap;
 use std::cell::{Cell, RefCell};
 use std::rc::Rc;
 
@@ -282,12 +282,13 @@ impl Kinematics for DeltesianKinematics {
         self.rails.iter().map(|r| r.clone() as RailRef).collect()
     }
 
-    fn get_status(&self, _eventtime: f64) -> IndexMap<String, PyVal> {
+    fn get_status(&self, _eventtime: f64) -> PyDict {
         let axes: String = "xyz".chars().zip(self.homed_axis.borrow().iter()).filter(|(_, b)| **b).map(|(a, _)| a).collect();
-        let mut d = IndexMap::new();
-        d.insert("homed_axes".to_string(), PyVal::Str(axes));
-        d.insert("axis_minimum".to_string(), self.axes_min.clone());
-        d.insert("axis_maximum".to_string(), self.axes_max.clone());
+        let d = crate::pydict! {
+            "homed_axes" => PyVal::Str(axes),
+            "axis_minimum" => self.axes_min.clone(),
+            "axis_maximum" => self.axes_max.clone(),
+        };
         d
     }
 

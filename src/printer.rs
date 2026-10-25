@@ -18,10 +18,10 @@
 use crate::configfile::{ConfigWrapper, PrinterConfig};
 use crate::error::{KError, KResult};
 use crate::logging;
-use crate::pyval::PyVal;
+use crate::pyval::{PyDict, PyVal};
 use crate::queuelogger::{self, QueueListener};
 use crate::reactor::{Reactor, NOW};
-use indexmap::IndexMap;
+use crate::IndexMap;
 use std::any::Any;
 use std::cell::{Cell, RefCell};
 use std::rc::Rc;
@@ -154,7 +154,7 @@ impl SubsystemComponentCollection {
 
 pub struct Printer {
     pub bglogger: Option<Rc<QueueListener>>,
-    pub start_args: RefCell<IndexMap<String, PyVal>>,
+    pub start_args: RefCell<PyDict>,
     pub reactor: Rc<Reactor>,
     state_message: RefCell<String>,
     in_shutdown_state: Cell<bool>,
@@ -207,7 +207,7 @@ impl PrinterObject for ConfigFileObject {
 }
 
 impl Printer {
-    pub fn new(main_reactor: Rc<Reactor>, bglogger: Option<Rc<QueueListener>>, start_args: IndexMap<String, PyVal>) -> KResult<Rc<Printer>> {
+    pub fn new(main_reactor: Rc<Reactor>, bglogger: Option<Rc<QueueListener>>, start_args: PyDict) -> KResult<Rc<Printer>> {
         let printer = Rc::new(Printer {
             bglogger,
             start_args: RefCell::new(start_args),
@@ -215,12 +215,12 @@ impl Printer {
             state_message: RefCell::new(MESSAGE_STARTUP.into()),
             in_shutdown_state: Cell::new(false),
             run_result: RefCell::new(None),
-            event_handlers: RefCell::new(IndexMap::new()),
-            components: SubsystemComponentCollection { subsystems: RefCell::new(IndexMap::new()) },
-            objects: RefCell::new(IndexMap::new()),
+            event_handlers: RefCell::new(IndexMap::default()),
+            components: SubsystemComponentCollection { subsystems: RefCell::new(IndexMap::default()) },
+            objects: RefCell::new(IndexMap::default()),
             pconfig: RefCell::new(None),
             #[cfg(feature = "plugins")]
-            py_modules: RefCell::new(IndexMap::new()),
+            py_modules: RefCell::new(IndexMap::default()),
         });
         let p = printer.clone();
         main_reactor.register_callback(move |e| p.connect(e), NOW);
@@ -431,7 +431,7 @@ impl Printer {
     fn connect(self: &Rc<Self>, _eventtime: f64) {
         let res = (|| -> KResult<bool> {
             self.read_config()?;
-            crate::events::KlippyMcuIdentify::emit(&self)?;
+            crate::events::KlippyMcuIdentify::emit(self)?;
             let handlers = self.handlers("klippy:connect");
             for cb in handlers {
                 if *self.state_message.borrow() != MESSAGE_STARTUP {
@@ -453,10 +453,10 @@ impl Printer {
                 let msg = if e.is_protocol_error() { "Protocol error" } else { "MCU error during connect" };
                 logging::exception_err(msg, &e);
                 self.set_state(msg);
-                let mut details = IndexMap::new();
-                details.insert("error".to_string(), PyVal::Str(e.to_string()));
+                let mut details = IndexMap::default();
+                details.insert("error".into(), PyVal::Str(e.to_string()));
                 let details = PyVal::Dict(details);
-                let _ = crate::events::KlippyNotifyMcuError::emit(&self, &msg.to_string(), &details);
+                let _ = crate::events::KlippyNotifyMcuError::emit(self, &msg.to_string(), &details);
                 crate::util::dump_mcu_build();
                 return;
             }
@@ -501,9 +501,9 @@ impl Printer {
         let run_result = self.run_result.borrow().clone();
         let res = (|| -> KResult<()> {
             if run_result.as_deref() == Some("firmware_restart") {
-                crate::events::KlippyFirmwareRestart::emit(&self)?;
+                crate::events::KlippyFirmwareRestart::emit(self)?;
             }
-            crate::events::KlippyDisconnect::emit(&self)
+            crate::events::KlippyDisconnect::emit(self)
         })();
         if let Err(e) = res {
             logging::exception_err("Unhandled exception during post run", &e);
@@ -604,7 +604,7 @@ impl Printer {
     #[cfg(feature = "plugins")]
     fn load_py_modules(&self, allow_overrides: bool) -> KResult<()> {
         use crate::plugins::{list_modules, Package};
-        let mut mods = IndexMap::new();
+        let mut mods = IndexMap::default();
         let builtin = |n: &str| crate::extras::MODULES.iter().any(|m| m.name == n);
         for name in list_modules(&Package::Extras) {
             if !builtin(&name) {
@@ -747,7 +747,7 @@ fn parse_args(argv: &[String]) -> (Options, Vec<String>) {
                 Some((mcu, f)) => (format!("dictionary_{}", mcu), f.to_string()),
                 None => ("dictionary".to_string(), value),
             };
-            o.dictionary.get_or_insert_with(IndexMap::new).insert(key, fname);
+            o.dictionary.get_or_insert_with(IndexMap::default).insert(key, fname);
         }
         _ => unreachable!(),
     };
@@ -848,13 +848,14 @@ pub fn main() {
     if args.len() != 1 {
         opts_error("Incorrect number of arguments");
     }
-    let mut start_args: IndexMap<String, PyVal> = IndexMap::new();
-    start_args.insert("config_file".into(), PyVal::Str(args[0].clone()));
-    start_args.insert("apiserver_file".into(), options.apiserver_file.clone().into());
-    start_args.insert("apiserver_user".into(), options.apiserver_user.clone().into());
-    start_args.insert("apiserver_group".into(), options.apiserver_group.clone().into());
-    start_args.insert("apiserver_file_mode".into(), options.apiserver_file_mode.clone().into());
-    start_args.insert("start_reason".into(), PyVal::Str("startup".into()));
+    let mut start_args = crate::pydict! {
+        "config_file" => PyVal::Str(args[0].clone()),
+        "apiserver_file" => options.apiserver_file.clone().into(),
+        "apiserver_user" => options.apiserver_user.clone().into(),
+        "apiserver_group" => options.apiserver_group.clone().into(),
+        "apiserver_file_mode" => options.apiserver_file_mode.clone().into(),
+        "start_reason" => PyVal::Str("startup".into()),
+    };
 
     let debuglevel = if options.verbose { logging::DEBUG } else { logging::INFO };
     // the debug input file stays open for the process lifetime
@@ -884,7 +885,7 @@ pub fn main() {
         start_args.insert("debugoutput".into(), PyVal::Str(out.clone()));
         // start_args.update(options.dictionary) (TypeError in python if no -d)
         for (k, v) in options.dictionary.clone().unwrap_or_default() {
-            start_args.insert(k, PyVal::Str(v));
+            start_args.insert(k.into(), PyVal::Str(v));
         }
     }
     let mut bglogger: Option<Rc<QueueListener>> = None;

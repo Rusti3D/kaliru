@@ -20,7 +20,7 @@ use crate::pyval::PyVal;
 use crate::reactor::ReactorCompletion;
 use crate::stepper::RailRef;
 use crate::toolhead::ToolHead;
-use indexmap::IndexMap;
+use crate::IndexMap;
 use std::any::Any;
 use std::cell::{Cell, RefCell};
 use std::rc::{Rc, Weak};
@@ -149,10 +149,11 @@ impl GcodeNozzleScrubber {
             return Ok(());
         }
         let mut context = self.template.create_template_context();
-        let mut params = IndexMap::new();
-        params.insert("ATTEMPT".to_string(), PyVal::Int(attempt));
-        params.insert("RETRIES".to_string(), PyVal::Int(retries));
-        context.insert("params".to_string(), Value::from_pyval(&PyVal::Dict(params)));
+        let params = crate::pydict! {
+            "ATTEMPT" => PyVal::Int(attempt),
+            "RETRIES" => PyVal::Int(retries),
+        };
+        context.insert("params".into(), Value::from_pyval(&PyVal::Dict(params)));
         self.template.run_gcode_from_command(Some(context))?;
         // (python builds a command_error here without raising it)
         let _ = &self.printer;
@@ -264,7 +265,7 @@ impl RetrySession {
         Ok(RetrySession {
             retry_policy: RetryPolicy::new(config)?,
             scrubber: GcodeNozzleScrubber::new(config)?,
-            point_lookup: RefCell::new(IndexMap::new()),
+            point_lookup: RefCell::new(IndexMap::default()),
             pos: Cell::new(None),
             gcmd: RefCell::new(None),
             retry_state: RefCell::new(None),
@@ -369,12 +370,12 @@ impl PrinterObject for ProbeList {
         true
     }
     fn get_status(&self, _eventtime: f64) -> Option<PyVal> {
-        let mut d = IndexMap::new();
+        let mut d = IndexMap::default();
         let probes: Vec<PyVal> = self.probes.borrow().keys().map(|k| PyVal::Str(k.clone())).collect();
-        d.insert("probes".to_string(), PyVal::List(probes));
+        d.insert("probes".into(), PyVal::List(probes));
         // self.default_probe and self.default_probe[0]
         let default = self.default_probe.borrow().as_ref().map(|(n, _)| PyVal::Str(n.clone())).unwrap_or(PyVal::None);
-        d.insert("default_probe".to_string(), default);
+        d.insert("default_probe".into(), default);
         Some(PyVal::Dict(d))
     }
     fn teardown(&self) {
@@ -400,9 +401,9 @@ pub fn as_printer_probe(obj: &PObj) -> Option<Rc<PrinterProbe>> {
 
 impl ProbeList {
     fn new(printer: &Rc<Printer>) -> KResult<Rc<Self>> {
-        let pl = Rc::new(ProbeList { printer: printer.clone(), probes: RefCell::new(IndexMap::new()), default_probe: RefCell::new(None) });
+        let pl = Rc::new(ProbeList { printer: printer.clone(), probes: RefCell::new(IndexMap::default()), default_probe: RefCell::new(None) });
         let p = pl.clone();
-        crate::events::KlippyConnect::on(&printer, move || {
+        crate::events::KlippyConnect::on(printer, move || {
             p.handle_connect();
             Ok(())
         });
@@ -579,7 +580,7 @@ impl PrinterProbe {
     pub fn new(config: &ConfigWrapper, mcu_probe: Rc<dyn McuProbe>) -> KResult<Rc<Self>> {
         let printer = config.get_printer();
         let name = config.get_name().to_string();
-        let probe_name = name.split(' ').last().unwrap_or("").to_string();
+        let probe_name = name.split(' ').next_back().unwrap_or("").to_string();
         let speed = config.getfloat("speed", 5.0, Lim::new().above(0.0))?;
         let retry_speed = config.getfloat("retry_speed", speed, Lim::new().above(0.0))?;
         let lift_speed = config.getfloat("lift_speed", speed, Lim::new().above(0.0))?;
@@ -1068,10 +1069,11 @@ impl PrinterObject for PrinterProbe {
         true
     }
     fn get_status(&self, _eventtime: f64) -> Option<PyVal> {
-        let mut d = IndexMap::new();
-        d.insert("name".to_string(), PyVal::Str(self.name.clone()));
-        d.insert("last_query".to_string(), self.last_state.borrow().clone());
-        d.insert("last_z_result".to_string(), PyVal::Float(self.last_z_result.get()));
+        let d = crate::pydict! {
+            "name" => PyVal::Str(self.name.clone()),
+            "last_query" => self.last_state.borrow().clone(),
+            "last_z_result" => PyVal::Float(self.last_z_result.get()),
+        };
         Some(PyVal::Dict(d))
     }
 }
@@ -1713,7 +1715,7 @@ impl ProbePointsHelper {
     fn manual_probe_start(&self) -> KResult<()> {
         let done = self.move_next()?;
         if !done {
-            let gcmd = self.gcode.create_gcode_command("", "", IndexMap::new());
+            let gcmd = self.gcode.create_gcode_command("", "", IndexMap::default());
             let me = self.me.upgrade().expect("probe points helper");
             ManualProbeHelper::start(&self.printer, &gcmd, Rc::new(move |kin_pos| me.manual_probe_finalize(kin_pos)))?;
         }

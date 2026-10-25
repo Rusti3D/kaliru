@@ -2,6 +2,12 @@
 // PyRef owns one reference (Drop = Py_DecRef; the GIL is held wherever
 // kaliru runs, see greenlets.rs), errors map both ways between KError and
 // python exceptions.
+//
+// Safety: the unsafe blocks here are C API calls that rely on the same
+// three facts, not repeated at each call: the GIL is held (above); every
+// object pointer passed is a PyRef's, so a live reference; every C string is
+// a CString, so NUL-terminated. A NULL result is checked (owned / owned_or_err)
+// before use. Blocks with a further condition say so.
 use crate::plugins::gil::Gil;
 use super::capi::*;
 use crate::error::{ForeignError, KError, KResult};
@@ -17,16 +23,25 @@ pub struct PyRef(NonNull<PyObject>);
 impl PyRef {
     /// a new reference returned by the C API; None (with the python error
     /// set) when it is NULL
+    ///
+    /// # Safety
+    /// `p` is NULL or a new (owned) reference, given up to the PyRef
     pub unsafe fn owned(p: *mut PyObject) -> Option<PyRef> {
         NonNull::new(p).map(PyRef)
     }
 
     /// a new reference or the pending python error as a KError
+    ///
+    /// # Safety
+    /// as `owned`
     pub unsafe fn owned_or_err(p: *mut PyObject) -> KResult<PyRef> {
         Self::owned(p).ok_or_else(fetch_error)
     }
 
     /// a borrowed reference, made owned
+    ///
+    /// # Safety
+    /// `p` is a live (non-NULL) object while this runs, with the GIL held
     pub unsafe fn borrowed(p: *mut PyObject) -> PyRef {
         Py_IncRef(p);
         PyRef(NonNull::new(p).expect("borrowed NULL"))
@@ -114,6 +129,8 @@ impl PyRef {
         if p.is_null() {
             return Err(fetch_error());
         }
+        // SAFETY: p is the str's own UTF-8 buffer of len bytes, alive while
+        // self is (it is copied out before self can drop)
         let bytes = unsafe { std::slice::from_raw_parts(p as *const u8, len as usize) };
         Ok(String::from_utf8_lossy(bytes).into_owned())
     }
@@ -171,6 +188,7 @@ pub fn py_tuple(items: Vec<PyRef>) -> PyRef {
     unsafe {
         let t = PyRef::owned(PyTuple_New(items.len() as Py_ssize_t)).unwrap();
         for (i, it) in items.into_iter().enumerate() {
+            // (SetItem steals the reference: into_ptr gives it up; i < len)
             PyTuple_SetItem(t.as_ptr(), i as Py_ssize_t, it.into_ptr());
         }
         t
@@ -263,11 +281,13 @@ pub fn to_pyval(o: &PyRef) -> KResult<PyVal> {
             if tname == "list" { PyVal::List(items) } else { PyVal::Tuple(items) }
         }
         "dict" => {
-            let mut d = indexmap::IndexMap::new();
+            let mut d = crate::IndexMap::default();
             let (mut pos, mut k, mut v) = (0, std::ptr::null_mut(), std::ptr::null_mut());
             while unsafe { PyDict_Next(o.as_ptr(), &mut pos, &mut k, &mut v) } != 0 {
+                // SAFETY: PyDict_Next's borrowed key and value, owned at once
+                // (before any python code can change the dict)
                 let (k, v) = unsafe { (PyRef::borrowed(k), PyRef::borrowed(v)) };
-                d.insert(k.str()?, to_pyval(&v)?);
+                d.insert(k.str()?.into(), to_pyval(&v)?);
             }
             PyVal::Dict(d)
         }
@@ -441,6 +461,7 @@ pub fn dict_keys(o: &PyRef) -> KResult<Vec<String>> {
     let mut out = vec![];
     let (mut pos, mut k, mut v) = (0, std::ptr::null_mut(), std::ptr::null_mut());
     while unsafe { PyDict_Next(o.as_ptr(), &mut pos, &mut k, &mut v) } != 0 {
+        // SAFETY: PyDict_Next's borrowed key, owned at once
         out.push(unsafe { PyRef::borrowed(k) }.str()?);
     }
     Ok(out)
@@ -464,6 +485,7 @@ pub fn dict_get(o: &PyRef, key: &str) -> KResult<PyRef> {
     let k = key_object(key);
     let mut out = std::ptr::null_mut();
     match unsafe { PyDict_GetItemRef(o.as_ptr(), k.as_ptr(), &mut out) } {
+        // SAFETY: 1 = out is a new reference
         1 => Ok(unsafe { PyRef::owned(out) }.unwrap_or_else(py_none)),
         0 => Ok(py_none()),
         _ => Err(fetch_error()),

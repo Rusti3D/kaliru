@@ -16,10 +16,10 @@ use crate::logging;
 use crate::mathutil::{trilateration, MathError};
 use crate::printer::{ConfigFileObject, Printer};
 use crate::pyfmt::py_min;
-use crate::pyval::PyVal;
+use crate::pyval::{PyDict, PyVal};
 use crate::stepper::{McuStepper, PrinterRail, Rail, RailRef};
 use crate::toolhead::{Move, ToolHead};
-use indexmap::IndexMap;
+use crate::IndexMap;
 use std::cell::Cell;
 use std::rc::Rc;
 
@@ -205,11 +205,11 @@ impl Kinematics for RotaryDeltaKinematics {
         self.rails.iter().map(|r| r.clone() as RailRef).collect()
     }
 
-    fn get_status(&self, _eventtime: f64) -> IndexMap<String, PyVal> {
-        let mut d = IndexMap::new();
-        d.insert("homed_axes".to_string(), PyVal::from(if self.need_home.get() { "" } else { "xyz" }));
-        d.insert("axis_minimum".to_string(), self.axes_min.clone());
-        d.insert("axis_maximum".to_string(), self.axes_max.clone());
+    fn get_status(&self, _eventtime: f64) -> PyDict {
+        let mut d = IndexMap::default();
+        d.insert("homed_axes".into(), PyVal::from(if self.need_home.get() { "" } else { "xyz" }));
+        d.insert("axis_minimum".into(), self.axes_min.clone());
+        d.insert("axis_maximum".into(), self.axes_max.clone());
         d
     }
 
@@ -287,9 +287,9 @@ impl Calibration for RotaryDeltaCalibration {
         if is_extended {
             adj_params.extend(["shoulder_radius", "angle_a", "angle_b"].iter().map(|s| s.to_string()));
         }
-        let mut params = IndexMap::new();
-        params.insert("shoulder_radius".to_string(), self.shoulder_radius);
-        params.insert("shoulder_height".to_string(), self.shoulder_height);
+        let mut params = IndexMap::default();
+        params.insert("shoulder_radius".into(), self.shoulder_radius);
+        params.insert("shoulder_height".into(), self.shoulder_height);
         for (i, axis) in ["a", "b", "c"].iter().enumerate() {
             params.insert(format!("angle_{}", axis), self.angles[i]);
             params.insert(format!("upper_arm_{}", axis), self.upper_arms[i]);

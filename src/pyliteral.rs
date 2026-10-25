@@ -7,7 +7,7 @@
 // SyntaxError from a valid non-literal expression ("malformed node").
 use crate::jinja::value::{Key, Value};
 use crate::pyfmt::py_isspace;
-use indexmap::IndexMap;
+use crate::IndexMap;
 
 /// literal_eval failure: (exception class, str(e))
 pub type LitError = (&'static str, String);
@@ -877,7 +877,7 @@ fn convert(n: Option<&Node>) -> Result<Conv, LitError> {
         }
         Node::SetCall(_) => Ok(Conv::NotJson("set")),
         Node::Dict(items, _) => {
-            let mut d = IndexMap::new();
+            let mut d = IndexMap::default();
             let mut bad = None;
             for (k, v) in items {
                 let k = convert(k.as_ref())?;

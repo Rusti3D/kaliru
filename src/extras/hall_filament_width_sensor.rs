@@ -13,10 +13,9 @@ use crate::logging;
 use crate::mcu::{AdcPin, Mcu};
 use crate::printer::{PObj, Printer, PrinterObject};
 use crate::pyfmt::{py_float_repr, py_round};
-use crate::pyval::PyVal;
+use crate::pyval::{PyDict, PyVal};
 use crate::reactor::{Reactor, Timer, NEVER, NOW};
 use crate::toolhead::ToolHead;
-use indexmap::IndexMap;
 use std::cell::{Cell, RefCell};
 use std::rc::{Rc, Weak};
 
@@ -402,12 +401,13 @@ impl DefinedSensor for HallFilamentWidthSensor {
         Ok(extruder.find_past_position(print_time))
     }
 
-    fn sensor_get_status(&self, _eventtime: f64) -> IndexMap<String, PyVal> {
-        let mut d = IndexMap::new();
-        d.insert("Diameter".to_string(), PyVal::Float(self.diameter.get()));
-        d.insert("Raw".to_string(), PyVal::Int(self.last_reading.get() + self.last_reading2.get()));
-        d.insert("is_active".to_string(), PyVal::Bool(self.is_active.get()));
-        d.insert("check_on_print_start".to_string(), PyVal::Bool(self.check_on_print_start.get()));
+    fn sensor_get_status(&self, _eventtime: f64) -> PyDict {
+        let d = crate::pydict! {
+            "Diameter" => PyVal::Float(self.diameter.get()),
+            "Raw" => PyVal::Int(self.last_reading.get() + self.last_reading2.get()),
+            "is_active" => PyVal::Bool(self.is_active.get()),
+            "check_on_print_start" => PyVal::Bool(self.check_on_print_start.get()),
+        };
         d
     }
 

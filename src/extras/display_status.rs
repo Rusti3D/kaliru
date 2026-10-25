@@ -11,7 +11,6 @@ use crate::gcode::{GCodeCommand, GCodeDispatch};
 use crate::printer::{PObj, Printer, PrinterObject};
 use crate::pyfmt::{py_max, py_min};
 use crate::pyval::PyVal;
-use indexmap::IndexMap;
 use std::cell::{Cell, RefCell};
 use std::rc::Rc;
 
@@ -91,9 +90,10 @@ impl DisplayStatus {
                 None => 0.0,
             },
         };
-        let mut d = IndexMap::new();
-        d.insert("progress".to_string(), PyVal::Float(progress));
-        d.insert("message".to_string(), self.message.borrow().clone().map(PyVal::Str).unwrap_or(PyVal::None));
+        let d = crate::pydict! {
+            "progress" => PyVal::Float(progress),
+            "message" => self.message.borrow().clone().map(PyVal::Str).unwrap_or(PyVal::None),
+        };
         Ok(PyVal::Dict(d))
     }
 }

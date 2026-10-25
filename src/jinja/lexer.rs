@@ -159,14 +159,7 @@ impl Lx<'_> {
     }
 
     fn starts_with(&self, pos: usize, s: &str) -> bool {
-        let mut i = pos;
-        for c in s.chars() {
-            if i >= self.src.len() || self.src[i] != c {
-                return false;
-            }
-            i += 1;
-        }
-        true
+        s.chars().enumerate().all(|(k, c)| self.src.get(pos + k) == Some(&c))
     }
 
     fn push(&mut self, ty: &'static str, value: TokVal) {

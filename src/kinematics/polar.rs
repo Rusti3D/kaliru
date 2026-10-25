@@ -11,10 +11,10 @@ use crate::configfile::{ConfigWrapper, Lim};
 use crate::error::KResult;
 use crate::extras::homing::Homing;
 use crate::gcode::coord_pyval;
-use crate::pyval::PyVal;
+use crate::pyval::{PyDict, PyVal};
 use crate::stepper::{lookup_multi_rail, printer_stepper, McuStepper, PrinterRail, Rail, RailRef};
 use crate::toolhead::{Move, ToolHead};
-use indexmap::IndexMap;
+use crate::IndexMap;
 use std::cell::Cell;
 use std::rc::Rc;
 
@@ -171,14 +171,15 @@ impl Kinematics for PolarKinematics {
         self.rails.iter().map(|r| r.clone() as RailRef).collect()
     }
 
-    fn get_status(&self, _eventtime: f64) -> IndexMap<String, PyVal> {
+    fn get_status(&self, _eventtime: f64) -> PyDict {
         let xy_home = if self.limit_xy2.get() >= 0.0 { "xy" } else { "" };
         let limit_z = self.limit_z.get();
         let z_home = if limit_z.0 <= limit_z.1 { "z" } else { "" };
-        let mut d = IndexMap::new();
-        d.insert("homed_axes".to_string(), PyVal::Str(format!("{}{}", xy_home, z_home)));
-        d.insert("axis_minimum".to_string(), coord_pyval(&self.axes_min));
-        d.insert("axis_maximum".to_string(), coord_pyval(&self.axes_max));
+        let d = crate::pydict! {
+            "homed_axes" => PyVal::Str(format!("{}{}", xy_home, z_home)),
+            "axis_minimum" => coord_pyval(&self.axes_min),
+            "axis_maximum" => coord_pyval(&self.axes_max),
+        };
         d
     }
 

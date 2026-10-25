@@ -9,6 +9,7 @@ identical: Europe/Copenhagen (30 cases)
 identical: UTC (30 cases)
 reactor scenarios identical (3 runs)
 serialqueue exchange identical (3 runs)
+clippy: 0 warnings
 == cases
 63/63 identical
 == suite

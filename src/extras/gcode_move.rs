@@ -13,7 +13,7 @@ use crate::printer::{PObj, Printer, PrinterObject};
 use crate::pyfmt::{py_bool, py_float, py_float_repr};
 use crate::pyval::PyVal;
 use crate::toolhead::ToolHead;
-use indexmap::IndexMap;
+use crate::IndexMap;
 use std::cell::{Cell, RefCell};
 use std::rc::Rc;
 
@@ -113,7 +113,7 @@ impl GCodeMove {
             speed: Cell::new(25.0),
             speed_factor: Cell::new(1.0 / 60.0),
             extrude_factor: Cell::new(1.0),
-            saved_states: RefCell::new(IndexMap::new()),
+            saved_states: RefCell::new(IndexMap::default()),
             move_transform: RefCell::new(None),
             with_transform: RefCell::new(None),
         });
@@ -291,7 +291,7 @@ impl GCodeMove {
         {
             let mut bp = self.base_position.borrow_mut();
             bp.truncate(4);
-            bp.extend(std::iter::repeat(0.0).take(extra_axes.len().saturating_sub(4)));
+            bp.extend(std::iter::repeat_n(0.0, extra_axes.len().saturating_sub(4)));
         }
         self.reset_last_position()
     }
@@ -527,15 +527,16 @@ impl PrinterObject for GCodeMove {
     }
     fn get_status(&self, _eventtime: f64) -> Option<PyVal> {
         let move_position = self.get_gcode_position();
-        let mut d = IndexMap::new();
-        d.insert("speed_factor".to_string(), PyVal::Float(self.get_gcode_speed_override()));
-        d.insert("speed".to_string(), PyVal::Float(self.get_gcode_speed()));
-        d.insert("extrude_factor".to_string(), PyVal::Float(self.extrude_factor.get()));
-        d.insert("absolute_coordinates".to_string(), PyVal::Bool(self.absolute_coord.get()));
-        d.insert("absolute_extrude".to_string(), PyVal::Bool(self.absolute_extrude.get()));
-        d.insert("homing_origin".to_string(), coord_pyval(&self.homing_position.borrow()[..4]));
-        d.insert("position".to_string(), coord_pyval(&self.last_position.borrow()[..4]));
-        d.insert("gcode_position".to_string(), coord_pyval(&move_position));
+        let d = crate::pydict! {
+            "speed_factor" => PyVal::Float(self.get_gcode_speed_override()),
+            "speed" => PyVal::Float(self.get_gcode_speed()),
+            "extrude_factor" => PyVal::Float(self.extrude_factor.get()),
+            "absolute_coordinates" => PyVal::Bool(self.absolute_coord.get()),
+            "absolute_extrude" => PyVal::Bool(self.absolute_extrude.get()),
+            "homing_origin" => coord_pyval(&self.homing_position.borrow()[..4]),
+            "position" => coord_pyval(&self.last_position.borrow()[..4]),
+            "gcode_position" => coord_pyval(&move_position),
+        };
         Some(PyVal::Dict(d))
     }
     fn teardown(&self) {

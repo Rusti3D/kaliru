@@ -14,7 +14,7 @@ use crate::printer::{none_object, PObj, Printer, PrinterObject};
 use crate::pyfmt::{py_float, py_float_error, py_round};
 use crate::pyval::PyVal;
 use crate::reactor::{Timer, NEVER, NOW};
-use indexmap::IndexMap;
+use crate::IndexMap;
 use std::cell::{Cell, RefCell};
 use std::io::{Read, Seek};
 use std::rc::{Rc, Weak};
@@ -140,8 +140,8 @@ impl PrinterObject for TemperatureHost {
         true
     }
     fn get_status(&self, _eventtime: f64) -> Option<PyVal> {
-        let mut d = IndexMap::new();
-        d.insert("temperature".to_string(), PyVal::Float(py_round(self.temp.get(), 2)));
+        let mut d = IndexMap::default();
+        d.insert("temperature".into(), PyVal::Float(py_round(self.temp.get(), 2)));
         Some(PyVal::Dict(d))
     }
 }

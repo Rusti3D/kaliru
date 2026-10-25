@@ -20,7 +20,7 @@ use crate::pyval::PyVal;
 use crate::reactor::ReactorCompletion;
 use crate::stepper::Rail;
 use crate::toolhead::ToolHead;
-use indexmap::IndexMap;
+use crate::IndexMap;
 use std::any::Any;
 use std::cell::Cell;
 use std::rc::Rc;
@@ -236,7 +236,7 @@ impl ToolsCalibrate {
 
     /// template.format(x=..., y=..., z=...)
     fn format_result(template: &str, r: &Position) -> KResult<String> {
-        let mut kwargs = IndexMap::new();
+        let mut kwargs = IndexMap::default();
         for (k, v) in ["x", "y", "z"].iter().zip(r) {
             kwargs.insert(k.to_string(), Value::Float(*v));
         }
@@ -291,10 +291,11 @@ impl PrinterObject for ToolsCalibrate {
     }
     fn get_status(&self, _eventtime: f64) -> Option<PyVal> {
         let opt = |p: Option<Position>| p.map(|p| position_pyval(&p)).unwrap_or(PyVal::None);
-        let mut d = IndexMap::new();
-        d.insert("sensor_location".to_string(), opt(self.sensor_location.get()));
-        d.insert("last_result".to_string(), opt(self.last_result.get()));
-        d.insert("calibration_probe_inactive".to_string(), PyVal::Bool(self.calibration_probe_inactive.get()));
+        let d = crate::pydict! {
+            "sensor_location" => opt(self.sensor_location.get()),
+            "last_result" => opt(self.last_result.get()),
+            "calibration_probe_inactive" => PyVal::Bool(self.calibration_probe_inactive.get()),
+        };
         Some(PyVal::Dict(d))
     }
 }
@@ -503,7 +504,7 @@ impl ProbeEndstopWrapper {
         let pin = config.get("pin", Dflt::Required)?;
         let pin_params = {
             let mut pins = ppins.0.borrow_mut();
-            pins.allow_multi_use_pin(&pin.replace('^', "").replace('!', "")).map_err(|e| KError::Pins(e.0))?;
+            pins.allow_multi_use_pin(&pin.replace(['^', '!'], "")).map_err(|e| KError::Pins(e.0))?;
             pins.lookup_pin(&pin, true, true, None).map_err(|e| KError::Pins(e.0))?
         };
         let chip = pin_params.borrow().chip.clone();

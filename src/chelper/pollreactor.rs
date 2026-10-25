@@ -100,6 +100,7 @@ impl PollReactor {
         while !self.is_exit() {
             let timeout = self.check_timers(h, eventtime, busy);
             busy = false;
+            // SAFETY: fds is a live Vec of fds.len() pollfd entries
             let ret = unsafe { libc::poll(self.fds.as_mut_ptr(), self.fds.len() as libc::nfds_t, timeout) };
             eventtime = get_monotonic();
             if ret > 0 {
@@ -128,11 +129,13 @@ impl PollReactor {
 }
 
 pub fn fd_set_non_blocking(fd: RawFd) -> i32 {
+    // SAFETY: integer arguments only
     let flags = unsafe { libc::fcntl(fd, libc::F_GETFL) };
     if flags < 0 {
         report_errno("fcntl getfl", flags);
         return -1;
     }
+    // SAFETY: integer arguments only
     let ret = unsafe { libc::fcntl(fd, libc::F_SETFL, flags | libc::O_NONBLOCK) };
     if ret < 0 {
         report_errno("fcntl setfl", flags);

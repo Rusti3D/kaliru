@@ -22,7 +22,6 @@ use crate::pyfmt::{py_float, py_min, py_str_repr};
 use crate::pyval::PyVal;
 use crate::reactor::{ReactorCompletion, NEVER, NOW};
 use crate::toolhead::ToolHead;
-use indexmap::IndexMap;
 use std::cell::{Cell, RefCell};
 use std::f64::consts::PI;
 use std::rc::{Rc, Weak};
@@ -1027,9 +1026,10 @@ impl PrinterObject for DockableProbe {
     }
     fn get_status(&self, _eventtime: f64) -> Option<PyVal> {
         // Use last_'status' here to be consistent with QUERY_PROBE_'STATUS'.
-        let mut d = IndexMap::new();
-        d.insert("last_status".to_string(), PyVal::Int(self.last_probe_state.get()));
-        d.insert("auto_attach_detach".to_string(), PyVal::Bool(self.auto_attach_detach.get()));
+        let d = crate::pydict! {
+            "last_status" => PyVal::Int(self.last_probe_state.get()),
+            "auto_attach_detach" => PyVal::Bool(self.auto_attach_detach.get()),
+        };
         Some(PyVal::Dict(d))
     }
     fn teardown(&self) {

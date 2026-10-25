@@ -18,7 +18,7 @@ use crate::printer::{ConfigFileObject, Printer, SubsystemComponentCollection};
 use crate::pyfmt::py_round;
 use crate::pyval::PyVal;
 use crate::toolhead::ToolHead;
-use indexmap::IndexMap;
+use crate::IndexMap;
 use std::cell::{Cell, RefCell};
 use std::rc::{Rc, Weak};
 
@@ -198,8 +198,8 @@ impl LDC1612 {
         *dccal.sensor.borrow_mut() = Rc::downgrade(&s);
         // Process messages in batches
         let batch_bulk = batch_helper(&printer, &s, Self::process_batch, Self::start_measurements, Self::finish_measurements, BATCH_UPDATES);
-        let mut hdr = IndexMap::new();
-        hdr.insert("header".to_string(), PyVal::Tuple(["time", "frequency", "z"].iter().map(|s| PyVal::Str(s.to_string())).collect()));
+        let mut hdr = IndexMap::default();
+        hdr.insert("header".into(), PyVal::Tuple(["time", "frequency", "z"].iter().map(|s| PyVal::Str(s.to_string())).collect()));
         batch_bulk.add_mux_endpoint("ldc1612/dump_ldc1612", "sensor", &name, PyVal::Dict(hdr))?;
         *s.batch_bulk.borrow_mut() = Some(batch_bulk);
         Ok(s)
@@ -352,10 +352,11 @@ impl LDC1612 {
             cal.apply_calibration(&mut samples);
         }
         let data = samples.iter().map(|(t, f, z)| PyVal::Tuple(vec![PyVal::Float(*t), PyVal::Float(*f), PyVal::Float(*z)])).collect();
-        let mut d = IndexMap::new();
-        d.insert("data".to_string(), PyVal::List(data));
-        d.insert("errors".to_string(), PyVal::Int(self.last_error_count.get()));
-        d.insert("overflows".to_string(), PyVal::Int(self.ffreader.get_last_overflows()));
+        let d = crate::pydict! {
+            "data" => PyVal::List(data),
+            "errors" => PyVal::Int(self.last_error_count.get()),
+            "overflows" => PyVal::Int(self.ffreader.get_last_overflows()),
+        };
         Ok(PyVal::Dict(d))
     }
 }

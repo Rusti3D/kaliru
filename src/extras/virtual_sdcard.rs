@@ -15,7 +15,7 @@ use crate::pyfmt::{py_str_repr, py_strip};
 use crate::pyglob::{expanduser, join, normpath};
 use crate::pyval::PyVal;
 use crate::reactor::{Reactor, Timer, NEVER, NOW};
-use indexmap::IndexMap;
+use crate::IndexMap;
 use std::cell::{Cell, RefCell};
 use std::io::{Read, Seek, SeekFrom};
 use std::rc::{Rc, Weak};
@@ -376,7 +376,7 @@ impl VirtualSD {
     fn load_file(&self, gcmd: &GCodeCommand, filename: &str, check_subdirs: bool) -> KResult<()> {
         let files = self.get_file_list(check_subdirs)?;
         let flist: Vec<&String> = files.iter().map(|f| &f.0).collect();
-        let mut files_by_lower: IndexMap<String, String> = IndexMap::new();
+        let mut files_by_lower: IndexMap<String, String> = IndexMap::default();
         for (fname, _fsize) in &files {
             files_by_lower.insert(fname.to_lowercase(), fname.clone());
         }
@@ -588,12 +588,13 @@ impl PrinterObject for VirtualSD {
         true
     }
     fn get_status(&self, _eventtime: f64) -> Option<PyVal> {
-        let mut d = IndexMap::new();
-        d.insert("file_path".to_string(), self.file_path());
-        d.insert("progress".to_string(), PyVal::Float(self.progress()));
-        d.insert("is_active".to_string(), PyVal::Bool(self.is_active()));
-        d.insert("file_position".to_string(), PyVal::Int(self.file_position.get() as i64));
-        d.insert("file_size".to_string(), PyVal::Int(self.file_size.get() as i64));
+        let d = crate::pydict! {
+            "file_path" => self.file_path(),
+            "progress" => PyVal::Float(self.progress()),
+            "is_active" => PyVal::Bool(self.is_active()),
+            "file_position" => PyVal::Int(self.file_position.get() as i64),
+            "file_size" => PyVal::Int(self.file_size.get() as i64),
+        };
         Some(PyVal::Dict(d))
     }
     fn has_stats(&self) -> bool {

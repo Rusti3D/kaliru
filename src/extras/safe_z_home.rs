@@ -8,7 +8,7 @@ use crate::error::{KError, KResult};
 use crate::gcode::{GCodeCommand, GCodeDispatch, Handler};
 use crate::printer::{PObj, Printer, PrinterObject};
 use crate::toolhead::ToolHead;
-use indexmap::IndexMap;
+use crate::IndexMap;
 use std::cell::RefCell;
 use std::rc::Rc;
 
@@ -64,7 +64,7 @@ impl SafeZHoming {
     }
 
     fn prev_g28(&self, axis: &str) -> KResult<()> {
-        let mut params = IndexMap::new();
+        let mut params = IndexMap::default();
         params.insert(axis.to_string(), "0".to_string());
         let g28_gcmd = self.gcode.create_gcode_command("G28", "G28", params);
         let prev = self.prev_g28.borrow().clone();

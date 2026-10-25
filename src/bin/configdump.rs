@@ -36,18 +36,18 @@ fn main() {
         let options = cfg.fileconfig.borrow().options(s).unwrap();
         for o in &options {
             println!("[{}] {}", s, o);
-            show("getint", sec.getint(o, REQUIRED, Lim::new()).map(|v| PyVal::from(v)));
+            show("getint", sec.getint(o, REQUIRED, Lim::new()).map(PyVal::from));
             show("getfloat", sec.getfloat(o, REQUIRED, Lim::new()).map(float_json));
             show("getfloat_min0", sec.getfloat(o, REQUIRED, Lim::new().min(0.)).map(float_json));
             show("getfloat_above1", sec.getfloat(o, REQUIRED, Lim::new().above(1)).map(float_json));
-            show("getboolean", sec.getboolean(o, REQUIRED).map(|v| PyVal::from(v)));
+            show("getboolean", sec.getboolean(o, REQUIRED).map(PyVal::from));
             show("getlist", sec.getlists(o, REQUIRED, &[","], None, ListParser::Str, true).map(|v| v.unwrap()));
             show("getfloatlist", sec.getlists(o, REQUIRED, &[","], None, ListParser::SafeFloat, true).map(|v| v.unwrap()));
             show("getintlist2", sec.getlists(o, REQUIRED, &[","], Some(2), ListParser::Int, true).map(|v| v.unwrap()));
             show("getlists", sec.getlists(o, REQUIRED, &[",", "\n"], None, ListParser::Str, true).map(|v| v.unwrap()));
             show("getscript", sec.getscript(o, REQUIRED).map(|(k, t)| PyVal::Tuple(vec![k.into(), t.into()])));
         }
-        show("missing", sec.get("no_such_option", REQUIRED).map(|v| PyVal::from(v)));
+        show("missing", sec.get("no_such_option", REQUIRED).map(PyVal::from));
         // python getfloat returns an int default unchanged
         show("default_int", sec.getfloat_value("no_such_float", &300i64.into(), &Lim::new()).map(|v| v.unwrap()));
     }

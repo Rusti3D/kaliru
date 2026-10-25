@@ -31,6 +31,7 @@ pub struct PyMethodDef {
     pub ml_flags: c_int,
     pub ml_doc: *const c_char,
 }
+// SAFETY: the method tables are immutable statics: their pointers are to static strings and functions
 unsafe impl Sync for PyMethodDef {}
 
 pub const METH_FASTCALL: c_int = 0x0080;
@@ -55,10 +56,12 @@ macro_rules! capi {
             unsafe fn load(lib: *mut c_void) -> Result<Api, String> {
                 Ok(Api {
                     $( $name: {
+                        // SAFETY: lib is a dlopen handle and the name a static NUL-terminated string
                         let p = libc::dlsym(lib, concat!(stringify!($name), "\0").as_ptr() as *const c_char);
                         if p.is_null() {
                             return Err(format!("libpython has no {}", stringify!($name)));
                         }
+                        // SAFETY: p is libpython's own symbol of that name, declared here with its C signature (CPython 3.15 headers)
                         std::mem::transmute::<*mut c_void, unsafe extern "C" fn($($t),*) $(-> $r)?>(p)
                     }, )*
                 })
@@ -178,14 +181,18 @@ pub fn load() -> Result<(), String> {
     let mut errors = vec![];
     for name in candidates() {
         let c = CString::new(name.clone()).unwrap();
+        // SAFETY: c is a NUL-terminated library name
         let lib = unsafe { libc::dlopen(c.as_ptr(), libc::RTLD_NOW | libc::RTLD_GLOBAL) };
         if lib.is_null() {
+            // SAFETY: dlerror returns null or a NUL-terminated message, copied below before the next dl call
             let e = unsafe { libc::dlerror() };
             if !e.is_null() && std::env::var("KALIRU_LIBPYTHON").as_deref() == Ok(name.as_str()) {
+                // SAFETY: e is non-null, see dlerror above
                 errors.push(unsafe { CStr::from_ptr(e) }.to_string_lossy().into_owned());
             }
             continue;
         }
+        // SAFETY: lib is the libpython handle just opened (and never closed)
         let api = unsafe { Api::load(lib) }?;
         let _ = API.set(api);
         return Ok(());
@@ -197,6 +204,7 @@ pub fn load() -> Result<(), String> {
 /// A `PyExc_*` exception class (a data symbol of libpython)
 pub fn exc_class(name: &str) -> *mut PyObject {
     let c = CString::new(name).unwrap();
+    // SAFETY: a PyExc_* data symbol is a PyObject* variable: read once if present
     unsafe {
         let p = libc::dlsym(libc::RTLD_DEFAULT, c.as_ptr()) as *const *mut PyObject;
         if p.is_null() { std::ptr::null_mut() } else { *p }
@@ -204,5 +212,6 @@ pub fn exc_class(name: &str) -> *mut PyObject {
 }
 
 pub fn none() -> *mut PyObject {
+    // SAFETY: a valid constant id; None is immortal
     unsafe { Py_GetConstantBorrowed(PY_CONSTANT_NONE) }
 }

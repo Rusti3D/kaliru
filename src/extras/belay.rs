@@ -16,7 +16,6 @@ use crate::pyval::PyVal;
 use crate::reactor::{Reactor, Timer, NEVER, NOW};
 use crate::stepper::McuStepper;
 use crate::toolhead::ToolHead;
-use indexmap::IndexMap;
 use std::cell::{Cell, RefCell};
 use std::rc::{Rc, Weak};
 
@@ -336,9 +335,10 @@ impl PrinterObject for Belay {
         true
     }
     fn get_status(&self, _eventtime: f64) -> Option<PyVal> {
-        let mut d = IndexMap::new();
-        d.insert("last_state".to_string(), PyVal::Bool(self.last_state.get()));
-        d.insert("enabled".to_string(), PyVal::Bool(self.enabled.get()));
+        let d = crate::pydict! {
+            "last_state" => PyVal::Bool(self.last_state.get()),
+            "enabled" => PyVal::Bool(self.enabled.get()),
+        };
         Some(PyVal::Dict(d))
     }
     fn teardown(&self) {

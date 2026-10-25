@@ -20,7 +20,7 @@ use crate::mcu::Mcu;
 use crate::printer::{downcast_rc, Printer, PrinterObject};
 use crate::pyval::PyVal;
 use crate::reactor::{Reactor, Timer, NEVER};
-use indexmap::IndexMap;
+use crate::IndexMap;
 use std::cell::{Cell, RefCell};
 use std::rc::Rc;
 
@@ -430,11 +430,11 @@ impl ToolHead {
         let reactor = printer.get_reactor();
         let mcu = printer.lookup::<Mcu>("mcu")?;
         let ToolHeadLimits { max_velocity, max_accel, min_cruise_ratio, square_corner_velocity } = limits;
-        let mut orig_cfg = IndexMap::new();
-        orig_cfg.insert("max_velocity".to_string(), max_velocity);
-        orig_cfg.insert("max_accel".to_string(), max_accel);
-        orig_cfg.insert("min_cruise_ratio".to_string(), min_cruise_ratio);
-        orig_cfg.insert("square_corner_velocity".to_string(), square_corner_velocity);
+        let mut orig_cfg = IndexMap::default();
+        orig_cfg.insert("max_velocity".into(), max_velocity);
+        orig_cfg.insert("max_accel".into(), max_accel);
+        orig_cfg.insert("min_cruise_ratio".into(), min_cruise_ratio);
+        orig_cfg.insert("square_corner_velocity".into(), square_corner_velocity);
         // Setup for generating moves
         let motion_queuing = printer
             .load_object(config, "motion_queuing", true)?
@@ -932,6 +932,7 @@ impl PrinterObject for ToolHead {
         let estimated_print_time = self.mcu.estimated_print_time(eventtime);
         let extruder = self.extra_axes.borrow()[0].clone();
         let mut res = self.kin().get_status(eventtime);
+        res.reserve(9);
         let commanded_pos = self.commanded_pos.borrow();
         res.insert("print_time".into(), PyVal::Float(print_time));
         res.insert("stalls".into(), PyVal::Int(self.print_stall.get()));

@@ -10,7 +10,7 @@ use crate::mcu::{DigitalOutPin, Mcu, PwmPin};
 use crate::pins::{PinChip, PinsObject, SharedPinParams};
 use crate::printer::{PObj, PrinterObject};
 use crate::pyfmt::{py_max, py_min};
-use indexmap::IndexMap;
+use crate::IndexMap;
 use std::any::Any;
 use std::cell::{Cell, RefCell};
 use std::rc::{Rc, Weak};

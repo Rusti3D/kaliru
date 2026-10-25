@@ -16,7 +16,7 @@ use crate::logging;
 use crate::printer::{downcast_rc, PObj, Printer, PrinterObject};
 use crate::stepper::McuStepper;
 use crate::toolhead::ToolHead;
-use indexmap::IndexMap;
+use crate::IndexMap;
 use std::cell::RefCell;
 use std::rc::Rc;
 
@@ -67,7 +67,7 @@ impl ForceMove {
             .ok_or_else(|| KError::Other("motion_queuing has an unexpected type".into()))?;
         let trapq = motion_queuing.allocate_trapq();
         let stepper_kinematics = cartesian_stepper_alloc('x').expect("x axis");
-        let fm = Rc::new(ForceMove { printer: printer.clone(), steppers: RefCell::new(IndexMap::new()), motion_queuing, trapq, stepper_kinematics });
+        let fm = Rc::new(ForceMove { printer: printer.clone(), steppers: RefCell::new(IndexMap::default()), motion_queuing, trapq, stepper_kinematics });
         // Register commands
         let gcode = printer.lookup::<GCodeDispatch>("gcode")?;
         let f = fm.clone();

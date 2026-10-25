@@ -5,7 +5,7 @@
 // Not ported: allow_no_value (klippy never enables it), unnamed sections,
 // read_dict, converters, the mapping protocol.
 use crate::pyfmt::{py_float, py_int, py_isspace, py_rstrip, py_str_repr, py_strip};
-use indexmap::{IndexMap, IndexSet};
+use crate::{IndexMap, IndexSet};
 
 pub const DEFAULTSECT: &str = "DEFAULT";
 pub const MAX_INTERPOLATION_DEPTH: usize = 10;
@@ -226,8 +226,8 @@ impl RawConfigParser {
     /// with the other arguments at their defaults
     pub fn new(strict: bool, inline_comment_prefixes: &[&str], interpolation: Box<dyn Interpolation>) -> Self {
         RawConfigParser {
-            sections: IndexMap::new(),
-            defaults: Section::new(),
+            sections: IndexMap::default(),
+            defaults: Section::default(),
             comment_prefixes: vec!["#".into(), ";".into()],
             inline_comment_prefixes: inline_comment_prefixes.iter().map(|s| s.to_string()).collect(),
             strict,
@@ -253,7 +253,7 @@ impl RawConfigParser {
         if self.sections.contains_key(section) {
             return Err(Error::kind(ErrorKind::DuplicateSection, format!("Section {} already exists", py_str_repr(section))));
         }
-        self.sections.insert(section.to_string(), Section::new());
+        self.sections.insert(section.to_string(), Section::default());
         Ok(())
     }
 
@@ -271,7 +271,7 @@ impl RawConfigParser {
 
     /// read_file(f, source) of the text f yields
     pub fn read_string(&mut self, string: &str, source: &str) -> Result<()> {
-        let mut pending: IndexMap<(Cur, String), Vec<String>> = IndexMap::new();
+        let mut pending: IndexMap<(Cur, String), Vec<String>> = IndexMap::default();
         let res = self.read_inner(string, source, &mut pending);
         // finally: _join_multiline_values()
         for ((cur, name), val) in pending {
@@ -325,8 +325,8 @@ impl RawConfigParser {
         fpname: &str,
         pending: &mut IndexMap<(Cur, String), Vec<String>>,
     ) -> Result<Vec<(usize, String)>> {
-        let mut elements_added: IndexSet<String> = IndexSet::new();
-        let mut options_added: IndexSet<(String, String)> = IndexSet::new();
+        let mut elements_added: IndexSet<String> = IndexSet::default();
+        let mut options_added: IndexSet<(String, String)> = IndexSet::default();
         let mut cursect: Option<Cur> = None;
         let mut sectname = String::new();
         let mut optname: Option<String> = None;
@@ -393,7 +393,7 @@ impl RawConfigParser {
                 } else if header == self.default_section {
                     cursect = Some(Cur::Defaults);
                 } else {
-                    self.sections.insert(header.clone(), Section::new());
+                    self.sections.insert(header.clone(), Section::default());
                     cursect = Some(Cur::Section(header.clone()));
                     elements_added.insert(header);
                 }

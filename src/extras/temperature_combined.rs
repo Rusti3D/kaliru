@@ -11,9 +11,9 @@ use crate::extras::heaters::{load_heaters, TempCallback, TempSensor};
 use crate::mcu::Mcu;
 use crate::printer::{none_object, PObj, Printer, PrinterObject};
 use crate::pyfmt::{py_max, py_min, py_round, py_sum};
-use crate::pyval::PyVal;
+use crate::pyval::{PyDict, PyVal};
 use crate::reactor::{Timer, NEVER};
-use indexmap::IndexMap;
+use crate::IndexMap;
 use std::cell::{Cell, RefCell};
 use std::rc::{Rc, Weak};
 
@@ -54,10 +54,10 @@ pub struct PrinterSensorCombined {
     temperature_callback: RefCell<Option<TempCallback>>,
 }
 
-fn status_of(sensor: &PObj, eventtime: f64) -> IndexMap<String, PyVal> {
+fn status_of(sensor: &PObj, eventtime: f64) -> PyDict {
     match sensor.get_status(eventtime) {
         Some(PyVal::Dict(d)) => d,
-        _ => IndexMap::new(),
+        _ => IndexMap::default(),
     }
 }
 
@@ -244,11 +244,11 @@ impl PrinterObject for PrinterSensorCombined {
         true
     }
     fn get_status(&self, _eventtime: f64) -> Option<PyVal> {
-        let mut data = IndexMap::new();
-        data.insert("temperature".to_string(), PyVal::Float(py_round(self.last_temp.get(), 2)));
+        let mut data = IndexMap::default();
+        data.insert("temperature".into(), PyVal::Float(py_round(self.last_temp.get(), 2)));
         for (key, cell) in [("humidity", &self.humidity), ("pressure", &self.pressure), ("gas", &self.gas)] {
             if let Some(v) = cell.get() {
-                data.insert(key.to_string(), PyVal::Float(v));
+                data.insert(key.to_string().into(), PyVal::Float(v));
             }
         }
         Some(PyVal::Dict(data))

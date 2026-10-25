@@ -16,6 +16,7 @@ fn block(seq: u8, payload: &[u8]) -> Vec<u8> {
 
 fn wait_readable(fd: RawFd, timeout: f64) -> bool {
     let mut p = libc::pollfd { fd, events: libc::POLLIN, revents: 0 };
+    // SAFETY: p is one live pollfd
     unsafe { libc::poll(&mut p, 1, (timeout * 1000.) as i32) > 0 }
 }
 
@@ -27,6 +28,7 @@ fn mcu_read(fd: RawFd) -> String {
     }
     while wait_readable(fd, 0.02) {
         let mut buf = [0u8; 4096];
+        // SAFETY: buf is a live buffer of buf.len() bytes
         let n = unsafe { libc::read(fd, buf.as_mut_ptr() as *mut libc::c_void, buf.len()) };
         if n <= 0 {
             break;
@@ -41,6 +43,7 @@ fn hex(b: &[u8]) -> String {
 }
 
 fn write(fd: RawFd, data: &[u8]) {
+    // SAFETY: data is a live slice of data.len() bytes
     unsafe { libc::write(fd, data.as_ptr() as *const libc::c_void, data.len()) };
 }
 
@@ -55,6 +58,7 @@ fn pull(sq: &SerialQueue) -> String {
 }
 
 fn set_raw(fd: RawFd) {
+    // SAFETY: termios is plain data (zeroed is valid) and lives across the calls
     unsafe {
         let mut t: libc::termios = std::mem::zeroed();
         libc::tcgetattr(fd, &mut t);
@@ -65,6 +69,7 @@ fn set_raw(fd: RawFd) {
 
 fn main() {
     let (mut master, mut slave) = (0, 0);
+    // SAFETY: master / slave are live ints; name, termios and winsize may be null
     unsafe { libc::openpty(&mut master, &mut slave, std::ptr::null_mut(), std::ptr::null(), std::ptr::null()) };
     set_raw(master);
     set_raw(slave);
@@ -79,48 +84,48 @@ fn main() {
     let send = |q: &CommandQueue, data: &[u8], notify: u64, reqc: u64| sq.send(q, data, 0, reqc, notify);
 
     send(&cq, &[1, 2, 3], 0, 0);
-    println!("{}", format!("write1 {}", mcu_read(master)));
+    println!("write1 {}", mcu_read(master));
     write(master, &block(2, &[]));
     sleep();
     send(&cq, &[4, 5], 7, 0);
-    println!("{}", format!("write2 {}", mcu_read(master)));
+    println!("write2 {}", mcu_read(master));
     write(master, &block(3, &[9, 9, 9]));
-    println!("{}", format!("pull1 {}", pull(&sq)));
+    println!("pull1 {}", pull(&sq));
     write(master, &block(3, &[]));
-    println!("{}", format!("pull2 {}", pull(&sq)));
+    println!("pull2 {}", pull(&sq));
     // two queues, both ready: one block, lowest req_clock first
     send(&cq2, &[0x20, 1], 0, 5);
     send(&cq, &[0x21, 1], 0, 3);
-    println!("{}", format!("write3 {}", mcu_read(master)));
+    println!("write3 {}", mcu_read(master));
     // no ack: wait for the timeout retransmit (sync byte + pending blocks)
-    println!("{}", format!("retransmit {}", mcu_read(master)));
+    println!("retransmit {}", mcu_read(master));
     write(master, &block(4, &[]));
     sleep();
     send(&cq, &[0x30], 0, 0);
-    println!("{}", format!("write4 {}", mcu_read(master)));
+    println!("write4 {}", mcu_read(master));
     write(master, &block(4, &[])); // duplicate ack = nak -> fast retransmit
-    println!("{}", format!("nak retransmit {}", mcu_read(master)));
+    println!("nak retransmit {}", mcu_read(master));
     write(master, &block(5, &[]));
     sleep();
     // garbage ending in a sync byte, then a data block
     let mut garbage = b"\x01\x02garbage\x7e".to_vec();
     garbage.extend(block(5, &[1, 2]));
     write(master, &garbage);
-    println!("{}", format!("pull3 {}", pull(&sq)));
+    println!("pull3 {}", pull(&sq));
     let stats: Vec<String> = sq
         .get_stats()
         .split_whitespace()
         .filter(|p| !matches!(p.split('=').next(), Some("srtt" | "rttvar" | "rto")))
         .map(|s| s.to_string())
         .collect();
-    println!("{}", format!("stats {}", stats.join(" ")));
+    println!("stats {}", stats.join(" "));
     for sentq in [true, false] {
         let old = sq.extract_old(sentq, 1024);
         let msgs: Vec<String> = old.iter().map(|m| hex(&m.msg)).collect();
-        println!("{}", format!("old{} {}", sentq as i32, msgs.join(" ")));
+        println!("old{} {}", sentq as i32, msgs.join(" "));
     }
     sq.exit();
-    println!("{}", format!("pull after exit {}", pull(&sq)));
+    println!("pull after exit {}", pull(&sq));
     drop(sq);
     for line in Vec::<String>::new() {
         println!("{}", line);

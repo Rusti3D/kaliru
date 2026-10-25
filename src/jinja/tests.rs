@@ -4,7 +4,7 @@ use super::filters::{bind, FILTER_NAMES};
 use super::runtime::Markup;
 use super::value::{Exc, VResult, Value};
 use crate::pyfmt::py_str_repr;
-use indexmap::IndexMap;
+use crate::IndexMap;
 
 pub const TEST_NAMES: &[&str] = &[
     "odd", "even", "divisibleby", "defined", "undefined", "filter", "test", "none", "boolean", "false", "true", "integer",
@@ -115,7 +115,7 @@ pub fn call_test(_r: &mut Renderer, name: &str, value: Value, args: Vec<Value>, 
             let a = b!(fname, ["value"]);
             let s = a[0].to_str();
             let method = if name == "lower" { "islower" } else { "isupper" };
-            Ok(super::methods::call_method(&Value::from(s), method, vec![], IndexMap::new())?.truthy())
+            Ok(super::methods::call_method(&Value::from(s), method, vec![], IndexMap::default())?.truthy())
         }
         "string" => {
             let a = b!("test_string", ["value"]);

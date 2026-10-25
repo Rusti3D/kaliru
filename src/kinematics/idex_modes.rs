@@ -13,10 +13,10 @@ use crate::extras::homing::Homing;
 use crate::gcode::{GCodeCommand, GCodeDispatch};
 use crate::printer::{Printer, PrinterObject};
 use crate::pyfmt::{py_max, py_min, py_sum};
-use crate::pyval::PyVal;
+use crate::pyval::{PyDict, PyVal};
 use crate::stepper::{PrinterRail, Rail};
 use crate::toolhead::ToolHead;
-use indexmap::IndexMap;
+use crate::IndexMap;
 use std::cell::{Cell, RefCell};
 use std::rc::Rc;
 
@@ -66,7 +66,7 @@ impl DualCarriages {
             printer: printer.clone(),
             axis,
             dc: [rail_0, rail_1],
-            saved_states: RefCell::new(IndexMap::new()),
+            saved_states: RefCell::new(IndexMap::default()),
             safe_dist,
         });
         printer.add_object("dual_carriage", d.clone())?;
@@ -348,8 +348,8 @@ impl PrinterObject for DualCarriages {
         true
     }
     fn get_status(&self, _eventtime: f64) -> Option<PyVal> {
-        let d: IndexMap<String, PyVal> =
-            self.dc.iter().enumerate().map(|(i, dc)| (format!("carriage_{}", i), PyVal::from(dc.mode.get()))).collect();
+        let d: PyDict =
+            self.dc.iter().enumerate().map(|(i, dc)| (format!("carriage_{}", i).into(), PyVal::from(dc.mode.get()))).collect();
         Some(PyVal::Dict(d))
     }
 }

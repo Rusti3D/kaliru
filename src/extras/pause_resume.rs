@@ -11,7 +11,7 @@ use crate::gcode::{GCodeCommand, GCodeDispatch};
 use crate::printer::{downcast_rc, PObj, Printer, PrinterObject};
 use crate::pyval::PyVal;
 use crate::webhooks::WebHooks;
-use indexmap::IndexMap;
+use crate::IndexMap;
 use std::cell::{Cell, RefCell};
 use std::rc::Rc;
 
@@ -150,8 +150,8 @@ impl PrinterObject for PauseResume {
         true
     }
     fn get_status(&self, _eventtime: f64) -> Option<PyVal> {
-        let mut d = IndexMap::new();
-        d.insert("is_paused".to_string(), PyVal::Bool(self.is_paused.get()));
+        let mut d = IndexMap::default();
+        d.insert("is_paused".into(), PyVal::Bool(self.is_paused.get()));
         Some(PyVal::Dict(d))
     }
     fn teardown(&self) {

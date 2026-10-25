@@ -38,7 +38,7 @@ pub fn resolve_bus_name(mcu: &Mcu, param: &str, bus: Option<&str>) -> KResult<St
         Some(b) => b.to_string(),
         None => {
             // rev_enums = {v: k}: the last name of a value wins
-            let rev0 = enums.iter().filter(|(_, v)| **v == 0).last().map(|(k, _)| k.clone());
+            let rev0 = enums.iter().rfind(|(_, v)| **v == 0).map(|(k, _)| k.clone());
             match rev0 {
                 Some(b) => b,
                 None => return Err(KError::Pins(format!("Must specify {} on mcu '{}'", param, mcu_name))),

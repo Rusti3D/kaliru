@@ -5,7 +5,8 @@
 // This file may be distributed under the terms of the GNU GPLv3 license.
 //
 // Jinja templates run on the jinja module (a port of Jinja2 3.1.6), python
-// scripts on RustPython (gcode_python.rs, cargo feature "python").
+// scripts as Kalico's own TemplateWrapperPython on the host CPython
+// (plugins::macros, cargo feature "plugins").
 use crate::configfile::{ConfigWrapper, Dflt};
 use crate::error::{KError, KResult};
 use crate::gcode::{GCodeCommand, GCodeDispatch};
@@ -14,8 +15,8 @@ use crate::jinja::value::{CallCtx, Exc, Key, Object, VResult};
 use crate::jinja::{self, Environment, Value};
 use crate::logging;
 use crate::printer::{PObj, Printer, PrinterObject};
-use crate::pyval::PyVal;
-use indexmap::IndexMap;
+use crate::pyval::{PyDict, PyVal};
+use crate::IndexMap;
 use std::cell::{Cell, RefCell};
 use std::rc::Rc;
 
@@ -33,7 +34,7 @@ pub struct GetStatusWrapperJinja {
 
 impl GetStatusWrapperJinja {
     pub fn new(printer: &Rc<Printer>, eventtime: Option<f64>) -> Self {
-        GetStatusWrapperJinja { printer: printer.clone(), eventtime: Cell::new(eventtime), cache: RefCell::new(IndexMap::new()) }
+        GetStatusWrapperJinja { printer: printer.clone(), eventtime: Cell::new(eventtime), cache: RefCell::new(IndexMap::default()) }
     }
 
     fn get(&self, val: &Value) -> VResult<Value> {
@@ -112,11 +113,6 @@ impl Object for Action {
 }
 
 impl Action {
-    #[cfg_attr(not(feature = "python"), allow(dead_code))]
-    pub(crate) fn new(printer: &Rc<Printer>, name: &'static str) -> Self {
-        Action { printer: printer.clone(), name }
-    }
-
     pub(crate) fn run(&self, args: Vec<Value>, kwargs: IndexMap<String, Value>) -> VResult<Value> {
         let fname = format!("PrinterGCodeMacro.{}", self.name);
         match self.name {
@@ -149,7 +145,7 @@ impl Action {
                 // _action_call_remote_method(method, **kwargs)
                 let (a, _, kw) = bind(&fname, &[("method", None)], args, kwargs, false, true)?;
                 let webhooks = self.printer.lookup::<crate::webhooks::WebHooks>("webhooks").map_err(kerror_exc)?;
-                let kw: IndexMap<String, PyVal> = kw.into_iter().map(|(k, v)| (k, v.to_pyval())).collect();
+                let kw: PyDict = kw.into_iter().map(|(k, v)| (k.into(), v.to_pyval())).collect();
                 match webhooks.call_remote_method(&a[0].to_str(), kw) {
                     Err(e) if e.is_command_error() => logging::exception("Remote Call Error"),
                     Err(e) => return Err(kerror_exc(e)),
@@ -223,10 +219,8 @@ impl TemplateWrapperJinja {
 #[derive(Clone)]
 enum Function {
     Jinja(Rc<TemplateWrapperJinja>),
-    #[cfg(feature = "python")]
-    Python(Rc<crate::extras::gcode_python::TemplateWrapperPython>),
-    /// without RustPython: Kalico's TemplateWrapperPython on the host CPython
-    #[cfg(all(feature = "plugins", not(feature = "python")))]
+    /// Kalico's TemplateWrapperPython on the host CPython
+    #[cfg(feature = "plugins")]
     HostPython(Rc<crate::plugins::macros::PyMacro>),
 }
 
@@ -245,11 +239,9 @@ impl Template {
 
     fn make(printer: &Rc<Printer>, env: &Environment, name: &str, script_type: &str, script: &str) -> KResult<Function> {
         if script_type == "python" {
-            #[cfg(feature = "python")]
-            return Ok(Function::Python(Rc::new(crate::extras::gcode_python::TemplateWrapperPython::new(printer, name, script)?)));
-            #[cfg(all(feature = "plugins", not(feature = "python")))]
+            #[cfg(feature = "plugins")]
             return Ok(Function::HostPython(Rc::new(crate::plugins::macros::PyMacro::new(printer, name, script)?)));
-            #[cfg(not(any(feature = "python", feature = "plugins")))]
+            #[cfg(not(feature = "plugins"))]
             return Err(KError::config(format!("Error loading template '{}': this Kaliru is built without python macros", name)));
         }
         Ok(Function::Jinja(Rc::new(TemplateWrapperJinja::new(printer, env, name, script)?)))
@@ -259,9 +251,7 @@ impl Template {
     pub(crate) fn function(&self) -> (Rc<dyn std::any::Any>, &'static str) {
         match &*self.function.borrow() {
             Function::Jinja(f) => (f.clone(), std::any::type_name::<TemplateWrapperJinja>()),
-            #[cfg(feature = "python")]
-            Function::Python(f) => (f.clone(), std::any::type_name::<crate::extras::gcode_python::TemplateWrapperPython>()),
-            #[cfg(all(feature = "plugins", not(feature = "python")))]
+            #[cfg(feature = "plugins")]
             Function::HostPython(f) => (f.clone(), std::any::type_name::<crate::plugins::macros::PyMacro>()),
         }
     }
@@ -270,7 +260,7 @@ impl Template {
     #[cfg(feature = "plugins")]
     pub(crate) fn host_python(&self) -> Option<crate::plugins::py::PyRef> {
         match &*self.function.borrow() {
-            #[cfg(not(feature = "python"))]
+            #[cfg(feature = "plugins")]
             Function::HostPython(f) => Some(f.obj.clone()),
             _ => None,
         }
@@ -286,11 +276,7 @@ impl Template {
         let f = self.function.borrow().clone();
         match f {
             Function::Jinja(f) => f.render(context),
-            #[cfg(feature = "python")]
-            Function::Python(_) => {
-                Err(KError::Py("AttributeError".into(), "'TemplateWrapperPython' object has no attribute 'render'".into()))
-            }
-            #[cfg(all(feature = "plugins", not(feature = "python")))]
+            #[cfg(feature = "plugins")]
             Function::HostPython(_) => {
                 Err(KError::Py("AttributeError".into(), "'TemplateWrapperPython' object has no attribute 'render'".into()))
             }
@@ -301,9 +287,7 @@ impl Template {
         let f = self.function.borrow().clone();
         match f {
             Function::Jinja(f) => f.run_gcode_from_command(context),
-            #[cfg(feature = "python")]
-            Function::Python(f) => f.run_gcode_from_command(context),
-            #[cfg(all(feature = "plugins", not(feature = "python")))]
+            #[cfg(feature = "plugins")]
             Function::HostPython(f) => f.run_gcode_from_command(context),
         }
     }
@@ -315,8 +299,8 @@ impl Template {
 
 /// PrinterGCodeMacro.create_template_context(eventtime)
 pub fn create_template_context(printer: &Rc<Printer>, eventtime: Option<f64>) -> IndexMap<String, Value> {
-    let mut ctx = IndexMap::new();
-    ctx.insert("printer".to_string(), Value::object(GetStatusWrapperJinja::new(printer, eventtime)));
+    let mut ctx = IndexMap::default();
+    ctx.insert("printer".into(), Value::object(GetStatusWrapperJinja::new(printer, eventtime)));
     for (key, name) in [
         ("action_emergency_stop", "_action_emergency_stop"),
         ("action_respond_info", "_action_respond_info"),
@@ -326,7 +310,7 @@ pub fn create_template_context(printer: &Rc<Printer>, eventtime: Option<f64>) ->
     ] {
         ctx.insert(key.to_string(), Value::object(Action { printer: printer.clone(), name }));
     }
-    ctx.insert("math".to_string(), jinja::pymath::math_module());
+    ctx.insert("math".into(), jinja::pymath::math_module());
     ctx
 }
 
@@ -403,6 +387,9 @@ pub struct GCodeMacro {
     cmd_desc: String,
     in_script: Cell<bool>,
     pub variables: RefCell<IndexMap<String, Value>>,
+    /// get_status(): python returns self.variables itself, the same dict
+    /// until SET_GCODE_VARIABLE replaces it; built once per change
+    status: RefCell<Option<Rc<PyVal>>>,
 }
 
 impl GCodeMacro {
@@ -425,7 +412,8 @@ impl GCodeMacro {
             rename_existing: rename_existing.clone(),
             cmd_desc: cmd_desc.clone(),
             in_script: Cell::new(false),
-            variables: RefCell::new(IndexMap::new()),
+            variables: RefCell::new(IndexMap::default()),
+            status: RefCell::new(None),
         });
         if let Some(rename) = &rename_existing {
             if gcode.is_traditional_gcode(&alias) != gcode.is_traditional_gcode(rename) {
@@ -454,6 +442,7 @@ impl GCodeMacro {
             match crate::pyliteral::literal_eval_json(&text) {
                 Ok(literal) => {
                     m.variables.borrow_mut().insert(option[prefix.len()..].to_string(), literal);
+                    m.variables_changed();
                 }
                 Err((cls, e)) => {
                     let msg = format!("Option '{}' in section '{}' is not a valid literal: {}", option, config.get_name(), e);
@@ -489,7 +478,13 @@ impl GCodeMacro {
         let mut v = self.variables.borrow().clone();
         v.insert(variable, literal);
         *self.variables.borrow_mut() = v;
+        self.variables_changed();
         Ok(())
+    }
+
+    /// self.variables was written: get_status() builds the new dict
+    pub fn variables_changed(&self) {
+        self.status.borrow_mut().take();
     }
 
     fn cmd(&self, gcmd: &GCodeCommand) -> KResult<()> {
@@ -514,7 +509,11 @@ impl PrinterObject for GCodeMacro {
         true
     }
     fn get_status(&self, _eventtime: f64) -> Option<PyVal> {
-        Some(PyVal::Dict(self.variables.borrow().iter().map(|(k, v)| (k.clone(), v.to_pyval())).collect()))
+        let mut status = self.status.borrow_mut();
+        let s = status.get_or_insert_with(|| {
+            Rc::new(PyVal::Dict(self.variables.borrow().iter().map(|(k, v)| (k.clone().into(), v.to_pyval())).collect()))
+        });
+        Some(PyVal::Shared(s.clone()))
     }
 }
 

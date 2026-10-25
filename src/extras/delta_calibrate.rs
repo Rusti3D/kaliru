@@ -17,7 +17,7 @@ use crate::mathutil::coordinate_descent;
 use crate::printer::{ConfigFileObject, PObj, Printer, PrinterObject};
 use crate::pyfmt::{py_float, py_float_repr};
 use crate::toolhead::ToolHead;
-use indexmap::IndexMap;
+use crate::IndexMap;
 use std::cell::RefCell;
 use std::rc::{Rc, Weak};
 
@@ -162,8 +162,8 @@ impl DeltaCalibrate {
             manual_heights.push((height, height_pos));
         }
         // Restore distance measurements
-        let mut delta_analyze_entry = IndexMap::new();
-        delta_analyze_entry.insert("SCALE".to_string(), vec![1.0]);
+        let mut delta_analyze_entry = IndexMap::default();
+        delta_analyze_entry.insert("SCALE".into(), vec![1.0]);
         let mut last_distances = vec![];
         for i in 0..999 {
             let Some(dist) = config.getfloat_opt(&format!("distance{}", i), Lim::new())? else { break };

@@ -13,8 +13,8 @@ use crate::jinja::value::Value;
 use crate::logging;
 use crate::printer::{PObj, PrinterObject};
 use crate::pyglob::expanduser;
-use crate::pyval::PyVal;
-use indexmap::IndexMap;
+use crate::pyval::{PyDict, PyVal};
+use crate::IndexMap;
 use std::cell::RefCell;
 use std::rc::Rc;
 
@@ -34,7 +34,7 @@ impl SaveVariables {
     fn new(config: &ConfigWrapper) -> KResult<Rc<Self>> {
         let printer = config.get_printer();
         let filename = expanduser(&config.get("filename", Dflt::Required)?);
-        let s = Rc::new(SaveVariables { filename, all_variables: RefCell::new(IndexMap::new()) });
+        let s = Rc::new(SaveVariables { filename, all_variables: RefCell::new(IndexMap::default()) });
         let r = (|| -> KResult<()> {
             if !std::path::Path::new(&s.filename).exists() {
                 std::fs::File::create(&s.filename).map_err(|e| KError::os(&e, &s.filename))?;
@@ -55,7 +55,7 @@ impl SaveVariables {
 
     fn load_variables(&self) -> KResult<()> {
         let r = (|| -> Result<IndexMap<String, Value>, String> {
-            let mut allvars = IndexMap::new();
+            let mut allvars = IndexMap::default();
             let mut varfile = new_parser();
             // read() skips a file it cannot open
             if let Ok(text) = std::fs::read_to_string(&self.filename) {
@@ -116,9 +116,9 @@ impl PrinterObject for SaveVariables {
         true
     }
     fn get_status(&self, _eventtime: f64) -> Option<PyVal> {
-        let vars: IndexMap<String, PyVal> = self.all_variables.borrow().iter().map(|(k, v)| (k.clone(), v.to_pyval())).collect();
-        let mut d = IndexMap::new();
-        d.insert("variables".to_string(), PyVal::Dict(vars));
+        let vars: PyDict = self.all_variables.borrow().iter().map(|(k, v)| (k.clone().into(), v.to_pyval())).collect();
+        let mut d = IndexMap::default();
+        d.insert("variables".into(), PyVal::Dict(vars));
         Some(PyVal::Dict(d))
     }
 }

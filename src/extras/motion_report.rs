@@ -15,10 +15,10 @@ use crate::logging;
 use crate::mcu::Mcu;
 use crate::printer::{PObj, Printer, PrinterObject};
 use crate::pyfmt::{py_max, py_min};
-use crate::pyval::PyVal;
+use crate::pyval::{PyDict, PyVal};
 use crate::stepper::McuStepper;
 use crate::toolhead::ToolHead;
-use indexmap::IndexMap;
+use crate::IndexMap;
 use std::cell::{Cell, RefCell};
 use std::rc::Rc;
 
@@ -31,8 +31,8 @@ fn strs(v: &[&str]) -> PyVal {
 }
 
 fn header(fields: &[&str]) -> PyVal {
-    let mut d = IndexMap::new();
-    d.insert("header".to_string(), strs(fields));
+    let mut d = IndexMap::default();
+    d.insert("header".into(), strs(fields));
     PyVal::Dict(d)
 }
 
@@ -122,15 +122,16 @@ impl DumpStepper {
             .iter()
             .map(|s| tuple(&[PyVal::Int(s.interval as i64), PyVal::Int(s.step_count as i64), PyVal::Int(s.add as i64)]))
             .collect();
-        let mut d = IndexMap::new();
-        d.insert("data".to_string(), PyVal::List(tdata));
-        d.insert("start_position".to_string(), PyVal::Float(start_position));
-        d.insert("start_mcu_position".to_string(), PyVal::Int(mcu_pos));
-        d.insert("step_distance".to_string(), PyVal::Float(step_dist));
-        d.insert("first_clock".to_string(), PyVal::Int(first_clock as i64));
-        d.insert("first_step_time".to_string(), PyVal::Float(first_time));
-        d.insert("last_clock".to_string(), PyVal::Int(last_clock as i64));
-        d.insert("last_step_time".to_string(), PyVal::Float(last_time));
+        let d = crate::pydict! {
+            "data" => PyVal::List(tdata),
+            "start_position" => PyVal::Float(start_position),
+            "start_mcu_position" => PyVal::Int(mcu_pos),
+            "step_distance" => PyVal::Float(step_dist),
+            "first_clock" => PyVal::Int(first_clock as i64),
+            "first_step_time" => PyVal::Float(first_time),
+            "last_clock" => PyVal::Int(last_clock as i64),
+            "last_step_time" => PyVal::Float(last_time),
+        };
         PyVal::Dict(d)
     }
 }
@@ -253,8 +254,8 @@ impl DumpTrapQ {
             .iter()
             .map(|e| tuple(&[PyVal::Float(e.0), PyVal::Float(e.1), PyVal::Float(e.2), PyVal::Float(e.3), f(&e.4), f(&e.5)]))
             .collect();
-        let mut out = IndexMap::new();
-        out.insert("data".to_string(), PyVal::List(items));
+        let mut out = IndexMap::default();
+        out.insert("data".into(), PyVal::List(items));
         PyVal::Dict(out)
     }
 
@@ -272,7 +273,17 @@ pub struct PrinterMotionReport {
     steppers: RefCell<IndexMap<String, Rc<DumpStepper>>>,
     dtrapqs: RefCell<IndexMap<String, Rc<DumpTrapQ>>>,
     next_status_time: Cell<f64>,
-    last_status: RefCell<IndexMap<String, PyVal>>,
+    /// handed out shared, as python returns the same dict until the next
+    /// refresh copies it
+    last_status: RefCell<Rc<PyVal>>,
+}
+
+/// the dict in a last_status
+fn status_dict(v: &mut PyVal) -> &mut PyDict {
+    match v {
+        PyVal::Dict(d) => d,
+        _ => unreachable!("motion_report status is a dict"),
+    }
 }
 
 impl PrinterMotionReport {
@@ -284,18 +295,19 @@ impl PrinterMotionReport {
     fn new(config: &ConfigWrapper) -> KResult<Rc<Self>> {
         let printer = config.get_printer();
         // get_status information
-        let mut last_status = IndexMap::new();
-        last_status.insert("live_position".to_string(), coord_pyval(&[0.0, 0.0, 0.0, 0.0]));
-        last_status.insert("live_velocity".to_string(), PyVal::Float(0.0));
-        last_status.insert("live_extruder_velocity".to_string(), PyVal::Float(0.0));
-        last_status.insert("steppers".to_string(), PyVal::List(vec![]));
-        last_status.insert("trapq".to_string(), PyVal::List(vec![]));
+        let last_status = crate::pydict! {
+            "live_position" => coord_pyval(&[0.0, 0.0, 0.0, 0.0]),
+            "live_velocity" => PyVal::Float(0.0),
+            "live_extruder_velocity" => PyVal::Float(0.0),
+            "steppers" => PyVal::List(vec![]),
+            "trapq" => PyVal::List(vec![]),
+        };
         let mr = Rc::new(PrinterMotionReport {
             printer: printer.clone(),
-            steppers: RefCell::new(IndexMap::new()),
-            dtrapqs: RefCell::new(IndexMap::new()),
+            steppers: RefCell::new(IndexMap::default()),
+            dtrapqs: RefCell::new(IndexMap::default()),
             next_status_time: Cell::new(0.0),
-            last_status: RefCell::new(last_status),
+            last_status: RefCell::new(Rc::new(PyVal::Dict(last_status))),
         });
         // Register handlers
         let m = mr.clone();
@@ -335,6 +347,7 @@ impl PrinterMotionReport {
         let steppers = sorted(self.steppers.borrow().keys().cloned().collect());
         let trapqs = sorted(self.dtrapqs.borrow().keys().cloned().collect());
         let mut ls = self.last_status.borrow_mut();
+        let ls = status_dict(Rc::make_mut(&mut ls));
         ls.insert("steppers".into(), steppers);
         ls.insert("trapq".into(), trapqs);
         Ok(())
@@ -381,7 +394,7 @@ impl PrinterMotionReport {
     // Status reporting
     pub fn get_status(&self, eventtime: f64) -> KResult<PyVal> {
         if eventtime < self.next_status_time.get() || self.dtrapqs.borrow().is_empty() {
-            return Ok(PyVal::Dict(self.last_status.borrow().clone()));
+            return Ok(PyVal::Shared(self.last_status.borrow().clone()));
         }
         self.next_status_time.set(eventtime + STATUS_REFRESH_TIME);
         let mut xyzpos = [0.0, 0.0, 0.0];
@@ -405,11 +418,15 @@ impl PrinterMotionReport {
             }
         }
         // Report status
+        // self.last_status = dict(self.last_status)
         let mut ls = self.last_status.borrow_mut();
-        ls.insert("live_position".into(), coord_pyval(&[xyzpos[0], xyzpos[1], xyzpos[2], epos]));
-        ls.insert("live_velocity".into(), PyVal::Float(xyzvelocity));
-        ls.insert("live_extruder_velocity".into(), PyVal::Float(evelocity));
-        Ok(PyVal::Dict(ls.clone()))
+        let mut d = (**ls).clone();
+        let dict = status_dict(&mut d);
+        dict.insert("live_position".into(), coord_pyval(&[xyzpos[0], xyzpos[1], xyzpos[2], epos]));
+        dict.insert("live_velocity".into(), PyVal::Float(xyzvelocity));
+        dict.insert("live_extruder_velocity".into(), PyVal::Float(evelocity));
+        *ls = Rc::new(d);
+        Ok(PyVal::Shared(ls.clone()))
     }
 }
 

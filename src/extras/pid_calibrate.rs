@@ -14,7 +14,7 @@ use crate::printer::{PObj, Printer, PrinterObject};
 use crate::pyglob::gettempdir;
 use crate::pyval::PyVal;
 use crate::toolhead::ToolHead;
-use indexmap::IndexMap;
+use crate::IndexMap;
 use std::cell::{Cell, RefCell};
 use std::f64::consts::PI;
 use std::rc::Rc;
@@ -98,7 +98,7 @@ impl PIDCalibrate {
         heater.set_control(old_control.clone(), false);
 
         if write_file != 0 {
-            let tmpdir = gettempdir();
+            let tmpdir = gettempdir()?;
             let mut fname = format!("{}/heattest.csv", tmpdir);
             if calibrate_secondary {
                 fname = format!("{}/heattest_secondary.csv", tmpdir);
@@ -135,7 +135,7 @@ impl PIDCalibrate {
         };
         self.printer.lookup::<ToolHead>("toolhead")?.get_last_move_time()?;
 
-        let profile: Profile = Rc::new(RefCell::new(IndexMap::new()));
+        let profile: Profile = Rc::new(RefCell::new(IndexMap::default()));
         let f = PyVal::Float;
         if heater.get_control().is::<ControlDualLoopPID>() {
             // Calibrate the inner (secondary) loop
@@ -527,7 +527,7 @@ impl Control for ControlAutoTune {
     }
 
     fn get_profile(&self) -> Profile {
-        let p: Profile = Rc::new(RefCell::new(IndexMap::new()));
+        let p: Profile = Rc::new(RefCell::new(IndexMap::default()));
         p.borrow_mut().insert("name".into(), ProfVal::V(PyVal::from("autotune")));
         p
     }

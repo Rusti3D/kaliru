@@ -76,6 +76,7 @@ impl Greenlet {
         let y = yielder.clone();
         let stack = DefaultStack::new(STACK_SIZE).expect("greenlet stack");
         // limit() includes the guard page
+        // SAFETY: sysconf takes an integer name and cannot fail for _SC_PAGESIZE
         let page = unsafe { libc::sysconf(libc::_SC_PAGESIZE) } as usize;
         let lo = stack.limit().get() + page;
         let bounds = (lo, stack.base().get() - lo);
@@ -125,6 +126,7 @@ pub fn switch(target: Target, value: f64) -> f64 {
             // inside a greenlet: hand (target, value) to the trampoline
             let y = cur.yielder.get();
             drop(cur);
+            // SAFETY: y is the running greenlet's yielder: set when its body starts and valid while it runs (we run inside it)
             unsafe { (*y).suspend((target, value)) }
         }
         None => trampoline(target, value),

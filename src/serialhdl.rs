@@ -18,7 +18,7 @@ use crate::error::{KError, KResult};
 use crate::logging;
 use crate::msgproto::{MessageParser, Params, Val};
 use crate::reactor::{Reactor, ReactorCompletion, NOW};
-use indexmap::IndexMap;
+use crate::IndexMap;
 use std::cell::{Cell, RefCell};
 use std::collections::{HashMap, VecDeque};
 use std::os::fd::RawFd;
@@ -52,6 +52,7 @@ pub struct SerialDev {
 
 impl Drop for SerialDev {
     fn drop(&mut self) {
+        // SAFETY: the device's own fd, closed once (on drop)
         unsafe { libc::close(self.fd) };
     }
 }
@@ -110,7 +111,7 @@ impl SerialReader {
             incoming: Arc::new(Mutex::new(VecDeque::new())),
             handlers: RefCell::new(HashMap::new()),
             last_notify_id: Cell::new(0),
-            pending_notifications: RefCell::new(IndexMap::new()),
+            pending_notifications: RefCell::new(IndexMap::default()),
         });
         READERS.with(|r| r.borrow_mut().insert(sr.id, Rc::downgrade(&sr)));
         let s = Rc::downgrade(&sr);
@@ -173,7 +174,7 @@ impl SerialReader {
             let Some(item) = item else { break };
             match item {
                 Incoming::Notify { id, sent_time, receive_time } => {
-                    let mut params = Params::new();
+                    let mut params = Params::default();
                     params.insert("#sent_time".into(), time_val(sent_time));
                     params.insert("#receive_time".into(), time_val(receive_time));
                     let completion = self.pending_notifications.borrow_mut().shift_remove(&id);
@@ -384,7 +385,8 @@ impl SerialReader {
                 return Err(error(format!("{}Unable to connect", self.warn_prefix)));
             }
             let c = std::ffi::CString::new(filename).unwrap();
-            let fd = unsafe { libc::open(c.as_ptr(), libc::O_RDWR | libc::O_NOCTTY) };
+            // SAFETY: c is a NUL-terminated path; the fd is checked below
+            let fd = unsafe { libc::open(c.as_ptr(), libc::O_RDWR | libc::O_NOCTTY | libc::O_CLOEXEC) };
             if fd < 0 {
                 let e = std::io::Error::last_os_error();
                 logging::warning(&format!("{}Unable to open port: {}", self.warn_prefix, crate::pyfmt::py_oserror(&e, filename)));
@@ -758,7 +760,7 @@ fn serial_exception(msg: String, context: KError) -> KError {
 /// str() of an OSError without a filename: "[Errno N] message"
 fn errno_str(e: &std::io::Error) -> String {
     let errno = e.raw_os_error().unwrap_or(0);
-    let msg = unsafe { std::ffi::CStr::from_ptr(libc::strerror(errno)) }.to_string_lossy().into_owned();
+    let msg = crate::pyfmt::strerror(errno);
     format!("[Errno {}] {}", errno, msg)
 }
 
@@ -769,7 +771,7 @@ fn os_error(e: &std::io::Error) -> KError {
 /// termios.error: str() is the (errno, message) tuple
 fn termios_error(e: &std::io::Error) -> KError {
     let errno = e.raw_os_error().unwrap_or(0);
-    let msg = unsafe { std::ffi::CStr::from_ptr(libc::strerror(errno)) }.to_string_lossy().into_owned();
+    let msg = crate::pyfmt::strerror(errno);
     KError::Py("termios.error".into(), format!("({}, {})", errno, crate::pyfmt::py_str_repr(&msg)))
 }
 
@@ -784,7 +786,8 @@ impl Uart {
     /// rts + open(); dtr is asserted on open like pyserial
     pub fn open(port: &str, baud: u32, exclusive: Option<bool>, rts: Option<bool>) -> KResult<Uart> {
         let c = std::ffi::CString::new(port).map_err(|e| KError::Py("ValueError".into(), e.to_string()))?;
-        let fd = unsafe { libc::open(c.as_ptr(), libc::O_RDWR | libc::O_NOCTTY | libc::O_NONBLOCK) };
+        // SAFETY: c is a NUL-terminated path; the fd is checked below
+        let fd = unsafe { libc::open(c.as_ptr(), libc::O_RDWR | libc::O_NOCTTY | libc::O_NONBLOCK | libc::O_CLOEXEC) };
         if fd < 0 {
             let e = std::io::Error::last_os_error();
             let ctx = KError::Py(crate::pyfmt::py_oserror_class(&e).into(), crate::pyfmt::py_oserror(&e, port));
@@ -799,6 +802,7 @@ impl Uart {
         // (exclusive=None: no flock at all)
         if let Some(exclusive) = exclusive {
             let lock = if exclusive { libc::LOCK_EX | libc::LOCK_NB } else { libc::LOCK_UN };
+            // SAFETY: integer arguments on the fd opened above
             if unsafe { libc::flock(fd, lock) } != 0 {
                 let e = std::io::Error::last_os_error();
                 if !exclusive {
@@ -819,6 +823,7 @@ impl Uart {
     }
 
     fn configure(&self, baud: u32) -> KResult<()> {
+        // SAFETY: termios / Termios2 are plain data (zeroed is valid), live across the calls that fill and read them; TCGETS2 / TCSETS2 take a Termios2
         unsafe {
             let mut t: libc::termios = std::mem::zeroed();
             if libc::tcgetattr(self.fd, &mut t) != 0 {
@@ -863,6 +868,7 @@ impl Uart {
 
     fn set_modem_line(&self, bit: libc::c_int, on: bool) {
         let req = if on { libc::TIOCMBIS } else { libc::TIOCMBIC };
+        // SAFETY: TIOCMBIS / TIOCMBIC read one c_int, bit lives across the call
         unsafe { libc::ioctl(self.fd, req, &bit) };
     }
 
@@ -881,12 +887,14 @@ impl Uart {
     /// read(n) with timeout=0: whatever is available
     pub fn read(&self, n: usize) -> Vec<u8> {
         let mut buf = vec![0u8; n];
+        // SAFETY: buf is a live buffer of n bytes
         let r = unsafe { libc::read(self.fd, buf.as_mut_ptr() as *mut libc::c_void, n) };
         buf.truncate(r.max(0) as usize);
         buf
     }
 
     pub fn write(&self, data: &[u8]) {
+        // SAFETY: data is a live slice of data.len() bytes
         unsafe { libc::write(self.fd, data.as_ptr() as *const libc::c_void, data.len()) };
     }
 
@@ -894,10 +902,12 @@ impl Uart {
     /// that returns no data is a disconnected device
     pub fn read_checked(&self, n: usize) -> Result<Vec<u8>, String> {
         let mut pfd = libc::pollfd { fd: self.fd, events: libc::POLLIN, revents: 0 };
+        // SAFETY: pfd is one live pollfd
         if unsafe { libc::poll(&mut pfd, 1, 0) } <= 0 {
             return Ok(vec![]);
         }
         let mut buf = vec![0u8; n];
+        // SAFETY: buf is a live buffer of n bytes
         let r = unsafe { libc::read(self.fd, buf.as_mut_ptr() as *mut libc::c_void, n) };
         if r == 0 {
             return Err("device reports readiness to read but returned no data (device disconnected or multiple access on port?)".into());
@@ -917,6 +927,7 @@ impl Uart {
     /// pyserial write(data) with write_timeout=0: anything not written at
     /// once is a write timeout
     pub fn write_checked(&self, data: &[u8]) -> Result<(), String> {
+        // SAFETY: data is a live slice of data.len() bytes
         let r = unsafe { libc::write(self.fd, data.as_ptr() as *const libc::c_void, data.len()) };
         if r < 0 {
             let e = std::io::Error::last_os_error();
@@ -940,6 +951,7 @@ impl Uart {
 
 impl Drop for Uart {
     fn drop(&mut self) {
+        // SAFETY: the port's own fd, closed once (on drop)
         unsafe { libc::close(self.fd) };
     }
 }
@@ -949,7 +961,9 @@ pub fn stk500v2_leave(ser: &Uart, reactor: &Rc<Reactor>) -> KResult<()> {
     logging::debug("Starting stk500v2 leave programmer sequence");
     crate::util::clear_hupcl(ser.fd);
     // pyserial keeps its configured baud; origbaud = ser.baudrate
+    // SAFETY: termios is plain data: zeroed is valid
     let mut t: libc::termios = unsafe { std::mem::zeroed() };
+    // SAFETY: t is a live termios
     unsafe { libc::tcgetattr(ser.fd, &mut t) };
     // Request a dummy speed first as this seems to help reset the port
     let _ = ser.set_baudrate(2400);
@@ -963,6 +977,7 @@ pub fn stk500v2_leave(ser: &Uart, reactor: &Rc<Reactor>) -> KResult<()> {
     let res = ser.read(4096);
     logging::debug(&format!("Got {} from stk500v2", crate::pyfmt::py_bytes_repr(&res)));
     // restore the original settings (custom bauds included)
+    // SAFETY: t is a live termios
     unsafe { libc::tcsetattr(ser.fd, libc::TCSANOW, &t) };
     Ok(())
 }
@@ -1040,8 +1055,9 @@ struct CanFilter {
 
 impl CanSocket {
     pub fn open(iface: &str, filter_id: u32, filter_mask: u32) -> Result<CanSocket, String> {
+        // SAFETY: filter and addr are live #[repr(C)] kernel structs passed with their sizes; ciface is NUL-terminated; the CanSocket closes the fd on every error return
         unsafe {
-            let fd = libc::socket(libc::PF_CAN, libc::SOCK_RAW, libc::CAN_RAW);
+            let fd = libc::socket(libc::PF_CAN, libc::SOCK_RAW | libc::SOCK_CLOEXEC, libc::CAN_RAW);
             if fd < 0 {
                 return Err(std::io::Error::last_os_error().to_string());
             }
@@ -1071,6 +1087,7 @@ impl CanSocket {
     pub fn send(&self, can_id: u32, data: &[u8]) -> Result<(), String> {
         let mut cf = CanFrame { can_id, can_dlc: data.len() as u8, ..Default::default() };
         cf.data[..data.len()].copy_from_slice(data);
+        // SAFETY: cf is a live #[repr(C)] can_frame of the size written
         let r = unsafe { libc::write(self.fd, &cf as *const CanFrame as *const libc::c_void, std::mem::size_of::<CanFrame>()) };
         if r < 0 {
             return Err(std::io::Error::last_os_error().to_string());
@@ -1081,10 +1098,12 @@ impl CanSocket {
     /// recv(timeout): (arbitration id, data)
     pub fn recv(&self, timeout: f64) -> Option<(u32, Vec<u8>)> {
         let mut p = libc::pollfd { fd: self.fd, events: libc::POLLIN, revents: 0 };
+        // SAFETY: p is one live pollfd
         if unsafe { libc::poll(&mut p, 1, (timeout * 1000.0).ceil() as i32) } <= 0 {
             return None;
         }
         let mut cf = CanFrame::default();
+        // SAFETY: cf is a live #[repr(C)] can_frame of the size read
         let r = unsafe { libc::read(self.fd, &mut cf as *mut CanFrame as *mut libc::c_void, std::mem::size_of::<CanFrame>()) };
         if r <= 0 {
             return None;
@@ -1101,6 +1120,7 @@ impl CanSocket {
 
 impl Drop for CanSocket {
     fn drop(&mut self) {
+        // SAFETY: the socket's own fd, closed once (on drop)
         unsafe { libc::close(self.fd) };
     }
 }

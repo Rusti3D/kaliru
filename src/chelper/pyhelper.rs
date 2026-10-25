@@ -9,6 +9,7 @@ use std::sync::RwLock;
 // Return the monotonic system time as a double
 pub fn get_monotonic() -> f64 {
     let mut ts = libc::timespec { tv_sec: 0, tv_nsec: 0 };
+    // SAFETY: ts is a live timespec
     let ret = unsafe { libc::clock_gettime(libc::CLOCK_MONOTONIC_RAW, &mut ts) };
     if ret != 0 {
         report_errno("clock_gettime", ret);
@@ -47,7 +48,7 @@ pub fn errorf(msg: &str) {
 pub fn report_errno(where_: &str, rc: i32) {
     let e = std::io::Error::last_os_error();
     let errno = e.raw_os_error().unwrap_or(0);
-    let msg = unsafe { std::ffi::CStr::from_ptr(libc::strerror(errno)) }.to_string_lossy().into_owned();
+    let msg = crate::pyfmt::strerror(errno);
     errorf(&format!("Got error {} in {}: ({}){}", rc, where_, errno, msg));
 }
 
@@ -74,5 +75,6 @@ pub fn set_thread_name(name: &str) -> i32 {
     let mut buf = [0u8; 16];
     let n = name.len().min(15);
     buf[..n].copy_from_slice(&name.as_bytes()[..n]);
+    // SAFETY: buf is a NUL-terminated name of at most 16 bytes
     unsafe { libc::prctl(libc::PR_SET_NAME, buf.as_ptr()) }
 }

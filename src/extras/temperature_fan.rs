@@ -208,9 +208,9 @@ impl PrinterObject for TemperatureFan {
             PyVal::Dict(d) => d,
             _ => Default::default(),
         };
-        status.insert("temperature".to_string(), PyVal::Float(py_round(self.last_temp.get(), 2)));
-        status.insert("target".to_string(), PyVal::Float(self.target_temp.get()));
-        status.insert("control".to_string(), PyVal::from(self.control_type()));
+        status.insert("temperature".into(), PyVal::Float(py_round(self.last_temp.get(), 2)));
+        status.insert("target".into(), PyVal::Float(self.target_temp.get()));
+        status.insert("control".into(), PyVal::from(self.control_type()));
         Some(PyVal::Dict(status))
     }
     fn get_temp(&self, _eventtime: f64) -> Option<(f64, f64)> {

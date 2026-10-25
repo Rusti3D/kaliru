@@ -18,7 +18,7 @@ pub mod strformat;
 pub mod tests;
 pub mod value;
 
-use indexmap::IndexMap;
+use crate::IndexMap;
 use nodes::*;
 use std::rc::Rc;
 pub use value::{Exc, Value};

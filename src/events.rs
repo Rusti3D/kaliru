@@ -72,7 +72,7 @@ macro_rules! events {
             #[allow(dead_code)]
             pub const NAME: &'static str = $s;
             /// send_event(): every handler, in registration order
-            #[allow(clippy::too_many_arguments, dead_code)]
+            #[allow(clippy::too_many_arguments, clippy::ptr_arg, dead_code)]
             pub fn emit(printer: &$crate::printer::Printer $(, $arg: &$ty)*) -> $crate::error::KResult<()> {
                 printer.send_event($s, &[$($arg as &dyn std::any::Any),*])
             }

@@ -14,7 +14,7 @@ use crate::mcu::Mcu;
 use crate::msgproto::Val;
 use crate::printer::{PObj, Printer};
 use crate::reactor::{ReactorMutex, NOW};
-use indexmap::IndexMap;
+use crate::IndexMap;
 use std::cell::Cell;
 use std::rc::{Rc, Weak};
 

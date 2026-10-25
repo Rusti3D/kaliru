@@ -9,7 +9,6 @@ use crate::gcode::{GCodeCommand, GCodeDispatch};
 use crate::printer::{PObj, Printer, PrinterObject};
 use crate::pyval::PyVal;
 use crate::toolhead::ToolHead;
-use indexmap::IndexMap;
 use std::cell::{Cell, RefCell};
 use std::rc::{Rc, Weak};
 
@@ -205,11 +204,12 @@ impl PrinterObject for BedScrews {
     }
     fn get_status(&self, _eventtime: f64) -> Option<PyVal> {
         let state = *self.state.borrow();
-        let mut d = IndexMap::new();
-        d.insert("is_active".to_string(), PyVal::Bool(state.is_some()));
-        d.insert("state".to_string(), state.map(PyVal::from).unwrap_or(PyVal::None));
-        d.insert("current_screw".to_string(), PyVal::Int(self.current_screw.get() as i64));
-        d.insert("accepted_screws".to_string(), PyVal::Int(self.accepted_screws.get()));
+        let d = crate::pydict! {
+            "is_active" => PyVal::Bool(state.is_some()),
+            "state" => state.map(PyVal::from).unwrap_or(PyVal::None),
+            "current_screw" => PyVal::Int(self.current_screw.get() as i64),
+            "accepted_screws" => PyVal::Int(self.accepted_screws.get()),
+        };
         Some(PyVal::Dict(d))
     }
 }

@@ -13,7 +13,7 @@ use crate::pins::PinsObject;
 use crate::printer::{PObj, Printer, PrinterObject};
 use crate::pyfmt::{py_max, py_min, py_strip};
 use crate::reactor::Reactor;
-use indexmap::IndexMap;
+use crate::IndexMap;
 use std::cell::{Cell, RefCell};
 use std::rc::Rc;
 
@@ -425,7 +425,7 @@ impl PrinterButtons {
     fn new(config: &ConfigWrapper) -> KResult<Rc<Self>> {
         let printer = config.get_printer();
         printer.load_object(config, "query_adc", true)?;
-        Ok(Rc::new(PrinterButtons { printer, mcu_buttons: RefCell::new(IndexMap::new()), adc_buttons: RefCell::new(IndexMap::new()) }))
+        Ok(Rc::new(PrinterButtons { printer, mcu_buttons: RefCell::new(IndexMap::default()), adc_buttons: RefCell::new(IndexMap::default()) }))
     }
 
     pub fn register_adc_button(&self, pin: &str, min_val: f64, max_val: f64, pullup: f64, callback: ButtonCallback) -> KResult<()> {

@@ -14,7 +14,7 @@ use crate::mathutil::coordinate_descent;
 use crate::printer::{downcast_rc, ConfigFileObject, PObj, Printer, PrinterObject};
 use crate::pyfmt::py_float_repr;
 use crate::toolhead::ToolHead;
-use indexmap::IndexMap;
+use crate::IndexMap;
 use std::cell::{Cell, RefCell};
 use std::rc::{Rc, Weak};
 
@@ -151,10 +151,10 @@ impl BedTiltCalibrate {
         // Setup for coordinate descent analysis
         let z_offset = offsets.2;
         logging::info(&format!("Calculating bed_tilt with: {}", positions_repr(positions)));
-        let mut params = IndexMap::new();
-        params.insert("x_adjust".to_string(), bedtilt.x_adjust.get());
-        params.insert("y_adjust".to_string(), bedtilt.y_adjust.get());
-        params.insert("z_adjust".to_string(), z_offset);
+        let mut params = IndexMap::default();
+        params.insert("x_adjust".into(), bedtilt.x_adjust.get());
+        params.insert("y_adjust".into(), bedtilt.y_adjust.get());
+        params.insert("z_adjust".into(), z_offset);
         logging::info(&format!("Initial bed_tilt parameters: {}", params_repr(&params)));
 
         // Perform coordinate descent

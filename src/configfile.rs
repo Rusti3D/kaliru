@@ -14,8 +14,8 @@ use crate::logging;
 use crate::mathutil;
 use crate::pyfmt::{py_int, py_rstrip, py_str_repr, py_strip};
 use crate::pyglob;
-use indexmap::IndexMap;
-use crate::pyval::PyVal;
+use crate::IndexMap;
+use crate::pyval::{PyDict, PyVal};
 use std::cell::RefCell;
 use std::collections::HashSet;
 use std::rc::Rc;
@@ -548,7 +548,7 @@ impl ConfigWrapper {
         }
         ConfigWrapper {
             fileconfig: Rc::new(RefCell::new(fc)),
-            access_tracking: Rc::new(RefCell::new(AccessTracking::new())),
+            access_tracking: Rc::new(RefCell::new(AccessTracking::default())),
             section: section.to_string(),
             deprecated: self.deprecated.clone(),
             printer: self.printer.clone(),
@@ -702,7 +702,7 @@ impl PrinterConfig {
         PrinterConfig {
             config_file: config_file.to_string(),
             autosave: None,
-            deprecated: Rc::new(RefCell::new(IndexMap::new())),
+            deprecated: Rc::new(RefCell::new(IndexMap::default())),
             runtime_warnings: vec![],
             deprecate_warnings: vec![],
             status_raw_config: PyVal::shared(PyVal::dict()),
@@ -890,10 +890,10 @@ impl PrinterConfig {
     }
 
     pub fn build_config_wrapper(&self, data: &str, filename: &str) -> Result<ConfigWrapper> {
-        let access_tracking = Rc::new(RefCell::new(AccessTracking::new()));
+        let access_tracking = Rc::new(RefCell::new(AccessTracking::default()));
         let interp = SectionInterpolation { access_tracking: access_tracking.clone() };
         let fileconfig = RefCell::new(RawConfigParser::new(false, &[";", "#"], Box::new(interp)));
-        self.parse_config(data, filename, &fileconfig, &mut HashSet::new(), &IndexMap::new())?;
+        self.parse_config(data, filename, &fileconfig, &mut HashSet::new(), &IndexMap::default())?;
         Ok(ConfigWrapper {
             fileconfig: Rc::new(fileconfig),
             access_tracking,
@@ -966,9 +966,10 @@ impl PrinterConfig {
     // Status reporting
     pub fn runtime_warning(&mut self, msg: &str) {
         logging::warning(msg);
-        let mut res = IndexMap::new();
-        res.insert("type".to_string(), PyVal::from("runtime_warning"));
-        res.insert("message".to_string(), PyVal::from(msg));
+        let res = crate::pydict! {
+            "type" => PyVal::from("runtime_warning"),
+            "message" => PyVal::from(msg),
+        };
         self.runtime_warnings.push(PyVal::Dict(res));
         self.status_warnings = PyVal::shared(PyVal::List(self.runtime_warnings.iter().chain(&self.deprecate_warnings).cloned().collect()));
     }
@@ -980,17 +981,18 @@ impl PrinterConfig {
     }
 
     pub fn warn(&mut self, type_: &str, msg: &str, section: Option<&str>, option: Option<&str>, value: Option<&str>) {
-        let mut res = IndexMap::new();
-        res.insert("type".to_string(), PyVal::from(type_));
-        res.insert("message".to_string(), PyVal::from(msg));
+        let mut res = crate::pydict! {
+            "type" => PyVal::from(type_),
+            "message" => PyVal::from(msg),
+        };
         if let Some(s) = section {
-            res.insert("section".to_string(), PyVal::from(s));
+            res.insert("section".into(), PyVal::from(s));
         }
         if let Some(o) = option {
-            res.insert("option".to_string(), PyVal::from(o));
+            res.insert("option".into(), PyVal::from(o));
         }
         if let Some(v) = value {
-            res.insert("value".to_string(), PyVal::from(v));
+            res.insert("value".into(), PyVal::from(v));
         }
         // (python appends in place; this runs while the status is built,
         // before anyone holds it)
@@ -1000,20 +1002,20 @@ impl PrinterConfig {
     }
 
     fn build_status(&mut self, config: &ConfigWrapper) -> Result<()> {
-        let mut raw_config = IndexMap::new();
+        let mut raw_config = IndexMap::default();
         for section in config.get_prefix_sections("") {
-            let mut section_status = IndexMap::new();
+            let mut section_status = IndexMap::default();
             for option in section.get_prefix_options("")? {
                 let v = section.get_value(&option, REQUIRED, false)?.unwrap_or(PyVal::None);
-                section_status.insert(option, v);
+                section_status.insert(option.into(), v);
             }
-            raw_config.insert(section.get_name().to_string(), PyVal::Dict(section_status));
+            raw_config.insert(section.get_name().to_string().into(), PyVal::Dict(section_status));
         }
         self.status_raw_config = PyVal::shared(PyVal::Dict(raw_config));
-        let mut settings = IndexMap::new();
+        let mut settings = IndexMap::default();
         for ((section, option), value) in config.access_tracking.borrow().iter() {
-            if let PyVal::Dict(d) = settings.entry(section.clone()).or_insert_with(PyVal::dict) {
-                d.insert(option.clone(), value.clone());
+            if let PyVal::Dict(d) = settings.entry(section.clone().into()).or_insert_with(PyVal::dict) {
+                d.insert(option.clone().into(), value.clone());
             }
         }
         self.status_settings = PyVal::shared(PyVal::Dict(settings));
@@ -1036,12 +1038,13 @@ impl PrinterConfig {
     }
 
     pub fn get_status(&self, _eventtime: f64) -> PyVal {
-        let mut d = IndexMap::new();
-        d.insert("config".to_string(), self.status_raw_config.clone());
-        d.insert("settings".to_string(), self.status_settings.clone());
-        d.insert("warnings".to_string(), self.status_warnings.clone());
-        d.insert("save_config_pending".to_string(), PyVal::Bool(self.save_config_pending));
-        d.insert("save_config_pending_items".to_string(), self.status_save_pending.clone());
+        let d = crate::pydict! {
+            "config" => self.status_raw_config.clone(),
+            "settings" => self.status_settings.clone(),
+            "warnings" => self.status_warnings.clone(),
+            "save_config_pending" => PyVal::Bool(self.save_config_pending),
+            "save_config_pending_items" => self.status_save_pending.clone(),
+        };
         PyVal::Dict(d)
     }
 
@@ -1056,10 +1059,10 @@ impl PrinterConfig {
         let mut pending = self.save_pending();
         let mut sect = match pending.get(section) {
             Some(PyVal::Dict(m)) => m.clone(),
-            _ => IndexMap::new(),
+            _ => IndexMap::default(),
         };
-        sect.insert(option.to_string(), PyVal::from(svalue));
-        pending.insert(section.to_string(), PyVal::Dict(sect));
+        sect.insert(option.to_string().into(), PyVal::from(svalue));
+        pending.insert(section.to_string().into(), PyVal::Dict(sect));
         self.status_save_pending = PyVal::shared(PyVal::Dict(pending));
         self.save_config_pending = true;
         logging::info(&format!("save_config: set [{}] {} = {}", section, option, svalue));
@@ -1067,10 +1070,10 @@ impl PrinterConfig {
     }
 
     /// a copy of save_config_pending_items (python copies it before a change)
-    fn save_pending(&self) -> IndexMap<String, PyVal> {
+    fn save_pending(&self) -> PyDict {
         match self.status_save_pending.get() {
             PyVal::Dict(d) => d.clone(),
-            _ => IndexMap::new(),
+            _ => IndexMap::default(),
         }
     }
 
@@ -1079,7 +1082,7 @@ impl PrinterConfig {
         if autosave.borrow().has_section(section) {
             autosave.borrow_mut().remove_section(section);
             let mut pending = self.save_pending();
-            pending.insert(section.to_string(), PyVal::None);
+            pending.insert(section.to_string().into(), PyVal::None);
             self.status_save_pending = PyVal::shared(PyVal::Dict(pending));
             self.save_config_pending = true;
         } else if matches!(self.save_pending().get(section), Some(v) if *v != PyVal::None) {
@@ -1239,15 +1242,8 @@ impl PrinterConfig {
 
 /// time.strftime(fmt) in local time
 pub fn strftime_local(fmt: &str) -> String {
-    let fmt = std::ffi::CString::new(fmt).unwrap();
-    let mut buf = [0u8; 128];
-    unsafe {
-        let t = libc::time(std::ptr::null_mut());
-        let mut tm: libc::tm = std::mem::zeroed();
-        libc::localtime_r(&t, &mut tm);
-        let n = libc::strftime(buf.as_mut_ptr() as *mut libc::c_char, buf.len(), fmt.as_ptr(), &tm);
-        String::from_utf8_lossy(&buf[..n]).into_owned()
-    }
+    let now = std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).map_or(0, |d| d.as_secs() as i64);
+    crate::util::strftime_local(fmt, now)
 }
 
 // ------------------------------------------------------------ include templates

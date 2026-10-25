@@ -12,11 +12,11 @@ use crate::logging;
 use crate::mcu::Mcu;
 use crate::printer::{ConfigFileObject, Printer, PrinterObject};
 use crate::pyfmt::{py_max, py_min, py_round, py_sum};
-use crate::pyval::PyVal;
+use crate::pyval::{PyDict, PyVal};
 use crate::reactor::{Reactor, ReactorCompletion};
 use crate::toolhead::ToolHead;
 use crate::webhooks::WebHooks;
-use indexmap::IndexMap;
+use crate::IndexMap;
 use std::cell::{Cell, RefCell};
 use std::collections::VecDeque;
 use std::rc::{Rc, Weak};
@@ -101,10 +101,11 @@ impl ApiMsg for PyVal {
 
 impl ApiMsg for ForceMsg {
     fn to_pyval(&self) -> PyVal {
-        let mut d = IndexMap::new();
-        d.insert("data".to_string(), PyVal::List(self.data.iter().map(|s| s.to_pyval()).collect()));
-        d.insert("errors".to_string(), self.errors.clone());
-        d.insert("overflows".to_string(), self.overflows.clone());
+        let d = crate::pydict! {
+            "data" => PyVal::List(self.data.iter().map(|s| s.to_pyval()).collect()),
+            "errors" => self.errors.clone(),
+            "overflows" => self.overflows.clone(),
+        };
         PyVal::Dict(d)
     }
 }
@@ -771,8 +772,8 @@ impl LoadCell {
         });
         LoadCellCommandHelper::new(config, &lc)?;
         // Client support:
-        let mut header = IndexMap::new();
-        header.insert("header".to_string(), PyVal::List(header_labels(channel_count).into_iter().map(PyVal::Str).collect()));
+        let mut header = IndexMap::default();
+        header.insert("header".into(), PyVal::List(header_labels(channel_count).into_iter().map(PyVal::Str).collect()));
         clients.add_mux_endpoint("load_cell/dump_force", "load_cell", &name, PyVal::Dict(header))?;
         // startup, when klippy is ready, start capturing data
         let w = Rc::downgrade(&lc);
@@ -995,7 +996,7 @@ impl LoadCell {
         true
     }
 
-    fn force_g(&self) -> Option<IndexMap<String, PyVal>> {
+    fn force_g(&self) -> Option<PyDict> {
         let fb = self.force_buffer.borrow();
         if self.is_calibrated() && self.is_tared() && !fb.is_empty() {
             let mut channel_force = vec![];
@@ -1007,14 +1008,15 @@ impl LoadCell {
                 channel_force.push(PyVal::Float(py_round(avg(&v), 1)));
             }
             let v: Vec<f64> = fb.iter().copied().collect();
-            let mut d = IndexMap::new();
-            d.insert("force_g".to_string(), PyVal::Float(py_round(avg(&v), 1)));
-            d.insert("force_g_per_channel".to_string(), PyVal::List(channel_force));
-            d.insert("min_force_g".to_string(), PyVal::Float(py_round(v.iter().copied().reduce(py_min).unwrap_or(0.0), 1)));
-            d.insert("max_force_g".to_string(), PyVal::Float(py_round(v.iter().copied().reduce(py_max).unwrap_or(0.0), 1)));
+            let d = crate::pydict! {
+                "force_g" => PyVal::Float(py_round(avg(&v), 1)),
+                "force_g_per_channel" => PyVal::List(channel_force),
+                "min_force_g" => PyVal::Float(py_round(v.iter().copied().reduce(py_min).unwrap_or(0.0), 1)),
+                "max_force_g" => PyVal::Float(py_round(v.iter().copied().reduce(py_max).unwrap_or(0.0), 1)),
+            };
             return Some(d);
         }
-        Some(IndexMap::new())
+        Some(IndexMap::default())
     }
 
     pub fn is_tared(&self) -> bool {
@@ -1060,13 +1062,13 @@ impl PrinterObject for LoadCell {
         // (python's None.update() raises when a channel buffer is empty)
         let mut status = self.force_g()?;
         let list = |v: &Option<Vec<i64>>| v.as_ref().map(|v| PyVal::List(v.iter().map(|c| PyVal::Int(*c)).collect())).unwrap_or(PyVal::None);
-        status.insert("is_calibrated".to_string(), PyVal::Bool(self.is_calibrated()));
-        status.insert("counts_per_gram".to_string(), opt_f(self.counts_per_gram.get()));
-        status.insert("reference_tare_counts".to_string(), opt_i(self.reference_tare_counts.get()));
-        status.insert("reference_tare_counts_per_channel".to_string(), list(&self.reference_tare_counts_per_channel.borrow()));
-        status.insert("tare_counts".to_string(), opt_i(self.tare_counts.get()));
-        status.insert("tare_counts_per_channel".to_string(), list(&self.tare_counts_per_channel.borrow()));
-        status.insert("tare_force".to_string(), opt_f(self.tare_force.get()));
+        status.insert("is_calibrated".into(), PyVal::Bool(self.is_calibrated()));
+        status.insert("counts_per_gram".into(), opt_f(self.counts_per_gram.get()));
+        status.insert("reference_tare_counts".into(), opt_i(self.reference_tare_counts.get()));
+        status.insert("reference_tare_counts_per_channel".into(), list(&self.reference_tare_counts_per_channel.borrow()));
+        status.insert("tare_counts".into(), opt_i(self.tare_counts.get()));
+        status.insert("tare_counts_per_channel".into(), list(&self.tare_counts_per_channel.borrow()));
+        status.insert("tare_force".into(), opt_f(self.tare_force.get()));
         Some(PyVal::Dict(status))
     }
     fn teardown(&self) {

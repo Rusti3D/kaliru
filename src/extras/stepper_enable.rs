@@ -11,10 +11,10 @@ use crate::logging;
 use crate::mcu::DigitalOutPin;
 use crate::pins::{any_to_digital_out, PinsObject};
 use crate::printer::{PObj, Printer, PrinterObject};
-use crate::pyval::PyVal;
+use crate::pyval::{PyDict, PyVal};
 use crate::stepper::McuStepper;
 use crate::toolhead::ToolHead;
-use indexmap::IndexMap;
+use crate::IndexMap;
 use std::cell::{Cell, RefCell};
 use std::rc::Rc;
 
@@ -168,7 +168,7 @@ pub struct PrinterStepperEnable {
 impl PrinterStepperEnable {
     fn new(config: &ConfigWrapper) -> KResult<Rc<Self>> {
         let printer = config.get_printer();
-        let se = Rc::new(PrinterStepperEnable { printer: printer.clone(), enable_lines: RefCell::new(IndexMap::new()) });
+        let se = Rc::new(PrinterStepperEnable { printer: printer.clone(), enable_lines: RefCell::new(IndexMap::default()) });
         let s = se.clone();
         crate::events::GcodeRequestRestart::on(&printer, move |_| s.motor_off());
         // Register M18/M84 commands
@@ -253,7 +253,7 @@ impl PrinterStepperEnable {
             return Ok(());
         };
         let stepper_enable = gcmd.get_int("ENABLE", Some(1), Lim::new())?;
-        self.set_motors_enable(&[stepper_name.clone()], stepper_enable != 0)?;
+        self.set_motors_enable(std::slice::from_ref(&stepper_name), stepper_enable != 0)?;
         if stepper_enable != 0 {
             logging::info(&format!("{} has been manually enabled", stepper_name));
         } else {
@@ -276,10 +276,10 @@ impl PrinterObject for PrinterStepperEnable {
         true
     }
     fn get_status(&self, _eventtime: f64) -> Option<PyVal> {
-        let steppers: IndexMap<String, PyVal> =
-            self.enable_lines.borrow().iter().map(|(name, et)| (name.clone(), PyVal::Bool(et.is_motor_enabled()))).collect();
-        let mut d = IndexMap::new();
-        d.insert("steppers".to_string(), PyVal::Dict(steppers));
+        let steppers: PyDict =
+            self.enable_lines.borrow().iter().map(|(name, et)| (name.clone().into(), PyVal::Bool(et.is_motor_enabled()))).collect();
+        let mut d = IndexMap::default();
+        d.insert("steppers".into(), PyVal::Dict(steppers));
         Some(PyVal::Dict(d))
     }
 }

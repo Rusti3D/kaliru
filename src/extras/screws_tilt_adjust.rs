@@ -11,8 +11,8 @@ use crate::extras::probe::{FinalizeResult, ProbePointsHelper};
 use crate::gcode::{GCodeCommand, GCodeDispatch};
 use crate::printer::{PObj, PrinterObject};
 use crate::pyfmt::{py_float_repr, py_round};
-use crate::pyval::PyVal;
-use indexmap::IndexMap;
+use crate::pyval::{PyDict, PyVal};
+use crate::IndexMap;
 use std::cell::{Cell, RefCell};
 use std::rc::Rc;
 
@@ -46,7 +46,7 @@ fn threads_factor(thread: i64) -> f64 {
 
 pub struct ScrewsTiltAdjust {
     screws: Vec<([f64; 2], String)>,
-    results: RefCell<IndexMap<String, PyVal>>,
+    results: RefCell<PyDict>,
     max_diff: Cell<Option<f64>>,
     max_diff_error: Cell<bool>,
     thread: i64,
@@ -79,7 +79,7 @@ impl ScrewsTiltAdjust {
         let points: Vec<(f64, f64)> = screws.iter().map(|(c, _)| (c[0], c[1])).collect();
         let s = Rc::new(ScrewsTiltAdjust {
             screws,
-            results: RefCell::new(IndexMap::new()),
+            results: RefCell::new(IndexMap::default()),
             max_diff: Cell::new(None),
             max_diff_error: Cell::new(false),
             thread,
@@ -160,15 +160,15 @@ impl ScrewsTiltAdjust {
         self.gcode.respond_info("01:20 means 1 full turn and 20 minutes, CW=clockwise, CCW=counter-clockwise", true);
         for (i, (coord, name)) in self.screws.iter().enumerate() {
             let z = positions[i][2];
-            let mut entry = IndexMap::new();
-            entry.insert("z".to_string(), PyVal::Float(z));
+            let mut entry = IndexMap::default();
+            entry.insert("z".into(), PyVal::Float(z));
             if i == i_base {
                 // Show the results
-                self.gcode.respond_info(&format!("{} : x={:.1}, y={:.1}, z={:.5}", format!("{} (base)", name), coord[0], coord[1], z), true);
+                self.gcode.respond_info(&format!("{} (base) : x={:.1}, y={:.1}, z={:.5}", name, coord[0], coord[1], z), true);
                 let sign = if is_clockwise_thread { "CW" } else { "CCW" };
-                entry.insert("sign".to_string(), PyVal::from(sign));
-                entry.insert("adjust".to_string(), PyVal::from("00:00"));
-                entry.insert("is_base".to_string(), PyVal::Bool(true));
+                entry.insert("sign".into(), PyVal::from(sign));
+                entry.insert("adjust".into(), PyVal::from("00:00"));
+                entry.insert("is_base".into(), PyVal::Bool(true));
             } else {
                 // Calculate how knob must be adjusted for other positions
                 let diff = z_base - z;
@@ -185,11 +185,11 @@ impl ScrewsTiltAdjust {
                 let adj = format!("{:02}:{:02}", full_turns as i64, minutes.trunc() as i64);
                 // Show the results
                 self.gcode.respond_info(&format!("{} : x={:.1}, y={:.1}, z={:.5} : adjust {} {}", name, coord[0], coord[1], z, sign, adj), true);
-                entry.insert("sign".to_string(), PyVal::from(sign));
-                entry.insert("adjust".to_string(), PyVal::Str(adj));
-                entry.insert("is_base".to_string(), PyVal::Bool(false));
+                entry.insert("sign".into(), PyVal::from(sign));
+                entry.insert("adjust".into(), PyVal::Str(adj));
+                entry.insert("is_base".into(), PyVal::Bool(false));
             }
-            self.results.borrow_mut().insert(format!("screw{}", i + 1), PyVal::Dict(entry));
+            self.results.borrow_mut().insert(format!("screw{}", i + 1).into(), PyVal::Dict(entry));
         }
         if let Some(max_diff) = self.max_diff.get() {
             if max_diff != 0.0 && screw_diff.iter().any(|d| *d > max_diff) {
@@ -209,10 +209,11 @@ impl PrinterObject for ScrewsTiltAdjust {
         true
     }
     fn get_status(&self, _eventtime: f64) -> Option<PyVal> {
-        let mut d = IndexMap::new();
-        d.insert("error".to_string(), PyVal::Bool(self.max_diff_error.get()));
-        d.insert("max_deviation".to_string(), self.max_diff.get().map(PyVal::Float).unwrap_or(PyVal::None));
-        d.insert("results".to_string(), PyVal::Dict(self.results.borrow().clone()));
+        let d = crate::pydict! {
+            "error" => PyVal::Bool(self.max_diff_error.get()),
+            "max_deviation" => self.max_diff.get().map(PyVal::Float).unwrap_or(PyVal::None),
+            "results" => PyVal::Dict(self.results.borrow().clone()),
+        };
         Some(PyVal::Dict(d))
     }
     fn teardown(&self) {

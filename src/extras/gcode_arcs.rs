@@ -14,7 +14,7 @@ use crate::mathutil::py_hypot;
 use crate::printer::{downcast_rc, PObj, PrinterObject};
 use crate::pyfmt::{py_float_repr, py_max};
 use crate::pyval::PyVal;
-use indexmap::IndexMap;
+use crate::IndexMap;
 use std::cell::Cell;
 use std::f64::consts::PI;
 use std::rc::Rc;
@@ -83,7 +83,7 @@ impl ArcSupport {
     fn cmd_inner(&self, gcmd: &GCodeCommand, clockwise: bool) -> KResult<()> {
         let gcodestatus = match PrinterObject::get_status(&*self.gcode_move, 0.0) {
             Some(PyVal::Dict(d)) => d,
-            _ => IndexMap::new(),
+            _ => IndexMap::default(),
         };
         if !gcodestatus.get("absolute_coordinates").map(|v| v.truthy()).unwrap_or(false) {
             return Err(gcmd.error("G2/G3 does not support relative move mode"));
@@ -207,18 +207,18 @@ impl ArcSupport {
                 c = [target_pos[0], target_pos[1], target_pos[2]];
             }
             // Convert coords into G1 commands
-            let mut g1_params = IndexMap::new();
+            let mut g1_params = IndexMap::default();
             for (k, v) in ["X", "Y", "Z"].iter().zip(c) {
                 g1_params.insert(k.to_string(), py_float_repr(v));
             }
             if e_per_move != 0.0 {
-                g1_params.insert("E".to_string(), py_float_repr(e_base + e_per_move));
+                g1_params.insert("E".into(), py_float_repr(e_base + e_per_move));
                 if absolut_extrude {
                     e_base += e_per_move;
                 }
             }
             if let Some(f) = as_f {
-                g1_params.insert("F".to_string(), py_float_repr(f));
+                g1_params.insert("F".into(), py_float_repr(f));
             }
             let g1_gcmd = self.gcode.create_gcode_command("G1", "G1", g1_params);
             self.gcode_move.cmd_g1(&g1_gcmd)?;

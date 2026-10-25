@@ -10,7 +10,6 @@ use crate::gcode::{GCodeCommand, GCodeDispatch};
 use crate::printer::{downcast_rc, PObj, Printer, PrinterObject};
 use crate::pyval::PyVal;
 use crate::reactor::Reactor;
-use indexmap::IndexMap;
 use std::cell::{Cell, RefCell};
 use std::rc::Rc;
 
@@ -214,17 +213,19 @@ impl PrinterObject for PrintStats {
         }
         let print_duration = self.total_duration.get() - self.init_duration.get() - time_paused;
         let opt = |v: Option<i64>| v.map(PyVal::Int).unwrap_or(PyVal::None);
-        let mut info = IndexMap::new();
-        info.insert("total_layer".to_string(), opt(self.info_total_layer.get()));
-        info.insert("current_layer".to_string(), opt(self.info_current_layer.get()));
-        let mut d = IndexMap::new();
-        d.insert("filename".to_string(), PyVal::Str(self.filename.borrow().clone()));
-        d.insert("total_duration".to_string(), PyVal::Float(self.total_duration.get()));
-        d.insert("print_duration".to_string(), PyVal::Float(print_duration));
-        d.insert("filament_used".to_string(), PyVal::Float(self.filament_used.get()));
-        d.insert("state".to_string(), PyVal::Str(self.state.borrow().clone()));
-        d.insert("message".to_string(), PyVal::Str(self.error_message.borrow().clone()));
-        d.insert("info".to_string(), PyVal::Dict(info));
+        let info = crate::pydict! {
+            "total_layer" => opt(self.info_total_layer.get()),
+            "current_layer" => opt(self.info_current_layer.get()),
+        };
+        let d = crate::pydict! {
+            "filename" => PyVal::Str(self.filename.borrow().clone()),
+            "total_duration" => PyVal::Float(self.total_duration.get()),
+            "print_duration" => PyVal::Float(print_duration),
+            "filament_used" => PyVal::Float(self.filament_used.get()),
+            "state" => PyVal::Str(self.state.borrow().clone()),
+            "message" => PyVal::Str(self.error_message.borrow().clone()),
+            "info" => PyVal::Dict(info),
+        };
         Some(PyVal::Dict(d))
     }
 }

@@ -23,7 +23,7 @@ use crate::pyval::PyVal;
 use crate::msgproto::Params;
 use crate::stepper::McuStepper;
 use crate::toolhead::ToolHead;
-use indexmap::IndexMap;
+use crate::IndexMap;
 use std::cell::{Cell, RefCell};
 use std::rc::Rc;
 
@@ -354,7 +354,7 @@ impl AngleCalibration {
         // Finish data collection
         is_finished.set(true);
         // Correlate query responses
-        let mut cal: IndexMap<usize, Vec<f64>> = IndexMap::new();
+        let mut cal: IndexMap<usize, Vec<f64>> = IndexMap::default();
         let mut step = 0;
         for msg in msgs.borrow().iter() {
             let PyVal::Dict(d) = msg else { continue };
@@ -383,7 +383,7 @@ impl AngleCalibration {
     fn calc_angles(meas: &IndexMap<i64, Vec<f64>>) -> (IndexMap<i64, f64>, f64, i64) {
         let mut total_count = 0;
         let mut total_variance = 0.0;
-        let mut angles = IndexMap::new();
+        let mut angles = IndexMap::default();
         for (step, data) in meas {
             let count = data.len();
             let angle_avg = py_sum(data.iter().copied()) / count as f64;
@@ -1021,8 +1021,8 @@ impl Angle {
         mcu.register_config_callback(Rc::new(move || aa.build_config()));
         // Process messages in batches
         let batch_bulk = batch_helper(&printer, &a, Self::process_batch, Self::start_measurements, Self::finish_measurements, BATCH_UPDATES);
-        let mut api_resp = IndexMap::new();
-        api_resp.insert("header".to_string(), PyVal::Tuple(vec![PyVal::Str("time".into()), PyVal::Str("angle".into())]));
+        let mut api_resp = IndexMap::default();
+        api_resp.insert("header".into(), PyVal::Tuple(vec![PyVal::Str("time".into()), PyVal::Str("angle".into())]));
         batch_bulk.add_mux_endpoint("angle/dump_angle", "sensor", &name, PyVal::Dict(api_resp))?;
         *a.batch_bulk.borrow_mut() = Some(batch_bulk);
         Ok(a)
@@ -1156,10 +1156,11 @@ impl Angle {
             return Ok(PyVal::dict());
         }
         let offset = self.calibration.apply_calibration(&mut samples)?;
-        let mut d = IndexMap::new();
-        d.insert("data".to_string(), PyVal::List(samples.iter().map(|(t, a)| PyVal::Tuple(vec![PyVal::Float(*t), PyVal::Int(*a)])).collect()));
-        d.insert("errors".to_string(), PyVal::Int(error_count));
-        d.insert("position_offset".to_string(), offset.map(PyVal::Float).unwrap_or(PyVal::None));
+        let d = crate::pydict! {
+            "data" => PyVal::List(samples.iter().map(|(t, a)| PyVal::Tuple(vec![PyVal::Float(*t), PyVal::Int(*a)])).collect()),
+            "errors" => PyVal::Int(error_count),
+            "position_offset" => offset.map(PyVal::Float).unwrap_or(PyVal::None),
+        };
         Ok(PyVal::Dict(d))
     }
 }
@@ -1169,8 +1170,8 @@ impl PrinterObject for Angle {
         true
     }
     fn get_status(&self, _eventtime: f64) -> Option<PyVal> {
-        let mut d = IndexMap::new();
-        d.insert("temperature".to_string(), self.sensor_helper.last_temperature().map(PyVal::Float).unwrap_or(PyVal::None));
+        let mut d = IndexMap::default();
+        d.insert("temperature".into(), self.sensor_helper.last_temperature().map(PyVal::Float).unwrap_or(PyVal::None));
         Some(PyVal::Dict(d))
     }
 }

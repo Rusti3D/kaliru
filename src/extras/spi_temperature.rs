@@ -213,7 +213,7 @@ impl SensorBase {
             let mut adc = adc >> scale;
             // Fix sign bit:
             if adc & sign != 0 {
-                adc = ((adc & mask) + 1) * -1;
+                adc = -((adc & mask) + 1);
             }
             mult * adc as f64
         };

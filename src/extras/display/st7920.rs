@@ -14,7 +14,7 @@ use crate::mcu::{CommandWrapper, Mcu};
 use crate::msgproto::Val;
 use crate::pins::PinsObject;
 use crate::printer::Printer;
-use indexmap::IndexMap;
+use crate::IndexMap;
 use std::cell::{Cell, RefCell};
 use std::rc::Rc;
 
@@ -80,8 +80,8 @@ impl DisplayBase {
             mcu,
             is_extended: Cell::new(false),
             fbs: RefCell::new(fbs),
-            cached_glyphs: RefCell::new(IndexMap::new()),
-            icons: RefCell::new(IndexMap::new()),
+            cached_glyphs: RefCell::new(IndexMap::default()),
+            icons: RefCell::new(IndexMap::default()),
         }
     }
 

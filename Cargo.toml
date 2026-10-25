@@ -37,32 +37,43 @@ name = "sqtest"
 path = "src/bin/sqtest.rs"
 
 [[bin]]
-name = "pysyntax"
-path = "src/bin/pysyntax.rs"
-
-[[bin]]
 name = "tracedump"
 path = "src/bin/tracedump.rs"
 
 [dependencies]
 serde_json = { version = "1", features = ["preserve_order", "float_roundtrip"] }
 indexmap = { version = "2", features = ["serde"] }
+rustc-hash = "1.1"
 flate2 = "1"
 libc = "0.2"
 corosensei = "0.3"
 minijinja = { version = "2", features = ["custom_syntax", "loop_controls"] }
-rustpython-vm = { version = "0.4", default-features = false, features = ["compiler", "freeze-stdlib"], optional = true }
-rustpython-stdlib = { version = "0.4", default-features = false, optional = true }
-rustpython-pylib = { version = "0.4", features = ["freeze-stdlib"], optional = true }
 
 [features]
-# python g-code macros (an embedded RustPython); --no-default-features
-# builds without them
-default = ["python", "plugins"]
-# python plugins (klippy/extras, klippy/plugins modules) on the host's
-# CPython 3.15+, loaded only when a config uses one (docs/PLUGINS.md)
+default = ["plugins"]
+# python plugins (klippy/extras, klippy/plugins modules) and python g-code
+# macros on the host's CPython 3.15+, loaded only when a config uses one
+# (docs/PLUGINS.md)
 plugins = []
-python = ["dep:rustpython-vm", "dep:rustpython-stdlib", "dep:rustpython-pylib"]
+
+[lints.clippy]
+# Kept as in Kalico, on purpose (parity before style):
+# constants copied digit for digit from the python / C source
+excessive_precision = "allow"
+# !(a < b) is python's comparison: true for a NaN, unlike a >= b
+neg_cmp_op_on_partial_ord = "allow"
+# f64::clamp panics on NaN / inverted bounds where python's min(max()) doesn't
+manual_clamp = "allow"
+# numeric ports index several arrays in step, as the source does
+needless_range_loop = "allow"
+# register values spelled as in the source (FLAG & 0x00, x * 1)
+identity_op = "allow"
+erasing_op = "allow"
+# constructors build the python object graph (Rc<Self>, KResult<...>)
+new_ret_no_self = "allow"
+wrong_self_convention = "allow"
+# tables shaped like the python dicts and tuples they port
+type_complexity = "allow"
 
 [profile.release]
 # small binaries for printer hosts with little storage: opt-level s is 5.5 MB
@@ -73,8 +84,5 @@ strip = true
 lto = true
 codegen-units = 1
 
-# RustPython with CPython 3.13's exception messages (vendor/README.md)
 [patch.crates-io]
-rustpython-vm = { path = "vendor/rustpython-vm" }
-rustpython-stdlib = { path = "vendor/rustpython-stdlib" }
 corosensei = { path = "vendor/corosensei" }

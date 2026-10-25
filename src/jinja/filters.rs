@@ -4,7 +4,7 @@ use super::methods::{str_capitalize, str_splitlines};
 use super::runtime::{escape, Generator, Markup};
 use super::value::{Exc, Key, VResult, Value};
 use crate::pyfmt::{py_float, py_isspace, py_str_repr};
-use indexmap::IndexMap;
+use crate::IndexMap;
 
 pub const FILTER_NAMES: &[&str] = &[
     "abs", "attr", "batch", "capitalize", "center", "count", "d", "default", "dictsort", "e", "escape", "filesizeformat", "first",
@@ -35,7 +35,7 @@ pub fn bind(
             extra_args.push(a);
         }
     }
-    let mut extra_kwargs = IndexMap::new();
+    let mut extra_kwargs = IndexMap::default();
     for (k, v) in kwargs.drain(..) {
         match params.iter().position(|(p, _)| *p == k) {
             Some(i) => {
@@ -289,7 +289,7 @@ pub fn call_filter(r: &mut Renderer, name: &str, value: Value, args: Vec<Value>,
         }
         "center" => {
             let a = b!("do_center", [("value", None), ("width", Some(Value::Int(80)))]);
-            super::methods::call_method(&Value::from(str_of(&a[0])), "center", vec![a[1].clone()], IndexMap::new())
+            super::methods::call_method(&Value::from(str_of(&a[0])), "center", vec![a[1].clone()], IndexMap::default())
         }
         "count" | "length" => {
             let a = b!("len", [("obj", None)]);
@@ -312,7 +312,7 @@ pub fn call_filter(r: &mut Renderer, name: &str, value: Value, args: Vec<Value>,
                 "value" => 1,
                 _ => return Err(filter_argument_error("You can only sort by either \"key\" or \"value\"")),
             };
-            let items = super::methods::call_method(&a[0], "items", vec![], IndexMap::new())?.iter_items()?;
+            let items = super::methods::call_method(&a[0], "items", vec![], IndexMap::default())?.iter_items()?;
             let keys = items
                 .iter()
                 .map(|it| {
@@ -493,7 +493,7 @@ pub fn call_filter(r: &mut Renderer, name: &str, value: Value, args: Vec<Value>,
             let a = b!("do_items", [("value", None)]);
             match &a[0] {
                 Value::Undefined(_) => Ok(Generator::new("do_items", vec![])),
-                Value::Dict(_) => Ok(Generator::new("do_items", super::methods::call_method(&a[0], "items", vec![], IndexMap::new())?.iter_items()?)),
+                Value::Dict(_) => Ok(Generator::new("do_items", super::methods::call_method(&a[0], "items", vec![], IndexMap::default())?.iter_items()?)),
                 _ => Err(Exc::type_error("Can only get item pairs from a mapping.")),
             }
         }
@@ -593,7 +593,7 @@ pub fn call_filter(r: &mut Renderer, name: &str, value: Value, args: Vec<Value>,
         "replace" => {
             let a = b!("do_replace", [("s", None), ("old", None), ("new", None), ("count", none())]);
             let count = if matches!(a[3], Value::None) { Value::Int(-1) } else { a[3].clone() };
-            super::methods::call_method(&Value::from(a[0].to_str()), "replace", vec![Value::from(a[1].to_str()), Value::from(a[2].to_str()), count], IndexMap::new())
+            super::methods::call_method(&Value::from(a[0].to_str()), "replace", vec![Value::from(a[1].to_str()), Value::from(a[2].to_str()), count], IndexMap::default())
         }
         "reverse" => {
             let a = b!("do_reverse", [("value", None)]);
@@ -700,7 +700,7 @@ pub fn call_filter(r: &mut Renderer, name: &str, value: Value, args: Vec<Value>,
         }
         "trim" => {
             let a = b!("do_trim", [("value", None), ("chars", none())]);
-            super::methods::call_method(&Value::from(a[0].to_str()), "strip", vec![a[1].clone()], IndexMap::new())
+            super::methods::call_method(&Value::from(a[0].to_str()), "strip", vec![a[1].clone()], IndexMap::default())
         }
         "truncate" => {
             let a = b!(
@@ -752,14 +752,14 @@ pub fn call_filter(r: &mut Renderer, name: &str, value: Value, args: Vec<Value>,
                 Value::Str(_) | Value::None | Value::Bool(_) | Value::Int(_) | Value::Float(_) => Ok(Value::from(url_quote(&a[0].to_str(), false))),
                 v => {
                     let items = match v {
-                        Value::Dict(_) => super::methods::call_method(v, "items", vec![], IndexMap::new())?.iter_items()?,
+                        Value::Dict(_) => super::methods::call_method(v, "items", vec![], IndexMap::default())?.iter_items()?,
                         _ => v.iter_items()?,
                     };
                     let mut parts = vec![];
                     for it in items {
                         let p = it.iter_items()?;
                         if p.len() != 2 {
-                            return Err(Exc::value_error(format!("too many values to unpack (expected 2)")));
+                            return Err(Exc::value_error("too many values to unpack (expected 2)".to_string()));
                         }
                         parts.push(format!("{}={}", url_quote(&p[0].to_str(), true), url_quote(&p[1].to_str(), true)));
                     }
@@ -804,7 +804,7 @@ pub fn call_filter(r: &mut Renderer, name: &str, value: Value, args: Vec<Value>,
         }
         "xmlattr" => {
             let a = b!("do_xmlattr", [("d", None), ("autospace", Some(Value::Bool(true)))]);
-            let items = super::methods::call_method(&a[0], "items", vec![], IndexMap::new())?.iter_items()?;
+            let items = super::methods::call_method(&a[0], "items", vec![], IndexMap::default())?.iter_items()?;
             let mut parts = vec![];
             for it in items {
                 let p = it.iter_items()?;
@@ -909,12 +909,9 @@ fn striptags(s: &str) -> String {
     let mut rest = s;
     while !rest.is_empty() {
         if rest.starts_with("<!--") {
-            match rest.find("-->") {
-                Some(e) => {
-                    rest = &rest[e + 3..];
-                    continue;
-                }
-                None => {}
+            if let Some(e) = rest.find("-->") {
+                rest = &rest[e + 3..];
+                continue;
             }
         }
         if rest.starts_with('<') {
@@ -985,18 +982,17 @@ fn textwrap(text: &str, width: usize, break_long_words: bool) -> Vec<String> {
                 break;
             }
         }
-        if let Some(chunk) = chunks.last() {
-            if chunk.chars().count() > width {
+        // (_handle_long_word: a chunk wider than the line is split, or taken
+        // whole onto an empty line)
+        if let Some(c) = chunks.pop_if(|c| c.chars().count() > width && (break_long_words || cur_line.is_empty())) {
+            if break_long_words {
                 let space_left = if width > cur_len { width - cur_len } else { 1 };
-                if break_long_words {
-                    let c = chunks.pop().unwrap();
-                    let head: String = c.chars().take(space_left).collect();
-                    let tail: String = c.chars().skip(space_left).collect();
-                    cur_line.push(head);
-                    chunks.push(tail);
-                } else if cur_line.is_empty() {
-                    cur_line.push(chunks.pop().unwrap());
-                }
+                let head: String = c.chars().take(space_left).collect();
+                let tail: String = c.chars().skip(space_left).collect();
+                cur_line.push(head);
+                chunks.push(tail);
+            } else {
+                cur_line.push(c);
             }
         }
         // drop trailing whitespace

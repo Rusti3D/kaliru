@@ -12,10 +12,10 @@ use crate::kinematics::extruder::PrinterExtruder;
 use crate::logging;
 use crate::mcu::Mcu;
 use crate::printer::{downcast_rc, PObj, Printer, PrinterObject};
-use crate::pyval::PyVal;
+use crate::pyval::{PyDict, PyVal};
 use crate::reactor::{Reactor, Timer, NEVER, NOW};
 use crate::toolhead::ExtraAxis;
-use indexmap::IndexMap;
+use crate::IndexMap;
 use std::cell::{Cell, RefCell};
 use std::rc::{Rc, Weak};
 
@@ -172,9 +172,9 @@ impl DefinedSensor for EncoderSensor {
         find_past_position(&extruder, print_time)
     }
 
-    fn sensor_get_status(&self, _eventtime: f64) -> IndexMap<String, PyVal> {
-        let mut d = IndexMap::new();
-        d.insert("detection_length".to_string(), PyVal::Float(self.detection_length.get()));
+    fn sensor_get_status(&self, _eventtime: f64) -> PyDict {
+        let mut d = IndexMap::default();
+        d.insert("detection_length".into(), PyVal::Float(self.detection_length.get()));
         d
     }
 

@@ -21,7 +21,7 @@ use crate::logging;
 use crate::printer::{downcast_rc, ConfigFileObject, Printer, PrinterObject};
 use crate::pyval::PyVal;
 use crate::reactor::{NEVER, NOW};
-use indexmap::IndexMap;
+use crate::IndexMap;
 use std::any::Any;
 use std::cell::{Cell, RefCell};
 use std::path::PathBuf;
@@ -296,7 +296,7 @@ impl MenuItem {
             scroll_pos: Cell::new(None),
             scroll_request_pending: Cell::new(Some(false)),
             scroll_next: Cell::new(0.0),
-            scripts: RefCell::new(IndexMap::new()),
+            scripts: RefCell::new(IndexMap::default()),
             container: Container::default(),
             input,
             dialog: RefCell::new(None),
@@ -352,7 +352,7 @@ impl MenuItem {
                 *confirm_item.name_tpl.borrow_mut() = Some(load_tpl(&gm, config, "confirm_text", Some("Confirm"))?);
                 *cancel_item.name_tpl.borrow_mut() = Some(load_tpl(&gm, config, "cancel_text", Some("Cancel"))?);
             }
-            *item.dialog.borrow_mut() = Some(Dialog { values: RefCell::new(IndexMap::new()), title_item, confirm_item, cancel_item });
+            *item.dialog.borrow_mut() = Some(Dialog { values: RefCell::new(IndexMap::default()), title_item, confirm_item, cancel_item });
         }
         Ok(item)
     }
@@ -927,7 +927,7 @@ impl MenuItem {
         let Some(sdcard) = manager.printer.lookup_object_opt("virtual_sdcard").and_then(downcast_rc::<VirtualSD>) else { return Ok(()) };
         let files = sdcard.get_file_list(sdcard.with_subdirs)?;
         for (fname, _fsize) in files {
-            let mut context = Ctx::new();
+            let mut context = Ctx::default();
             context.insert("gcode".into(), Value::str(&format!("SDCARD_PRINT_FILE FILENAME='/{}'", fname)));
             let item = manager.menuitem_from(
                 "command",
@@ -997,7 +997,7 @@ impl MenuItem {
                 if !Self::dir_contains_gcode(&item) {
                     continue;
                 }
-                let mut context = Ctx::new();
+                let mut context = Ctx::default();
                 context.insert("path".into(), Value::str(&item.to_string_lossy()));
                 let sub = manager.menuitem_from("file_browser", Kwargs { name: Some(name), context: Some(context), ..Default::default() })?;
                 self.insert_item_ref(&sub, None)?;
@@ -1008,7 +1008,7 @@ impl MenuItem {
                 }
                 let stem = item.file_stem().map(|n| n.to_string_lossy().into_owned()).unwrap_or_default();
                 let rel = item.strip_prefix(root_dir).unwrap_or(&item).to_string_lossy().into_owned();
-                let mut context = Ctx::new();
+                let mut context = Ctx::default();
                 context.insert("sort_by".into(), Value::str(&f.sort_by));
                 context.insert("gcode".into(), Value::str(&format!("SDCARD_PRINT_FILE FILENAME='/{}'", rel)));
                 let cmd = manager.menuitem_from("command", Kwargs { name: Some(stem), gcode: Some(Self::print_file_cb()), context: Some(context), ..Default::default() })?;
@@ -1146,10 +1146,9 @@ impl MenuItem {
         // clamps viewport
         vt.set(0.max(vt.get().min(self.len() - nrows)));
         let r = (|| -> KResult<()> {
-            let mut y = 0;
             let mut selected = false;
             let mut current: Option<Rc<MenuItem>> = None;
-            for row in vt.get()..vt.get() + nrows {
+            for (y, row) in (0i64..).zip(vt.get()..vt.get() + nrows) {
                 let mut text = String::new();
                 let mut prefix = String::new();
                 let mut suffix = String::new();
@@ -1196,7 +1195,6 @@ impl MenuItem {
                     display.draw_text(y, manager.cols - slen, &suffix, eventtime);
                 }
                 // next display row
-                y += 1;
             }
             Ok(())
         })();
@@ -1326,15 +1324,15 @@ impl MenuManager {
         let m = Rc::new_cyclic(|me| MenuManager {
             me: me.clone(),
             running: Cell::new(false),
-            menuitems: RefCell::new(IndexMap::new()),
+            menuitems: RefCell::new(IndexMap::default()),
             menustack: RefCell::new(vec![]),
             dialog_stack: RefCell::new(vec![]),
-            children: RefCell::new(IndexMap::new()),
+            children: RefCell::new(IndexMap::default()),
             display: Rc::downgrade(display),
             printer: printer.clone(),
             gcode: printer.lookup::<GCodeDispatch>("gcode").expect("gcode"),
             gcode_queue: RefCell::new(vec![]),
-            context: RefCell::new(Ctx::new()),
+            context: RefCell::new(Ctx::default()),
             root: RefCell::new(None),
             root_name,
             cols,
@@ -1530,7 +1528,7 @@ impl MenuManager {
         }
         let stack = self.dialog_stack.borrow().clone();
         if !stack.is_empty() {
-            let mut d: IndexMap<Key, Value> = IndexMap::new();
+            let mut d: IndexMap<Key, Value> = IndexMap::default();
             for dialog in stack {
                 for (k, v) in dialog.dialog_values() {
                     d.insert(Key::str(&k), v);
@@ -1544,7 +1542,7 @@ impl MenuManager {
     fn update_context(&self, eventtime: f64) {
         // menu default jinja2 context
         let mut context = create_template_context(&self.printer, Some(eventtime));
-        let mut menu: IndexMap<Key, Value> = IndexMap::new();
+        let mut menu: IndexMap<Key, Value> = IndexMap::default();
         menu.insert(Key::str("eventtime"), Value::Float(eventtime));
         menu.insert(Key::str("back"), Value::object(MenuAction { manager: self.me.clone(), exit: false }));
         menu.insert(Key::str("exit"), Value::object(MenuAction { manager: self.me.clone(), exit: true }));
@@ -1895,11 +1893,12 @@ impl MenuManager {
     }
 
     pub fn get_status(&self) -> PyVal {
-        let mut d = IndexMap::new();
-        d.insert("timeout".to_string(), PyVal::Int(self.timeout));
-        d.insert("running".to_string(), PyVal::Bool(self.running.get()));
-        d.insert("rows".to_string(), PyVal::Int(self.rows));
-        d.insert("cols".to_string(), PyVal::Int(self.cols));
+        let d = crate::pydict! {
+            "timeout" => PyVal::Int(self.timeout),
+            "running" => PyVal::Bool(self.running.get()),
+            "rows" => PyVal::Int(self.rows),
+            "cols" => PyVal::Int(self.cols),
+        };
         PyVal::Dict(d)
     }
 }

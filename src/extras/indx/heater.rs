@@ -1642,9 +1642,7 @@ impl IndxToolboardHeater {
             s.last_pos = pos;
             if !s.stop_requested {
                 let start_pos = s.start_pos.unwrap_or(0.0);
-                if !s.loaded && pos - start_pos >= max_length {
-                    s.stop_requested = true;
-                } else if s.loaded && pos - s.loaded_at_pos >= prime_length {
+                if (!s.loaded && pos - start_pos >= max_length) || (s.loaded && pos - s.loaded_at_pos >= prime_length) {
                     s.stop_requested = true;
                 }
             }

@@ -529,7 +529,7 @@ impl ResonanceTester {
                     aclient.finish_measurements()?;
                     if let Some(suffix) = raw_name_suffix {
                         let p = if test_points.len() > 1 { Some(point.as_slice()) } else { None };
-                        let raw_name = get_filename("raw_data", suffix, Some(axis), p, Some(chip_name));
+                        let raw_name = get_filename("raw_data", suffix, Some(axis), p, Some(chip_name))?;
                         aclient.write_to_file(&raw_name);
                         gcmd.respond_info(&format!("Writing raw accelerometer data to {} file", raw_name), true);
                     }
@@ -566,7 +566,7 @@ impl ResonanceTester {
         point: Option<&[f64]>,
         max_freq: f64,
     ) -> KResult<String> {
-        let output = get_filename(base_name, name_suffix, Some(axis), point, None);
+        let output = get_filename(base_name, name_suffix, Some(axis), point, None)?;
         let data = calibration_data.ok_or_else(|| no_data("freq_bins"))?;
         let accel_per_hz = self.generator.vibration_generator.get_accel_per_hz();
         shaper_calibrate.save_calibration_data(&output, data, all_shapers, Some(max_freq), accel_per_hz)?;
@@ -696,7 +696,7 @@ impl ResonanceTester {
             if let Some(input_shaper) = &input_shaper {
                 // apply_params
                 let upper = axis_name.to_uppercase();
-                let mut params = indexmap::IndexMap::new();
+                let mut params = crate::IndexMap::default();
                 params.insert(format!("SHAPER_TYPE_{}", upper), best_shaper.name.to_string());
                 params.insert(format!("SHAPER_FREQ_{}", upper), crate::pyfmt::py_float_repr(best_shaper.freq));
                 input_shaper.cmd_set_input_shaper(&gcode.create_gcode_command("SET_INPUT_SHAPER", "SET_INPUT_SHAPER", params))?;
@@ -778,7 +778,7 @@ impl ResonanceTester {
     }
 }
 
-fn get_filename(base: &str, name_suffix: &str, axis: Option<&TestAxis>, point: Option<&[f64]>, chip_name: Option<&str>) -> String {
+fn get_filename(base: &str, name_suffix: &str, axis: Option<&TestAxis>, point: Option<&[f64]>, chip_name: Option<&str>) -> KResult<String> {
     let mut name = base.to_string();
     if let Some(axis) = axis {
         name += &format!("_{}", axis.get_name());
@@ -790,7 +790,7 @@ fn get_filename(base: &str, name_suffix: &str, axis: Option<&TestAxis>, point: O
         name += &format!("_{:.3}_{:.3}_{:.3}", p[0], p[1], p[2]);
     }
     name += &format!("_{}", name_suffix);
-    format!("{}/{}.csv", gettempdir(), name)
+    Ok(format!("{}/{}.csv", gettempdir()?, name))
 }
 
 impl PrinterObject for ResonanceTester {

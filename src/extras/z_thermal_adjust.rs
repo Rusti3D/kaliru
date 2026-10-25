@@ -15,7 +15,6 @@ use crate::printer::{PObj, Printer, PrinterObject};
 use crate::pyfmt::{py_max, py_min, py_round};
 use crate::pyval::PyVal;
 use crate::toolhead::ToolHead;
-use indexmap::IndexMap;
 use std::cell::{Cell, RefCell};
 use std::rc::{Rc, Weak};
 
@@ -161,7 +160,7 @@ impl ZThermalAdjuster {
             let delta_t = self.smoothed_temp.get() - self.ref_temperature.get();
 
             // Calculate Z adjustment
-            let adjust = -1.0 * self.temp_coeff.get() * delta_t;
+            let adjust = -self.temp_coeff.get() * delta_t;
 
             // compute sign (+1 or -1) for maximum offset setting
             let sign = 1.0 - ((adjust <= 0.0) as i64 * 2) as f64;
@@ -286,13 +285,14 @@ impl PrinterObject for ZThermalAdjuster {
         true
     }
     fn get_status(&self, _eventtime: f64) -> Option<PyVal> {
-        let mut d = IndexMap::new();
-        d.insert("temperature".to_string(), PyVal::Float(self.smoothed_temp.get()));
-        d.insert("measured_min_temp".to_string(), PyVal::Float(py_round(self.measured_min.get(), 2)));
-        d.insert("measured_max_temp".to_string(), PyVal::Float(py_round(self.measured_max.get(), 2)));
-        d.insert("current_z_adjust".to_string(), PyVal::Float(self.z_adjust_mm.get()));
-        d.insert("z_adjust_ref_temperature".to_string(), PyVal::Float(self.ref_temperature.get()));
-        d.insert("enabled".to_string(), PyVal::Bool(self.adjust_enable.get()));
+        let d = crate::pydict! {
+            "temperature" => PyVal::Float(self.smoothed_temp.get()),
+            "measured_min_temp" => PyVal::Float(py_round(self.measured_min.get(), 2)),
+            "measured_max_temp" => PyVal::Float(py_round(self.measured_max.get(), 2)),
+            "current_z_adjust" => PyVal::Float(self.z_adjust_mm.get()),
+            "z_adjust_ref_temperature" => PyVal::Float(self.ref_temperature.get()),
+            "enabled" => PyVal::Bool(self.adjust_enable.get()),
+        };
         Some(PyVal::Dict(d))
     }
     fn get_temp(&self, _eventtime: f64) -> Option<(f64, f64)> {

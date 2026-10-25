@@ -15,7 +15,7 @@ use crate::extras::gcode_macro::{load_gcode_macro, Template};
 use crate::jinja::value::Value;
 use crate::printer::{downcast_rc, ConfigFileObject, PObj, Printer, PrinterObject};
 use crate::pyfmt::py_strip;
-use indexmap::IndexMap;
+use crate::IndexMap;
 use std::rc::Rc;
 
 /// klippy/extras/display/display.cfg (python reads it next to display.py)
@@ -41,7 +41,7 @@ impl DisplayTemplate {
             return Err(KError::config(format!("Section name '{}' is not valid", config.get_name())));
         }
         let name = name_parts[1].to_string();
-        let mut params = IndexMap::new();
+        let mut params = IndexMap::default();
         for option in config.get_prefix_options("param_")? {
             match literal_eval(&config.get(&option, Dflt::Required)?) {
                 Ok(v) => {
@@ -149,7 +149,7 @@ fn parse_glyph(glyph_name: &str, data: &str, width: usize, height: usize) -> KRe
         if line.is_empty() {
             continue;
         }
-        if line.chars().count() != width || !line.replace('0', "").replace('1', "").is_empty() {
+        if line.chars().count() != width || !line.replace(['0', '1'], "").is_empty() {
             return Err(KError::config(format!("Invalid glyph line in {}", glyph_name)));
         }
         glyph_data.push(i64::from_str_radix(&line, 2).unwrap_or(0));
@@ -180,13 +180,13 @@ impl PrinterDisplayTemplate {
             out
         };
         // Load display_template sections
-        let mut display_templates = IndexMap::new();
+        let mut display_templates = IndexMap::default();
         for c in merged("display_template ") {
             let dt = DisplayTemplate::new(&c)?;
             display_templates.insert(dt.name.clone(), Rc::new(dt));
         }
         // Load display_data sections
-        let mut groups: IndexMap<String, Vec<ConfigWrapper>> = IndexMap::new();
+        let mut groups: IndexMap<String, Vec<ConfigWrapper>> = IndexMap::default();
         for c in merged("display_data ") {
             let name_parts: Vec<String> = c.get_name().split_whitespace().map(|s| s.to_string()).collect();
             if name_parts.len() != 3 {
@@ -194,13 +194,13 @@ impl PrinterDisplayTemplate {
             }
             groups.entry(name_parts[1].clone()).or_default().push(c);
         }
-        let mut display_data_groups = IndexMap::new();
+        let mut display_data_groups = IndexMap::default();
         for (group_name, data_configs) in &groups {
             display_data_groups.insert(group_name.clone(), DisplayGroup::new(config, group_name, data_configs)?);
         }
         // Load display glyphs
         let dg_prefix = "display_glyph ";
-        let mut icons: IndexMap<String, Glyph> = IndexMap::new();
+        let mut icons: IndexMap<String, Glyph> = IndexMap::default();
         for dg in merged(dg_prefix) {
             let glyph_name = dg.get_name()[dg_prefix.len()..].to_string();
             if let Some(data) = dg.get_opt("data")? {

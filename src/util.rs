@@ -20,11 +20,13 @@ pub const KALICO_VERSION: &str = "v2026.10.00-155-g5b594279";
 
 // Return the SIGINT interrupt handler back to the OS default
 pub fn fix_sigint() {
+    // SAFETY: SIG_DFL is a valid disposition and no handler is installed
     unsafe { libc::signal(libc::SIGINT, libc::SIG_DFL) };
 }
 
 // Set a file-descriptor as non-blocking
 pub fn set_nonblock(fd: RawFd) {
+    // SAFETY: fcntl on a caller's fd with integer arguments only (a bad fd fails, as python's)
     unsafe {
         let flags = libc::fcntl(fd, libc::F_GETFL);
         libc::fcntl(fd, libc::F_SETFL, flags | libc::O_NONBLOCK);
@@ -33,6 +35,7 @@ pub fn set_nonblock(fd: RawFd) {
 
 // Clear HUPCL flag
 pub fn clear_hupcl(fd: RawFd) {
+    // SAFETY: termios is plain data (zeroed is valid) and lives across both calls
     unsafe {
         let mut attrs: libc::termios = std::mem::zeroed();
         if libc::tcgetattr(fd, &mut attrs) != 0 {
@@ -48,11 +51,13 @@ pub fn clear_hupcl(fd: RawFd) {
 // Support for creating a pseudo-tty for emulating a serial port
 pub fn create_pty(ptyname: &str) -> std::io::Result<RawFd> {
     let (mut mfd, mut sfd) = (0, 0);
+    // SAFETY: mfd / sfd are live ints; the name, termios and winsize pointers may be null
     let r = unsafe { libc::openpty(&mut mfd, &mut sfd, std::ptr::null_mut(), std::ptr::null(), std::ptr::null()) };
     if r != 0 {
         return Err(std::io::Error::last_os_error());
     }
     let _ = std::fs::remove_file(ptyname);
+    // SAFETY: ttyname returns null or a NUL-terminated static string, copied at once
     let filename = unsafe {
         let p = libc::ttyname(sfd);
         if p.is_null() {
@@ -60,10 +65,18 @@ pub fn create_pty(ptyname: &str) -> std::io::Result<RawFd> {
         }
         std::ffi::CStr::from_ptr(p).to_string_lossy().into_owned()
     };
-    let cf = CString::new(filename.clone()).unwrap();
-    unsafe { libc::chmod(cf.as_ptr(), 0o660) };
+    {
+        use std::os::unix::fs::PermissionsExt;
+        std::fs::set_permissions(&filename, std::fs::Permissions::from_mode(0o660))?;
+    }
     std::os::unix::fs::symlink(&filename, ptyname)?;
+    // (python's os.openpty() fds are non-inheritable, PEP 446)
+    for fd in [mfd, sfd] {
+        // SAFETY: integer arguments on the fds openpty just returned
+        unsafe { libc::fcntl(fd, libc::F_SETFD, libc::FD_CLOEXEC) };
+    }
     set_nonblock(mfd);
+    // SAFETY: termios is plain data (zeroed is valid) and lives across both calls
     unsafe {
         let mut old: libc::termios = std::mem::zeroed();
         libc::tcgetattr(mfd, &mut old);
@@ -79,8 +92,15 @@ pub fn create_pty(ptyname: &str) -> std::io::Result<RawFd> {
 
 /// time.asctime(time.localtime(t))
 pub fn asctime_local(t: f64) -> String {
-    let fmt = CString::new("%a %b %e %H:%M:%S %Y").unwrap();
-    let mut buf = [0u8; 64];
+    strftime_local("%a %b %e %H:%M:%S %Y", t as i64)
+}
+
+/// time.strftime(fmt, time.localtime(t)) (empty when it exceeds 127 bytes)
+pub fn strftime_local(fmt: &str, t: i64) -> String {
+    let fmt = CString::new(fmt).unwrap();
+    let mut buf = [0u8; 128];
+    // SAFETY: tm is plain data (zeroed is valid) filled by the reentrant
+    // localtime_r; strftime writes at most buf.len() bytes and returns the count
     unsafe {
         let tt = t as libc::time_t;
         let mut tm: libc::tm = std::mem::zeroed();
