@@ -89,6 +89,16 @@ Evaluated and kept as they are (no measurable gain, or a parity cost):
   plugins and Jinja raise arbitrary classes. Errors are cold paths.
 - 3, one `RefCell<State>` per object: `Cell<f64>` has no overhead and a `RefCell` one word; merging them saves
   nothing measurable and loses the per-field borrow scope.
+- 2d-3, typed status structs: after batches 1-3 the steady workload (every object subscribed, 250 ms) costs
+  143 ms cpu per minute on x86 (0.24 % of a core; on the CC1 Rusticc is 27 % below stock). The poll is still 70 % of
+  it (`tools/profile_steady.sh`: building and dropping the status dicts, map inserts / lookups, JSON), but a typed
+  struct per object rewrites ~100 `get_status` implementations, each a parity risk, for a share of that small
+  total. Kept for a measured need; the shared statuses (configfile, gcode, mcu, motion_report, gcode_macro) already
+  cover the large and static ones.
+- 4, stepcompress / itersolve / trapq / msgproto: ported allocation-free from the C helpers already; the steady
+  profile does not show them. A change there needs a CC1 A/B under motion (with the user present).
+- 5, async executor instead of stackful greenlets: the greenlets' touched stack pages are bounded by the 2.3 MB
+  steady anonymous memory; replacing every pause point is a rewrite with no measured gain.
 
 ## How to measure (lessons)
 
