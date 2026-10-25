@@ -382,11 +382,24 @@ fn exception_to_kerror_inner(exc: PyRef) -> KError {
             break;
         }
     }
-    let traceback = lookup("traceback", "format_exception")
-        .and_then(|f| f.call(&[&exc]))
-        .and_then(|l| lookup("builtins", "str")?.getattr("join")?.call(&[&py_str(""), &l]))
-        .and_then(|t| t.as_string())
-        .ok();
+    let format = |func: &str| {
+        lookup("traceback", func)
+            .and_then(|f| f.call(&[&exc]))
+            .and_then(|l| lookup("builtins", "str")?.getattr("join")?.call(&[&py_str(""), &l]))
+            .and_then(|t| t.as_string())
+            .ok()
+    };
+    let mut traceback = format("format_exception");
+    // Raised with no python frame (an import from rust: CPython drops the
+    // importlib frames). In klippy a python caller's frame is on it, here the
+    // rust caller stands in for that frame.
+    if exc.getattr("__traceback__").is_ok_and(|tb| tb.is_none()) {
+        if let (Some(full), Some(only)) = (traceback.as_mut(), format("format_exception_only")) {
+            if full.ends_with(&only) {
+                full.insert_str(full.len() - only.len(), "Traceback (most recent call last):\n  File \"<kaliru>\"\n");
+            }
+        }
+    }
     KError::Foreign(Rc::new(ForeignError { kind, class, obj: Box::new(exc), traceback }))
 }
 
