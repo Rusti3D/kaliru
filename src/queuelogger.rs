@@ -181,6 +181,13 @@ impl RotatingFile {
             let _ = f.flush();
         }
     }
+
+    /// the file written so far on the storage (fdatasync)
+    fn sync(&mut self) {
+        if let Some(f) = self.stream.as_ref() {
+            let _ = f.sync_data();
+        }
+    }
 }
 
 struct Inner {
@@ -211,7 +218,8 @@ impl Inner {
 /// QueueListener: writes log records from a background thread
 pub struct QueueListener {
     inner: Arc<Mutex<Inner>>,
-    tx: mpsc::Sender<Option<String>>,
+    // (record, fdatasync after it)
+    tx: mpsc::Sender<Option<(String, bool)>>,
     thread: Mutex<Option<std::thread::JoinHandle<()>>>,
 }
 
@@ -219,11 +227,15 @@ impl QueueListener {
     pub fn new(filename: &str, rotate_log_at_restart: bool) -> std::io::Result<Self> {
         let when = if rotate_log_at_restart { When::Seconds } else { When::Midnight };
         let inner = Arc::new(Mutex::new(Inner { file: RotatingFile::new(filename, when)?, rollover_info: BTreeMap::new() }));
-        let (tx, rx) = mpsc::channel::<Option<String>>();
+        let (tx, rx) = mpsc::channel::<Option<(String, bool)>>();
         let i = inner.clone();
         let thread = std::thread::spawn(move || {
-            while let Ok(Some(msg)) = rx.recv() {
-                i.lock().unwrap().emit(&msg);
+            while let Ok(Some((msg, sync))) = rx.recv() {
+                let mut i = i.lock().unwrap();
+                i.emit(&msg);
+                if sync {
+                    i.file.sync();
+                }
             }
         });
         Ok(QueueListener { inner, tx, thread: Mutex::new(Some(thread)) })
@@ -256,7 +268,13 @@ impl QueueListener {
         self.inner.lock().unwrap().do_rollover();
     }
 
-    fn sender(&self) -> mpsc::Sender<Option<String>> {
+    /// a formatted record for the file; sync: on the storage once written
+    /// (klippy's own records never sync; a plugin's log file can ask to)
+    pub fn send(&self, msg: &str, sync: bool) {
+        let _ = self.tx.send(Some((msg.to_string(), sync)));
+    }
+
+    fn sender(&self) -> mpsc::Sender<Option<(String, bool)>> {
         self.tx.clone()
     }
 }
@@ -267,7 +285,7 @@ pub fn setup_bg_logging(filename: &str, debuglevel: i32, rotate_log_at_restart: 
     // QueueHandler: the formatted message ("%(message)s") goes to the queue
     let tx = Mutex::new(ql.sender());
     logging::set_handler(Some(Box::new(move |_level, msg| {
-        let _ = tx.lock().unwrap().send(Some(msg.to_string()));
+        let _ = tx.lock().unwrap().send(Some((msg.to_string(), false)));
     })));
     logging::set_level(debuglevel);
     Ok(ql)

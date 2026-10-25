@@ -94,7 +94,7 @@ impl PauseResume {
         Ok(())
     }
 
-    pub(crate) fn cmd_pause(&self, gcmd: &GCodeCommand) -> KResult<()> {
+    pub fn cmd_pause(&self, gcmd: &GCodeCommand) -> KResult<()> {
         if self.is_paused.get() {
             gcmd.respond_info("Print already paused", true);
             return Ok(());

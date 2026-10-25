@@ -41,7 +41,16 @@ pub trait DefinedSensor {
 pub enum GcodeSlot {
     Template(Rc<Template>),
     Plugin(crate::printer::PObj),
+    /// a native plugin took the runout over (python sets runout_gcode = 1)
+    Native,
+    /// a native plugin's stand-in with its own render()
+    Render(Rc<dyn Fn() -> KResult<String>>),
 }
+
+/// A native plugin's note_filament_present (eventtime, present, force, immediate)
+pub type NoteHook = Rc<dyn Fn(f64, Option<bool>, bool, bool) -> KResult<()>>;
+/// A native plugin's _runout_event_handler
+pub type RunoutHook = Rc<dyn Fn(f64) -> KResult<()>>;
 
 pub struct RunoutHelper {
     me: Weak<RunoutHelper>,
@@ -65,6 +74,10 @@ pub struct RunoutHelper {
     runout_position: Cell<f64>,
     pub runout_elapsed: Cell<f64>,
     runout_distance_timer: RefCell<Option<Timer>>,
+    /// note_filament_present replaced by a native plugin
+    pub note_hook: RefCell<Option<NoteHook>>,
+    /// _runout_event_handler replaced by a native plugin
+    pub runout_handler_hook: RefCell<Option<RunoutHook>>,
 }
 
 impl RunoutHelper {
@@ -114,6 +127,8 @@ impl RunoutHelper {
             runout_position: Cell::new(0.0),
             runout_elapsed: Cell::new(0.0),
             runout_distance_timer: RefCell::new(None),
+            note_hook: RefCell::new(None),
+            runout_handler_hook: RefCell::new(None),
         });
         // Register commands and event handlers
         let r = rh.clone();
@@ -153,6 +168,10 @@ impl RunoutHelper {
     }
 
     fn runout_event_handler(&self, eventtime: f64) -> KResult<()> {
+        let hook = self.runout_handler_hook.borrow().clone();
+        if let Some(h) = hook {
+            return h(eventtime);
+        }
         // a python plugin may have replaced it (AFC does)
         #[cfg(feature = "plugins")]
         if let Some(r) = crate::plugins::dispatch(self, "klippy.extras.filament_switch_sensor.RunoutHelper._runout_event_handler", &[&eventtime]) {
@@ -237,6 +256,8 @@ impl RunoutHelper {
                 Some(r) => r.map(|v| v.str()),
                 None => Err(KError::Other("object has no attribute 'render'".into())),
             },
+            GcodeSlot::Native => Err(KError::Py("AttributeError".into(), "'int' object has no attribute 'render'".into())),
+            GcodeSlot::Render(f) => f(),
         };
         let r = rendered.and_then(|s| self.gcode.run_script(&format!("{}{}\nM400", prefix, s)));
         if let Err(e) = r {
@@ -246,6 +267,16 @@ impl RunoutHelper {
     }
 
     pub fn note_filament_present(&self, eventtime: f64, is_filament_present: Option<bool>, force: bool, immediate: bool) -> KResult<()> {
+        let hook = self.note_hook.borrow().clone();
+        if let Some(h) = hook {
+            return h(eventtime, is_filament_present, force, immediate);
+        }
+        self.note_filament_present_orig(eventtime, is_filament_present, force, immediate)
+    }
+
+    /// note_filament_present without a native plugin's replacement (what a
+    /// plugin that replaces it calls on)
+    pub fn note_filament_present_orig(&self, eventtime: f64, is_filament_present: Option<bool>, force: bool, immediate: bool) -> KResult<()> {
         // a python plugin may have replaced it (AFC's debounced handler); it
         // gets the arguments kalico's callers pass: positional, trailing
         // defaults (force=False, immediate=False) left off
@@ -525,4 +556,9 @@ impl PrinterObject for SwitchSensor {
 
 pub fn load_config_prefix(config: &ConfigWrapper) -> KResult<PObj> {
     Ok(SwitchSensor::new(config)?)
+}
+
+/// obj.runout_helper of a filament_switch_sensor object
+pub fn runout_helper_of(obj: &PObj) -> Option<Rc<RunoutHelper>> {
+    crate::printer::downcast_rc::<SwitchSensor>(obj.clone()).map(|s| s.runout_helper.clone())
 }

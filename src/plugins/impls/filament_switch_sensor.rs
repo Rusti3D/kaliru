@@ -63,6 +63,7 @@ fn slot_to_py(slot: &Option<GcodeSlot>) -> KResult<PyRef> {
         None => Ok(py_none()),
         Some(GcodeSlot::Template(t)) => t.clone().to_py(),
         Some(GcodeSlot::Plugin(p)) => p.clone().to_py(),
+        Some(GcodeSlot::Native) | Some(GcodeSlot::Render(_)) => Ok(py_int(1)),
     }
 }
 

@@ -192,6 +192,29 @@ impl PyVal {
         PyVal::Dict(IndexMap::default())
     }
 
+    /// json.dump(v, fp, indent=n)
+    pub fn json_indent(&self, indent: usize) -> String {
+        self.json_indent_at(indent, 0)
+    }
+
+    fn json_indent_at(&self, indent: usize, level: usize) -> String {
+        let pad = |l: usize| " ".repeat(indent * l);
+        match self.get() {
+            PyVal::List(a) | PyVal::Tuple(a) | PyVal::NamedTuple(_, _, a) if !a.is_empty() => {
+                let items: Vec<String> = a.iter().map(|x| format!("{}{}", pad(level + 1), x.json_indent_at(indent, level + 1))).collect();
+                format!("[\n{}\n{}]", items.join(",\n"), pad(level))
+            }
+            PyVal::Dict(d) if !d.is_empty() => {
+                let items: Vec<String> = d
+                    .iter()
+                    .map(|(k, x)| format!("{}{}: {}", pad(level + 1), PyVal::Str(k.to_string()).json(), x.json_indent_at(indent, level + 1)))
+                    .collect();
+                format!("{{\n{}\n{}}}", items.join(",\n"), pad(level))
+            }
+            v => v.json(),
+        }
+    }
+
     /// json.dumps(v, separators=(",", ":")) (webhooks responses)
     pub fn json_compact(&self) -> String {
         let mut out = String::new();

@@ -168,6 +168,8 @@ pub struct Printer {
     /// klippy/plugins): name -> where (Kalico's printer_modules)
     #[cfg(feature = "plugins")]
     py_modules: RefCell<IndexMap<String, crate::plugins::Package>>,
+    /// the modules of the native plugins this config runs (native_plugin.rs)
+    plugin_modules: RefCell<Vec<&'static PrinterModule>>,
 }
 
 /// the "configfile" printer object
@@ -221,6 +223,7 @@ impl Printer {
             pconfig: RefCell::new(None),
             #[cfg(feature = "plugins")]
             py_modules: RefCell::new(IndexMap::default()),
+            plugin_modules: RefCell::new(vec![]),
         });
         let p = printer.clone();
         main_reactor.register_callback(move |e| p.connect(e), NOW);
@@ -237,6 +240,11 @@ impl Printer {
 
     pub fn get_reactor(&self) -> Rc<Reactor> {
         self.reactor.clone()
+    }
+
+    /// printer.state_message
+    pub fn state_message(&self) -> String {
+        self.state_message.borrow().clone()
     }
 
     pub fn get_state_message(&self) -> (String, &'static str) {
@@ -300,6 +308,13 @@ impl Printer {
         self.objects.borrow().get(name).cloned()
     }
 
+    /// load_object(config, name) downcast to the object's rust type
+    pub fn lookup_or_load<T: 'static>(self: &Rc<Self>, config: &ConfigWrapper, name: &str) -> KResult<Rc<T>> {
+        self.load_object(config, name, true)?
+            .and_then(downcast_rc::<T>)
+            .ok_or_else(|| KError::Other(format!("printer object '{}' has an unexpected type", name)))
+    }
+
     /// lookup_object(name) downcast to the object's rust type
     pub fn lookup<T: 'static>(&self, name: &str) -> KResult<Rc<T>> {
         let obj = self.lookup_object(name)?;
@@ -350,7 +365,7 @@ impl Printer {
             self.objects.borrow_mut().insert(section.to_string(), obj.clone());
             return Ok(Some(obj));
         }
-        let Some(pm) = crate::extras::MODULES.iter().find(|m| m.name == module_name) else {
+        let Some(pm) = self.find_module(module_name) else {
             // unable to find that module
             if !required {
                 return Ok(None);
@@ -391,6 +406,14 @@ impl Printer {
         // _load_modules: the built-in modules are kaliru's; python modules
         // come from klippy/extras (third-party files) and klippy/plugins
         let allow_overrides = config.getsection("danger_options").getboolean_value_nv("allow_plugin_override", false)?;
+        // the native plugins this config runs
+        *self.plugin_modules.borrow_mut() = crate::native_plugin::plugins()
+            .iter()
+            .map(|p| (p.active)(&config).map(|on| if on { p.modules } else { &[] }))
+            .collect::<KResult<Vec<_>>>()?
+            .into_iter()
+            .flatten()
+            .collect();
         #[cfg(feature = "plugins")]
         self.load_py_modules(allow_overrides)?;
         #[cfg(not(feature = "plugins"))]
@@ -401,7 +424,8 @@ impl Printer {
             self.set_rollover_info("config", Some(&text), true);
         }
         // Register subsystem components
-        for pm in crate::extras::MODULES {
+        let plugin_modules = self.plugin_modules.borrow().clone();
+        for pm in crate::extras::MODULES.iter().chain(plugin_modules) {
             if let (true, Some(register)) = (pm.ported, pm.register_components) {
                 register(&self.components)?;
             }
@@ -605,13 +629,17 @@ impl Printer {
     fn load_py_modules(&self, allow_overrides: bool) -> KResult<()> {
         use crate::plugins::{list_modules, Package};
         let mut mods = IndexMap::default();
-        let builtin = |n: &str| crate::extras::MODULES.iter().any(|m| m.name == n);
+        let builtin = |n: &str| self.find_module(n).is_some();
         for name in list_modules(&Package::Extras) {
             if !builtin(&name) {
                 mods.insert(name, Package::Extras);
             }
         }
         for name in list_modules(&Package::Plugins) {
+            // a native plugin this config runs takes the python plugin's place
+            if self.plugin_modules.borrow().iter().any(|m| m.name == name) {
+                continue;
+            }
             if (builtin(&name) || mods.contains_key(&name)) && !allow_overrides {
                 return Err(KError::config(format!("Module '{}' found in both extras and plugins!", name)));
             }
@@ -621,15 +649,23 @@ impl Printer {
         Ok(())
     }
 
+    /// kaliru's module of that name, else an active native plugin's
+    fn find_module(&self, name: &str) -> Option<&'static PrinterModule> {
+        crate::extras::MODULES.iter().find(|m| m.name == name).or_else(|| self.plugin_modules.borrow().iter().find(|m| m.name == name).copied())
+    }
+
     /// printer.objects[name] = obj (python plugins: a dict assignment keeps
     /// the position of an existing name)
-    #[cfg(feature = "plugins")]
     pub fn objects_set(&self, name: &str, obj: PObj) {
         self.objects.borrow_mut().insert(name.to_string(), obj);
     }
 
+    /// printer.objects.setdefault(name, obj)
+    pub fn objects_set_default(&self, name: &str, obj: PObj) {
+        self.objects.borrow_mut().entry(name.to_string()).or_insert(obj);
+    }
+
     /// printer.objects.pop(name)
-    #[cfg(feature = "plugins")]
     pub fn objects_remove(&self, name: &str) -> Option<PObj> {
         self.objects.borrow_mut().shift_remove(name)
     }

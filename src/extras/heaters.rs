@@ -508,7 +508,7 @@ pub struct Heater {
     verify_mainthread_time: Cell<f64>,
     pub(crate) last_temp: Cell<f64>,
     pub(crate) smoothed_temp: Cell<f64>,
-    pub(crate) target_temp: Cell<f64>,
+    pub target_temp: Cell<f64>,
     last_temp_time: Cell<f64>,
     next_pwm_time: Cell<f64>,
     pub last_pwm_value: Cell<f64>,

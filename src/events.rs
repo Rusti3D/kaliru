@@ -91,13 +91,16 @@ macro_rules! events {
     )*};
 }
 
-event_arg!(
-    std::rc::Rc<crate::extras::homing::Homing>,
-    std::rc::Rc<crate::extras::homing::HomingMove>,
-    Vec<crate::stepper::RailRef>,
-    std::rc::Rc<crate::stepper::McuStepper>,
-    std::rc::Rc<crate::extras::load_cell::load_cell::LoadCell>,
-);
+event_arg!(Vec<crate::stepper::RailRef>);
+
+/// Objects travel as Rc<T> (kaliru's and a native plugin's alike: a plugin
+/// crate cannot implement EventArg for Rc of its own types)
+impl<T: 'static> EventArg for std::rc::Rc<T> {
+    #[inline]
+    fn from_arg(a: &dyn Any) -> Option<Self> {
+        a.downcast_ref::<std::rc::Rc<T>>().cloned()
+    }
+}
 
 // Kalico's printer events (the names python plugins use too)
 events! {

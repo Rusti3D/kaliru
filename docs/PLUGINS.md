@@ -327,3 +327,29 @@ printer, configfile, gcode, reactor, webhooks, pins (Python pin chips), buttons,
 5. AFC + AFC_ACE with the user's config (copied read-only from the CC1), then the corpus plugins.
 6. Later, decide whether python *macros* move from RustPython to the same bridge. Without RustPython the binary
    shrinks from 29.7 to 9.1 MB, but macros would then need libpython.
+
+## Native plugins (2026-10-25)
+
+Plugins in Rust are built in, not loaded at runtime: Rust has no stable ABI, so a runtime-loaded native
+plugin would need a C, Lua or WebAssembly boundary. A native plugin is its own crate, depending on kaliru as
+a library; a distribution builds its kaliru binary with the plugins it wants:
+
+```rust
+// the distribution's main.rs
+fn main() {
+    kaliru::native_plugin::main(&[rust_afc::PLUGIN]);
+}
+```
+
+`NativePlugin` (`src/native_plugin.rs`) is the plugin's name, its `PrinterModule`s and an `active(config)`
+check. A plugin only does something when the user's config has its sections, like kaliru's own modules. For
+a config its check turns down, the plugin stays out and Python modules of the same names load as before (a
+plugin covering part of a Python package can leave other configs to it). For a config it accepts, its
+modules are found after kaliru's own, and a `klippy/plugins` directory of the same name is skipped.
+
+Extension points kaliru keeps public for plugins (none changes kaliru's own behaviour):
+- `RunoutHelper.note_hook` / `runout_handler_hook`, `note_filament_present_orig`, `GcodeSlot::Native` /
+  `Render`, `filament_switch_sensor::runout_helper_of`: a plugin taking over a filament sensor's events.
+- `QueueListener::send(msg, sync)`: a plugin's own log file, `sync` writing it through to the storage.
+- `Printer::state_message`, `lookup_or_load`, `objects_set` / `objects_set_default` / `objects_remove`,
+  `PyVal::json_indent`, `logging::format_traceback`, `webhooks::is_gcode_helper`.

@@ -105,6 +105,11 @@ fn traceback(cls: &str, emsg: &str) -> String {
     format!("Traceback (most recent call last):\n  File \"<kaliru>\"\n{}", last)
 }
 
+/// traceback.format_exception() text of an error
+pub fn format_traceback(e: &crate::error::KError) -> String {
+    format_exception(e)
+}
+
 /// traceback.format_exception() of `e`, its __context__ chain first
 fn format_exception(e: &crate::error::KError) -> String {
     match e {

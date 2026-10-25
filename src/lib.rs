@@ -48,6 +48,7 @@ pub mod numpy_fft;
 pub mod scipy_signal;
 pub mod mcu;
 pub mod msgproto;
+pub mod native_plugin;
 pub mod pins;
 #[cfg(feature = "plugins")]
 pub mod plugins;

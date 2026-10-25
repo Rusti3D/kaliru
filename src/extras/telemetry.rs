@@ -120,7 +120,7 @@ impl KalicoTelemetry {
     fn cmd_telemetry_example(&self, gcmd: &GCodeCommand) -> KResult<()> {
         let filename = self.config_dir().join("telemetry.json");
         let data = self.collect_telemetry()?;
-        let text = json_indent(&data, 2, 0);
+        let text = data.json_indent(2);
         std::fs::write(&filename, text)
             .map_err(|e| KError::os(&e, &filename.to_string_lossy()))?;
         gcmd.respond_info(&format!("Example telemetry saved to {}", filename.display()), true);
@@ -234,24 +234,6 @@ fn uuid4() -> String {
     format!("{}-{}-{}-{}-{}", &h[..8], &h[8..12], &h[12..16], &h[16..20], &h[20..])
 }
 
-/// json.dump(data, fp, indent=n)
-fn json_indent(v: &PyVal, indent: usize, level: usize) -> String {
-    let pad = |l: usize| " ".repeat(indent * l);
-    match v {
-        PyVal::List(a) | PyVal::Tuple(a) | PyVal::NamedTuple(_, _, a) if !a.is_empty() => {
-            let items: Vec<String> = a.iter().map(|x| format!("{}{}", pad(level + 1), json_indent(x, indent, level + 1))).collect();
-            format!("[\n{}\n{}]", items.join(",\n"), pad(level))
-        }
-        PyVal::Dict(d) if !d.is_empty() => {
-            let items: Vec<String> = d
-                .iter()
-                .map(|(k, x)| format!("{}{}: {}", pad(level + 1), PyVal::Str(k.to_string()).json(), json_indent(x, indent, level + 1)))
-                .collect();
-            format!("{{\n{}\n{}}}", items.join(",\n"), pad(level))
-        }
-        v => v.json(),
-    }
-}
 
 fn send(collected_data: PyVal) {
     let data = collected_data.json();

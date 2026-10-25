@@ -34,7 +34,7 @@ pub struct IdleTimeout {
     gcode: Rc<GCodeDispatch>,
     toolhead: RefCell<Option<Rc<ToolHead>>>,
     timeout_timer: RefCell<Option<Timer>>,
-    pub(crate) idle_timeout: Cell<f64>,
+    pub idle_timeout: Cell<f64>,
     idle_gcode: Rc<Template>,
     pub(crate) state: RefCell<&'static str>,
     pub(crate) last_print_start_systime: Cell<f64>,

@@ -751,6 +751,12 @@ impl WebHooks {
     }
 }
 
+/// an output callback webhooks registered for its API clients
+/// (isinstance(cb.__self__, GCodeHelper))
+pub fn is_gcode_helper(origin: &crate::gcode::CallbackOrigin) -> bool {
+    origin.1 == std::any::type_name::<GCodeHelper>()
+}
+
 struct GCodeHelper {
     gcode: Rc<GCodeDispatch>,
     is_output_registered: Cell<bool>,
