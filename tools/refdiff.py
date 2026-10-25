@@ -37,13 +37,21 @@ LOG_MASKS = [
     # traceback frames (kaliru writes one placeholder frame line)
     (re.compile(rb"Traceback \(most recent call last\):\n(?:  [^\n]*\n)+"),
      b"Traceback (most recent call last):\n  <frames>\n"),
+    # the same inside AFC's log lines (each line carries the logger's prefix)
+    (re.compile(rb"^((?:INFO|DEBUG|WARNING|ERROR):root:<MONO> \[[^\]\n]*\] *- [A-Z]+: ?)([^\n]*)Traceback \(most recent call last\):\n(?:\1  [^\n]*\n)+", re.M),
+     rb"\1\2Traceback (most recent call last):\n\1  <frames>\n"),
 ]
+
+
+# homing.py _set_current_homing iterates a set() of rails, whose order follows
+# object ids; compare each run of its "tmc <stepper>: " lines as a sorted block
+TMC_RUN = re.compile(rb"(?:^INFO:root:tmc \S+: [^\n]*\n)+", re.M)
 
 
 def mask(log):
     for rx, rep in LOG_MASKS:
         log = rx.sub(rep, log)
-    return log
+    return TMC_RUN.sub(lambda m: b"".join(sorted(m.group(0).splitlines(True))), log)
 
 
 def lines(path, masked=False):

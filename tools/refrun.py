@@ -93,8 +93,9 @@ def run_one(args, test, n, it):
                 shutil.copy(f, dest / f.name.replace("_test_.", ""))
         # tmp paths differ per run
         log = log.replace(str(tmp).encode(), b"<TMP>")
-    except subprocess.TimeoutExpired:
-        rc, log = "timeout", b""
+    except subprocess.TimeoutExpired as e:
+        # keep what was logged before the hang
+        rc, log = "timeout", (e.output or b"").replace(str(tmp).encode(), b"<TMP>")
     finally:
         shutil.rmtree(tmp, ignore_errors=True)
     (dest / "log").write_bytes(log)
