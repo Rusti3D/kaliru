@@ -143,8 +143,11 @@ class Host:
         pss_anon = re.search(r"^Pss_Anon:\s+(\d+)", rollup, re.M).group(1)
         stat = open("/proc/%d/stat" % self.proc.pid).read().rsplit(")", 1)[1].split()
         cpu = (int(stat[11]) + int(stat[12])) / os.sysconf("SC_CLK_TCK")
-        return "peak_rss_kb=%s rss_kb=%s rss_anon_kb=%s rss_file_kb=%s pss_anon_kb=%s cpu_s=%.2f" % (
-            mem["VmHWM"], mem["VmRSS"], mem["RssAnon"], mem["RssFile"], pss_anon, cpu)
+        # (the run time in ns, summed over the threads: cpu_s counts 10 ms ticks)
+        cpu_ns = sum(int(open("/proc/%d/task/%s/schedstat" % (self.proc.pid, t)).read().split()[0])
+                     for t in os.listdir("/proc/%d/task" % self.proc.pid))
+        return "peak_rss_kb=%s rss_kb=%s rss_anon_kb=%s rss_file_kb=%s pss_anon_kb=%s cpu_s=%.2f cpu_ns=%d" % (
+            mem["VmHWM"], mem["VmRSS"], mem["RssAnon"], mem["RssFile"], pss_anon, cpu, cpu_ns)
 
     def close(self):
         os.close(self.fd)

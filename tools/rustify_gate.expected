@@ -1,0 +1,22 @@
+1001/1001 identical
+307/307 configs read identically
+88/88 traces decode identically (277225 messages)
+9/9 SAVE_CONFIG scenarios identical
+identical: /mnt/d/RustyKlipper/kaliru/tools/pins_cases.txt (55 ops)
+identical: /root/rk/pins_corpus.txt (32349 ops)
+identical: America/New_York (30 cases)
+identical: Europe/Copenhagen (30 cases)
+identical: UTC (30 cases)
+reactor scenarios identical (3 runs)
+serialqueue exchange identical (3 runs)
+== cases
+63/63 identical
+== suite
+87/88 identical
+DIFF printers/13
+== plugins
+6/6 identical
+== live
+6/6 identical
+== api
+1/1 identical

@@ -1,0 +1,7 @@
+suite_cpu_s 4.21
+suite_peak_rss_kb 24960
+steady_cpu_ms 149
+steady_peak_rss_kb 14080
+steady_pss_anon_kb 3272
+size_x86_bytes 25703392
+size_armv7_bytes 7647376
