@@ -89,25 +89,27 @@ impl ShellCommand {
         let mut argv = self.command.clone();
         argv.extend(gcode_params);
         // stdout=PIPE, stderr=STDOUT
-        let spawned = (|| -> std::io::Result<(std::process::Child, RawFd)> {
+        let spawned = (|| -> KResult<(std::process::Child, RawFd)> {
             let mut fds = [0 as RawFd; 2];
             // SAFETY: plain pipe(2)
             if unsafe { libc::pipe2(fds.as_mut_ptr(), libc::O_CLOEXEC) } != 0 {
-                return Err(std::io::Error::last_os_error());
+                return Err(KError::Other(std::io::Error::last_os_error().to_string()));
             }
             // SAFETY: fresh descriptors from pipe2
             let (r, w) = unsafe { (OwnedFd::from_raw_fd(fds[0]), OwnedFd::from_raw_fd(fds[1])) };
-            let w2 = w.try_clone()?;
-            let program = argv.first().ok_or_else(|| std::io::Error::other("list index out of range"))?;
-            let child = std::process::Command::new(program).args(&argv[1..]).stdout(w).stderr(w2).spawn()?;
+            let w2 = w.try_clone().map_err(|e| KError::Other(e.to_string()))?;
+            let program = argv.first().ok_or_else(|| KError::Py("IndexError".into(), "list index out of range".into()))?;
+            // an exec failure is OSError(errno, strerror, executable)
+            let child = std::process::Command::new(program).args(&argv[1..]).stdout(w).stderr(w2).spawn()
+                .map_err(|e| KError::os(&e, program))?;
             let rfd = std::os::fd::IntoRawFd::into_raw_fd(r);
             Ok((child, rfd))
         })();
         let (mut proc, rfd) = match spawned {
             Ok(v) => v,
             Err(e) => {
-                logging::exception_err(&format!("shell_command: Command {{{}}} failed", self.name), &KError::Other(e.to_string()));
-                return Err(KError::command(format!("Error running command {{{}}}", self.name)));
+                logging::exception_err(&format!("shell_command: Command {{{}}} failed", self.name), &e);
+                return Err(KError::command(format!("Error running command {{{}}}", self.name)).with_context(e));
             }
         };
         let mut hdl = None;
