@@ -18,9 +18,13 @@ class TestPins:
         self.adc = ppins.setup_pin("adc", config.get("adc_pin"))
         self.adc.setup_adc_sample(0.001, 8)
         self.adc.setup_adc_callback(0.3, self._adc_callback)
+        self.endstop = ppins.setup_pin("endstop", config.get("endstop_pin"))
+        query_endstops = self.printer.load_object(config, "query_endstops")
+        query_endstops.register_endstop(self.endstop, "test_pins_es")
         self.printer.lookup_object("gcode").register_command("TEST_PINS", self.cmd_TEST_PINS)
-        logging.info("test pins: %s %s %s", type(self.enable).__name__,
-                     type(self.led).__name__, type(self.adc).__name__)
+        logging.info("test pins: %s %s %s %s", type(self.enable).__name__,
+                     type(self.led).__name__, type(self.adc).__name__,
+                     type(self.endstop).__name__)
 
     def _adc_callback(self, read_time, read_value):
         logging.info("test pins adc: %.3f", read_value)
@@ -32,7 +36,9 @@ class TestPins:
         self.led.last_set_time = print_time
         self.led.set_pwm(print_time, gcmd.get_float("VALUE", 0.5))
         self.enable.set_digital(print_time, gcmd.get_int("ON", 0))
-        gcmd.respond_info("pins on %s, adc %s" % (mcu.get_name(), self.adc.get_last_value()))
+        gcmd.respond_info("pins on %s, adc %s, endstop on %s with %d steppers" % (
+            mcu.get_name(), self.adc.get_last_value(), self.endstop.get_mcu().get_name(),
+            len(self.endstop.get_steppers())))
 
 
 def load_config(config):

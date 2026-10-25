@@ -3,7 +3,7 @@ use super::*;
 use crate::plugins::callable::py_function;
 use crate::plugins::convert::ToPy;
 
-use crate::mcu::{McuAdc, McuDigitalOut, McuPwm};
+use crate::mcu::{McuAdc, McuDigitalOut, McuEndstop, McuPwm};
 use crate::method;
 use crate::pins::{PinChip, PinParams, PinsObject, SharedPinParams};
 
@@ -53,6 +53,10 @@ pub fn register(r: &mut Registry) {
             Ok(p) => return objects::wrap(p),
             Err(p) => p,
         };
+        let pin = match pin.downcast::<McuEndstop>() {
+            Ok(p) => return objects::wrap(p),
+            Err(p) => p,
+        };
         match pin.downcast::<McuAdc>() {
             Ok(p) => objects::wrap(p),
             Err(_) => Err(KError::Py(
@@ -64,6 +68,26 @@ pub fn register(r: &mut Registry) {
     objects::register_class::<McuDigitalOut>("klippy.mcu", "MCU_digital_out");
     objects::register_class::<McuPwm>("klippy.mcu", "MCU_pwm");
     objects::register_class::<McuAdc>("klippy.mcu", "MCU_adc");
+    objects::register_class::<McuEndstop>("klippy.mcu", "MCU_endstop");
+    objects::register_class::<crate::stepper::McuStepper>("klippy.stepper", "MCU_stepper");
+    method!(r, "klippy.mcu.MCU_endstop", McuEndstop, get_mcu(e) => e.get_mcu());
+    r.method("klippy.mcu.MCU_endstop.query_endstop", |a| {
+        let e = a.this::<McuEndstop>()?;
+        Ok(py_int(crate::mcu::Endstop::query_endstop(&*e, a.f64(0)?)?))
+    });
+    r.method("klippy.mcu.MCU_endstop.get_steppers", |a| {
+        let steppers = a.this::<McuEndstop>()?.get_steppers();
+        let list: KResult<Vec<PyRef>> = steppers.into_iter().map(objects::wrap).collect();
+        Ok(py_list(list?))
+    });
+    // QueryEndstops.register_endstop(mcu_endstop, name): an endstop a python
+    // module set up (AFC's lane / hub / toolhead sensors)
+    r.method("klippy.extras.query_endstops.QueryEndstops.register_endstop", |a| {
+        let endstop = crate::mcu::any_to_endstop(objects::unwrap(a.arg(0))?)
+            .ok_or_else(|| KError::Py("TypeError".into(), "kaliru: register_endstop of an endstop kaliru did not make".into()))?;
+        a.this::<crate::extras::query_endstops::QueryEndstops>()?.register_endstop(endstop, &a.string(1)?);
+        Ok(py_none())
+    });
     method!(r, "klippy.mcu.MCU_digital_out", McuDigitalOut, get_mcu(p) => p.get_mcu());
     r.method("klippy.mcu.MCU_digital_out.setup_max_duration", |a| {
         a.this::<McuDigitalOut>()?.setup_max_duration(a.f64(0)?);
