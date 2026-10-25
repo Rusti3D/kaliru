@@ -34,6 +34,8 @@ LOG_MASKS = [
     (re.compile(rb"No build file \S*?/\.\./"), b"No build file <DIR>/../"),
     # gcode.py dump_debug: "Read %f: %r" of the reactor.monotonic() read time
     (re.compile(rb"^Read \d+\.\d+: ", re.M), b"Read <MONO>: "),
+    # reactor.py get_gc_stats in the shutdown dump: when python's gc last ran
+    (re.compile(rb"^INFO:root:Reactor garbage collection: \([^\n]*\)$", re.M), b"INFO:root:Reactor garbage collection: <GC>"),
     # traceback frames (kaliru writes one placeholder frame line)
     (re.compile(rb"Traceback \(most recent call last\):\n(?:  [^\n]*\n)+"),
      b"Traceback (most recent call last):\n  <frames>\n"),
@@ -48,10 +50,37 @@ LOG_MASKS = [
 TMC_RUN = re.compile(rb"(?:^INFO:root:tmc \S+: [^\n]*\n)+", re.M)
 
 
+# AFC_ACE's serial thread logs "AFC_ACE: t=<monotonic> ... (<secs>s)" lines
+# straight to the root logger, interleaved with the reactor's by thread timing:
+# they compare as their own sequence, after the rest of the log
+ACE_THREAD = re.compile(rb"^(?:INFO|DEBUG):root:AFC_ACE: [^\n]*\n", re.M)
+# afcDeltaTime: wall-clock durations of AFC's loads and unloads
+AFC_TIMES = [(re.compile(rb"\(\xce\x94t:\d+\.\d+s, t:\d+\.\d+\)"), "(Δt:<SECS>s, t:<SECS>)".encode()),
+             (re.compile(rb"( (?:done|toolhead|unloaded|loaded)[^\n]* t:)\d+\.\d+$", re.M), rb"\1<SECS>")]
+# on a shutdown AFC_ACE queues its stops for the serial thread and the process
+# exits: how many go out before it does is a race
+ACE_SHUTDOWN_BURST = re.compile(rb"(?:^INFO:root:AFC_ACE: t=\S+ (?:stop_feed_filament|stop_unwind_filament|stop_feed_assist|drying_stop) [^\n]*\n)+\Z", re.M)
+ACE_TIMES = [(re.compile(rb"(AFC_ACE: (?:\S+ )*?t=)\d+\.\d+"), rb"\1<MONO>"),
+             (re.compile(rb"\(\d+\.\d+s\)$", re.M), b"(<SECS>s)")]
+
+
 def mask(log):
+    # (the serial thread's lines first: one can land inside a traceback)
+    thread = ACE_THREAD.findall(log)
+    log = ACE_THREAD.sub(b"", log)
     for rx, rep in LOG_MASKS:
         log = rx.sub(rep, log)
-    return TMC_RUN.sub(lambda m: b"".join(sorted(m.group(0).splitlines(True))), log)
+    log = TMC_RUN.sub(lambda m: b"".join(sorted(m.group(0).splitlines(True))), log)
+    for rx, rep in AFC_TIMES:
+        log = rx.sub(rep, log)
+    if thread:
+        thread = b"".join(thread)
+        if b"Transition to shutdown state" in log:
+            thread = ACE_SHUTDOWN_BURST.sub(b"<shutdown stops>\n", thread)
+        log += b"-- AFC_ACE serial thread --\n" + thread
+        for rx, rep in ACE_TIMES:
+            log = rx.sub(rep, log)
+    return log
 
 
 def lines(path, masked=False):
