@@ -621,13 +621,10 @@ impl Heater {
             gcode.register_mux_command(cmd, "HEATER", Some(&value), Rc::new(move |g| f(&h, g)), Some(desc))?;
         }
         let h = heater.clone();
-        printer.register_event_handler(
-            "klippy:shutdown",
-            Rc::new(move |_| {
-                h.verify_mainthread_time.set(-999.0);
-                Ok(())
-            }),
-        );
+        crate::events::KlippyShutdown::on(&printer, move || {
+            h.verify_mainthread_time.set(-999.0);
+            Ok(())
+        });
         Ok(heater)
     }
 
@@ -1487,15 +1484,12 @@ impl PrinterHeaters {
             gcode: gcode.clone(),
         });
         let p = ph.clone();
-        printer.register_event_handler(
-            "klippy:ready",
-            Rc::new(move |_| {
-                p.has_started.set(true);
-                Ok(())
-            }),
-        );
+        crate::events::KlippyReady::on(&printer, move || {
+            p.has_started.set(true);
+            Ok(())
+        });
         let p = ph.clone();
-        printer.register_event_handler("gcode:request_restart", Rc::new(move |_| p.turn_off_all_heaters()));
+        crate::events::GcodeRequestRestart::on(&printer, move |_| p.turn_off_all_heaters());
         // Register commands
         let p = ph.clone();
         gcode.register_command("TURN_OFF_HEATERS", Some(Rc::new(move |_| p.turn_off_all_heaters())), false, Some(CMD_TURN_OFF_HEATERS_HELP))?;

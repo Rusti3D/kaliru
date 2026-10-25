@@ -87,7 +87,7 @@ impl SHT3X {
         ));
         printer.add_object(&format!("sht3x {}", name), s.clone())?;
         let ss = s.clone();
-        printer.register_event_handler("klippy:connect", Rc::new(move |_| ss.handle_connect()));
+        crate::events::KlippyConnect::on(&printer, move || ss.handle_connect());
         let ss = s.clone();
         printer.register_event_handler(mcu.get_non_critical_reconnect_event_name(), Rc::new(move |_| ss.handle_connect()));
         Ok(s)

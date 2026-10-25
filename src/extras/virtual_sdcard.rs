@@ -6,7 +6,6 @@
 // This file may be distributed under the terms of the GNU GPLv3 license.
 use crate::configfile::{ConfigWrapper, Dflt, Lim};
 use crate::error::{KError, KResult};
-use crate::extras::error_mcu::event_args;
 use crate::extras::gcode_macro::{load_gcode_macro, Template};
 use crate::extras::print_stats::PrintStats;
 use crate::gcode::{GCodeCommand, GCodeDispatch};
@@ -174,14 +173,10 @@ impl VirtualSD {
             Some(CMD_SDCARD_PRINT_FILE_HELP),
         )?;
         let v = vsd.clone();
-        printer.register_event_handler(
-            "klippy:analyze_shutdown",
-            Rc::new(move |args| {
-                let (msg, details) = event_args(args);
-                v.handle_analyze_shutdown(&msg, &details);
-                Ok(())
-            }),
-        );
+        crate::events::KlippyAnalyzeShutdown::on(&printer, move |msg, details| {
+            v.handle_analyze_shutdown(&msg, &details);
+            Ok(())
+        });
         Ok(vsd)
     }
 
@@ -325,7 +320,7 @@ impl VirtualSD {
         self.file_position.set(0);
         self.file_size.set(0);
         self.print_stats.reset()?;
-        self.printer.send_event("virtual_sdcard:reset_file", &[])
+        crate::events::VirtualSdcardResetFile::emit(&self.printer)
     }
 
     fn cmd_sdcard_reset_file(&self, gcmd: &GCodeCommand) -> KResult<()> {
@@ -408,7 +403,7 @@ impl VirtualSD {
         self.file_position.set(0);
         self.file_size.set(fsize);
         self.print_stats.set_current_file(filename)?;
-        self.printer.send_event("virtual_sdcard:load_file", &[])
+        crate::events::VirtualSdcardLoadFile::emit(&self.printer)
     }
 
     fn cmd_m24(&self, _gcmd: &GCodeCommand) -> KResult<()> {

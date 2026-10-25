@@ -1349,15 +1349,12 @@ impl MenuManager {
         // register itself for printer callbacks
         printer.add_object("menu", Rc::new(MenuObject(Rc::downgrade(&m))))?;
         let w = m.me.clone();
-        printer.register_event_handler(
-            "klippy:ready",
-            Rc::new(move |_| {
-                if let Some(m) = w.upgrade() {
-                    m.handle_ready();
-                }
-                Ok(())
-            }),
-        );
+        crate::events::KlippyReady::on(&printer, move || {
+            if let Some(m) = w.upgrade() {
+                m.handle_ready();
+            }
+            Ok(())
+        });
         // register other printer event handlers
         for event in [
             "filament:insert",

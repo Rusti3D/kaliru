@@ -47,23 +47,17 @@ impl PrinterCANBusStats {
             status: RefCell::new(Status::default()),
         });
         let w = s.me.clone();
-        printer.register_event_handler(
-            "klippy:connect",
-            Rc::new(move |_| match w.upgrade() {
-                Some(s) => s.handle_connect(),
-                None => Ok(()),
-            }),
-        );
+        crate::events::KlippyConnect::on(&printer, move || match w.upgrade() {
+            Some(s) => s.handle_connect(),
+            None => Ok(()),
+        });
         let w = s.me.clone();
-        printer.register_event_handler(
-            "klippy:shutdown",
-            Rc::new(move |_| {
-                if let Some(s) = w.upgrade() {
-                    s.handle_shutdown();
-                }
-                Ok(())
-            }),
-        );
+        crate::events::KlippyShutdown::on(&printer, move || {
+            if let Some(s) = w.upgrade() {
+                s.handle_shutdown();
+            }
+            Ok(())
+        });
         Ok(s)
     }
 

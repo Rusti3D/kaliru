@@ -44,24 +44,18 @@ impl KalicoTelemetry {
 
         if enabled.is_none() {
             let c = t.clone();
-            printer.register_event_handler(
-                "klippy:ready",
-                Rc::new(move |_| {
-                    c.telemetry_prompt()?;
-                    Ok(())
-                }),
-            );
+            crate::events::KlippyReady::on(&printer, move || {
+                c.telemetry_prompt()?;
+                Ok(())
+            });
         }
 
         if enabled == Some(true) {
             let c = t.clone();
-            printer.register_event_handler(
-                "klippy:ready",
-                Rc::new(move |_| {
-                    c.handle_ready();
-                    Ok(())
-                }),
-            );
+            crate::events::KlippyReady::on(&printer, move || {
+                c.handle_ready();
+                Ok(())
+            });
         }
         Ok(t)
     }

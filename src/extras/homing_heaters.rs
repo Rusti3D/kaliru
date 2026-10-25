@@ -42,27 +42,20 @@ impl HomingHeaters {
             target_save: RefCell::new(IndexMap::new()),
         });
         let w: Weak<HomingHeaters> = Rc::downgrade(&h);
-        printer.register_event_handler(
-            "klippy:connect",
-            Rc::new(move |_| match w.upgrade() {
-                Some(h) => h.handle_connect(),
-                None => Ok(()),
-            }),
-        );
-        for (event, begin) in [("homing:homing_move_begin", true), ("homing:homing_move_end", false)] {
-            let w = Rc::downgrade(&h);
-            printer.register_event_handler(
-                event,
-                Rc::new(move |args| {
-                    let (Some(h), Some(hmove)) = (w.upgrade(), args[0].downcast_ref::<Rc<HomingMove>>()) else { return Ok(()) };
-                    if begin {
-                        h.handle_homing_move_begin(hmove)
-                    } else {
-                        h.handle_homing_move_end(hmove)
-                    }
-                }),
-            );
-        }
+        crate::events::KlippyConnect::on(&printer, move || match w.upgrade() {
+            Some(h) => h.handle_connect(),
+            None => Ok(()),
+        });
+        let w = Rc::downgrade(&h);
+        crate::events::HomingMoveBegin::on(&printer, move |hmove| match w.upgrade() {
+            Some(h) => h.handle_homing_move_begin(&hmove),
+            None => Ok(()),
+        });
+        let w = Rc::downgrade(&h);
+        crate::events::HomingMoveEnd::on(&printer, move |hmove| match w.upgrade() {
+            Some(h) => h.handle_homing_move_end(&hmove),
+            None => Ok(()),
+        });
         Ok(h)
     }
 

@@ -169,17 +169,12 @@ impl AngleCalibration {
         }
         // Register commands
         let cc = c.clone();
-        printer.register_event_handler(
-            "stepper:sync_mcu_position",
-            Rc::new(move |args| {
-                if let Some(s) = args.first().and_then(|a| a.downcast_ref::<Rc<McuStepper>>()) {
-                    cc.handle_sync_mcu_pos(s);
-                }
-                Ok(())
-            }),
-        );
+        crate::events::StepperSyncMcuPosition::on(&printer, move |s| {
+            cc.handle_sync_mcu_pos(&s);
+            Ok(())
+        });
         let cc = c.clone();
-        printer.register_event_handler("klippy:connect", Rc::new(move |_| cc.connect()));
+        crate::events::KlippyConnect::on(&printer, move || cc.connect());
         let cname = c.name.split_whitespace().last().unwrap_or_default().to_string();
         let gcode = printer.lookup::<GCodeDispatch>("gcode")?;
         let cc = c.clone();

@@ -88,13 +88,10 @@ impl HallFilamentWidthSensor {
         // klippy:ready is registered before the adc pins are set up
         let slot: Rc<RefCell<Weak<HallFilamentWidthSensor>>> = Rc::new(RefCell::new(Weak::new()));
         let sl = slot.clone();
-        printer.register_event_handler(
-            "klippy:ready",
-            Rc::new(move |_| match sl.borrow().upgrade() {
-                Some(s) => s.handle_ready(),
-                None => Ok(()),
-            }),
-        );
+        crate::events::KlippyReady::on(&printer, move || match sl.borrow().upgrade() {
+            Some(s) => s.handle_ready(),
+            None => Ok(()),
+        });
         // Start adc
         let mcu_adc = crate::pins::setup_adc_pin(&printer, &pin1)?;
         mcu_adc.setup_adc_sample(ADC_SAMPLE_TIME, ADC_SAMPLE_COUNT, 0.0, 1.0, 0);
@@ -196,7 +193,7 @@ impl HallFilamentWidthSensor {
             *runout_helper.immediate_runout_gcode.borrow_mut() = Some(gcode_macro.load_template(config, "immediate_runout_gcode", Some(""))?);
         }
         *s.runout_helper.borrow_mut() = Some(runout_helper);
-        for (ev, smart) in [("print_stats:start_printing", true), ("idle_timeout:printing", false)] {
+        for (ev, smart) in [(crate::events::PrintStatsStartPrinting::NAME, true), (crate::events::IdleTimeoutPrinting::NAME, false)] {
             let w = s.me.clone();
             printer.register_event_handler(
                 ev,

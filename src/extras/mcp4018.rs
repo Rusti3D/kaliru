@@ -42,7 +42,7 @@ pub fn load_config_prefix(config: &ConfigWrapper) -> KResult<PObj> {
     let name = config.get_name().split_whitespace().nth(1).unwrap_or_default().to_string();
     let m = Rc::new(Mcp4018 { i2c, scale, start_value, name: name.clone() });
     let mm = m.clone();
-    printer.register_event_handler("klippy:connect", Rc::new(move |_| mm.set_dac(mm.start_value)));
+    crate::events::KlippyConnect::on(&printer, move || mm.set_dac(mm.start_value));
     // Register commands
     let gcode = printer.lookup::<GCodeDispatch>("gcode")?;
     let mm = m.clone();

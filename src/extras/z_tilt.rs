@@ -51,7 +51,7 @@ impl ZAdjustHelper {
         let printer = config.get_printer();
         let h = Rc::new(ZAdjustHelper { printer: printer.clone(), name: config.get_name().to_string(), z_count, z_steppers: RefCell::new(vec![]) });
         let hh = h.clone();
-        printer.register_event_handler("klippy:connect", Rc::new(move |_| hh.handle_connect()));
+        crate::events::KlippyConnect::on(&printer, move || hh.handle_connect());
         h
     }
 
@@ -127,13 +127,10 @@ impl ZAdjustStatus {
     pub fn new(printer: &Rc<Printer>) -> Rc<Self> {
         let s = Rc::new(ZAdjustStatus { applied: Cell::new(false) });
         let ss = s.clone();
-        printer.register_event_handler(
-            "stepper_enable:motor_off",
-            Rc::new(move |_| {
-                ss.reset();
-                Ok(())
-            }),
-        );
+        crate::events::StepperEnableMotorOff::on(&printer, move || {
+            ss.reset();
+            Ok(())
+        });
         s
     }
 

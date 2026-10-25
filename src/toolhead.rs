@@ -481,13 +481,10 @@ impl ToolHead {
 
         // Register handlers
         let t = th.clone();
-        printer.register_event_handler(
-            "klippy:shutdown",
-            Rc::new(move |_| {
-                t.handle_shutdown();
-                Ok(())
-            }),
-        );
+        crate::events::KlippyShutdown::on(&printer, move || {
+            t.handle_shutdown();
+            Ok(())
+        });
         Ok(th)
     }
 
@@ -524,7 +521,7 @@ impl ToolHead {
         if min_print_time > self.print_time.get() {
             self.print_time.set(min_print_time);
             let print_time = self.print_time.get();
-            self.printer.send_event("toolhead:sync_print_time", &[&curtime, &est_print_time, &print_time])?;
+            crate::events::ToolheadSyncPrintTime::emit(&self.printer, &curtime, &est_print_time, &print_time)?;
         }
         Ok(())
     }
@@ -696,7 +693,7 @@ impl ToolHead {
         self.trapq.borrow_mut().set_position(self.print_time.get(), newpos[0], newpos[1], newpos[2]);
         self.commanded_pos.borrow_mut()[..3].copy_from_slice(&newpos[..3]);
         self.kin().set_position(newpos, homing_axes)?;
-        self.printer.send_event("toolhead:set_position", &[])
+        crate::events::ToolheadSetPosition::emit(&self.printer)
     }
 
     pub fn limit_next_junction_speed(&self, speed: f64) {
@@ -739,7 +736,7 @@ impl ToolHead {
             }
         }
         self.move_to(&curpos, speed)?;
-        self.printer.send_event("toolhead:manual_move", &[])
+        crate::events::ToolheadManualMove::emit(&self.printer)
     }
 
     pub fn dwell(&self, delay: f64) -> KResult<()> {
@@ -780,7 +777,7 @@ impl ToolHead {
         self.flush_lookahead(false)?;
         self.extra_axes.borrow_mut().push(ea);
         self.commanded_pos.borrow_mut().push(axis_pos);
-        self.printer.send_event("toolhead:update_extra_axes", &[])
+        crate::events::ToolheadUpdateExtraAxes::emit(&self.printer)
     }
 
     pub fn remove_extra_axis(&self, ea: &ExtraAxisRef) -> KResult<()> {
@@ -789,7 +786,7 @@ impl ToolHead {
         let Some(pos) = pos else { return Ok(()) };
         self.commanded_pos.borrow_mut().remove(pos + 3);
         self.extra_axes.borrow_mut().remove(pos);
-        self.printer.send_event("toolhead:update_extra_axes", &[])
+        crate::events::ToolheadUpdateExtraAxes::emit(&self.printer)
     }
 
     /// [None, None, None] + self.extra_axes

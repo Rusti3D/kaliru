@@ -28,6 +28,7 @@ pub mod clocksync;
 pub mod configfile;
 pub mod configparser;
 pub mod error;
+pub mod events;
 pub mod extras;
 pub mod gcode;
 pub mod greenlet;

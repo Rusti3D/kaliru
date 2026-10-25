@@ -45,13 +45,10 @@ impl PauseResume {
             pause_command_sent: Cell::new(false),
         });
         let p = pr.clone();
-        printer.register_event_handler(
-            "klippy:connect",
-            Rc::new(move |_| {
-                *p.v_sd.borrow_mut() = p.printer.lookup_object_opt("virtual_sdcard").and_then(downcast_rc::<VirtualSD>);
-                Ok(())
-            }),
-        );
+        crate::events::KlippyConnect::on(&printer, move || {
+            *p.v_sd.borrow_mut() = p.printer.lookup_object_opt("virtual_sdcard").and_then(downcast_rc::<VirtualSD>);
+            Ok(())
+        });
         type PCmd = fn(&PauseResume, &GCodeCommand) -> KResult<()>;
         let cmds: [(&str, PCmd, &str); 4] = [
             ("PAUSE", PauseResume::cmd_pause, CMD_PAUSE_HELP),

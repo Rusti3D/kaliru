@@ -197,17 +197,17 @@ impl ServerSocket {
         );
         *ss.fd_handle.borrow_mut() = Some(h);
         let s = ss.clone();
-        printer.register_event_handler("klippy:disconnect", Rc::new(move |_| {
+        crate::events::KlippyDisconnect::on(&printer, move || {
             s.handle_disconnect();
             Ok(())
-        }));
+        });
         let s = ss.clone();
-        printer.register_event_handler("klippy:analyze_shutdown", Rc::new(move |_| {
+        crate::events::KlippyAnalyzeShutdown::on(&printer, move |_, _| {
             for client in s.clients.borrow().values() {
                 client.dump_request_log();
             }
             Ok(())
-        }));
+        });
         Ok(ss)
     }
 

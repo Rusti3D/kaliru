@@ -104,7 +104,7 @@ impl PrinterNeoPixel {
         *n.led_helper.borrow_mut() = Some(helper);
         // Register callbacks
         let nn = n.clone();
-        printer.register_event_handler("klippy:connect", Rc::new(move |_| nn.send_data(None)));
+        crate::events::KlippyConnect::on(&printer, move || nn.send_data(None));
         let nn = n.clone();
         printer.register_event_handler(mcu.get_non_critical_reconnect_event_name(), Rc::new(move |_| nn.send_data(None)));
         Ok(n)

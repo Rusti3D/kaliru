@@ -65,16 +65,13 @@ impl IdleTimeout {
         // the ready handler is registered first
         let slot: Rc<RefCell<Option<Rc<IdleTimeout>>>> = Rc::new(RefCell::new(None));
         let s = slot.clone();
-        printer.register_event_handler(
-            "klippy:ready",
-            Rc::new(move |_| {
-                let it = s.borrow().clone();
-                if let Some(it) = it {
-                    it.handle_ready()?;
-                }
-                Ok(())
-            }),
-        );
+        crate::events::KlippyReady::on(&printer, move || {
+            let it = s.borrow().clone();
+            if let Some(it) = it {
+                it.handle_ready()?;
+            }
+            Ok(())
+        });
         let idle_timeout = config.getfloat("timeout", 600.0, Lim::new().min(0))?;
         let gcode_macro = load_gcode_macro(config)?;
         let idle_gcode = gcode_macro.load_template(config, "gcode", Some(DEFAULT_IDLE_GCODE))?;
@@ -112,14 +109,10 @@ impl IdleTimeout {
         );
         *self.timeout_timer.borrow_mut() = Some(timer);
         let i = self.clone();
-        self.printer.register_event_handler(
-            "toolhead:sync_print_time",
-            Rc::new(move |args| {
-                let f = |n: usize| args.get(n).and_then(|a| a.downcast_ref::<f64>()).copied().unwrap_or(0.0);
-                i.handle_sync_print_time(f(0), f(1), f(2));
-                Ok(())
-            }),
-        );
+        crate::events::ToolheadSyncPrintTime::on(&self.printer, move |curtime, est_print_time, print_time| {
+            i.handle_sync_print_time(curtime, est_print_time, print_time);
+            Ok(())
+        });
         Ok(())
     }
 
@@ -143,7 +136,7 @@ impl IdleTimeout {
             }
         };
         *self.state.borrow_mut() = "Idle";
-        if let Err(e) = self.printer.send_event("idle_timeout:idle", &[&print_time]) {
+        if let Err(e) = crate::events::IdleTimeoutIdle::emit(&self.printer, &print_time) {
             self.printer.unhandled_exception(&e);
         }
         NEVER
@@ -198,7 +191,7 @@ impl IdleTimeout {
         // Transition to "ready" state
         *self.state.borrow_mut() = "Ready";
         let t = est_print_time + PIN_MIN_TIME;
-        if let Err(e) = self.printer.send_event("idle_timeout:ready", &[&t]) {
+        if let Err(e) = crate::events::IdleTimeoutReady::emit(&self.printer, &t) {
             self.printer.unhandled_exception(&e);
         }
         eventtime + self.idle_timeout.get()
@@ -216,7 +209,7 @@ impl IdleTimeout {
             self.reactor.update_timer(t, curtime + check_time);
         }
         let t = est_print_time + PIN_MIN_TIME;
-        if let Err(e) = self.printer.send_event("idle_timeout:printing", &[&t]) {
+        if let Err(e) = crate::events::IdleTimeoutPrinting::emit(&self.printer, &t) {
             self.printer.unhandled_exception(&e);
         }
     }

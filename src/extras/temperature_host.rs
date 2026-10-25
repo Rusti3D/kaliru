@@ -66,7 +66,7 @@ impl TemperatureHost {
         }
 
         let ss = s.clone();
-        printer.register_event_handler("klippy:connect", Rc::new(move |_| ss.handle_connect()));
+        crate::events::KlippyConnect::on(&printer, move || ss.handle_connect());
         Ok(s)
     }
 

@@ -48,13 +48,10 @@ impl PrinterSysStats {
             mem_file: RefCell::new(std::fs::File::open("/proc/meminfo").ok()),
         });
         let sc = s.clone();
-        printer.register_event_handler(
-            "klippy:disconnect",
-            Rc::new(move |_| {
-                *sc.mem_file.borrow_mut() = None;
-                Ok(())
-            }),
-        );
+        crate::events::KlippyDisconnect::on(&printer, move || {
+            *sc.mem_file.borrow_mut() = None;
+            Ok(())
+        });
         s
     }
 
@@ -127,13 +124,10 @@ impl PrinterStats {
         );
         *ps.stats_timer.borrow_mut() = Some(timer);
         let p = ps.clone();
-        printer.register_event_handler(
-            "klippy:ready",
-            Rc::new(move |_| {
-                p.handle_ready();
-                Ok(())
-            }),
-        );
+        crate::events::KlippyReady::on(&printer, move || {
+            p.handle_ready();
+            Ok(())
+        });
         ps
     }
 

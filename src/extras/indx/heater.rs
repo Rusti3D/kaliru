@@ -607,13 +607,10 @@ impl IndxToolboardHeater {
             None => Ok(()),
         }));
         let w = Rc::downgrade(&h);
-        printer.register_event_handler(
-            "klippy:connect",
-            Rc::new(move |_| match w.upgrade() {
-                Some(h) => h.handle_connect(),
-                None => Ok(()),
-            }),
-        );
+        crate::events::KlippyConnect::on(&printer, move || match w.upgrade() {
+            Some(h) => h.handle_connect(),
+            None => Ok(()),
+        });
 
         let gcode = printer.lookup::<GCodeDispatch>("gcode")?;
         type HCmd = fn(&IndxToolboardHeater, &GCodeCommand) -> KResult<()>;

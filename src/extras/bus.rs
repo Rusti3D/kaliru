@@ -302,16 +302,13 @@ impl McuI2c {
         mcu.register_config_callback(Rc::new(move || ss.build_config()));
         let printer = mcu.get_printer();
         let ss = s.clone();
-        printer.register_event_handler(
-            "klippy:connect",
-            Rc::new(move |_| {
-                let to_write = ss.to_write.borrow().clone();
-                for data in to_write {
-                    ss.i2c_write(&data, 0, 0)?;
-                }
-                Ok(())
-            }),
-        );
+        crate::events::KlippyConnect::on(&printer, move || {
+            let to_write = ss.to_write.borrow().clone();
+            for data in to_write {
+                ss.i2c_write(&data, 0, 0)?;
+            }
+            Ok(())
+        });
         s
     }
 

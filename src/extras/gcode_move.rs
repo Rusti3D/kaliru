@@ -149,28 +149,22 @@ impl GCodeMove {
             let g = gm.clone();
             printer.register_event_handler(event, Rc::new(move |_| f(&g)));
         };
-        on("klippy:ready", GCodeMove::handle_ready);
-        on("klippy:shutdown", |g| {
+        on(crate::events::KlippyReady::NAME, GCodeMove::handle_ready);
+        on(crate::events::KlippyShutdown::NAME, |g| {
             g.is_printer_ready.set(false);
             Ok(())
         });
-        on("klippy:analyze_shutdown", |g| {
+        on(crate::events::KlippyAnalyzeShutdown::NAME, |g| {
             g.handle_analyze_shutdown();
             Ok(())
         });
-        on("toolhead:set_position", GCodeMove::reset_last_position);
-        on("toolhead:manual_move", GCodeMove::reset_last_position);
-        on("toolhead:update_extra_axes", GCodeMove::update_extra_axes);
-        on("gcode:command_error", GCodeMove::reset_last_position);
-        on("extruder:activate_extruder", GCodeMove::handle_activate_extruder);
+        on(crate::events::ToolheadSetPosition::NAME, GCodeMove::reset_last_position);
+        on(crate::events::ToolheadManualMove::NAME, GCodeMove::reset_last_position);
+        on(crate::events::ToolheadUpdateExtraAxes::NAME, GCodeMove::update_extra_axes);
+        on(crate::events::GcodeCommandError::NAME, GCodeMove::reset_last_position);
+        on(crate::events::ExtruderActivateExtruder::NAME, GCodeMove::handle_activate_extruder);
         let g = gm.clone();
-        printer.register_event_handler(
-            "homing:home_rails_end",
-            Rc::new(move |args| {
-                let homing_state = args.first().and_then(|a| a.downcast_ref::<Rc<Homing>>()).cloned();
-                g.handle_home_rails_end(homing_state.as_ref())
-            }),
-        );
+        crate::events::HomingHomeRailsEnd::on(&printer, move |homing_state, _rails| g.handle_home_rails_end(Some(&homing_state)));
         Ok(gm)
     }
 

@@ -218,7 +218,7 @@ impl BedMesh {
             status: RefCell::new(PyVal::dict()),
         });
         let b = bm.clone();
-        printer.register_event_handler("klippy:connect", Rc::new(move |_| b.handle_connect()));
+        crate::events::KlippyConnect::on(&printer, move || b.handle_connect());
         *bm.bmc.borrow_mut() = Some(BedMeshCalibrate::new(config, &bm)?);
         bm.horizontal_move_z.set(config.getfloat("horizontal_move_z", 5.0, Lim::new())?);
         let mut fade_start = config.getfloat("fade_start", 1.0, Lim::new())?;

@@ -11,7 +11,6 @@ use crate::printer::{PObj, Printer, PrinterObject};
 use crate::pyfmt::py_float_repr;
 use crate::pyval::PyVal;
 use indexmap::IndexMap;
-use std::any::Any;
 use std::cell::RefCell;
 use std::rc::Rc;
 
@@ -113,23 +112,15 @@ impl PrinterMcuError {
         let printer = config.get_printer();
         let me = Rc::new(PrinterMcuError { printer: printer.clone(), clarify_callbacks: RefCell::new(IndexMap::new()) });
         let m = me.clone();
-        printer.register_event_handler(
-            "klippy:analyze_shutdown",
-            Rc::new(move |args| {
-                let (msg, details) = event_args(args);
-                m.handle_analyze_shutdown(&msg, &details);
-                Ok(())
-            }),
-        );
+        crate::events::KlippyAnalyzeShutdown::on(&printer, move |msg, details| {
+            m.handle_analyze_shutdown(&msg, &details);
+            Ok(())
+        });
         let m = me.clone();
-        printer.register_event_handler(
-            "klippy:notify_mcu_error",
-            Rc::new(move |args| {
-                let (msg, details) = event_args(args);
-                m.handle_notify_mcu_error(&msg, &details);
-                Ok(())
-            }),
-        );
+        crate::events::KlippyNotifyMcuError::on(&printer, move |msg, details| {
+            m.handle_notify_mcu_error(&msg, &details);
+            Ok(())
+        });
         me
     }
 
@@ -231,14 +222,6 @@ impl PrinterMcuError {
             self.check_mcu_connect_error(msg, details);
         }
     }
-}
-
-/// the (msg, details) arguments of the shutdown / mcu error events
-/// the (msg, details) arguments of the analyze_shutdown / notify_mcu_error events
-pub fn event_args(args: &[&dyn Any]) -> (String, PyVal) {
-    let msg = args.first().and_then(|a| a.downcast_ref::<String>()).cloned().unwrap_or_default();
-    let details = args.get(1).and_then(|a| a.downcast_ref::<PyVal>()).cloned().unwrap_or(PyVal::None);
-    (msg, details)
 }
 
 impl PrinterObject for PrinterMcuError {

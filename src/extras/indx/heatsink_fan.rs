@@ -53,23 +53,17 @@ impl IndxHeatsinkFan {
         printer.add_object(&format!("heater_fan {}_heatsink", toolboard_name), f.clone())?;
 
         let w = Rc::downgrade(&f);
-        printer.register_event_handler(
-            "klippy:ready",
-            Rc::new(move |_| match w.upgrade() {
-                Some(f) => f.handle_ready(),
-                None => Ok(()),
-            }),
-        );
+        crate::events::KlippyReady::on(&printer, move || match w.upgrade() {
+            Some(f) => f.handle_ready(),
+            None => Ok(()),
+        });
         let w = Rc::downgrade(&f);
-        printer.register_event_handler(
-            "klippy:shutdown",
-            Rc::new(move |_| {
-                if let Some(f) = w.upgrade() {
-                    f.handle_shutdown();
-                }
-                Ok(())
-            }),
-        );
+        crate::events::KlippyShutdown::on(&printer, move || {
+            if let Some(f) = w.upgrade() {
+                f.handle_shutdown();
+            }
+            Ok(())
+        });
         Ok(f)
     }
 

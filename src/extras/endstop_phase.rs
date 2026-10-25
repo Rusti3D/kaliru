@@ -6,7 +6,7 @@
 // This file may be distributed under the terms of the GNU GPLv3 license.
 use crate::configfile::{ConfigWrapper, Dflt, Lim};
 use crate::error::{KError, KResult};
-use crate::extras::homing::{rails_arg, Homing};
+use crate::extras::homing::Homing;
 use crate::extras::tmc::TmcDriver;
 use crate::gcode::{GCodeCommand, GCodeDispatch};
 use crate::logging;
@@ -116,25 +116,16 @@ impl EndstopPhase {
         let phase_calc = PhaseCalc::new(&printer, &name, Some(phases));
         // Register event handlers
         let pc = phase_calc.clone();
-        printer.register_event_handler(
-            "klippy:connect",
-            Rc::new(move |_| {
-                pc.lookup_tmc();
-                Ok(())
-            }),
-        );
+        crate::events::KlippyConnect::on(&printer, move || {
+            pc.lookup_tmc();
+            Ok(())
+        });
         let slot: Rc<RefCell<std::rc::Weak<EndstopPhase>>> = Rc::new(RefCell::new(std::rc::Weak::new()));
         let s = slot.clone();
-        printer.register_event_handler(
-            "homing:home_rails_end",
-            Rc::new(move |args| match s.borrow().upgrade() {
-                Some(e) => {
-                    let (homing_state, rails) = rails_arg(args);
-                    e.handle_home_rails_end(&homing_state, &rails)
-                }
-                None => Ok(()),
-            }),
-        );
+        crate::events::HomingHomeRailsEnd::on(&printer, move |homing_state, rails| match s.borrow().upgrade() {
+            Some(e) => e.handle_home_rails_end(&homing_state, &rails),
+            None => Ok(()),
+        });
         printer.load_object(config, "endstop_phase", true)?;
         // Read config
         let mut endstop_phase = None;
@@ -237,16 +228,10 @@ impl EndstopPhases {
         let e = Rc::new(EndstopPhases { printer: printer.clone(), tracking: RefCell::new(IndexMap::new()), gcode: gcode.clone() });
         // Register handlers
         let ee = Rc::downgrade(&e);
-        printer.register_event_handler(
-            "homing:home_rails_end",
-            Rc::new(move |args| match ee.upgrade() {
-                Some(e) => {
-                    let (homing_state, rails) = rails_arg(args);
-                    e.handle_home_rails_end(&homing_state, &rails)
-                }
-                None => Ok(()),
-            }),
-        );
+        crate::events::HomingHomeRailsEnd::on(&printer, move |homing_state, rails| match ee.upgrade() {
+            Some(e) => e.handle_home_rails_end(&homing_state, &rails),
+            None => Ok(()),
+        });
         let ee = Rc::downgrade(&e);
         gcode.register_command(
             "ENDSTOP_PHASE_CALIBRATE",

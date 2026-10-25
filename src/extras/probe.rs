@@ -7,7 +7,7 @@ use crate::configfile::{ConfigWrapper, Dflt, Lim, ListParser};
 use crate::error::{KError, KResult};
 use crate::extras::gcode_macro::{load_gcode_macro, Template};
 use crate::extras::gcode_move::GCodeMove;
-use crate::extras::homing::{Homing, HomingMove, PrinterHoming};
+use crate::extras::homing::{HomingMove, PrinterHoming};
 use crate::extras::manual_probe::{verify_no_manual_probe, ManualProbeHelper};
 use crate::gcode::{GCodeCommand, GCodeDispatch};
 use crate::jinja::value::Value;
@@ -402,13 +402,10 @@ impl ProbeList {
     fn new(printer: &Rc<Printer>) -> KResult<Rc<Self>> {
         let pl = Rc::new(ProbeList { printer: printer.clone(), probes: RefCell::new(IndexMap::new()), default_probe: RefCell::new(None) });
         let p = pl.clone();
-        printer.register_event_handler(
-            "klippy:connect",
-            Rc::new(move |_| {
-                p.handle_connect();
-                Ok(())
-            }),
-        );
+        crate::events::KlippyConnect::on(&printer, move || {
+            p.handle_connect();
+            Ok(())
+        });
         let gcode = printer.lookup::<GCodeDispatch>("gcode")?;
         let p = pl.clone();
         gcode.register_command("LIST_PROBES", Some(Rc::new(move |gcmd| p.cmd_list_probes(gcmd))), false, Some("List all registered probes"))?;
@@ -651,57 +648,40 @@ impl PrinterProbe {
         probe_list_get_list(&printer)?.add_probe_object(&probe_name, is_default_probe, probe.clone(), config)?;
         // Register homing event handlers
         let p = probe.clone();
-        printer.register_event_handler(
-            "homing:homing_move_begin",
-            Rc::new(move |args| {
-                let hmove = args[0].downcast_ref::<Rc<HomingMove>>().expect("hmove");
-                if hmove.get_mcu_endstops().iter().any(|e| same_endstop(e, &p.endstop())) {
-                    p.mcu_probe.probe_prepare(hmove)?;
-                }
-                Ok(())
-            }),
-        );
+        crate::events::HomingMoveBegin::on(&printer, move |hmove| {
+            if hmove.get_mcu_endstops().iter().any(|e| same_endstop(e, &p.endstop())) {
+                p.mcu_probe.probe_prepare(&hmove)?;
+            }
+            Ok(())
+        });
         let p = probe.clone();
-        printer.register_event_handler(
-            "homing:homing_move_end",
-            Rc::new(move |args| {
-                let hmove = args[0].downcast_ref::<Rc<HomingMove>>().expect("hmove");
-                if hmove.get_mcu_endstops().iter().any(|e| same_endstop(e, &p.endstop())) {
-                    p.mcu_probe.probe_finish(hmove)?;
-                }
-                Ok(())
-            }),
-        );
+        crate::events::HomingMoveEnd::on(&printer, move |hmove| {
+            if hmove.get_mcu_endstops().iter().any(|e| same_endstop(e, &p.endstop())) {
+                p.mcu_probe.probe_finish(&hmove)?;
+            }
+            Ok(())
+        });
         let p = probe.clone();
-        printer.register_event_handler(
-            "homing:home_rails_begin",
-            Rc::new(move |args| {
-                if p.rails_use_probe(args) {
-                    p.multi_probe_begin(true)?;
-                }
-                Ok(())
-            }),
-        );
+        crate::events::HomingHomeRailsBegin::on(&printer, move |_homing_state, rails| {
+            if p.rails_use_probe(&rails) {
+                p.multi_probe_begin(true)?;
+            }
+            Ok(())
+        });
         let p = probe.clone();
-        printer.register_event_handler(
-            "homing:home_rails_end",
-            Rc::new(move |args| {
-                if p.rails_use_probe(args) {
-                    p.multi_probe_end()?;
-                }
-                Ok(())
-            }),
-        );
+        crate::events::HomingHomeRailsEnd::on(&printer, move |_homing_state, rails| {
+            if p.rails_use_probe(&rails) {
+                p.multi_probe_end()?;
+            }
+            Ok(())
+        });
         let p = probe.clone();
-        printer.register_event_handler(
-            "gcode:command_error",
-            Rc::new(move |_| {
-                if let Err(e) = p.multi_probe_end() {
-                    logging::exception_err("Multi-probe end", &e);
-                }
-                Ok(())
-            }),
-        );
+        crate::events::GcodeCommandError::on(&printer, move || {
+            if let Err(e) = p.multi_probe_end() {
+                logging::exception_err("Multi-probe end", &e);
+            }
+            Ok(())
+        });
         // Register PROBE/QUERY_PROBE commands
         probe.register_commands(Some(&probe_name))?;
         if is_default_probe {
@@ -720,9 +700,7 @@ impl PrinterProbe {
 
     /// the home_rails_begin / _end arguments (homing_state, rails) include
     /// a rail with this probe as endstop
-    fn rails_use_probe(&self, args: &[&dyn Any]) -> bool {
-        let _homing_state = args[0].downcast_ref::<Rc<Homing>>();
-        let rails = args[1].downcast_ref::<Vec<RailRef>>().expect("rails");
+    fn rails_use_probe(&self, rails: &[RailRef]) -> bool {
         let me = self.endstop();
         rails.iter().flat_map(|r| r.get_endstops()).any(|(es, _)| same_endstop(&es, &me))
     }
@@ -1151,7 +1129,7 @@ impl ProbeEndstopWrapper {
             multi: Cell::new(Multi::Off),
         });
         let ww = w.clone();
-        printer.register_event_handler("klippy:mcu_identify", Rc::new(move |_| ww.handle_mcu_identify()));
+        crate::events::KlippyMcuIdentify::on(&printer, move || ww.handle_mcu_identify());
         Ok(w)
     }
 

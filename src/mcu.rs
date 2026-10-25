@@ -281,13 +281,10 @@ impl McuTrsync {
         let tc = t.clone();
         mcu.register_config_callback(Rc::new(move || tc.build_config()));
         let tc = t.clone();
-        mcu.get_printer().register_event_handler(
-            "klippy:shutdown",
-            Rc::new(move |_| {
-                tc.shutdown();
-                Ok(())
-            }),
-        );
+        crate::events::KlippyShutdown::on(&mcu.get_printer(), move || {
+            tc.shutdown();
+            Ok(())
+        });
         t
     }
 
@@ -1348,7 +1345,7 @@ impl Mcu {
             reconnect_interval: Cell::new(0.0),
         });
         // Check for disconnected non-critical mcus before the helpers
-        on_event(&printer, "klippy:mcu_identify", &mcu, |m| m.mcu_identify().map(|_| ()));
+        on_event(&printer, crate::events::KlippyMcuIdentify::NAME, &mcu, |m| m.mcu_identify().map(|_| ()));
         // Low-level connection and helpers
         mcu.conn_init(config)?;
         mcu.cfg_init()?;
@@ -1562,13 +1559,10 @@ impl Mcu {
         self.restart_init(config)?;
         on_event(&self.printer, "klippy:shutdown", self, |m| m.conn_shutdown(false));
         let m = self.clone();
-        self.printer.register_event_handler(
-            "klippy:analyze_shutdown",
-            Rc::new(move |_| {
-                m.conn_analyze_shutdown();
-                Ok(())
-            }),
-        );
+        crate::events::KlippyAnalyzeShutdown::on(&self.printer, move |_, _| {
+            m.conn_analyze_shutdown();
+            Ok(())
+        });
         Ok(())
     }
 

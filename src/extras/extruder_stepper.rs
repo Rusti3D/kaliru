@@ -23,7 +23,7 @@ impl PrinterExtruderStepper {
         let extruder_name = config.get("extruder", Dflt::Required)?;
         let pes = Rc::new(PrinterExtruderStepper { extruder_stepper, extruder_name });
         let p = pes.clone();
-        printer.register_event_handler("klippy:connect", Rc::new(move |_| p.extruder_stepper.sync_to_extruder(&p.extruder_name)));
+        crate::events::KlippyConnect::on(&printer, move || p.extruder_stepper.sync_to_extruder(&p.extruder_name));
         Ok(pes)
     }
 

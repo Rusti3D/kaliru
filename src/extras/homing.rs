@@ -236,7 +236,7 @@ impl HomingMove {
         check_triggered: bool,
     ) -> KResult<Vec<f64>> {
         // Notify start of homing/probing move
-        self.printer.send_event("homing:homing_move_begin", &[self])?;
+        crate::events::HomingMoveBegin::emit(&self.printer, self)?;
         // Note start location
         self.toolhead.flush_step_generation()?;
         let kin_spos = self.kin_spos();
@@ -344,7 +344,7 @@ impl HomingMove {
             self.toolhead.set_position(&haltpos, "")?;
         }
         // Signal homing/probing move complete
-        match self.printer.send_event("homing:homing_move_end", &[self]) {
+        match crate::events::HomingMoveEnd::emit(&self.printer, self) {
             Err(e) if e.is_command_error() => {
                 if error.is_none() {
                     error = Some(e.to_string());
@@ -385,13 +385,6 @@ impl HomingMove {
 /// python dict == for the step maps (same keys and values, any order)
 fn dict_eq(a: &IndexMap<String, i64>, b: &IndexMap<String, i64>) -> bool {
     a.len() == b.len() && a.iter().all(|(k, v)| b.get(k) == Some(v))
-}
-
-/// the (homing_state, rails) arguments of the homing:home_rails_* events
-pub fn rails_arg(args: &[&dyn std::any::Any]) -> (Rc<Homing>, Vec<RailRef>) {
-    let homing_state = args[0].downcast_ref::<Rc<Homing>>().expect("homing state").clone();
-    let rails = args[1].downcast_ref::<Vec<RailRef>>().expect("rails").clone();
-    (homing_state, rails)
 }
 
 // State tracking of homing requests
@@ -552,7 +545,7 @@ impl Homing {
     pub fn home_rails(self: &Rc<Self>, rails: &[RailRef], forcepos: &[Option<f64>], movepos: &[Option<f64>]) -> KResult<()> {
         // Notify of upcoming homing operation
         let rails_v = rails.to_vec();
-        self.printer.send_event("homing:home_rails_begin", &[self, &rails_v])?;
+        crate::events::HomingHomeRailsBegin::emit(&self.printer, self, &rails_v)?;
         // Alter kinematics class to think printer is at forcepos
         let force_axes: Vec<usize> = (0..3).filter(|&axis| forcepos[axis].is_some()).collect();
         let homing_axes: String = force_axes.iter().map(|&i| ['x', 'y', 'z'][i]).collect();
@@ -620,7 +613,7 @@ impl Homing {
         *self.trigger_mcu_pos.borrow_mut() =
             hmove.stepper_positions.borrow().iter().map(|sp| (sp.stepper_name.clone(), sp.trig())).collect();
         self.adjust_pos.borrow_mut().clear();
-        self.printer.send_event("homing:home_rails_end", &[self, &rails_v])?;
+        crate::events::HomingHomeRailsEnd::emit(&self.printer, self, &rails_v)?;
         if self.adjust_pos.borrow().values().any(|v| *v != 0.0) {
             // Apply any homing offsets
             let kin = self.toolhead.get_kinematics();

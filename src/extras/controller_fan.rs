@@ -39,23 +39,17 @@ impl ControllerFan {
         // klippy:ready and klippy:connect are registered before Fan() registers its handlers
         let slot: Rc<RefCell<Weak<ControllerFan>>> = Rc::new(RefCell::new(Weak::new()));
         let sl = slot.clone();
-        printer.register_event_handler(
-            "klippy:ready",
-            Rc::new(move |_| {
-                if let Some(cf) = sl.borrow().upgrade() {
-                    cf.handle_ready();
-                }
-                Ok(())
-            }),
-        );
+        crate::events::KlippyReady::on(&printer, move || {
+            if let Some(cf) = sl.borrow().upgrade() {
+                cf.handle_ready();
+            }
+            Ok(())
+        });
         let sl = slot.clone();
-        printer.register_event_handler(
-            "klippy:connect",
-            Rc::new(move |_| match sl.borrow().upgrade() {
-                Some(cf) => cf.handle_connect(),
-                None => Ok(()),
-            }),
-        );
+        crate::events::KlippyConnect::on(&printer, move || match sl.borrow().upgrade() {
+            Some(cf) => cf.handle_connect(),
+            None => Ok(()),
+        });
         let stepper_names = config.getlist("stepper", Dflt::None, ",", None)?;
         let stepper_enable = printer.load_as::<PrinterStepperEnable>(config, "stepper_enable")?;
         load_heaters(config)?;

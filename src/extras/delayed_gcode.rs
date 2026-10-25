@@ -48,15 +48,12 @@ impl DelayedGcode {
             repeat: Cell::new(false),
         });
         let w = d.me.clone();
-        printer.register_event_handler(
-            "klippy:ready",
-            Rc::new(move |_| {
-                if let Some(d) = w.upgrade() {
-                    d.handle_ready();
-                }
-                Ok(())
-            }),
-        );
+        crate::events::KlippyReady::on(&printer, move || {
+            if let Some(d) = w.upgrade() {
+                d.handle_ready();
+            }
+            Ok(())
+        });
         let w = d.me.clone();
         gcode.register_mux_command(
             "UPDATE_DELAYED_GCODE",

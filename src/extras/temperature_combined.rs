@@ -101,15 +101,12 @@ impl PrinterSensorCombined {
         );
         *s.temperature_update_timer.borrow_mut() = Some(timer);
         let ss = s.clone();
-        printer.register_event_handler("klippy:connect", Rc::new(move |_| ss.handle_connect()));
+        crate::events::KlippyConnect::on(&printer, move || ss.handle_connect());
         let ss = s.clone();
-        printer.register_event_handler(
-            "klippy:ready",
-            Rc::new(move |_| {
-                ss.handle_ready();
-                Ok(())
-            }),
-        );
+        crate::events::KlippyReady::on(&printer, move || {
+            ss.handle_ready();
+            Ok(())
+        });
         Ok(s)
     }
 

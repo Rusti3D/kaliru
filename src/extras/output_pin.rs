@@ -75,15 +75,12 @@ impl GCodeRequestQueue {
             false,
         );
         let w = Rc::downgrade(&q);
-        printer.register_event_handler(
-            "klippy:connect",
-            Rc::new(move |_| {
-                if let Some(q) = w.upgrade() {
-                    *q.toolhead.borrow_mut() = Some(q.printer.lookup::<ToolHead>("toolhead")?);
-                }
-                Ok(())
-            }),
-        );
+        crate::events::KlippyConnect::on(&printer, move || {
+            if let Some(q) = w.upgrade() {
+                *q.toolhead.borrow_mut() = Some(q.printer.lookup::<ToolHead>("toolhead")?);
+            }
+            Ok(())
+        });
         Ok(q)
     }
 

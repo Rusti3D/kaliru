@@ -112,15 +112,9 @@ impl Fan {
 
         // Register callbacks
         let f = fan.clone();
-        printer.register_event_handler(
-            "gcode:request_restart",
-            Rc::new(move |args| {
-                let print_time = args.first().and_then(|a| a.downcast_ref::<f64>()).copied();
-                f.set_speed(0.0, print_time)
-            }),
-        );
+        crate::events::GcodeRequestRestart::on(&printer, move |print_time| f.set_speed(0.0, Some(print_time)));
         let f = fan.clone();
-        printer.register_event_handler("klippy:ready", Rc::new(move |_| f.handle_ready()));
+        crate::events::KlippyReady::on(&printer, move || f.handle_ready());
         Ok(fan)
     }
 

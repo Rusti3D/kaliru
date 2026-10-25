@@ -87,15 +87,12 @@ impl ExcludeObject {
         }
 
         let e = eo.clone();
-        printer.register_event_handler(
-            "klippy:connect",
-            Rc::new(move |_| {
-                *e.toolhead.borrow_mut() = Some(e.printer.lookup::<ToolHead>("toolhead")?);
-                Ok(())
-            }),
-        );
+        crate::events::KlippyConnect::on(&printer, move || {
+            *e.toolhead.borrow_mut() = Some(e.printer.lookup::<ToolHead>("toolhead")?);
+            Ok(())
+        });
         let e = eo.clone();
-        printer.register_event_handler("virtual_sdcard:reset_file", Rc::new(move |_| e.reset_file()));
+        crate::events::VirtualSdcardResetFile::on(&printer, move || e.reset_file());
         {
             let mut st = eo.st.borrow_mut();
             st.last_position_extruded = vec![0.0; 4];

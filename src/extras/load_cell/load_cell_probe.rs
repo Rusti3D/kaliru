@@ -569,7 +569,7 @@ impl McuLoadCellProbe {
         mcu.register_config_callback(Rc::new(move || pp.build_config()));
         // the sensor data stream is connected on the MCU at the ready event
         let s = sensor.clone();
-        printer.register_event_handler("klippy:connect", Rc::new(move |_| s.attach_load_cell_probe(oid)));
+        crate::events::KlippyConnect::on(&printer, move || s.attach_load_cell_probe(oid));
         Ok(p)
     }
 
@@ -1062,7 +1062,7 @@ impl LoadCellPrinterProbe {
         });
         // Register for MCU identification to add Z steppers
         let w = wrapper.clone();
-        printer.register_event_handler("klippy:mcu_identify", Rc::new(move |_| w.handle_mcu_identify()));
+        crate::events::KlippyMcuIdentify::on(&printer, move || w.handle_mcu_identify());
         PrinterProbe::new(config, wrapper)?;
         Ok(Rc::new(LoadCellPrinterProbe { tapping_move }))
     }

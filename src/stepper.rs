@@ -133,7 +133,7 @@ impl McuStepper {
         let sc = s.clone();
         mcu.register_config_callback(Rc::new(move || sc.build_config()));
         let sc = s.clone();
-        printer.register_event_handler("klippy:connect", Rc::new(move |_| sc.query_mcu_position()));
+        crate::events::KlippyConnect::on(&printer, move || sc.query_mcu_position());
         Ok(s)
     }
 
@@ -286,7 +286,7 @@ impl McuStepper {
             sc.borrow_mut().set_invert_sdir(invert_dir as u32);
         }
         let me = self.rc();
-        self.printer.send_event("stepper:set_dir_inverted", &[&me])
+        crate::events::StepperSetDirInverted::emit(&self.printer, &me)
     }
 
     fn sk(&self) -> SkRef {
@@ -400,7 +400,7 @@ impl McuStepper {
         }
         self.set_mcu_position(last_pos);
         let me = self.rc();
-        self.printer.send_event("stepper:sync_mcu_position", &[&me])
+        crate::events::StepperSyncMcuPosition::emit(&self.printer, &me)
     }
 
     pub fn get_trapq(&self) -> Option<TrapQRef> {

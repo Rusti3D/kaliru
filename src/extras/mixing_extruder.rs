@@ -120,13 +120,10 @@ impl MixingExtruder {
         // class registered its handlers and command
         let slot: Rc<RefCell<Weak<MixingExtruder>>> = Rc::new(RefCell::new(Weak::new()));
         let sl = slot.clone();
-        printer.register_event_handler(
-            "klippy:connect",
-            Rc::new(move |_| match sl.borrow().upgrade() {
-                Some(m) => m.handle_connect(),
-                None => Ok(()),
-            }),
-        );
+        crate::events::KlippyConnect::on(&printer, move || match sl.borrow().upgrade() {
+            Some(m) => m.handle_connect(),
+            None => Ok(()),
+        });
         // Register commands
         let sl = slot.clone();
         gcode.register_command(

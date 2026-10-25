@@ -54,7 +54,7 @@ impl MpcTempWrapper {
             echo_limits_to_console,
         });
         let ww = w.clone();
-        printer.register_event_handler("klippy:ready", Rc::new(move |_| ww.handle_ready()));
+        crate::events::KlippyReady::on(&printer, move || ww.handle_ready());
         Ok(w)
     }
 

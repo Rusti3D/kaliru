@@ -81,13 +81,10 @@ impl FirmwareRetraction {
             maximum_z: Cell::new(0.0),
         });
         let w = fr.me.clone();
-        printer.register_event_handler(
-            "klippy:ready",
-            Rc::new(move |_| match w.upgrade() {
-                Some(f) => f.handle_ready(),
-                None => Ok(()),
-            }),
-        );
+        crate::events::KlippyReady::on(&printer, move || match w.upgrade() {
+            Some(f) => f.handle_ready(),
+            None => Ok(()),
+        });
         // Register new G-code commands for setting/retrieving retraction
         // parameters as well as clearing retraction state
         let gcode = printer.lookup::<GCodeDispatch>("gcode")?;
@@ -156,7 +153,7 @@ impl FirmwareRetraction {
         // Register Events to clear retraction when a new print is started, an
         // ongoing print is canceled or a print is finished
         // GCode streaming mode (most commonly done via OctoPrint)
-        for ev in ["homing:homing_move_begin", "stepper_enable:motor_off"] {
+        for ev in [crate::events::HomingMoveBegin::NAME, crate::events::StepperEnableMotorOff::NAME] {
             let w = self.me.clone();
             self.printer.register_event_handler(
                 ev,

@@ -83,21 +83,15 @@ impl BLTouchEndstopWrapper {
         // klippy:connect / klippy:mcu_identify are registered first
         let slot: Rc<RefCell<Weak<BLTouchEndstopWrapper>>> = Rc::new(RefCell::new(Weak::new()));
         let sl = slot.clone();
-        printer.register_event_handler(
-            "klippy:connect",
-            Rc::new(move |_| match sl.borrow().upgrade() {
-                Some(b) => b.handle_connect(),
-                None => Ok(()),
-            }),
-        );
+        crate::events::KlippyConnect::on(&printer, move || match sl.borrow().upgrade() {
+            Some(b) => b.handle_connect(),
+            None => Ok(()),
+        });
         let sl = slot.clone();
-        printer.register_event_handler(
-            "klippy:mcu_identify",
-            Rc::new(move |_| match sl.borrow().upgrade() {
-                Some(b) => b.handle_mcu_identify(),
-                None => Ok(()),
-            }),
-        );
+        crate::events::KlippyMcuIdentify::on(&printer, move || match sl.borrow().upgrade() {
+            Some(b) => b.handle_mcu_identify(),
+            None => Ok(()),
+        });
         let position_endstop = config.getfloat("z_offset", Dflt::Required, Lim::new().min(0.0))?;
         let stow_on_each_sample = config.getboolean("stow_on_each_sample", true)?;
         let probe_touch_mode = config.getboolean("probe_with_touch_mode", false)?;

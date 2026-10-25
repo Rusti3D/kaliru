@@ -118,13 +118,10 @@ impl RunoutHelper {
         });
         // Register commands and event handlers
         let r = rh.clone();
-        printer.register_event_handler(
-            "klippy:ready",
-            Rc::new(move |_| {
-                r.min_event_systime.set(r.reactor.monotonic() + 2.0);
-                Ok(())
-            }),
-        );
+        crate::events::KlippyReady::on(&printer, move || {
+            r.min_event_systime.set(r.reactor.monotonic() + 2.0);
+            Ok(())
+        });
         let r = rh.clone();
         gcode.register_mux_command(
             "QUERY_FILAMENT_SENSOR",
@@ -427,23 +424,17 @@ impl SwitchSensor {
         let ds: Rc<dyn DefinedSensor> = s.clone();
         runout_helper.set_defined_sensor(Rc::downgrade(&ds));
         let ss = s.clone();
-        printer.register_event_handler(
-            "klippy:ready",
-            Rc::new(move |_| {
-                *ss.mcu.borrow_mut() = Some(ss.printer.lookup::<Mcu>("mcu")?);
-                Ok(())
-            }),
-        );
+        crate::events::KlippyReady::on(&printer, move || {
+            *ss.mcu.borrow_mut() = Some(ss.printer.lookup::<Mcu>("mcu")?);
+            Ok(())
+        });
         let ss = s.clone();
-        printer.register_event_handler(
-            "idle_timeout:printing",
-            Rc::new(move |_| {
-                if ss.check_on_print_start.get() {
-                    ss.runout_helper.note_filament_present(ss.reactor.monotonic(), None, true, true)?;
-                }
-                Ok(())
-            }),
-        );
+        crate::events::IdleTimeoutPrinting::on(&printer, move |_| {
+            if ss.check_on_print_start.get() {
+                ss.runout_helper.note_filament_present(ss.reactor.monotonic(), None, true, true)?;
+            }
+            Ok(())
+        });
         Ok(s)
     }
 

@@ -71,13 +71,10 @@ impl PrinterSkew {
         });
         s.load_storage(config)?;
         let w = s.me.clone();
-        printer.register_event_handler(
-            "klippy:connect",
-            Rc::new(move |_| match w.upgrade() {
-                Some(s) => s.handle_connect(),
-                None => Ok(()),
-            }),
-        );
+        crate::events::KlippyConnect::on(&printer, move || match w.upgrade() {
+            Some(s) => s.handle_connect(),
+            None => Ok(()),
+        });
         let gcode = printer.lookup::<GCodeDispatch>("gcode")?;
         type SCmd = fn(&PrinterSkew, &GCodeCommand) -> KResult<()>;
         let cmds: [(&str, SCmd, &str); 4] = [

@@ -903,20 +903,14 @@ impl TMCCommandHelper {
             record_helper,
         });
         // Register callbacks
-        for ev in ["stepper:sync_mcu_position", "stepper:set_dir_inverted"] {
-            let c = ch.clone();
-            printer.register_event_handler(
-                ev,
-                Rc::new(move |args| {
-                    let stepper = args[0].downcast_ref::<Rc<McuStepper>>().expect("stepper").clone();
-                    c.handle_sync_mcu_pos(&stepper)
-                }),
-            );
-        }
         let c = ch.clone();
-        printer.register_event_handler("klippy:mcu_identify", Rc::new(move |_| c.handle_mcu_identify()));
+        crate::events::StepperSyncMcuPosition::on(&printer, move |stepper| c.handle_sync_mcu_pos(&stepper));
         let c = ch.clone();
-        printer.register_event_handler("klippy:connect", Rc::new(move |_| c.handle_connect()));
+        crate::events::StepperSetDirInverted::on(&printer, move |stepper| c.handle_sync_mcu_pos(&stepper));
+        let c = ch.clone();
+        crate::events::KlippyMcuIdentify::on(&printer, move || c.handle_mcu_identify());
+        let c = ch.clone();
+        crate::events::KlippyConnect::on(&printer, move || c.handle_connect());
         // Register commands
         let gcode = printer.lookup::<GCodeDispatch>("gcode")?;
         type TCmd = fn(&TMCCommandHelper, &GCodeCommand) -> KResult<()>;
@@ -1398,21 +1392,15 @@ impl PinChip for TMCVirtualPinHelper {
         };
         // Setup for sensorless homing
         let w = self.me.clone();
-        self.printer.register_event_handler(
-            "homing:homing_move_begin",
-            Rc::new(move |args| match w.upgrade() {
-                Some(h) => h.handle_homing_move_begin(args[0].downcast_ref::<Rc<HomingMove>>().expect("hmove")),
-                None => Ok(()),
-            }),
-        );
+        crate::events::HomingMoveBegin::on(&self.printer, move |hmove| match w.upgrade() {
+            Some(h) => h.handle_homing_move_begin(&hmove),
+            None => Ok(()),
+        });
         let w = self.me.clone();
-        self.printer.register_event_handler(
-            "homing:homing_move_end",
-            Rc::new(move |args| match w.upgrade() {
-                Some(h) => h.handle_homing_move_end(args[0].downcast_ref::<Rc<HomingMove>>().expect("hmove")),
-                None => Ok(()),
-            }),
-        );
+        crate::events::HomingMoveEnd::on(&self.printer, move |hmove| match w.upgrade() {
+            Some(h) => h.handle_homing_move_end(&hmove),
+            None => Ok(()),
+        });
         let obj = crate::pins::setup_pin(&self.printer, "endstop", &diag_pin).map_err(|e| e.message().to_string())?;
         *self.mcu_endstop.borrow_mut() = any_to_endstop(obj.clone());
         Ok(obj)

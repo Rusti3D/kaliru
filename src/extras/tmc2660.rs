@@ -59,25 +59,19 @@ impl TMC2660CurrentHelper {
         });
         if h.idle_current_percentage < 100 {
             let w = h.me.clone();
-            h.base.printer.register_event_handler(
-                "idle_timeout:printing",
-                Rc::new(move |args| {
-                    if let Some(h) = w.upgrade() {
-                        h.handle_printing(*args[0].downcast_ref::<f64>().expect("print_time"));
-                    }
-                    Ok(())
-                }),
-            );
+            crate::events::IdleTimeoutPrinting::on(&h.base.printer, move |print_time| {
+                if let Some(h) = w.upgrade() {
+                    h.handle_printing(print_time);
+                }
+                Ok(())
+            });
             let w = h.me.clone();
-            h.base.printer.register_event_handler(
-                "idle_timeout:ready",
-                Rc::new(move |args| {
-                    if let Some(h) = w.upgrade() {
-                        h.handle_ready(*args[0].downcast_ref::<f64>().expect("print_time"));
-                    }
-                    Ok(())
-                }),
-            );
+            crate::events::IdleTimeoutReady::on(&h.base.printer, move |print_time| {
+                if let Some(h) = w.upgrade() {
+                    h.handle_ready(print_time);
+                }
+                Ok(())
+            });
         }
         Ok(h)
     }

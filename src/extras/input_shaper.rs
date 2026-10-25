@@ -160,13 +160,10 @@ impl InputShaper {
         // klippy:connect is registered before the shapers read the config
         let slot: Rc<RefCell<std::rc::Weak<InputShaper>>> = Rc::new(RefCell::new(std::rc::Weak::new()));
         let sl = slot.clone();
-        printer.register_event_handler(
-            "klippy:connect",
-            Rc::new(move |_| match sl.borrow().upgrade() {
-                Some(is) => is.connect(),
-                None => Ok(()),
-            }),
-        );
+        crate::events::KlippyConnect::on(&printer, move || match sl.borrow().upgrade() {
+            Some(is) => is.connect(),
+            None => Ok(()),
+        });
         let shapers = vec![AxisInputShaper::new("x", config)?, AxisInputShaper::new("y", config)?];
         let is = Rc::new(InputShaper {
             printer: printer.clone(),

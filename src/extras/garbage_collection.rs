@@ -20,19 +20,13 @@ impl PrinterObject for GarbageCollection {
 
 pub fn load_config(config: &ConfigWrapper) -> KResult<PObj> {
     let printer = config.get_printer();
-    printer.register_event_handler(
-        "klippy:ready",
-        Rc::new(|_| {
-            logging::debug("Running full garbage collection and freezing");
-            Ok(())
-        }),
-    );
-    printer.register_event_handler(
-        "klippy:disconnect",
-        Rc::new(|_| {
-            logging::debug("Unfreezing garbage collection");
-            Ok(())
-        }),
-    );
+    crate::events::KlippyReady::on(&printer, || {
+        logging::debug("Running full garbage collection and freezing");
+        Ok(())
+    });
+    crate::events::KlippyDisconnect::on(&printer, || {
+        logging::debug("Unfreezing garbage collection");
+        Ok(())
+    });
     Ok(Rc::new(GarbageCollection))
 }

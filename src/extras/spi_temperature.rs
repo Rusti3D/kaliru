@@ -85,13 +85,10 @@ impl SensorBase {
             config_reg: config_cmd.unwrap_or_default(),
         });
         let ss = s.clone();
-        printer.register_event_handler(
-            "klippy:connect",
-            Rc::new(move |_| {
-                ss.is_connected.set(true);
-                Ok(())
-            }),
-        );
+        crate::events::KlippyConnect::on(&printer, move || {
+            ss.is_connected.set(true);
+            Ok(())
+        });
         let ss = s.clone();
         mcu.register_response(Some(Rc::new(move |params: &Params| ss.handle_spi_response(params))), "thermocouple_result", Some(oid));
         let ss = s.clone();

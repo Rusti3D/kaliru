@@ -33,13 +33,10 @@ impl PrinterHeaterFan {
         // klippy:ready is registered before Fan() registers its handlers
         let slot: Rc<RefCell<std::rc::Weak<PrinterHeaterFan>>> = Rc::new(RefCell::new(std::rc::Weak::new()));
         let sl = slot.clone();
-        printer.register_event_handler(
-            "klippy:ready",
-            Rc::new(move |_| match sl.borrow().upgrade() {
-                Some(hf) => hf.handle_ready(),
-                None => Ok(()),
-            }),
-        );
+        crate::events::KlippyReady::on(&printer, move || match sl.borrow().upgrade() {
+            Some(hf) => hf.handle_ready(),
+            None => Ok(()),
+        });
         let heater_names = config.getlist("heater", PyVal::Tuple(vec![PyVal::from("extruder")]), ",", None)?.unwrap_or_default();
         let heater_temp = config.getfloat("heater_temp", 50.0, Lim::new())?;
         let fan = Fan::new(config, 1.0)?;

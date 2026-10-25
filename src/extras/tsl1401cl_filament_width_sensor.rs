@@ -49,13 +49,10 @@ impl FilamentWidthSensor {
         let measurement_max_difference = config.getfloat("max_difference", Dflt::Required, Lim::new().above(0.0))?;
         let slot: Rc<RefCell<Weak<FilamentWidthSensor>>> = Rc::new(RefCell::new(Weak::new()));
         let sl = slot.clone();
-        printer.register_event_handler(
-            "klippy:ready",
-            Rc::new(move |_| match sl.borrow().upgrade() {
-                Some(s) => s.handle_ready(),
-                None => Ok(()),
-            }),
-        );
+        crate::events::KlippyReady::on(&printer, move || match sl.borrow().upgrade() {
+            Some(s) => s.handle_ready(),
+            None => Ok(()),
+        });
         // Start adc
         let mcu_adc = crate::pins::setup_adc_pin(&printer, &pin)?;
         mcu_adc.setup_adc_sample(ADC_SAMPLE_TIME, ADC_SAMPLE_COUNT, 0.0, 1.0, 0);

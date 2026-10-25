@@ -776,15 +776,12 @@ impl LoadCell {
         clients.add_mux_endpoint("load_cell/dump_force", "load_cell", &name, PyVal::Dict(header))?;
         // startup, when klippy is ready, start capturing data
         let w = Rc::downgrade(&lc);
-        printer.register_event_handler(
-            "klippy:ready",
-            Rc::new(move |_| {
-                if let Some(lc) = w.upgrade() {
-                    lc.handle_ready();
-                }
-                Ok(())
-            }),
-        );
+        crate::events::KlippyReady::on(&printer, move || {
+            if let Some(lc) = w.upgrade() {
+                lc.handle_ready();
+            }
+            Ok(())
+        });
         Ok(lc)
     }
 
@@ -800,10 +797,10 @@ impl LoadCell {
         // announce calibration status on ready
         let me = self.rc();
         if self.is_calibrated() {
-            self.printer.send_event("load_cell:calibrate", &[&me])?;
+            crate::events::LoadCellCalibrate::emit(&self.printer, &me)?;
         }
         if self.is_tared() {
-            self.printer.send_event("load_cell:tare", &[&me])?;
+            crate::events::LoadCellTare::emit(&self.printer, &me)?;
         }
         Ok(())
     }
@@ -871,7 +868,7 @@ impl LoadCell {
             self.tare_force.set(Some(py_round(self.invert * (tare_delta / self.counts_per_gram.get().unwrap_or(1.0)), 1)));
         }
         let me = self.rc();
-        self.printer.send_event("load_cell:tare", &[&me])
+        crate::events::LoadCellTare::emit(&self.printer, &me)
     }
 
     pub fn set_reference_tare_counts(&self, tare_counts_per_channel: Option<Vec<i64>>, save: bool) -> KResult<()> {
@@ -901,7 +898,7 @@ impl LoadCell {
             configfile.pconfig.borrow_mut().set(&self.config_name, "counts_per_gram", &format!("{:.5}", cpg))?;
         }
         let me = self.rc();
-        self.printer.send_event("load_cell:calibrate", &[&me])
+        crate::events::LoadCellCalibrate::emit(&self.printer, &me)
     }
 
     pub fn counts_to_grams(&self, counts: i64, reference: ZeroReference, channel: Option<usize>) -> Option<f64> {

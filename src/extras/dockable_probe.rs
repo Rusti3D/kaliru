@@ -122,15 +122,12 @@ impl ProbeState {
 
         let slot: Rc<RefCell<Weak<ProbeState>>> = Rc::new(RefCell::new(Weak::new()));
         let sl = slot.clone();
-        printer.register_event_handler(
-            "klippy:ready",
-            Rc::new(move |_| {
-                if let Some(s) = sl.borrow().upgrade() {
-                    s.handle_ready();
-                }
-                Ok(())
-            }),
-        );
+        crate::events::KlippyReady::on(&printer, move || {
+            if let Some(s) = sl.borrow().upgrade() {
+                s.handle_ready();
+            }
+            Ok(())
+        });
 
         // Configure sense pins as endstops so they
         // can be polled at specific times
@@ -474,21 +471,15 @@ impl DockableProbe {
 
         // Event Handlers
         let w = p.me.clone();
-        printer.register_event_handler(
-            "klippy:connect",
-            Rc::new(move |_| match w.upgrade() {
-                Some(p) => p.handle_connect(),
-                None => Ok(()),
-            }),
-        );
+        crate::events::KlippyConnect::on(&printer, move || match w.upgrade() {
+            Some(p) => p.handle_connect(),
+            None => Ok(()),
+        });
         let w = p.me.clone();
-        printer.register_event_handler(
-            "klippy:mcu_identify",
-            Rc::new(move |_| match w.upgrade() {
-                Some(p) => p.handle_config(),
-                None => Ok(()),
-            }),
-        );
+        crate::events::KlippyMcuIdentify::on(&printer, move || match w.upgrade() {
+            Some(p) => p.handle_config(),
+            None => Ok(()),
+        });
         Ok(p)
     }
 

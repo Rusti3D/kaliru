@@ -241,21 +241,15 @@ impl TradRack {
         let reactor = printer.get_reactor();
         let slot: Rc<RefCell<Weak<TradRack>>> = Rc::new(RefCell::new(Weak::new()));
         let sl = slot.clone();
-        printer.register_event_handler(
-            "klippy:connect",
-            Rc::new(move |_| match sl.borrow().upgrade() {
-                Some(t) => t.handle_connect(),
-                None => Ok(()),
-            }),
-        );
+        crate::events::KlippyConnect::on(&printer, move || match sl.borrow().upgrade() {
+            Some(t) => t.handle_connect(),
+            None => Ok(()),
+        });
         let sl = slot.clone();
-        printer.register_event_handler(
-            "klippy:ready",
-            Rc::new(move |_| match sl.borrow().upgrade() {
-                Some(t) => t.handle_ready(),
-                None => Ok(()),
-            }),
-        );
+        crate::events::KlippyReady::on(&printer, move || match sl.borrow().upgrade() {
+            Some(t) => t.handle_ready(),
+            None => Ok(()),
+        });
 
         // read spool and buffer pull speeds
         let spool_pull_speed = config.getfloat("spool_pull_speed", 100.0, Lim::new().above(0.0))?;
@@ -842,7 +836,7 @@ impl TradRack {
         self.selector_sensor.set_active(true);
 
         // notify active lane was set without loading the toolhead
-        self.printer.send_event("trad_rack:forced_active_lane", &[])
+        crate::events::TradRackForcedActiveLane::emit(&self.printer)
     }
 
     fn cmd_tr_reset_active_lane(&self, _gcmd: &GCodeCommand) -> KResult<()> {
@@ -850,7 +844,7 @@ impl TradRack {
         self.raise_servo(false, true, true, None)?;
         self.extruder_sync_manager.unsync()?;
         self.selector_sensor.set_active(false);
-        self.printer.send_event("trad_rack:reset_active_lane", &[])
+        crate::events::TradRackResetActiveLane::emit(&self.printer)
     }
 
     fn cmd_tr_resume(&self, _gcmd: &GCodeCommand) -> KResult<()> {
@@ -1438,7 +1432,7 @@ impl TradRack {
         }
 
         // notify toolhead load started
-        self.printer.send_event("trad_rack:load_started", &[])?;
+        crate::events::TradRackLoadStarted::emit(&self.printer)?;
 
         // run pre-load custom gcode
         self.pre_load_macro.run_gcode_from_command(None)?;
@@ -1610,7 +1604,7 @@ impl TradRack {
         self.next_tool.set(None);
 
         // notify toolhead load complete
-        self.printer.send_event("trad_rack:load_complete", &[])
+        crate::events::TradRackLoadComplete::emit(&self.printer)
     }
 
     fn homing_move_obj(&self, endstops: &[(EndstopRef, String)]) -> KResult<Rc<HomingMove>> {
@@ -1770,7 +1764,7 @@ impl TradRack {
         self.selector_sensor.set_active(false);
 
         // notify toolhead unload started
-        self.printer.send_event("trad_rack:unload_started", &[])?;
+        crate::events::TradRackUnloadStarted::emit(&self.printer)?;
 
         // wait for heater temp if needed
         self.wait_for_heater_temp(min_temp, exact_temp)?;
@@ -1859,7 +1853,7 @@ impl TradRack {
         self.tr_toolhead.wait_moves()?;
 
         // notify toolhead unload complete
-        self.printer.send_event("trad_rack:unload_complete", &[])
+        crate::events::TradRackUnloadComplete::emit(&self.printer)
     }
 
     fn is_paused(&self) -> KResult<bool> {
@@ -2558,7 +2552,7 @@ fn tr_home_rails(homing: &Rc<Homing>, rails: &[RailRef], forcepos: &[Option<f64>
     let printer = homing.printer();
     // Notify of upcoming homing operation
     let rails_v = rails.to_vec();
-    printer.send_event("homing:home_rails_begin", &[homing, &rails_v])?;
+    crate::events::HomingHomeRailsBegin::emit(&printer, homing, &rails_v)?;
     // Alter kinematics class to think printer is at forcepos
     let homing_axes: Vec<usize> = (0..3).filter(|&axis| forcepos[axis].is_some()).collect();
     let startpos = homing.fill_coord(forcepos);
@@ -2593,7 +2587,7 @@ fn tr_home_rails(homing: &Rc<Homing>, rails: &[RailRef], forcepos: &[Option<f64>
     toolhead.flush_step_generation()?;
     homing.set_trigger_positions(hmove.stepper_positions.borrow().iter().map(|sp| (sp.stepper_name.clone(), sp.trig())).collect());
     homing.clear_adjust_pos();
-    printer.send_event("homing:home_rails_end", &[homing, &rails_v])?;
+    crate::events::HomingHomeRailsEnd::emit(&printer, homing, &rails_v)?;
     let adjust_pos = homing.adjust_pos();
     if adjust_pos.values().any(|v| *v != 0.0) {
         // Apply any homing offsets
@@ -2723,13 +2717,10 @@ impl TradRackExtruderSyncManager {
             prev_rotation_dists: RefCell::new(vec![]),
         });
         let mm = m.clone();
-        printer.register_event_handler(
-            "klippy:connect",
-            Rc::new(move |_| {
-                *mm.toolhead.borrow_mut() = Some(mm.printer.lookup::<ToolHead>("toolhead")?);
-                Ok(())
-            }),
-        );
+        crate::events::KlippyConnect::on(&printer, move || {
+            *mm.toolhead.borrow_mut() = Some(mm.printer.lookup::<ToolHead>("toolhead")?);
+            Ok(())
+        });
         m
     }
 
@@ -2809,7 +2800,7 @@ impl TradRackExtruderSyncManager {
 
     fn sync_fil_driver_to_extruder(&self) -> KResult<()> {
         self.sync(SyncState::FilDriverToExtruder)?;
-        self.printer.send_event("trad_rack:synced_to_extruder", &[])
+        crate::events::TradRackSyncedToExtruder::emit(&self.printer)
     }
 
     fn unsync(&self) -> KResult<()> {
@@ -2821,7 +2812,7 @@ impl TradRackExtruderSyncManager {
         let steppers = match state {
             SyncState::ExtruderToFilDriver => self.get_extruder_mcu_steppers()?,
             SyncState::FilDriverToExtruder => {
-                self.printer.send_event("trad_rack:unsyncing_from_extruder", &[])?;
+                crate::events::TradRackUnsyncingFromExtruder::emit(&self.printer)?;
                 self.fil_driver_rail.get_steppers()
             }
         };

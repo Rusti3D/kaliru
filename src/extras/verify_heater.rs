@@ -60,15 +60,12 @@ impl HeaterCheck {
             check_timer: RefCell::new(None),
         });
         let h = hc.clone();
-        printer.register_event_handler("klippy:connect", Rc::new(move |_| h.handle_connect()));
+        crate::events::KlippyConnect::on(&printer, move || h.handle_connect());
         let h = hc.clone();
-        printer.register_event_handler(
-            "klippy:shutdown",
-            Rc::new(move |_| {
-                h.handle_shutdown();
-                Ok(())
-            }),
-        );
+        crate::events::KlippyShutdown::on(&printer, move || {
+            h.handle_shutdown();
+            Ok(())
+        });
         Ok(hc)
     }
 

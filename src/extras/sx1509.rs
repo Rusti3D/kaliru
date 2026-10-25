@@ -66,7 +66,7 @@ impl SX1509 {
         let ppins = printer.lookup::<PinsObject>("pins")?;
         ppins.0.borrow_mut().register_chip(&format!("sx1509_{}", name), s.clone()).map_err(|e| KError::Pins(e.0))?;
         let ss = s.clone();
-        printer.register_event_handler("klippy:connect", Rc::new(move |_| ss.handle_connect()));
+        crate::events::KlippyConnect::on(&printer, move || ss.handle_connect());
         Ok(s)
     }
 

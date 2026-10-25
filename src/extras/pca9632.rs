@@ -60,7 +60,7 @@ impl PCA9632 {
         )?;
         *p.led_helper.borrow_mut() = Some(helper);
         let pp = p.clone();
-        printer.register_event_handler("klippy:connect", Rc::new(move |_| pp.handle_connect()));
+        crate::events::KlippyConnect::on(&printer, move || pp.handle_connect());
         Ok(p)
     }
 

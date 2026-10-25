@@ -435,7 +435,7 @@ impl GCodeMacro {
                 )));
             }
             let mc = m.clone();
-            printer.register_event_handler("klippy:connect", Rc::new(move |_| mc.handle_connect()));
+            crate::events::KlippyConnect::on(&printer, move || mc.handle_connect());
         } else {
             let mc = m.clone();
             gcode.register_command(&alias, Some(Rc::new(move |g| mc.cmd(g))), false, Some(&cmd_desc))?;

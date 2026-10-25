@@ -139,13 +139,10 @@ impl ToolsCalibrate {
 
         // Register events
         let tt = t.clone();
-        printer.register_event_handler(
-            "stepper_enable:motor_off",
-            Rc::new(move |_| {
-                tt.reset_last_results();
-                Ok(())
-            }),
-        );
+        crate::events::StepperEnableMotorOff::on(&printer, move || {
+            tt.reset_last_results();
+            Ok(())
+        });
 
         // Register commands
         type TCmd = fn(&ToolsCalibrate, &GCodeCommand) -> KResult<()>;
@@ -517,7 +514,7 @@ impl ProbeEndstopWrapper {
             .map_err(|_| KError::Other("probe pin chip has no mcu endstop".into()))?;
         let w = Rc::new(ProbeEndstopWrapper { printer: printer.clone(), axis, idex, mcu_endstop });
         let ww = w.clone();
-        printer.register_event_handler("klippy:mcu_identify", Rc::new(move |_| ww.handle_mcu_identify()));
+        crate::events::KlippyMcuIdentify::on(&printer, move || ww.handle_mcu_identify());
         Ok(w)
     }
 

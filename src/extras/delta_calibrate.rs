@@ -117,16 +117,13 @@ impl DeltaCalibrate {
     fn new(config: &ConfigWrapper) -> KResult<Rc<Self>> {
         let printer = config.get_printer();
         let p = printer.clone();
-        printer.register_event_handler(
-            "klippy:connect",
-            Rc::new(move |_| {
-                let kin = p.lookup::<ToolHead>("toolhead")?.get_kinematics();
-                if kin.get_calibration().is_none() {
-                    return Err(KError::config("Delta calibrate is only for delta printers"));
-                }
-                Ok(())
-            }),
-        );
+        crate::events::KlippyConnect::on(&printer, move || {
+            let kin = p.lookup::<ToolHead>("toolhead")?.get_kinematics();
+            if kin.get_calibration().is_none() {
+                return Err(KError::config("Delta calibrate is only for delta printers"));
+            }
+            Ok(())
+        });
         // Calculate default probing points
         let radius = config.getfloat("radius", Dflt::Required, Lim::new().above(0.0))?;
         let mut points = vec![(0.0, 0.0)];

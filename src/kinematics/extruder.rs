@@ -82,10 +82,7 @@ impl ExtruderStepper {
         });
         // Register commands
         let e = es.clone();
-        printer.register_event_handler(
-            "klippy:connect",
-            Rc::new(move |_| e.set_pressure_advance(e.config_pa, e.config_smooth_time)),
-        );
+        crate::events::KlippyConnect::on(&printer, move || e.set_pressure_advance(e.config_pa, e.config_smooth_time));
         let gcode = printer.lookup::<GCodeDispatch>("gcode")?;
         if name == "extruder" {
             let e = es.clone();
@@ -458,7 +455,7 @@ impl PrinterExtruder {
         gcmd.respond_info(&format!("Activating extruder {}", self.name), true);
         toolhead.flush_step_generation()?;
         toolhead.set_extruder(self.rc(), self.last_position.get());
-        self.printer.send_event("extruder:activate_extruder", &[])
+        crate::events::ExtruderActivateExtruder::emit(&self.printer)
     }
 
     fn cmd_default_set_nozzle_diameter(&self, gcmd: &GCodeCommand) -> KResult<()> {

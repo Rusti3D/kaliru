@@ -447,13 +447,10 @@ impl ResonanceTester {
             )?;
         }
         let w = Rc::downgrade(&rt);
-        printer.register_event_handler(
-            "klippy:connect",
-            Rc::new(move |_| match w.upgrade() {
-                Some(r) => r.connect(),
-                None => Ok(()),
-            }),
-        );
+        crate::events::KlippyConnect::on(&printer, move || match w.upgrade() {
+            Some(r) => r.connect(),
+            None => Ok(()),
+        });
         Ok(rt)
     }
 

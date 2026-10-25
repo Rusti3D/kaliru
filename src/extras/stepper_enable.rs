@@ -170,7 +170,7 @@ impl PrinterStepperEnable {
         let printer = config.get_printer();
         let se = Rc::new(PrinterStepperEnable { printer: printer.clone(), enable_lines: RefCell::new(IndexMap::new()) });
         let s = se.clone();
-        printer.register_event_handler("gcode:request_restart", Rc::new(move |_| s.motor_off()));
+        crate::events::GcodeRequestRestart::on(&printer, move |_| s.motor_off());
         // Register M18/M84 commands
         let gcode = printer.lookup::<GCodeDispatch>("gcode")?;
         let s = se.clone();
@@ -241,7 +241,7 @@ impl PrinterStepperEnable {
         self.set_motors_enable(&self.get_steppers(), false)?;
         let toolhead = self.printer.lookup::<ToolHead>("toolhead")?;
         toolhead.get_kinematics().clear_homing_state("xyz");
-        self.printer.send_event("stepper_enable:motor_off", &[])
+        crate::events::StepperEnableMotorOff::emit(&self.printer)
     }
 
     fn cmd_set_stepper_enable(&self, gcmd: &GCodeCommand) -> KResult<()> {

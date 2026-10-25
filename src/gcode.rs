@@ -293,11 +293,11 @@ impl GCodeDispatch {
             script_context: Cell::new(0),
         });
         let g = gcode.clone();
-        printer.register_event_handler("klippy:ready", Rc::new(move |_| g.handle_ready()));
+        crate::events::KlippyReady::on(&printer, move || g.handle_ready());
         let g = gcode.clone();
-        printer.register_event_handler("klippy:shutdown", Rc::new(move |_| g.handle_shutdown()));
+        crate::events::KlippyShutdown::on(&printer, move || g.handle_shutdown());
         let g = gcode.clone();
-        printer.register_event_handler("klippy:disconnect", Rc::new(move |_| g.handle_disconnect()));
+        crate::events::KlippyDisconnect::on(&printer, move || g.handle_disconnect());
         // Register commands needed before config file is loaded
         type Cmd = fn(&Rc<GCodeDispatch>, &GCodeCommand) -> KResult<()>;
         let handlers: [(&str, Cmd, Option<&str>); 10] = [
@@ -600,7 +600,7 @@ impl GCodeDispatch {
             if let Err(e) = res {
                 if e.is_command_error() {
                     self.respond_error(&e.to_string());
-                    self.printer.send_event("gcode:command_error", &[])?;
+                    crate::events::GcodeCommandError::emit(&self.printer)?;
                 } else {
                     let msg = format!("Internal error on command:\"{}\"", cmd);
                     logging::exception_err(&msg, &e);
@@ -737,7 +737,7 @@ impl GCodeDispatch {
             return Ok(());
         }
         gcmd.respond_info(&format!("Unknown command:\"{}\"", cmd), true);
-        self.printer.send_event("gcode:unknown_command", &[&cmd])
+        crate::events::GcodeUnknownCommand::emit(&self.printer, &cmd)
     }
 
     fn cmd_mux(&self, command: &str, gcmd: &GCodeCommand) -> KResult<()> {
@@ -781,7 +781,7 @@ impl GCodeDispatch {
             if result == "exit" {
                 logging::info(&format!("Exiting (print time {:.3}s)", print_time));
             }
-            self.printer.send_event("gcode:request_restart", &[&print_time])?;
+            crate::events::GcodeRequestRestart::emit(&self.printer, &print_time)?;
             toolhead.dwell(0.500)?;
             toolhead.wait_moves()?;
         }
@@ -896,17 +896,14 @@ impl GCodeIO {
             io.register_fd();
         }
         let i = io.clone();
-        printer.register_event_handler("klippy:ready", Rc::new(move |_| i.handle_ready()));
+        crate::events::KlippyReady::on(&printer, move || i.handle_ready());
         let i = io.clone();
-        printer.register_event_handler("klippy:shutdown", Rc::new(move |_| i.handle_shutdown()));
+        crate::events::KlippyShutdown::on(&printer, move || i.handle_shutdown());
         let i = io.clone();
-        printer.register_event_handler(
-            "klippy:analyze_shutdown",
-            Rc::new(move |_| {
-                i.handle_analyze_shutdown();
-                Ok(())
-            }),
-        );
+        crate::events::KlippyAnalyzeShutdown::on(&printer, move |_, _| {
+            i.handle_analyze_shutdown();
+            Ok(())
+        });
         Ok(io)
     }
 

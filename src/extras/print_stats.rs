@@ -69,13 +69,10 @@ impl PrintStats {
             Some(CMD_SET_PRINT_STATS_INFO_HELP),
         )?;
         let p = ps.clone();
-        printer.register_event_handler(
-            "extruder:activate_extruder",
-            Rc::new(move |_| {
-                p.last_epos.set(p.gcode_move.status_position_e());
-                Ok(())
-            }),
-        );
+        crate::events::ExtruderActivateExtruder::on(&printer, move || {
+            p.last_epos.set(p.gcode_move.status_position_e());
+            Ok(())
+        });
         Ok(ps)
     }
 
@@ -107,7 +104,7 @@ impl PrintStats {
         // Reset last e-position
         self.last_epos.set(self.gcode_move.status_position_e());
         *self.state.borrow_mut() = "printing".into();
-        self.printer.send_event("print_stats:start_printing", &[])?;
+        crate::events::PrintStatsStartPrinting::emit(&self.printer)?;
         self.error_message.borrow_mut().clear();
         Ok(())
     }
@@ -121,24 +118,24 @@ impl PrintStats {
         }
         if *self.state.borrow() != "error" {
             *self.state.borrow_mut() = "paused".into();
-            self.printer.send_event("print_stats:paused_printing", &[])?;
+            crate::events::PrintStatsPausedPrinting::emit(&self.printer)?;
         }
         Ok(())
     }
 
     pub fn note_complete(&self) -> KResult<()> {
         self.note_finish("complete", "");
-        self.printer.send_event("print_stats:complete_printing", &[])
+        crate::events::PrintStatsCompletePrinting::emit(&self.printer)
     }
 
     pub fn note_error(&self, message: &str) -> KResult<()> {
         self.note_finish("error", message);
-        self.printer.send_event("print_stats:error_printing", &[])
+        crate::events::PrintStatsErrorPrinting::emit(&self.printer)
     }
 
     pub fn note_cancel(&self) -> KResult<()> {
         self.note_finish("cancelled", "");
-        self.printer.send_event("print_stats:cancelled_printing", &[])
+        crate::events::PrintStatsCancelledPrinting::emit(&self.printer)
     }
 
     fn note_finish(&self, state: &str, error_message: &str) {
@@ -192,7 +189,7 @@ impl PrintStats {
         self.init_duration.set(0.0);
         self.info_total_layer.set(None);
         self.info_current_layer.set(None);
-        self.printer.send_event("print_stats:reset", &[])
+        crate::events::PrintStatsReset::emit(&self.printer)
     }
 }
 

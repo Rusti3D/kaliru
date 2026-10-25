@@ -83,15 +83,12 @@ impl HeatedFan {
             )?;
         }
         let w = hf.me.clone();
-        printer.register_event_handler(
-            "klippy:ready",
-            Rc::new(move |_| {
-                if let Some(h) = w.upgrade() {
-                    h.handle_ready();
-                }
-                Ok(())
-            }),
-        );
+        crate::events::KlippyReady::on(&printer, move || {
+            if let Some(h) = w.upgrade() {
+                h.handle_ready();
+            }
+            Ok(())
+        });
         Ok(obj)
     }
 

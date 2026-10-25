@@ -44,13 +44,10 @@ impl BedTilt {
             toolhead: RefCell::new(None),
         });
         let b = bt.clone();
-        printer.register_event_handler(
-            "klippy:connect",
-            Rc::new(move |_| {
-                *b.toolhead.borrow_mut() = Some(b.printer.lookup::<ToolHead>("toolhead")?);
-                Ok(())
-            }),
-        );
+        crate::events::KlippyConnect::on(&printer, move || {
+            *b.toolhead.borrow_mut() = Some(b.printer.lookup::<ToolHead>("toolhead")?);
+            Ok(())
+        });
         bt.x_adjust.set(config.getfloat("x_adjust", 0.0, Lim::new())?);
         bt.y_adjust.set(config.getfloat("y_adjust", 0.0, Lim::new())?);
         bt.z_adjust.set(config.getfloat("z_adjust", 0.0, Lim::new())?);

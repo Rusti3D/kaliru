@@ -389,7 +389,7 @@ impl EddyEndstopWrapper {
             trigger_time: Cell::new(0.0),
         });
         let ww = w.clone();
-        printer.register_event_handler("klippy:mcu_identify", Rc::new(move |_| ww.handle_mcu_identify()));
+        crate::events::KlippyMcuIdentify::on(&printer, move || ww.handle_mcu_identify());
         Ok(w)
     }
 

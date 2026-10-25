@@ -84,10 +84,10 @@ impl EncoderSensor {
         runout_helper.set_defined_sensor(Rc::downgrade(&ds));
         // Register commands and event handlers
         let ss = s.clone();
-        printer.register_event_handler("klippy:ready", Rc::new(move |_| ss.handle_ready()));
+        crate::events::KlippyReady::on(&printer, move || ss.handle_ready());
         let ss = s.clone();
-        printer.register_event_handler("idle_timeout:printing", Rc::new(move |_| ss.set_timer(NOW)));
-        for ev in ["idle_timeout:ready", "idle_timeout:idle"] {
+        crate::events::IdleTimeoutPrinting::on(&printer, move |_| ss.set_timer(NOW));
+        for ev in [crate::events::IdleTimeoutReady::NAME, crate::events::IdleTimeoutIdle::NAME] {
             let ss = s.clone();
             printer.register_event_handler(ev, Rc::new(move |_| ss.set_timer(NEVER)));
         }

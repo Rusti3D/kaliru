@@ -431,7 +431,7 @@ impl Printer {
     fn connect(self: &Rc<Self>, _eventtime: f64) {
         let res = (|| -> KResult<bool> {
             self.read_config()?;
-            self.send_event("klippy:mcu_identify", &[])?;
+            crate::events::KlippyMcuIdentify::emit(&self)?;
             let handlers = self.handlers("klippy:connect");
             for cb in handlers {
                 if *self.state_message.borrow() != MESSAGE_STARTUP {
@@ -456,7 +456,7 @@ impl Printer {
                 let mut details = IndexMap::new();
                 details.insert("error".to_string(), PyVal::Str(e.to_string()));
                 let details = PyVal::Dict(details);
-                let _ = self.send_event("klippy:notify_mcu_error", &[&msg.to_string(), &details]);
+                let _ = crate::events::KlippyNotifyMcuError::emit(&self, &msg.to_string(), &details);
                 crate::util::dump_mcu_build();
                 return;
             }
@@ -501,9 +501,9 @@ impl Printer {
         let run_result = self.run_result.borrow().clone();
         let res = (|| -> KResult<()> {
             if run_result.as_deref() == Some("firmware_restart") {
-                self.send_event("klippy:firmware_restart", &[])?;
+                crate::events::KlippyFirmwareRestart::emit(&self)?;
             }
-            self.send_event("klippy:disconnect", &[])
+            crate::events::KlippyDisconnect::emit(&self)
         })();
         if let Err(e) = res {
             logging::exception_err("Unhandled exception during post run", &e);

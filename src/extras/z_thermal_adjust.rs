@@ -10,7 +10,6 @@ use crate::configfile::{ConfigWrapper, Dflt, Lim};
 use crate::error::{KError, KResult};
 use crate::extras::gcode_move::{GCodeMove, MoveTransform, MoveTransformRef};
 use crate::extras::heaters::{PrinterHeaters, TempSensor};
-use crate::extras::homing::rails_arg;
 use crate::gcode::{GCodeCommand, GCodeDispatch};
 use crate::printer::{PObj, Printer, PrinterObject};
 use crate::pyfmt::{py_max, py_min, py_round};
@@ -61,29 +60,22 @@ impl ZThermalAdjuster {
         // Register printer events
         let slot: Rc<RefCell<Weak<ZThermalAdjuster>>> = Rc::new(RefCell::new(Weak::new()));
         let sl = slot.clone();
-        printer.register_event_handler(
-            "klippy:connect",
-            Rc::new(move |_| match sl.borrow().upgrade() {
-                Some(z) => z.handle_connect(),
-                None => Ok(()),
-            }),
-        );
+        crate::events::KlippyConnect::on(&printer, move || match sl.borrow().upgrade() {
+            Some(z) => z.handle_connect(),
+            None => Ok(()),
+        });
         let sl = slot.clone();
-        printer.register_event_handler(
-            "homing:home_rails_end",
-            Rc::new(move |args| {
-                if let Some(z) = sl.borrow().upgrade() {
-                    let (homing_state, _rails) = rails_arg(args);
-                    // Set reference temperature after Z homing.
-                    if homing_state.get_axes().contains(&2) {
-                        z.ref_temperature.set(z.smoothed_temp.get());
-                        z.ref_temp_override.set(false);
-                        z.z_adjust_mm.set(0.0);
-                    }
+        crate::events::HomingHomeRailsEnd::on(&printer, move |homing_state, _rails| {
+            if let Some(z) = sl.borrow().upgrade() {
+                // Set reference temperature after Z homing.
+                if homing_state.get_axes().contains(&2) {
+                    z.ref_temperature.set(z.smoothed_temp.get());
+                    z.ref_temp_override.set(false);
+                    z.z_adjust_mm.set(0.0);
                 }
-                Ok(())
-            }),
-        );
+            }
+            Ok(())
+        });
 
         // Setup temperature sensor
         let smooth_time = config.getfloat("smooth_time", 2.0, Lim::new().above(0.0))?;

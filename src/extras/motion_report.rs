@@ -9,7 +9,6 @@ use crate::chelper::trapq::{PullMove, TrapQRef};
 use crate::configfile::ConfigWrapper;
 use crate::error::KResult;
 use crate::extras::bulk_sensor::{BatchBulkHelper, BATCH_INTERVAL};
-use crate::extras::error_mcu::event_args;
 use crate::extras::motion_queuing::PrinterMotionQueuing;
 use crate::gcode::coord_pyval;
 use crate::logging;
@@ -300,16 +299,12 @@ impl PrinterMotionReport {
         });
         // Register handlers
         let m = mr.clone();
-        printer.register_event_handler("klippy:connect", Rc::new(move |_| m.connect()));
+        crate::events::KlippyConnect::on(&printer, move || m.connect());
         let m = mr.clone();
-        printer.register_event_handler(
-            "klippy:analyze_shutdown",
-            Rc::new(move |args| {
-                let (msg, details) = event_args(args);
-                m.handle_analyze_shutdown(&msg, &details);
-                Ok(())
-            }),
-        );
+        crate::events::KlippyAnalyzeShutdown::on(&printer, move |msg, details| {
+            m.handle_analyze_shutdown(&msg, &details);
+            Ok(())
+        });
         Ok(mr)
     }
 

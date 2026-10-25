@@ -9,7 +9,7 @@ use crate::error::{KError, KResult};
 use crate::extras::bed_mesh::BedMesh;
 use crate::extras::gcode_macro::{load_gcode_macro, Template};
 use crate::extras::gcode_move::GCodeMove;
-use crate::extras::homing::{rails_arg, Homing, PrinterHoming};
+use crate::extras::homing::{Homing, PrinterHoming};
 use crate::extras::probe::{as_printer_probe, probe_list_get_list, PrinterProbe};
 use crate::extras::query_endstops::QueryEndstops;
 use crate::extras::safe_z_home::SafeZHoming;
@@ -155,25 +155,17 @@ impl ZCalibrationHelper {
             gcode: gcode.clone(),
         });
         let w = h.me.clone();
-        printer.register_event_handler(
-            "klippy:connect",
-            Rc::new(move |_| match w.upgrade() {
-                Some(h) => h.handle_connect(),
-                None => Ok(()),
-            }),
-        );
+        crate::events::KlippyConnect::on(&printer, move || match w.upgrade() {
+            Some(h) => h.handle_connect(),
+            None => Ok(()),
+        });
         let w = h.me.clone();
-        printer.register_event_handler(
-            "homing:home_rails_end",
-            Rc::new(move |args| match w.upgrade() {
-                Some(h) => {
-                    let (homing_state, rails) = rails_arg(args);
-                    h.handle_home_rails_end(&homing_state, &rails);
-                    Ok(())
-                }
-                None => Ok(()),
-            }),
-        );
+        crate::events::HomingHomeRailsEnd::on(&printer, move |homing_state, rails| {
+            if let Some(h) = w.upgrade() {
+                h.handle_home_rails_end(&homing_state, &rails);
+            }
+            Ok(())
+        });
         type ZCmd = fn(&ZCalibrationHelper, &GCodeCommand) -> KResult<()>;
         let cmds: [(&str, ZCmd, &str); 3] = [
             ("CALIBRATE_Z", ZCalibrationHelper::cmd_calibrate_z, CMD_CALIBRATE_Z_HELP),

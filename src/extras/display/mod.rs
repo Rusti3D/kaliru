@@ -148,13 +148,10 @@ impl PrinterLCD {
         *lcd.show_data_group.borrow_mut() = dgroup;
         // Screen updating
         let w = lcd.me.clone();
-        printer.register_event_handler(
-            "klippy:ready",
-            Rc::new(move |_| match w.upgrade() {
-                Some(l) => l.handle_ready(),
-                None => Ok(()),
-            }),
-        );
+        crate::events::KlippyReady::on(&printer, move || match w.upgrade() {
+            Some(l) => l.handle_ready(),
+            None => Ok(()),
+        });
         let w = lcd.me.clone();
         printer.register_event_handler(
             lcd.lcd_chip.get_mcu().get_non_critical_reconnect_event_name(),

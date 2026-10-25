@@ -54,13 +54,10 @@ impl PrinterDotstar {
         *d.led_helper.borrow_mut() = Some(helper);
         // Register commands
         let dd = d.clone();
-        printer.register_event_handler(
-            "klippy:connect",
-            Rc::new(move |_| {
-                let state = dd.led_helper.borrow().as_ref().map(|h| h.led_state()).unwrap_or_default();
-                dd.update_leds(&state, None)
-            }),
-        );
+        crate::events::KlippyConnect::on(&printer, move || {
+            let state = dd.led_helper.borrow().as_ref().map(|h| h.led_state()).unwrap_or_default();
+            dd.update_leds(&state, None)
+        });
         Ok(d)
     }
 

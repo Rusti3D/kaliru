@@ -108,13 +108,10 @@ impl PrinterMotionQueuing {
         *mq.flush_timer.borrow_mut() = Some(timer);
         // Register handlers
         let m = mq.clone();
-        printer.register_event_handler(
-            "klippy:shutdown",
-            Rc::new(move |_| {
-                m.can_pause.set(false);
-                Ok(())
-            }),
-        );
+        crate::events::KlippyShutdown::on(&printer, move || {
+            m.can_pause.set(false);
+            Ok(())
+        });
         Ok(mq)
     }
 
