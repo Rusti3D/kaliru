@@ -1,0 +1,13 @@
+# AFC + AFC_ACE: PAUSE then RESUME on a homed printer, so AFC_RESUME restores
+# the position (restore_pos assigns gcode_move's position lists as a whole)
+CONFIG afc_ace_cmds.cfg
+DICTIONARY atmega2560.dict
+
+G4 P1000
+PREP
+G28
+G1 X20 Y20 Z5 F3000
+PAUSE
+RESUME
+GET_POSITION
+M115
