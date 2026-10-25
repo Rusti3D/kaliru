@@ -3,6 +3,8 @@ use super::*;
 use crate::plugins::callable::py_function;
 use crate::plugins::convert::ToPy;
 
+use crate::mcu::{McuAdc, McuDigitalOut, McuPwm};
+use crate::method;
 use crate::pins::{PinChip, PinParams, PinsObject, SharedPinParams};
 
 pub fn register(r: &mut Registry) {
@@ -32,6 +34,84 @@ pub fn register(r: &mut Registry) {
     r.method("klippy.pins.PrinterPins.allow_multi_use_pin", |a| {
         a.this::<PinsObject>()?.0.borrow_mut().allow_multi_use_pin(&a.string(0)?).map_err(|e| KError::Pins(e.0))?;
         Ok(py_none())
+    });
+    // setup_pin(pin_type, pin_desc): the chip's pin object (AFC_canvas's
+    // enable pins, its lanes' LED pins, AFC's espoolers and buffer adc)
+    r.method("klippy.pins.PrinterPins.setup_pin", |a| {
+        let printer = printer().ok_or_else(|| KError::Other("kaliru: no printer".into()))?;
+        let pin = crate::pins::setup_pin(&printer, &a.string(0)?, &a.string(1)?)?;
+        // a python plugin's chip made a python object itself
+        let pin = match pin.downcast::<PyRef>() {
+            Ok(py) => return Ok((*py).clone()),
+            Err(p) => p,
+        };
+        let pin = match pin.downcast::<McuDigitalOut>() {
+            Ok(p) => return objects::wrap(p),
+            Err(p) => p,
+        };
+        let pin = match pin.downcast::<McuPwm>() {
+            Ok(p) => return objects::wrap(p),
+            Err(p) => p,
+        };
+        match pin.downcast::<McuAdc>() {
+            Ok(p) => objects::wrap(p),
+            Err(_) => Err(KError::Py(
+                "NotImplementedError".into(),
+                format!("kaliru: a {} pin of this chip is not mirrored yet", a.string(0)?),
+            )),
+        }
+    });
+    objects::register_class::<McuDigitalOut>("klippy.mcu", "MCU_digital_out");
+    objects::register_class::<McuPwm>("klippy.mcu", "MCU_pwm");
+    objects::register_class::<McuAdc>("klippy.mcu", "MCU_adc");
+    method!(r, "klippy.mcu.MCU_digital_out", McuDigitalOut, get_mcu(p) => p.get_mcu());
+    r.method("klippy.mcu.MCU_digital_out.setup_max_duration", |a| {
+        a.this::<McuDigitalOut>()?.setup_max_duration(a.f64(0)?);
+        Ok(py_none())
+    });
+    // (start / shutdown values: truthiness, as `not not value`)
+    r.method("klippy.mcu.MCU_digital_out.setup_start_value", |a| {
+        a.this::<McuDigitalOut>()?.setup_start_value(a.bool(0)?, a.bool(1)?);
+        Ok(py_none())
+    });
+    r.method("klippy.mcu.MCU_digital_out.set_digital", |a| {
+        a.this::<McuDigitalOut>()?.set_digital(a.f64(0)?, a.bool(1)?)?;
+        Ok(py_none())
+    });
+    method!(r, "klippy.mcu.MCU_pwm", McuPwm, get_mcu(p) => p.get_mcu());
+    r.method("klippy.mcu.MCU_pwm.setup_max_duration", |a| {
+        a.this::<McuPwm>()?.setup_max_duration(a.f64(0)?);
+        Ok(py_none())
+    });
+    r.method("klippy.mcu.MCU_pwm.setup_cycle_time", |a| {
+        a.this::<McuPwm>()?.setup_cycle_time(a.f64(0)?, a.bool(1)?);
+        Ok(py_none())
+    });
+    r.method("klippy.mcu.MCU_pwm.setup_start_value", |a| {
+        a.this::<McuPwm>()?.setup_start_value(a.f64(0)?, a.f64(1)?);
+        Ok(py_none())
+    });
+    r.method("klippy.mcu.MCU_pwm.set_pwm", |a| {
+        a.this::<McuPwm>()?.set_pwm(a.f64(0)?, a.f64(1)?)?;
+        Ok(py_none())
+    });
+    method!(r, "klippy.mcu.MCU_adc", McuAdc, get_mcu(p) => p.get_mcu());
+    r.method("klippy.mcu.MCU_adc.setup_adc_sample", |a| {
+        let range_check_count = a.arg(4).as_i64()?;
+        a.this::<McuAdc>()?.setup_adc_sample(a.f64(0)?, a.arg(1).as_i64()?, a.f64(2)?, a.f64(3)?, range_check_count);
+        Ok(py_none())
+    });
+    r.method("klippy.mcu.MCU_adc.setup_adc_callback", |a| {
+        let cb = a.arg(1).clone();
+        a.this::<McuAdc>()?.setup_adc_callback(
+            a.f64(0)?,
+            Rc::new(move |read_time, read_value| cb.call(&[&py_float(read_time), &py_float(read_value)]).map(|_| ())),
+        );
+        Ok(py_none())
+    });
+    r.method("klippy.mcu.MCU_adc.get_last_value", |a| {
+        let (t, v) = a.this::<McuAdc>()?.get_last_value();
+        Ok(py_tuple(vec![py_float(t), py_float(v)]))
     });
 }
 

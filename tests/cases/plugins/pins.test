@@ -1,0 +1,8 @@
+# PrinterPins.setup_pin for a python plugin (tests/plugins/kaliru_test_pins.py)
+CONFIG pins.cfg
+DICTIONARY atmega2560.dict
+
+G4 P10
+TEST_PINS
+TEST_PINS VALUE=0.25 ON=1
+TEST_PINS VALUE=1
