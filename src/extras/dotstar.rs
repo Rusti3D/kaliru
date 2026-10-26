@@ -18,7 +18,7 @@ const BACKGROUND_PRIORITY_CLOCK: u64 = 0x7FFFFFFF00000000;
 
 pub struct PrinterDotstar {
     spi: Rc<McuSpi>,
-    led_helper: RefCell<Option<Rc<LEDHelper>>>,
+    pub(crate) led_helper: RefCell<Option<Rc<LEDHelper>>>,
     prev_data: RefCell<Option<Vec<Color>>>,
 }
 

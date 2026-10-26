@@ -34,7 +34,7 @@ pub struct PCA9632 {
     i2c: Rc<McuI2c>,
     color_map: Vec<usize>,
     prev_regs: RefCell<IndexMap<u8, u8>>,
-    led_helper: RefCell<Option<Rc<LEDHelper>>>,
+    pub(crate) led_helper: RefCell<Option<Rc<LEDHelper>>>,
 }
 
 impl PCA9632 {

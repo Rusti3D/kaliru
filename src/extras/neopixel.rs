@@ -30,7 +30,7 @@ pub struct PrinterNeoPixel {
     neopixel_update_cmd: RefCell<Option<CommandWrapper>>,
     neopixel_send_cmd: RefCell<Option<CommandQueryWrapper>>,
     color_map: Vec<(usize, (usize, usize))>,
-    led_helper: RefCell<Option<Rc<LEDHelper>>>,
+    pub(crate) led_helper: RefCell<Option<Rc<LEDHelper>>>,
     color_data: RefCell<Vec<u8>>,
     old_color_data: RefCell<Vec<u8>>,
 }

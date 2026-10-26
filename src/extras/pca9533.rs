@@ -20,7 +20,7 @@ const PCA9533_PLS0: u8 = 0b101;
 
 pub struct PCA9533 {
     i2c: Rc<McuI2c>,
-    led_helper: RefCell<Option<Rc<LEDHelper>>>,
+    pub(crate) led_helper: RefCell<Option<Rc<LEDHelper>>>,
 }
 
 impl PCA9533 {

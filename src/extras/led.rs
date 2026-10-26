@@ -247,11 +247,34 @@ pub const PIN_MIN_TIME: f64 = 0.100;
 pub const MAX_SCHEDULE_TIME: f64 = 5.0;
 
 // Handler for PWM controlled LEDs
+/// an LED object's LEDHelper (python's obj.led_helper); None for an object
+/// without one
+pub fn led_helper_of(obj: &crate::printer::PObj) -> Option<Rc<LEDHelper>> {
+    use crate::printer::downcast_rc;
+    let o = || obj.clone();
+    if let Some(l) = downcast_rc::<crate::extras::neopixel::PrinterNeoPixel>(o()) {
+        return l.led_helper.borrow().clone();
+    }
+    if let Some(l) = downcast_rc::<crate::extras::dotstar::PrinterDotstar>(o()) {
+        return l.led_helper.borrow().clone();
+    }
+    if let Some(l) = downcast_rc::<PrinterPWMLED>(o()) {
+        return l.led_helper.borrow().clone();
+    }
+    if let Some(l) = downcast_rc::<crate::extras::pca9533::PCA9533>(o()) {
+        return l.led_helper.borrow().clone();
+    }
+    if let Some(l) = downcast_rc::<crate::extras::pca9632::PCA9632>(o()) {
+        return l.led_helper.borrow().clone();
+    }
+    None
+}
+
 pub struct PrinterPWMLED {
     printer: Rc<Printer>,
     pins: Vec<(usize, Rc<dyn PwmPin>)>,
     last_print_time: Cell<f64>,
-    led_helper: RefCell<Option<Rc<LEDHelper>>>,
+    pub(crate) led_helper: RefCell<Option<Rc<LEDHelper>>>,
     prev_color: RefCell<Color>,
 }
 
