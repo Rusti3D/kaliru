@@ -192,7 +192,7 @@ impl Parser {
             let token = self.stream.next();
             match value.as_str() {
                 "do" => self.parse_tuple(false, true, None, false, false).map(|e| {
-                    vec![Stmt { lineno: token.lineno, kind: StmtKind::ExprStmt(e) }]
+                    vec![Stmt { lineno: token.lineno, kind: StmtKind::ExprStmt(Box::new(e)) }]
                 }),
                 "break" => Ok(vec![Stmt { lineno: token.lineno, kind: StmtKind::Break }]),
                 _ => Ok(vec![Stmt { lineno: token.lineno, kind: StmtKind::Continue }]),
@@ -229,11 +229,11 @@ impl Parser {
         let target = self.parse_assign_target(true, false, None, true)?;
         if self.stream.skip_if("assign") {
             let expr = self.parse_tuple(false, true, None, false, false)?;
-            return Ok(Stmt { lineno, kind: StmtKind::Assign { target, node: expr } });
+            return Ok(Stmt { lineno, kind: StmtKind::Assign { target: Box::new(target), node: Box::new(expr) } });
         }
         let filter_node = self.parse_filter(None, false)?;
         let body = self.parse_statements(&["name:endset"], true)?;
-        Ok(Stmt { lineno, kind: StmtKind::AssignBlock { target, filter: filter_node, body } })
+        Ok(Stmt { lineno, kind: StmtKind::AssignBlock { target: Box::new(target), filter: filter_node.map(Box::new), body } })
     }
 
     fn parse_for(&mut self) -> PResult<Stmt> {
@@ -252,7 +252,7 @@ impl Parser {
         } else {
             self.parse_statements(&["name:endfor"], true)?
         };
-        Ok(Stmt { lineno, kind: StmtKind::For { target, iter, body, else_, test, recursive } })
+        Ok(Stmt { lineno, kind: StmtKind::For { target: Box::new(target), iter: Box::new(iter), body, else_, test: test.map(Box::new), recursive } })
     }
 
     fn parse_if(&mut self) -> PResult<Stmt> {
@@ -274,7 +274,7 @@ impl Parser {
             }
             break;
         }
-        Ok(Stmt { lineno, kind: StmtKind::If { test, body, elif_, else_ } })
+        Ok(Stmt { lineno, kind: StmtKind::If { test: Box::new(test), body, elif_, else_ } })
     }
 
     fn parse_with(&mut self) -> PResult<Stmt> {
@@ -342,7 +342,7 @@ impl Parser {
     fn parse_extends(&mut self) -> PResult<Stmt> {
         let lineno = self.stream.next().lineno;
         let template = self.parse_expression(true)?;
-        Ok(Stmt { lineno, kind: StmtKind::Extends(template) })
+        Ok(Stmt { lineno, kind: StmtKind::Extends(Box::new(template)) })
     }
 
     fn parse_import_context(&mut self) {
@@ -362,7 +362,7 @@ impl Parser {
             false
         };
         self.parse_import_context();
-        Ok(Stmt { lineno, kind: StmtKind::Include { template, ignore_missing } })
+        Ok(Stmt { lineno, kind: StmtKind::Include { template: Box::new(template), ignore_missing } })
     }
 
     fn parse_import(&mut self) -> PResult<Stmt> {
@@ -371,7 +371,7 @@ impl Parser {
         self.expect("name:as")?;
         let target = self.parse_name_target()?;
         self.parse_import_context();
-        Ok(Stmt { lineno, kind: StmtKind::Import { template, target } })
+        Ok(Stmt { lineno, kind: StmtKind::Import { template: Box::new(template), target } })
     }
 
     fn parse_from(&mut self) -> PResult<Stmt> {
@@ -414,7 +414,7 @@ impl Parser {
                 self.expect("name")?;
             }
         }
-        Ok(Stmt { lineno, kind: StmtKind::FromImport { template, names } })
+        Ok(Stmt { lineno, kind: StmtKind::FromImport { template: Box::new(template), names } })
     }
 
     fn parse_signature(&mut self) -> PResult<(Vec<String>, Vec<Expr>)> {
@@ -446,14 +446,14 @@ impl Parser {
         }
         let body = self.parse_statements(&["name:endcall"], true)?;
         let def = Rc::new(MacroDef { name: "caller".into(), args, defaults, body, lineno });
-        Ok(Stmt { lineno, kind: StmtKind::CallBlock { call: call_node, def } })
+        Ok(Stmt { lineno, kind: StmtKind::CallBlock { call: Box::new(call_node), def } })
     }
 
     fn parse_filter_block(&mut self) -> PResult<Stmt> {
         let lineno = self.stream.next().lineno;
         let filter = self.parse_filter(None, true)?.expect("filter");
         let body = self.parse_statements(&["name:endfilter"], true)?;
-        Ok(Stmt { lineno, kind: StmtKind::FilterBlock { filter, body } })
+        Ok(Stmt { lineno, kind: StmtKind::FilterBlock { filter: Box::new(filter), body } })
     }
 
     fn parse_macro(&mut self) -> PResult<Stmt> {
@@ -682,7 +682,7 @@ impl Parser {
                     // token is a dot, produce a namespace reference.
                     self.stream.next();
                     let attr = self.expect("name")?;
-                    Expr::new(ExprKind::NSRef(v.to_string(), attr.str_value().to_string()), token.lineno)
+                    Expr::new(ExprKind::NSRef(v.into(), attr.str_value().into()), token.lineno)
                 } else {
                     Expr::new(ExprKind::Name(v.to_string()), token.lineno)
                 }
@@ -943,7 +943,7 @@ impl Parser {
         // needs to be recorded before the stream is advanced.
         let lineno = self.stream.current.lineno;
         let ca = self.parse_call_args()?;
-        Ok(Expr::new(ExprKind::Call(Box::new(node), ca), lineno))
+        Ok(Expr::new(ExprKind::Call(Box::new(node), Box::new(ca)), lineno))
     }
 
     fn parse_filter(&mut self, mut node: Option<Expr>, mut start_inline: bool) -> PResult<Option<Expr>> {
@@ -959,7 +959,7 @@ impl Parser {
                 name.push_str(self.expect("name")?.str_value());
             }
             let ca = if self.stream.current.ty == "lparen" { self.parse_call_args()? } else { CallArgs::default() };
-            node = Some(Expr::new(ExprKind::Filter(node.map(Box::new), name, ca), token.lineno));
+            node = Some(Expr::new(ExprKind::Filter(node.map(Box::new), name, Box::new(ca)), token.lineno));
             start_inline = false;
         }
         Ok(node)
@@ -993,7 +993,7 @@ impl Parser {
         } else {
             CallArgs::default()
         };
-        let mut node = Expr::new(ExprKind::Test(Box::new(node), name, ca), token.lineno);
+        let mut node = Expr::new(ExprKind::Test(Box::new(node), name, Box::new(ca)), token.lineno);
         if negated {
             node = Expr::new(ExprKind::Not(Box::new(node)), token.lineno);
         }

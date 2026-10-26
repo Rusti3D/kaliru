@@ -40,11 +40,14 @@ pub enum CmpOp {
     NotIn,
 }
 
+// Every macro template stays parsed for the printer's lifetime: an enum is
+// as big as its largest variant, so the large payloads are boxed and the
+// common nodes (names, constants, attribute lookups) stay small
 #[derive(Clone, Debug)]
 pub enum ExprKind {
     Name(String),
     /// NSRef (a.b assignment target)
-    NSRef(String, String),
+    NSRef(Box<str>, Box<str>),
     Const(Value),
     Tuple(Vec<Expr>),
     List(Vec<Expr>),
@@ -61,10 +64,10 @@ pub enum ExprKind {
     Getitem(Box<Expr>, Box<Expr>),
     Slice(Option<Box<Expr>>, Option<Box<Expr>>, Option<Box<Expr>>),
     /// Filter(node, name, args); node None inside a filter block
-    Filter(Option<Box<Expr>>, String, CallArgs),
-    Test(Box<Expr>, String, CallArgs),
+    Filter(Option<Box<Expr>>, String, Box<CallArgs>),
+    Test(Box<Expr>, String, Box<CallArgs>),
     CondExpr(Box<Expr>, Box<Expr>, Option<Box<Expr>>),
-    Call(Box<Expr>, CallArgs),
+    Call(Box<Expr>, Box<CallArgs>),
 }
 
 #[derive(Clone, Debug)]
@@ -155,26 +158,26 @@ pub struct MacroDef {
 pub enum StmtKind {
     Output(Vec<OutputNode>),
     For {
-        target: Expr,
-        iter: Expr,
+        target: Box<Expr>,
+        iter: Box<Expr>,
         body: Vec<Stmt>,
         else_: Vec<Stmt>,
-        test: Option<Expr>,
+        test: Option<Box<Expr>>,
         recursive: bool,
     },
     If {
-        test: Expr,
+        test: Box<Expr>,
         body: Vec<Stmt>,
         elif_: Vec<(Expr, Vec<Stmt>)>,
         else_: Vec<Stmt>,
     },
     Macro(std::rc::Rc<MacroDef>),
     CallBlock {
-        call: Expr,
+        call: Box<Expr>,
         def: std::rc::Rc<MacroDef>,
     },
     FilterBlock {
-        filter: Expr,
+        filter: Box<Expr>,
         body: Vec<Stmt>,
     },
     With {
@@ -183,15 +186,15 @@ pub enum StmtKind {
         body: Vec<Stmt>,
     },
     Assign {
-        target: Expr,
-        node: Expr,
+        target: Box<Expr>,
+        node: Box<Expr>,
     },
     AssignBlock {
-        target: Expr,
-        filter: Option<Expr>,
+        target: Box<Expr>,
+        filter: Option<Box<Expr>>,
         body: Vec<Stmt>,
     },
-    ExprStmt(Expr),
+    ExprStmt(Box<Expr>),
     Break,
     Continue,
     /// {% autoescape %} (a scope; autoescaping has no effect on str output)
@@ -200,17 +203,17 @@ pub enum StmtKind {
         name: String,
         body: Vec<Stmt>,
     },
-    Extends(Expr),
+    Extends(Box<Expr>),
     Include {
-        template: Expr,
+        template: Box<Expr>,
         ignore_missing: bool,
     },
     Import {
-        template: Expr,
+        template: Box<Expr>,
         target: String,
     },
     FromImport {
-        template: Expr,
+        template: Box<Expr>,
         names: Vec<(String, Option<String>)>,
     },
 }
@@ -220,3 +223,5 @@ pub struct Stmt {
     pub lineno: usize,
     pub kind: StmtKind,
 }
+
+

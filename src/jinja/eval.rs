@@ -351,7 +351,7 @@ fn uses_name(stmts: &[Stmt], name: &str) -> bool {
 fn expr_names(e: &Expr, out: &mut Vec<String>) {
     match &e.kind {
         ExprKind::Name(n) => out.push(n.clone()),
-        ExprKind::NSRef(n, _) => out.push(n.clone()),
+        ExprKind::NSRef(n, _) => out.push(n.to_string()),
         ExprKind::Const(_) => {}
         ExprKind::Tuple(v) | ExprKind::List(v) | ExprKind::Concat(v) => v.iter().for_each(|x| expr_names(x, out)),
         ExprKind::Dict(v) => v.iter().for_each(|(k, x)| {
@@ -686,8 +686,8 @@ impl Renderer {
             }
             StmtKind::For { target, iter, body, else_, test, recursive } => {
                 let it = self.eval(iter)?;
-                let rec = recursive.then(|| Rc::new((target.clone(), body.clone(), test.clone(), self.scopes.clone())));
-                let iterated = self.run_loop(target, &it, body, test.as_ref(), rec, 0)?;
+                let rec = recursive.then(|| Rc::new(((**target).clone(), body.clone(), test.as_deref().cloned(), self.scopes.clone())));
+                let iterated = self.run_loop(target, &it, body, test.as_deref(), rec, 0)?;
                 if !iterated && !else_.is_empty() {
                     let (flow, _) = self.inner(else_, false)?;
                     if !matches!(flow, Flow::Normal) {
