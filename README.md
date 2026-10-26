@@ -1,9 +1,10 @@
 # Kaliru
 
-> **Work in progress.** Kaliru is not ready for a printer yet. It is verified
-> only against Kalico's own test suite and file-output test runs, not on real
-> hardware; the MCU firmware's micro-controller boards build and match Kalico's
-> data dictionary but have not run on a chip yet. Do not run it on a printer.
+> **Runs on real printers.** Kaliru drives the Elegoo Centauri Carbon as part of
+> [Rusticc](https://github.com/Rusti3D/rusticc) (release 0.0.2), including
+> kaliru's Rust MCU firmware on the CC1's mainboard DSP, bed and toolhead
+> boards. Binaries: [releases](https://github.com/Rusti3D/kaliru/releases).
+> Early days: please report issues on this repository.
 
 Kaliru is a port of [Kalico](https://github.com/KalicoCrew/kalico) (a Klipper
 fork) to Rust, aimed at small printer hosts with little RAM (the first target
@@ -44,11 +45,13 @@ Reference: Kalico `5b59427`.
   numpy/scipy; input shaper calibration gives identical results.
 - Python exception tracebacks are reproduced too, including chained ones
   ("During handling of the above exception ...").
-- Python g-code macros (`gcode: !...`, `!!include file.py`) run on an
-  embedded [RustPython](https://github.com/RustPython/RustPython) with
-  Kalico's helpers (`emit`, `printer`, `own_vars`, `wait_moves`, ...). Syntax
-  and runtime error messages follow CPython 3.13 (`vendor/` holds the patched
-  RustPython crates). Known gap: no `match` statement.
+- Python g-code macros (`gcode: !...`, `!!include file.py`) and Python
+  plugins (Kalico's `klippy/extras` and `klippy/plugins` modules that Kaliru
+  has no native port of, e.g. third-party add-ons) run on the host's CPython
+  3.15+, loaded only when a config uses one: a config without them never maps
+  libpython ([`docs/PLUGINS.md`](docs/PLUGINS.md)). Native plugins (Rust
+  crates such as [Rust-AFC](https://github.com/Rusti3D/Rust-AFC)) are built
+  into a distribution's binary.
 - MCU firmware (`firmware/`, the `kaliru-mcu` crate): the generic core, every
   command module and sensor driver, and the Linux-process, simulator, STM32
   (F0, F1, F2, F4, F7, G0, G4, H7, L4, AT32F403, N32G45x), RP2040 / RP2350,
@@ -60,20 +63,30 @@ Reference: Kalico `5b59427`.
   hardware, give the same answers and the same pin and bus activity. In an
   emulator the C and Rust images of every micro-controller config (serial,
   USB, CAN incl. can2040 on the rp2040 PIO, USB-to-CAN; AVR on simavr) give
-  the same answers and the same peripheral register accesses; no micro-controller
-  build has run on a chip yet. See
+  the same answers and the same peripheral register accesses. On hardware, the
+  Centauri Carbon's boards run it (through Rusticc); the other boards are
+  checked in the emulator so far. See
   [`firmware/README.md`](firmware/README.md).
 - Not ported yet: the AR100 (or1k) and PRU boards (Rust has no target for
   them; planned through rustc_codegen_gcc).
-- Planned: Python plugin support (Kalico's `klippy/extras` and
-  `klippy/plugins` modules), so that a plugin that works on Kalico works on
-  Kaliru, with no cost when none is configured. Design and measurements:
-  [`docs/PLUGINS.md`](docs/PLUGINS.md); work happens on the `plugins` branch.
+
+## Using it
+
+Kaliru is a drop-in replacement for Kalico's `klippy.py`: the same command
+line (`kaliru printer.cfg -l klippy.log -a /tmp/klippy_uds`), config files,
+API socket and log. Download a binary from the
+[releases](https://github.com/Rusti3D/kaliru/releases) (x86_64 and armv7
+Linux, glibc) and run it in place of `python klippy.py` in your Klipper
+service; keep the Kalico checkout next to it for Python plugins and macros
+(`KALIRU_KLIPPY_DIR` points at its `klippy/` directory). For AFC users,
+[Rust-AFC](https://github.com/Rusti3D/Rust-AFC)'s releases have `kaliru-afc`,
+Kaliru with AFC built in. On a Centauri Carbon, install
+[Rusticc](https://github.com/Rusti3D/rusticc) instead: it ships all of this.
 
 ## Building
 
 ```sh
-cargo build --release                        # with python macros (24.3 MB)
+cargo build --release                        # with python plugins and macros
 cargo build --release --no-default-features  # without them
 tools/build_armv7.sh                         # armv7 (gcc linker, glibc)
 ```
