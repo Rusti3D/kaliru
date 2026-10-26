@@ -32,6 +32,12 @@ fn error(msg: String) -> KError {
 
 pub type ResponseHandler = Rc<dyn Fn(&Params) -> KResult<()>>;
 
+/// Not in python: a test harness's stand-in for an MCU's answer, where a
+/// python test plugin replaces serial.raw_send_wait_ack. Given a command's
+/// bytes it delivers the answer to the response handlers and returns the
+/// ack's params, or None to send the command as usual
+pub type WaitAckHook = Rc<dyn Fn(&SerialReader, &[u8]) -> KResult<Option<Params>>>;
+
 /// what the background thread hands to the reactor thread
 enum Incoming {
     Notify { id: u64, sent_time: f64, receive_time: f64 },
@@ -73,6 +79,7 @@ pub struct SerialReader {
     handlers: RefCell<HashMap<(String, Option<i64>), ResponseHandler>>,
     last_notify_id: Cell<u64>,
     pending_notifications: RefCell<IndexMap<u64, Rc<ReactorCompletion<Option<Params>>>>>,
+    wait_ack_hook: RefCell<Option<WaitAckHook>>,
 }
 
 fn params_get_int(params: &Params, k: &str) -> i64 {
@@ -112,6 +119,7 @@ impl SerialReader {
             handlers: RefCell::new(HashMap::new()),
             last_notify_id: Cell::new(0),
             pending_notifications: RefCell::new(IndexMap::default()),
+            wait_ack_hook: RefCell::new(None),
         });
         READERS.with(|r| r.borrow_mut().insert(sr.id, Rc::downgrade(&sr)));
         let s = Rc::downgrade(&sr);
@@ -490,6 +498,11 @@ impl SerialReader {
         self.default_cmd_queue.clone()
     }
 
+    /// handlers[(name, oid)]: the callback registered for a message
+    pub fn response_handler(&self, name: &str, oid: Option<i64>) -> Option<ResponseHandler> {
+        self.handlers.borrow().get(&(name.to_string(), oid)).cloned()
+    }
+
     /// register_response(callback, name, oid); None removes
     pub fn register_response(&self, callback: Option<ResponseHandler>, name: &str, oid: Option<i64>) {
         let key = (name.to_string(), oid);
@@ -519,7 +532,19 @@ impl SerialReader {
         Ok(())
     }
 
+    /// set (or clear) the test harness's WaitAckHook
+    pub fn set_wait_ack_hook(&self, hook: Option<WaitAckHook>) {
+        *self.wait_ack_hook.borrow_mut() = hook;
+    }
+
     pub fn raw_send_wait_ack(&self, cmd: &[u8], minclock: u64, reqclock: u64, cmd_queue: &CommandQueue) -> KResult<Option<Params>> {
+        let hook = self.wait_ack_hook.borrow().clone();
+        if let Some(hook) = hook {
+            if let Some(params) = hook(self, cmd)? {
+                self.raw_send(cmd, minclock, reqclock, cmd_queue)?;
+                return Ok(Some(params));
+            }
+        }
         self.check_noncritical_disconnected()?;
         let Some(sq) = self.serialqueue.borrow().clone() else { return Ok(None) };
         self.last_notify_id.set(self.last_notify_id.get() + 1);

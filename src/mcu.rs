@@ -2227,6 +2227,10 @@ impl Mcu {
         &self.name
     }
 
+    pub fn is_shutdown(&self) -> bool {
+        self.conn.is_shutdown.get()
+    }
+
     pub fn get_printer(&self) -> Rc<Printer> {
         self.printer.clone()
     }
