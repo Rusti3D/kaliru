@@ -78,6 +78,7 @@ series is updated afterwards.
 | 4 + 2d-1 | FxHasher maps, allocation-free float / JSON formatting, RustPython dropped, mcu status shared, CPython-table python compatibility (batch 1) | identical | with batches 2-3 below |
 | 2d-2 + 1 | static status keys (`PyKey`), `pydict!` sized dicts, motion_report status shared as python's, reply keys reused, no send-buffer copy; close-on-exec fds and raising chown / chmod as python; SAFETY notes, `[lints.clippy]`, clippy clean in the gate (batch 2) | identical | |
 | 2d + fixes | gcode_macro status shared as python's, klipper_path from KALIRU_KLIPPY_DIR, mirrored list fields assigned whole (AFC restore_pos), gettempdir as CPython, `tools/profile_steady.sh` (batch 3) | identical | batches 1-3: steady cpu -3.8 %, steady peak RSS -25.5 %, anon RSS -25 %, anon PSS -22.4 %, suite cpu -2.1 %, suite peak RSS -30 %, x86 -66 % (RustPython), armv7 -0.9 % |
+| heap | compact Jinja AST nodes: `Expr` 112 -> 56 bytes, `Stmt` 400 -> 96 (27c9d77); every macro stays parsed for the printer's lifetime | identical (suite macro tests, chains, pymacro) | heap at the end of an AFC macro config (massif) -6.3 %, allocator overhead -15 % |
 
 Evaluated and kept as they are (no measurable gain, or a parity cost):
 - 1, workspace crates: +0.75 % .text for two crates (generics instantiated per crate); modules give the layering free.
@@ -99,6 +100,13 @@ Evaluated and kept as they are (no measurable gain, or a parity cost):
   profile does not show them. A change there needs a CC1 A/B under motion (with the user present).
 - 5, async executor instead of stackful greenlets: the greenlets' touched stack pages are bounded by the 2.3 MB
   steady anonymous memory; replacing every pause point is a rewrite with no measured gain.
+
+- File-backed code size (opt-level, `panic = "abort"`: armv7 -17 %) and resident code after the text trim:
+  clean page-cache pages count as available memory (on the CC1, dropping 29 MB of cache gave only 1.8 MB
+  more MemAvailable), so they save flash, not RAM. `panic = "abort"` also turns a panic in a background
+  thread into a dead process. Measured 2026-10-26, not adopted.
+- Replacing minijinja (include templates) with the native Jinja2 port: -400 kB code, and jinja2's own error
+  texts for broken include templates (minijinja matches them only for undefined names). Parked.
 
 ## How to measure (lessons)
 
