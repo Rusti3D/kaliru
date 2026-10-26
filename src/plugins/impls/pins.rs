@@ -3,7 +3,9 @@ use super::*;
 use crate::plugins::callable::py_function;
 use crate::plugins::convert::ToPy;
 
-use crate::mcu::{McuAdc, McuDigitalOut, McuEndstop, McuPwm};
+use crate::mcu::{AdcCallback, AdcPin, DigitalOutPin, Endstop, EndstopRef, Mcu, McuAdc, McuDigitalOut, McuEndstop, McuPwm, PwmPin, StepperRef};
+use crate::pins::ForeignPin;
+use crate::reactor::{ReactorCompletion, NEVER, NOW};
 use crate::method;
 use crate::pins::{PinChip, PinParams, PinsObject, SharedPinParams};
 
@@ -41,8 +43,11 @@ pub fn register(r: &mut Registry) {
         let printer = printer().ok_or_else(|| KError::Other("kaliru: no printer".into()))?;
         let pin = crate::pins::setup_pin(&printer, &a.string(0)?, &a.string(1)?)?;
         // a python plugin's chip made a python object itself
-        let pin = match pin.downcast::<PyRef>() {
-            Ok(py) => return Ok((*py).clone()),
+        let pin = match pin.downcast::<ForeignPin>() {
+            Ok(f) => match f.obj.clone().downcast::<PyRef>() {
+                Ok(py) => return Ok((*py).clone()),
+                Err(_) => return Err(KError::Other("kaliru: a foreign pin without its python object".into())),
+            },
             Err(p) => p,
         };
         let pin = match pin.downcast::<McuDigitalOut>() {
@@ -181,7 +186,16 @@ impl PinChip for PyPinChip {
     fn setup_pin(&self, pin_type: &str, pin_params: &SharedPinParams) -> Result<Rc<dyn std::any::Any>, String> {
         let params = pin_params_dict(&pin_params.borrow()).map_err(|e| e.to_string())?;
         let pin = self.obj.call_method("setup_pin", &[&py_str(pin_type), &params]).map_err(|e| e.to_string())?;
-        Ok(Rc::new(pin))
+        // kaliru's own users of the pin call it through the native pin
+        // interface its type has (python duck types these)
+        let native: Rc<dyn std::any::Any> = match pin_type {
+            "digital_out" => Rc::new(Rc::new(PyPin(pin.clone())) as Rc<dyn DigitalOutPin>),
+            "pwm" => Rc::new(Rc::new(PyPin(pin.clone())) as Rc<dyn PwmPin>),
+            "adc" => Rc::new(Rc::new(PyPin(pin.clone())) as Rc<dyn AdcPin>),
+            "endstop" => Rc::new(Rc::new(PyPin(pin.clone())) as EndstopRef),
+            _ => Rc::new(pin.clone()),
+        };
+        Ok(Rc::new(ForeignPin { obj: Rc::new(pin), native }))
     }
 
     fn register_config_callback(&self, cb: Rc<dyn Fn() -> KResult<()>>) -> Option<KResult<()>> {
@@ -197,3 +211,157 @@ impl PinChip for PyPinChip {
     }
 }
 
+
+/// A python plugin's pin object (a virtual_pins pin, ...) behind kaliru's
+/// native pin interfaces: each method calls the python method of that name
+struct PyPin(PyRef);
+
+/// log a failed call kaliru's interface cannot return (python would raise)
+fn report(r: KResult<PyRef>) {
+    if let Err(e) = r {
+        crate::logging::exception_err("python pin", &e);
+    }
+}
+
+impl PyPin {
+    /// get_mcu(): the MCU the python object names (virtual_pins: the main
+    /// mcu), else the main mcu
+    fn mcu(&self) -> Rc<Mcu> {
+        let named = self.0.call_method("get_mcu", &[]).and_then(|m| objects::unwrap(&m)).ok().and_then(|m| m.downcast::<Mcu>().ok());
+        named.unwrap_or_else(|| {
+            let printer = printer().expect("kaliru: no printer");
+            crate::mcu::get_printer_mcu(&printer, "mcu").expect("kaliru: no main mcu")
+        })
+    }
+}
+
+impl DigitalOutPin for PyPin {
+    fn get_mcu(&self) -> Rc<Mcu> {
+        self.mcu()
+    }
+    fn setup_max_duration(&self, max_duration: f64) {
+        report(self.0.call_method("setup_max_duration", &[&py_float(max_duration)]));
+    }
+    fn setup_start_value(&self, start_value: bool, shutdown_value: bool) {
+        // (python's output_pin passes its values as floats)
+        report(self.0.call_method("setup_start_value", &[&py_float(start_value as i64 as f64), &py_float(shutdown_value as i64 as f64)]));
+    }
+    fn set_digital(&self, print_time: f64, value: bool) -> KResult<()> {
+        self.0.call_method("set_digital", &[&py_float(print_time), &py_float(value as i64 as f64)]).map(|_| ())
+    }
+}
+
+impl PwmPin for PyPin {
+    fn get_mcu(&self) -> Rc<Mcu> {
+        self.mcu()
+    }
+    fn setup_max_duration(&self, max_duration: f64) {
+        report(self.0.call_method("setup_max_duration", &[&py_float(max_duration)]));
+    }
+    fn setup_cycle_time(&self, cycle_time: f64, hardware_pwm: bool) -> KResult<()> {
+        self.0.call_method("setup_cycle_time", &[&py_float(cycle_time), &py_bool(hardware_pwm)]).map(|_| ())
+    }
+    fn setup_start_value(&self, start_value: f64, shutdown_value: f64) {
+        report(self.0.call_method("setup_start_value", &[&py_float(start_value), &py_float(shutdown_value)]));
+    }
+    fn set_pwm(&self, print_time: f64, value: f64) -> KResult<()> {
+        self.0.call_method("set_pwm", &[&py_float(print_time), &py_float(value)]).map(|_| ())
+    }
+}
+
+impl AdcPin for PyPin {
+    fn get_mcu(&self) -> Rc<Mcu> {
+        self.mcu()
+    }
+    fn setup_adc_sample(&self, sample_time: f64, sample_count: i64, minval: f64, maxval: f64, range_check_count: i64) {
+        report(self.0.call_method(
+            "setup_adc_sample",
+            &[&py_float(sample_time), &py_int(sample_count), &py_float(minval), &py_float(maxval), &py_int(range_check_count)],
+        ));
+    }
+    fn setup_adc_callback(&self, report_time: f64, callback: AdcCallback) {
+        let f = py_function(Rc::new(move |a: &[PyRef]| {
+            let t = a.first().map_or(Ok(0.0), |v| v.as_f64())?;
+            let v = a.get(1).map_or(Ok(0.0), |v| v.as_f64())?;
+            callback(t, v)?;
+            Ok(py_none())
+        }));
+        report(f.and_then(|f| self.0.call_method("setup_adc_callback", &[&py_float(report_time), &f])));
+    }
+    fn get_last_value(&self) -> (f64, f64) {
+        let r = self.0.call_method("get_last_value", &[]).and_then(|t| {
+            let a = t.call_method("__getitem__", &[&py_int(0)])?.as_f64()?;
+            let b = t.call_method("__getitem__", &[&py_int(1)])?.as_f64()?;
+            Ok((a, b))
+        });
+        r.unwrap_or_else(|e| {
+            crate::logging::exception_err("python pin", &e);
+            (0.0, 0.0)
+        })
+    }
+}
+
+impl Endstop for PyPin {
+    fn get_mcu(&self) -> Rc<Mcu> {
+        self.mcu()
+    }
+    fn add_stepper(&self, stepper: &StepperRef) -> KResult<()> {
+        self.0.call_method("add_stepper", &[&objects::wrap(stepper.clone())?]).map(|_| ())
+    }
+    fn get_steppers(&self) -> Vec<StepperRef> {
+        let r = self.0.call_method("get_steppers", &[]).and_then(|l| {
+            let n = l.call_method("__len__", &[])?.as_i64()?;
+            let mut out = vec![];
+            for i in 0..n {
+                let s = objects::unwrap(&l.call_method("__getitem__", &[&py_int(i)])?)?;
+                if let Ok(s) = s.downcast::<crate::stepper::McuStepper>() {
+                    out.push(s);
+                }
+            }
+            Ok(out)
+        });
+        r.unwrap_or_else(|e| {
+            crate::logging::exception_err("python pin", &e);
+            vec![]
+        })
+    }
+    fn home_start(&self, print_time: f64, sample_time: f64, sample_count: i64, rest_time: f64, triggered: bool) -> KResult<Rc<ReactorCompletion<bool>>> {
+        let r = self.0.call_method(
+            "home_start",
+            &[&py_float(print_time), &py_float(sample_time), &py_int(sample_count), &py_float(rest_time), &py_bool(triggered)],
+        )?;
+        let pyc = objects::unwrap(&r)?
+            .downcast::<ReactorCompletion<PyRef>>()
+            .map_err(|_| KError::Py("TypeError".into(), "kaliru: home_start did not return a reactor completion".into()))?;
+        // the native homing waits on a native completion of the python one
+        let printer = printer().ok_or_else(|| KError::Other("kaliru: no printer".into()))?;
+        let reactor = printer.get_reactor();
+        let done = reactor.completion::<bool>();
+        // (already done, as virtual_pins' is: done now, as python's caller sees it)
+        if pyc.test() {
+            if let Ok(Some(v)) = pyc.wait(NEVER, None) {
+                done.complete(v.is_true()?);
+                return Ok(done);
+            }
+        }
+        let d = done.clone();
+        reactor.register_callback(
+            move |_| {
+                let v = match pyc.wait(NEVER, None) {
+                    Ok(Some(v)) => v.is_true().unwrap_or(false),
+                    _ => false,
+                };
+                d.complete(v);
+            },
+            NOW,
+        );
+        Ok(done)
+    }
+    fn home_wait(&self, home_end_time: f64) -> KResult<f64> {
+        self.0.call_method("home_wait", &[&py_float(home_end_time)])?.as_f64()
+    }
+    fn query_endstop(&self, print_time: f64) -> KResult<i64> {
+        let v = self.0.call_method("query_endstop", &[&py_float(print_time)])?;
+        Ok(v.is_true()? as i64)
+    }
+}

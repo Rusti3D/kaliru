@@ -1,0 +1,19 @@
+# A python plugin's pin chip (ACEPRO's virtual_pins, tests/plugins/
+# virtual_pins.py) under kaliru's native pin users (issue #1): output_pin
+# digital and pwm, a thermistor's adc, a manual_stepper's endstop; the pins'
+# state closes the case as an error
+SHOULD_FAIL
+CONFIG virtual_pins.cfg
+DICTIONARY atmega2560.dict
+
+G4 P10
+SET_PIN PIN=ace_pro VALUE=0
+SET_PIN PIN=vpwm VALUE=0.25
+SET_VIRTUAL_PIN PIN=vtemp VALUE=0.5
+G4 P2500
+MANUAL_STEPPER STEPPER=vstep ENABLE=1
+MANUAL_STEPPER STEPPER=vstep SET_POSITION=0
+MANUAL_STEPPER STEPPER=vstep MOVE=10 SPEED=5 STOP_ON_ENDSTOP=1
+SET_VIRTUAL_PIN PIN=vstop VALUE=1
+QUERY_ENDSTOPS
+SHOW_PINS

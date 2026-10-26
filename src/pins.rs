@@ -308,6 +308,23 @@ pub fn setup_pin(printer: &crate::printer::Printer, pin_type: &str, pin_desc: &s
     chip.setup_pin(pin_type, &pin_params).map_err(crate::error::KError::Pins)
 }
 
+/// A pin a python plugin's chip made: its own object (what python callers
+/// get back) and the native pin interface for the type it was set up as (a
+/// boxed Rc<dyn DigitalOutPin> / PwmPin / AdcPin, or an EndstopRef), which
+/// kaliru's own users of the pin take
+pub struct ForeignPin {
+    pub obj: Rc<dyn Any>,
+    pub native: Rc<dyn Any>,
+}
+
+/// the native interface of a ForeignPin, else the object itself
+pub fn native_pin(obj: Rc<dyn Any>) -> Rc<dyn Any> {
+    match obj.downcast::<ForeignPin>() {
+        Ok(f) => f.native.clone(),
+        Err(obj) => obj,
+    }
+}
+
 /// setup_pin() for an mcu pin class (the concrete chip object)
 pub fn setup_pin_as<T: 'static>(printer: &crate::printer::Printer, pin_type: &str, pin_desc: &str) -> crate::error::KResult<Rc<T>> {
     setup_pin(printer, pin_type, pin_desc)?
@@ -318,7 +335,7 @@ pub fn setup_pin_as<T: 'static>(printer: &crate::printer::Printer, pin_type: &st
 /// setup_pin("pwm", pin_desc) as a pwm pin (an McuPwm or another chip's
 /// boxed Rc<dyn PwmPin>)
 pub fn setup_pwm_pin(printer: &crate::printer::Printer, pin_desc: &str) -> crate::error::KResult<Rc<dyn crate::mcu::PwmPin>> {
-    let obj = setup_pin(printer, "pwm", pin_desc)?;
+    let obj = native_pin(setup_pin(printer, "pwm", pin_desc)?);
     match obj.downcast::<crate::mcu::McuPwm>() {
         Ok(p) => Ok(p),
         Err(obj) => obj
@@ -331,7 +348,7 @@ pub fn setup_pwm_pin(printer: &crate::printer::Printer, pin_desc: &str) -> crate
 /// the object setup_pin("digital_out", ...) returns, as a digital output
 /// pin: an McuDigitalOut, or another chip's boxed Rc<dyn DigitalOutPin>
 pub fn any_to_digital_out(obj: Rc<dyn Any>) -> Option<Rc<dyn crate::mcu::DigitalOutPin>> {
-    match obj.downcast::<crate::mcu::McuDigitalOut>() {
+    match native_pin(obj).downcast::<crate::mcu::McuDigitalOut>() {
         Ok(p) => Some(p),
         Err(obj) => obj.downcast::<Rc<dyn crate::mcu::DigitalOutPin>>().ok().map(|p| (*p).clone()),
     }
@@ -345,7 +362,7 @@ pub fn setup_digital_out_pin(printer: &crate::printer::Printer, pin_desc: &str) 
 
 /// setup_pin("adc", pin_desc) as an adc pin
 pub fn setup_adc_pin(printer: &crate::printer::Printer, pin_desc: &str) -> crate::error::KResult<Rc<dyn crate::mcu::AdcPin>> {
-    let obj = setup_pin(printer, "adc", pin_desc)?;
+    let obj = native_pin(setup_pin(printer, "adc", pin_desc)?);
     match obj.downcast::<crate::mcu::McuAdc>() {
         Ok(p) => Ok(p),
         Err(obj) => obj

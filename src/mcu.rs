@@ -571,7 +571,7 @@ pub type EndstopRef = Rc<dyn Endstop>;
 /// the object setup_pin("endstop", ...) returns, as an endstop: an
 /// McuEndstop, or an EndstopRef boxed by other chips (virtual endstops)
 pub fn any_to_endstop(obj: Rc<dyn Any>) -> Option<EndstopRef> {
-    match obj.downcast::<McuEndstop>() {
+    match crate::pins::native_pin(obj).downcast::<McuEndstop>() {
         Ok(e) => Some(e),
         Err(obj) => obj.downcast::<EndstopRef>().ok().map(|e| (*e).clone()),
     }
