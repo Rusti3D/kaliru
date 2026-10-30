@@ -126,15 +126,15 @@ pub struct TradRack {
     pub tr_toolhead: Rc<ToolHead>,
     pub tr_kinematics: Rc<TradRackKinematics>,
     pub sel_max_velocity: f64,
-    servo: TradRackServo,
-    fil_driver_endstops: Vec<(EndstopRef, String)>,
-    toolhead_fil_endstops: Vec<(EndstopRef, String)>,
+    pub servo: Rc<TradRackServo>,
+    pub fil_driver_endstops: Vec<(EndstopRef, String)>,
+    pub toolhead_fil_endstops: Vec<(EndstopRef, String)>,
     pub selector_sensor: Rc<TradRackRunoutSensor>,
     pub lane_count: i64,
-    lane_position_manager: RefCell<TradRackLanePositionManager>,
+    pub lane_position_manager: Rc<TradRackLanePositionManager>,
     pub lane_positions: RefCell<Vec<f64>>,
-    bowden_load_length_filter: RefCell<MovingAverageFilter>,
-    bowden_unload_length_filter: RefCell<MovingAverageFilter>,
+    pub bowden_load_length_filter: Rc<MovingAverageFilter>,
+    pub bowden_unload_length_filter: Rc<MovingAverageFilter>,
     pub extruder_sync_manager: Rc<TradRackExtruderSyncManager>,
     pub servo_down_angle: f64,
     pub servo_up_angle: f64,
@@ -185,7 +185,7 @@ pub struct TradRack {
     pub selector_pos_uncertain: Cell<bool>,
     /// save_variables.allVariables as of klippy:connect (python keeps that
     /// dict; SAVE_VARIABLE replaces save_variables' own)
-    variables: RefCell<Option<IndexMap<String, Value>>>,
+    pub variables: RefCell<Option<IndexMap<String, Value>>>,
     resume_stack: RefCell<VecDeque<Resume>>,
     // tool mapping
     pub lanes_dead: RefCell<Vec<bool>>,
@@ -265,7 +265,7 @@ impl TradRack {
 
         // get servo
         let servo_obj = printer.load_as::<PrinterServo>(config, SERVO_NAME)?;
-        let servo = TradRackServo { servo: servo_obj, toolhead: tr_toolhead.clone() };
+        let servo = Rc::new(TradRackServo { servo: servo_obj, toolhead: tr_toolhead.clone() });
 
         // get kinematics and filament driver endstops
         let fil_driver_endstops = tr_kinematics.get_fil_driver_rail().get_endstops();
@@ -378,10 +378,10 @@ impl TradRack {
             toolhead_fil_endstops,
             selector_sensor,
             lane_count,
-            lane_position_manager: RefCell::new(lane_position_manager),
+            lane_position_manager: Rc::new(lane_position_manager),
             lane_positions: RefCell::new(lane_positions),
-            bowden_load_length_filter: RefCell::new(MovingAverageFilter::new(bowden_samples as usize)),
-            bowden_unload_length_filter: RefCell::new(MovingAverageFilter::new(bowden_samples as usize)),
+            bowden_load_length_filter: Rc::new(MovingAverageFilter::new(bowden_samples as usize)),
+            bowden_unload_length_filter: Rc::new(MovingAverageFilter::new(bowden_samples as usize)),
             extruder_sync_manager,
             servo_down_angle,
             servo_up_angle,
@@ -560,7 +560,7 @@ impl TradRack {
                     length.set(new_set_length);
                     let count = get("sample_count")?.as_f64().unwrap_or(0.0) as i64;
                     for _ in 0..count {
-                        filter.borrow_mut().update(new_set_length);
+                        filter.update(new_set_length);
                     }
                 }
             }
@@ -1025,13 +1025,13 @@ impl TradRack {
         // discard load length
         if mode == "ALL" || mode == "LOAD" {
             self.bowden_load_length.set(self.config_bowden_length);
-            self.bowden_load_length_filter.borrow_mut().reset();
+            self.bowden_load_length_filter.reset();
             self.save_variable(VARS_CALIB_BOWDEN_LOAD_LENGTH, "{}")?;
         }
         // discard unload length
         if mode == "ALL" || mode == "UNLOAD" {
             self.bowden_unload_length.set(self.config_bowden_length);
-            self.bowden_unload_length_filter.borrow_mut().reset();
+            self.bowden_unload_length_filter.reset();
             self.save_variable(VARS_CALIB_BOWDEN_UNLOAD_LENGTH, "{}")?;
         }
         Ok(())
@@ -1531,9 +1531,9 @@ impl TradRack {
             // update bowden_load_length
             let length = trigpos[1] - move_start + base_length - self.target_toolhead_homing_dist;
             let old_set_length = self.bowden_load_length.get();
-            let new_len = self.bowden_load_length_filter.borrow_mut().update(length);
+            let new_len = self.bowden_load_length_filter.update(length);
             self.bowden_load_length.set(new_len);
-            let samples = self.bowden_load_length_filter.borrow().get_entry_count();
+            let samples = self.bowden_load_length_filter.get_entry_count();
             if self.log_bowden_lengths {
                 self.write_bowden_length_data(&self.bowden_load_lengths_filename, length, old_set_length, new_len, samples)?;
             }
@@ -1695,9 +1695,9 @@ impl TradRack {
                 if !self.ignore_next_unload_length.get() {
                     let length = move_start - trigpos[1] + base_length - self.target_selector_homing_dist;
                     let old_set_length = self.bowden_unload_length.get();
-                    let new_len = self.bowden_unload_length_filter.borrow_mut().update(length);
+                    let new_len = self.bowden_unload_length_filter.update(length);
                     self.bowden_unload_length.set(new_len);
-                    let samples = self.bowden_unload_length_filter.borrow().get_entry_count();
+                    let samples = self.bowden_unload_length_filter.get_entry_count();
                     if self.log_bowden_lengths {
                         self.write_bowden_length_data(&self.bowden_unload_lengths_filename, length, old_set_length, new_len, samples)?;
                     }
@@ -2096,7 +2096,7 @@ impl TradRack {
 
                 // process calibration and set new lane positions
                 let (pos_endstop, lane_spacing, lane_positions) =
-                    self.lane_position_manager.borrow_mut().process_selector_calibration(endstop_to_lane0, endstop_to_last_lane, 6);
+                    self.lane_position_manager.process_selector_calibration(endstop_to_lane0, endstop_to_last_lane, 6);
                 *self.lane_positions.borrow_mut() = lane_positions.clone();
 
                 // round new config values
@@ -2383,7 +2383,7 @@ pub struct TradRackKinematics {
     pub limits: RefCell<[(f64, f64); 2]>,
     pub selector_min: f64,
     pub selector_max: f64,
-    is_extruder_synced: Rc<dyn Fn() -> bool>,
+    pub is_extruder_synced: Rc<dyn Fn() -> bool>,
 }
 
 impl TradRackKinematics {
@@ -2642,7 +2642,7 @@ impl TradRackServo {
 
 pub struct TradRackLanePositionManager {
     pub lane_count: i64,
-    pub lane_spacing: f64,
+    pub lane_spacing: Cell<f64>,
     pub lane_spacing_mods: Vec<f64>,
     pub lane_spacing_mod_internal: f64,
     pub lane_offsets: Vec<f64>,
@@ -2660,7 +2660,7 @@ impl TradRackLanePositionManager {
             lane_offsets.push(config.getfloat(&format!("lane_offset_{}", i), 0.0, Lim::new())?);
         }
         lane_spacing_mod_internal -= lane_spacing_mods[0];
-        Ok(TradRackLanePositionManager { lane_count, lane_spacing, lane_spacing_mods, lane_spacing_mod_internal, lane_offsets })
+        Ok(TradRackLanePositionManager { lane_count, lane_spacing: Cell::new(lane_spacing), lane_spacing_mods, lane_spacing_mod_internal, lane_offsets })
     }
 
     pub fn get_lane_positions(&self) -> Vec<f64> {
@@ -2669,12 +2669,12 @@ impl TradRackLanePositionManager {
         for i in 0..self.lane_count as usize {
             curr_pos += self.lane_spacing_mods[i];
             lane_positions.push(curr_pos + self.lane_offsets[i]);
-            curr_pos += self.lane_spacing;
+            curr_pos += self.lane_spacing.get();
         }
         lane_positions
     }
 
-    fn process_selector_calibration(&mut self, endstop_to_lane0: f64, endstop_to_last_lane: f64, lane_spacing_ndigits: usize) -> (f64, f64, Vec<f64>) {
+    pub fn process_selector_calibration(&self, endstop_to_lane0: f64, endstop_to_last_lane: f64, lane_spacing_ndigits: usize) -> (f64, f64, Vec<f64>) {
         let n = self.lane_count as usize;
         // account for lane offsets
         let endstop_to_lane0 = endstop_to_lane0 - self.lane_offsets[0];
@@ -2683,14 +2683,14 @@ impl TradRackLanePositionManager {
         let pos_endstop = self.lane_spacing_mods[0] - endstop_to_lane0;
         let lane_span = endstop_to_last_lane - endstop_to_lane0;
         let lane_spacing = (lane_span - self.lane_spacing_mod_internal) / (self.lane_count - 1) as f64;
-        self.lane_spacing = py_round(lane_spacing, lane_spacing_ndigits);
+        self.lane_spacing.set(py_round(lane_spacing, lane_spacing_ndigits));
         let lane_positions = self.get_lane_positions();
-        (pos_endstop, self.lane_spacing, lane_positions)
+        (pos_endstop, self.lane_spacing.get(), lane_positions)
     }
 }
 
 #[derive(Clone, Copy, PartialEq)]
-enum SyncState {
+pub enum SyncState {
     ExtruderToFilDriver,
     FilDriverToExtruder,
 }
@@ -2700,7 +2700,7 @@ pub struct TradRackExtruderSyncManager {
     pub toolhead: RefCell<Option<Rc<ToolHead>>>,
     pub tr_toolhead: Rc<ToolHead>,
     pub fil_driver_rail: Rc<PrinterRail>,
-    sync_state: Cell<Option<SyncState>>,
+    pub sync_state: Cell<Option<SyncState>>,
     pub prev_sks: RefCell<Vec<Option<SkRef>>>,
     pub prev_trapq: RefCell<Option<TrapQRef>>,
     pub prev_rotation_dists: RefCell<Vec<f64>>,
@@ -2874,39 +2874,40 @@ impl RunIfNoActivity {
 
 pub struct MovingAverageFilter {
     pub max_entries: usize,
-    queue: VecDeque<f64>,
-    pub total: f64,
+    pub queue: RefCell<VecDeque<f64>>,
+    pub total: Cell<f64>,
 }
 
 impl MovingAverageFilter {
     pub fn new(max_entries: usize) -> Self {
-        MovingAverageFilter { max_entries, queue: VecDeque::new(), total: 0.0 }
+        MovingAverageFilter { max_entries, queue: RefCell::new(VecDeque::new()), total: Cell::new(0.0) }
     }
 
-    fn update(&mut self, value: f64) -> f64 {
-        if self.queue.len() >= self.max_entries {
-            self.total -= self.queue.pop_front().unwrap_or(0.0);
+    pub fn update(&self, value: f64) -> f64 {
+        let mut queue = self.queue.borrow_mut();
+        if queue.len() >= self.max_entries {
+            self.total.set(self.total.get() - queue.pop_front().unwrap_or(0.0));
         }
-        self.total += value;
-        self.queue.push_back(value);
-        self.total / self.queue.len() as f64
+        self.total.set(self.total.get() + value);
+        queue.push_back(value);
+        self.total.get() / queue.len() as f64
     }
 
-    fn reset(&mut self) {
-        self.queue.clear();
-        self.total = 0.0;
+    pub fn reset(&self) {
+        self.queue.borrow_mut().clear();
+        self.total.set(0.0);
     }
 
     pub fn get_entry_count(&self) -> usize {
-        self.queue.len()
+        self.queue.borrow().len()
     }
 }
 
 pub struct TradRackRunoutSensor {
     pub printer: Rc<Printer>,
     pub reactor: Rc<Reactor>,
-    runout_callback: Rc<dyn Fn(f64) -> KResult<()>>,
-    active: Cell<bool>,
+    pub runout_callback: Rc<dyn Fn(f64) -> KResult<()>>,
+    pub active: Cell<bool>,
 }
 
 impl TradRackRunoutSensor {

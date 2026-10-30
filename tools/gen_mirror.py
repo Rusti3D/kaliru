@@ -213,6 +213,9 @@ class ModuleGen:
         methods built on mirrored primitives (ConfigWrapper.getchoice)"""
         for dec in fn.decorator_list:
             self.out.append(indent + "@" + ast.unparse(dec))
+            self.needed |= names_in(dec)
+        for d in fn.args.defaults + [d for d in fn.args.kw_defaults if d is not None]:
+            self.needed |= names_in(d)
         # the segment starts at `def`; later lines keep their original indentation
         lines = ast.get_source_segment(self.src, fn).split("\n")
         shift = len(indent) - fn.col_offset

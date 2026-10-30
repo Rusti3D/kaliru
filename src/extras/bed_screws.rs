@@ -17,7 +17,7 @@ const CMD_ACCEPT_HELP: &str = "Accept bed screw position";
 const CMD_ADJUSTED_HELP: &str = "Accept bed screw position after notable adjustment";
 const CMD_ABORT_HELP: &str = "Abort bed screws tool";
 
-type Screw = ((f64, f64), String);
+pub type Screw = ((f64, f64), String);
 
 pub struct BedScrews {
     me: Weak<BedScrews>,
@@ -26,8 +26,8 @@ pub struct BedScrews {
     pub current_screw: Cell<usize>,
     pub accepted_screws: Cell<i64>,
     pub number_of_screws: i64,
-    adjust: Vec<Screw>,
-    fine: Vec<Screw>,
+    pub adjust: Vec<Screw>,
+    pub fine: Vec<Screw>,
     pub speed: f64,
     pub lift_speed: f64,
     pub horizontal_move_z: f64,
@@ -116,7 +116,7 @@ impl BedScrews {
         r
     }
 
-    fn move_to_screw(&self, state: &'static str, screw: usize) -> KResult<()> {
+    pub fn move_to_screw(&self, state: &'static str, screw: usize) -> KResult<()> {
         // Move up, over, and then down
         self.move_to(&[None, None, Some(self.horizontal_move_z)], self.lift_speed)?;
         let ((x, y), name) = self.screws(state)[screw].clone();

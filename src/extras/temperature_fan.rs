@@ -369,6 +369,11 @@ pub struct ControlCurve {
     /// [temps, speeds] with the heating / cooling hysteresis applied
     pub curve_heating: [Vec<f64>; 2],
     pub curve_cooling: [Vec<f64>; 2],
+    /// the points (min_temp / max_temp ends added) as [temps, speeds]
+    pub curve_standard: [Vec<f64>; 2],
+    pub smooth_readings: Option<i64>,
+    pub cooling_hysteresis: f64,
+    pub heating_hysteresis: f64,
 }
 
 impl ControlCurve {
@@ -435,8 +440,15 @@ impl ControlCurve {
         let temps: Vec<f64> = points.iter().map(|p| p.0).collect();
         let speeds: Vec<f64> = points.iter().map(|p| p.1).collect();
         let curve_heating = [temps.iter().map(|t| t + heating_hysteresis).collect(), speeds.clone()];
-        let curve_cooling = [temps.iter().map(|t| t - cooling_hysteresis).collect(), speeds];
-        Ok(ControlCurve { curve_heating, curve_cooling })
+        let curve_cooling = [temps.iter().map(|t| t - cooling_hysteresis).collect(), speeds.clone()];
+        Ok(ControlCurve {
+            curve_heating,
+            curve_cooling,
+            curve_standard: [temps, speeds],
+            smooth_readings,
+            cooling_hysteresis,
+            heating_hysteresis,
+        })
     }
 }
 

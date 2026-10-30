@@ -119,42 +119,53 @@ impl RetryPolicy {
     }
 }
 
-pub struct GcodeNozzleScrubber {
-    pub printer: Rc<Printer>,
+pub struct GcodeNozzleScrubberConfig {
     pub template: Rc<Template>,
     pub cfg_scrubbing_frequency: i64,
     pub scrubbing_frequency: Cell<i64>,
 }
 
-impl GcodeNozzleScrubber {
+impl GcodeNozzleScrubberConfig {
     pub fn new(config: &ConfigWrapper) -> KResult<Self> {
         let gcode_macro = load_gcode_macro(config)?;
         let template = gcode_macro.load_template(config, "nozzle_scrubber_gcode", Some(""))?;
         let cfg_scrubbing_frequency = config.getint("scrubbing_frequency", 0, Lim::new().min(0))?;
-        Ok(GcodeNozzleScrubber {
-            printer: config.get_printer(),
-            template,
-            cfg_scrubbing_frequency,
-            scrubbing_frequency: Cell::new(cfg_scrubbing_frequency),
-        })
+        Ok(GcodeNozzleScrubberConfig { template, cfg_scrubbing_frequency, scrubbing_frequency: Cell::new(cfg_scrubbing_frequency) })
+    }
+
+    pub fn customize(&self, gcmd: &GCodeCommand) -> KResult<()> {
+        self.scrubbing_frequency.set(gcmd.get_int("SCRUBBING_FREQUENCY", Some(self.cfg_scrubbing_frequency), Lim::new().min(0))?);
+        Ok(())
+    }
+}
+
+pub struct GcodeNozzleScrubber {
+    pub printer: Rc<Printer>,
+    pub config: Rc<GcodeNozzleScrubberConfig>,
+}
+
+impl GcodeNozzleScrubber {
+    pub fn new(config: &ConfigWrapper) -> KResult<Self> {
+        Ok(GcodeNozzleScrubber { printer: config.get_printer(), config: Rc::new(GcodeNozzleScrubberConfig::new(config)?) })
     }
 
     pub fn clean_nozzle(&self, gcmd: &GCodeCommand, attempt: i64, retries: i64) -> KResult<()> {
-        self.scrubbing_frequency.set(gcmd.get_int("SCRUBBING_FREQUENCY", Some(self.cfg_scrubbing_frequency), Lim::new().min(0))?);
+        let cfg = &self.config;
+        cfg.customize(gcmd)?;
         // (`not self.config.template` is never true: a Template is truthy)
-        if attempt == 0 || self.scrubbing_frequency.get() <= 0 {
+        if attempt == 0 || cfg.scrubbing_frequency.get() <= 0 {
             return Ok(());
         }
-        if attempt % self.scrubbing_frequency.get() != 0 {
+        if attempt % cfg.scrubbing_frequency.get() != 0 {
             return Ok(());
         }
-        let mut context = self.template.create_template_context();
+        let mut context = cfg.template.create_template_context();
         let params = crate::pydict! {
             "ATTEMPT" => PyVal::Int(attempt),
             "RETRIES" => PyVal::Int(retries),
         };
         context.insert("params".into(), Value::from_pyval(&PyVal::Dict(params)));
-        self.template.run_gcode_from_command(Some(context))?;
+        cfg.template.run_gcode_from_command(Some(context))?;
         // (python builds a command_error here without raising it)
         let _ = &self.printer;
         Ok(())

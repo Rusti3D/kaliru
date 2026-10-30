@@ -30,8 +30,22 @@ pub fn hexify(byte_array: &[u8]) -> String {
     format!("[{}]", byte_array.iter().map(|b| format!("{:#x}", b)).collect::<Vec<_>>().join(", "))
 }
 
-const SPS_NORMAL: [(&str, i64); 7] = [("20", 20), ("45", 45), ("90", 90), ("175", 175), ("330", 330), ("600", 600), ("1000", 1000)];
-const SPS_TURBO: [(&str, i64); 7] = [("40", 40), ("90", 90), ("180", 180), ("350", 350), ("660", 660), ("1200", 1200), ("2000", 2000)];
+pub const SPS_NORMAL: [(&str, i64); 7] = [("20", 20), ("45", 45), ("90", 90), ("175", 175), ("330", 330), ("600", 600), ("1000", 1000)];
+pub const SPS_TURBO: [(&str, i64); 7] = [("40", 40), ("90", 90), ("180", 180), ("350", 350), ("660", 660), ("1200", 1200), ("2000", 2000)];
+pub const GAIN_OPTIONS: [(&str, i64); 8] = [("1", 0x0), ("2", 0x1), ("4", 0x2), ("8", 0x3), ("16", 0x4), ("32", 0x5), ("64", 0x6), ("128", 0x7)];
+pub const VREF_OPTIONS: [(&str, i64); 4] = [("internal", 0b0), ("REF0", 0b01), ("REF1", 0b10), ("analog_supply", 0b11)];
+
+/// sps_normal updated with sps_turbo
+pub fn sps_options() -> Vec<(&'static str, i64)> {
+    let mut sps_options: Vec<(&str, i64)> = SPS_NORMAL.to_vec();
+    for (k, v) in SPS_TURBO {
+        match sps_options.iter_mut().find(|(ok, _)| *ok == k) {
+            Some(e) => e.1 = v,
+            None => sps_options.push((k, v)),
+        }
+    }
+    sps_options
+}
 
 pub struct ADS1220 {
     pub printer: Rc<Printer>,
@@ -47,7 +61,8 @@ pub struct ADS1220 {
     pub spi: Rc<McuSpi>,
     pub mcu: Rc<Mcu>,
     pub oid: i64,
-    ffreader: FixedFreqReader,
+    pub data_ready_pin: String,
+    pub ffreader: Rc<FixedFreqReader>,
     pub batch_bulk: RefCell<Option<Rc<BatchBulkHelper>>>,
     pub attach_probe_cmd: RefCell<Option<CommandWrapper>>,
     pub query_ads1220_cmd: RefCell<Option<CommandWrapper>>,
@@ -59,16 +74,9 @@ impl ADS1220 {
         let name = config.get_name().split_whitespace().last().unwrap_or_default().to_string();
         // Chip options
         // Gain
-        let gain_options = [("1", 0x0), ("2", 0x1), ("4", 0x2), ("8", 0x3), ("16", 0x4), ("32", 0x5), ("64", 0x6), ("128", 0x7)];
-        let gain = config.getchoice("gain", &gain_options, "128")?;
+        let gain = config.getchoice("gain", &GAIN_OPTIONS, "128")?;
         // Sample rate
-        let mut sps_options: Vec<(&str, i64)> = SPS_NORMAL.to_vec();
-        for (k, v) in SPS_TURBO {
-            match sps_options.iter_mut().find(|(ok, _)| *ok == k) {
-                Some(e) => e.1 = v,
-                None => sps_options.push((k, v)),
-            }
-        }
+        let sps_options = sps_options();
         let sps = config.getchoice("sample_rate", &sps_options, "660")?;
         let is_turbo = SPS_TURBO.iter().any(|(k, _)| *k == sps.to_string());
         // Input multiplexer: AINP and AINN
@@ -93,8 +101,7 @@ impl ADS1220 {
         let force_pga_bypass = mux >= 0b1000;
         let pga_bypass = force_pga_bypass || pga_bypass;
         // Voltage Reference
-        let vref_options = [("internal", 0b0), ("REF0", 0b01), ("REF1", 0b10), ("analog_supply", 0b11)];
-        let vref = config.getchoice("vref", &vref_options, "internal")?;
+        let vref = config.getchoice("vref", &VREF_OPTIONS, "internal")?;
         // check for conflict between REF1 and AIN0/AIN3
         let mux_conflict = [0b0000, 0b0001, 0b0010, 0b0100, 0b0101, 0b0110, 0b0111, 0b1000, 0b1011];
         if vref == 0b10 && mux_conflict.contains(&mux) {
@@ -116,7 +123,7 @@ impl ADS1220 {
         // Clock tracking
         let chip_smooth = sps as f64 * UPDATE_INTERVAL * 2.0;
         // Measurement conversion
-        let ffreader = FixedFreqReader::new(&mcu, chip_smooth, "<i");
+        let ffreader = Rc::new(FixedFreqReader::new(&mcu, chip_smooth, "<i"));
         let s = Rc::new(ADS1220 {
             printer: printer.clone(),
             name,
@@ -131,6 +138,7 @@ impl ADS1220 {
             spi: spi.clone(),
             mcu: mcu.clone(),
             oid,
+            data_ready_pin: data_ready_pin.clone(),
             ffreader,
             batch_bulk: RefCell::new(None),
             attach_probe_cmd: RefCell::new(None),

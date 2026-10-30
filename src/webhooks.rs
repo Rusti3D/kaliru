@@ -150,8 +150,8 @@ impl WebRequest {
 pub struct ServerSocket {
     pub printer: Rc<Printer>,
     sock: Cell<RawFd>,
-    fd_handle: RefCell<Option<FileHandler>>,
-    clients: RefCell<IndexMap<usize, Rc<ClientConnection>>>,
+    pub fd_handle: RefCell<Option<FileHandler>>,
+    pub clients: RefCell<IndexMap<usize, Rc<ClientConnection>>>,
 }
 
 impl ServerSocket {
@@ -323,18 +323,18 @@ fn apply_permission_options_to_socket(socket_path: &str, printer: &Printer) -> K
 
 pub struct ClientConnection {
     pub printer: Rc<Printer>,
-    webhooks: std::rc::Weak<WebHooks>,
-    server: std::rc::Weak<ServerSocket>,
+    pub webhooks: std::rc::Weak<WebHooks>,
+    pub server: std::rc::Weak<ServerSocket>,
     pub uid: usize,
     sock: RawFd,
-    fd_handle: RefCell<Option<FileHandler>>,
+    pub fd_handle: RefCell<Option<FileHandler>>,
     pub partial_data: RefCell<Vec<u8>>,
     pub send_buffer: RefCell<Vec<u8>>,
     /// the reply being serialized (kept between replies)
     json_scratch: RefCell<String>,
     pub is_blocking: Cell<bool>,
     pub blocking_count: Cell<i64>,
-    request_log: RefCell<VecDeque<(f64, Vec<u8>)>>,
+    pub request_log: RefCell<VecDeque<(f64, Vec<u8>)>>,
 }
 
 impl ClientConnection {
@@ -524,13 +524,13 @@ impl ClientConnection {
     }
 }
 
-type MuxValues = IndexMap<Option<String>, Endpoint>;
+pub type MuxValues = IndexMap<Option<String>, Endpoint>;
 
 pub struct WebHooks {
     pub printer: Rc<Printer>,
-    endpoints: RefCell<IndexMap<String, Endpoint>>,
+    pub endpoints: RefCell<IndexMap<String, Endpoint>>,
     remote_methods: RefCell<IndexMap<String, IndexMap<usize, (Rc<ClientConnection>, PyVal)>>>,
-    mux_endpoints: RefCell<IndexMap<String, (String, MuxValues)>>,
+    pub mux_endpoints: RefCell<IndexMap<String, (String, MuxValues)>>,
     pub sconn: RefCell<Option<Rc<ServerSocket>>>,
 }
 
@@ -760,7 +760,7 @@ pub fn is_gcode_helper(origin: &crate::gcode::CallbackOrigin) -> bool {
 pub struct GCodeHelper {
     pub gcode: Rc<GCodeDispatch>,
     pub is_output_registered: Cell<bool>,
-    clients: RefCell<IndexMap<usize, (Rc<ClientConnection>, PyVal)>>,
+    pub clients: RefCell<IndexMap<usize, (Rc<ClientConnection>, PyVal)>>,
 }
 
 impl GCodeHelper {

@@ -28,7 +28,17 @@ class DisplayGroup(_k.Object):
     def __init__(self, config, name, data_configs):
         _k.new(self, 1127, config, name, data_configs)
     def show(self, display, templates, eventtime):
-        return _k.call(self, 1128, display, templates, eventtime)
+        context = self.data_items[0][2].create_template_context(eventtime)
+        context["draw_progress_bar"] = display.draw_progress_bar
+
+        def render(name, **kwargs):
+            return templates[name].render(context, **kwargs)
+
+        context["render"] = render
+        for row, col, template in self.data_items:
+            text = template.render(context)
+            display.draw_text(row, col, text.replace("\n", ""), eventtime)
+        context.clear()
     data_items = _k.Attr(1129, 'data_items')
 
 class PrinterDisplayTemplate(_k.Object):
@@ -51,7 +61,12 @@ class PrinterDisplayTemplate(_k.Object):
     printer = _k.Attr(1139, 'printer')
 
 def lookup_display_templates(config):
-    return _k.fcall(1140, config)
+    printer = config.get_printer()
+    dt = printer.lookup_object("display_template", None)
+    if dt is None:
+        dt = PrinterDisplayTemplate(config)
+        printer.add_object("display_template", dt)
+    return dt
 
 class PrinterLCD(_k.Object):
     __kaliru_mirror__ = True
@@ -60,7 +75,7 @@ class PrinterLCD(_k.Object):
     def get_dimensions(self):
         return _k.call(self, 1142)
     def handle_reconnect(self):
-        return _k.call(self, 1143)
+        self.lcd_chip.init()
     def handle_ready(self):
         return _k.call(self, 1144)
     def screen_update_event(self, eventtime):

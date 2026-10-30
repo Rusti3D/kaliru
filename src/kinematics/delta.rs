@@ -311,7 +311,7 @@ impl DeltaCalibration {
 }
 
 /// the calibration object of a delta style kinematics (DELTA_CALIBRATE)
-pub trait Calibration {
+pub trait Calibration: std::any::Any {
     /// Determine adjustment parameters (for use with coordinate_descent)
     fn coordinate_descent_params(&self, is_extended: bool) -> (Vec<String>, IndexMap<String, f64>);
     /// Create a new calibration object from coordinate_descent params
@@ -322,6 +322,10 @@ pub trait Calibration {
     fn calc_stable_position(&self, coord: &[f64]) -> Result<Vec<f64>, MathError>;
     /// Save the current parameters (for use with SAVE_CONFIG)
     fn save_state(&self, printer: &Printer) -> KResult<()>;
+    /// the Rust type's path (python plugins find the Kalico class by it)
+    fn type_name(&self) -> &'static str {
+        std::any::type_name::<Self>()
+    }
 }
 
 impl Calibration for DeltaCalibration {

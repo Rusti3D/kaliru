@@ -40,6 +40,7 @@ const LM75_MIN_REPORT_TIME: f64 = 0.5;
 
 pub struct LM75 {
     pub printer: Rc<Printer>,
+    pub name: String,
     pub i2c: Rc<McuI2c>,
     pub mcu: Rc<Mcu>,
     pub report_time: f64,
@@ -59,6 +60,7 @@ impl LM75 {
         let report_time = config.getfloat("lm75_report_time", LM75_REPORT_TIME, Lim::new().min(LM75_MIN_REPORT_TIME))?;
         let s = Rc::new(LM75 {
             printer: printer.clone(),
+            name: name.clone(),
             i2c,
             mcu: mcu.clone(),
             report_time,
@@ -92,7 +94,7 @@ impl LM75 {
         Ok(())
     }
 
-    fn degrees_from_sample(x: &[u8]) -> f64 {
+    pub fn degrees_from_sample(x: &[u8]) -> f64 {
         // The temp sample is encoded in the top 9 bits of a 16-bit
         // value. Resolution is 0.5 degrees C.
         x[0] as f64 + (x[1] >> 7) as f64 * 0.5

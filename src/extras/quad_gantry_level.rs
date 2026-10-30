@@ -34,7 +34,7 @@ impl Line {
 }
 
 pub struct QuadGantryLevel {
-    retry_helper: RetryHelper,
+    pub retry_helper: Rc<RetryHelper>,
     pub max_adjust: f64,
     pub horizontal_move_z: f64,
     pub probe_helper: RefCell<Option<Rc<ProbePointsHelper>>>,
@@ -47,7 +47,7 @@ pub struct QuadGantryLevel {
 impl QuadGantryLevel {
     pub fn new(config: &ConfigWrapper) -> KResult<Rc<Self>> {
         let printer = config.get_printer();
-        let retry_helper = RetryHelper::new(config, "Possibly Z motor numbering is wrong")?;
+        let retry_helper = Rc::new(RetryHelper::new(config, "Possibly Z motor numbering is wrong")?);
         let max_adjust = config.getfloat("max_adjust", Dflt::from(PyVal::Int(4)), Lim::new().above(0))?;
         let horizontal_move_z = config.getfloat("horizontal_move_z", 5.0, Lim::new())?;
         let slot: Rc<RefCell<Weak<QuadGantryLevel>>> = Rc::new(RefCell::new(Weak::new()));
@@ -105,7 +105,7 @@ impl QuadGantryLevel {
         self.probe_helper().start_probe(gcmd)
     }
 
-    fn probe_finalize(&self, offsets: (f64, f64, f64), positions: &[Vec<f64>]) -> KResult<FinalizeResult> {
+    pub fn probe_finalize(&self, offsets: (f64, f64, f64), positions: &[Vec<f64>]) -> KResult<FinalizeResult> {
         // Mirror our perspective so the adjustments make sense
         // from the perspective of the gantry
         let z_positions: Vec<f64> = positions.iter().map(|p| self.horizontal_move_z - p[2]).collect();

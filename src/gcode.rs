@@ -241,6 +241,9 @@ enum Active {
 }
 
 // Parse and dispatch G-Code commands
+/// stack a nested g-code command needs at least (process_commands)
+const STACK_RESERVE: usize = 128 * 1024;
+
 pub struct GCodeDispatch {
     pub printer: Rc<Printer>,
     pub is_fileinput: bool,
@@ -561,6 +564,11 @@ impl GCodeDispatch {
     }
 
     pub fn process_commands(self: &Rc<Self>, commands: &[String], need_ack: bool) -> KResult<()> {
+        // python's recursion limit: deeply nested macros raise RecursionError
+        // (kaliru's stacks are fixed: stop well before the guard page)
+        if crate::greenlet::stack_left() < STACK_RESERVE {
+            return Err(KError::Py("RecursionError".into(), "maximum recursion depth exceeded".into()));
+        }
         for line in commands {
             // Ignore comments and leading/trailing spaces
             let origline = py_strip(line).to_string();

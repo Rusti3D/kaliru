@@ -28,9 +28,28 @@ class PT_uint32(_k.Object):
     max_length = 5
     signed = False
     def encode(self, out, v):
-        return _k.call(self, 6877, out, v)
+        if v >= 0xC000000 or v < -0x4000000:
+            out.append((v >> 28) & 0x7F | 0x80)
+        if v >= 0x180000 or v < -0x80000:
+            out.append((v >> 21) & 0x7F | 0x80)
+        if v >= 0x3000 or v < -0x1000:
+            out.append((v >> 14) & 0x7F | 0x80)
+        if v >= 0x60 or v < -0x20:
+            out.append((v >> 7) & 0x7F | 0x80)
+        out.append(v & 0x7F)
     def parse(self, s, pos):
-        return _k.call(self, 6878, s, pos)
+        c = s[pos]
+        pos += 1
+        v = c & 0x7F
+        if (c & 0x60) == 0x60:
+            v |= -0x20
+        while c & 0x80:
+            c = s[pos]
+            pos += 1
+            v = (v << 7) | (c & 0x7F)
+        if not self.signed:
+            v = int(v & 0xFFFFFFFF)
+        return v, pos
 
 class PT_int32(PT_uint32):
     __kaliru_mirror__ = True
@@ -55,9 +74,11 @@ class PT_string(_k.Object):
     is_dynamic_string = True
     max_length = 64
     def encode(self, out, v):
-        return _k.call(self, 6879, out, v)
+        out.append(len(v))
+        out.extend(bytearray(v))
     def parse(self, s, pos):
-        return _k.call(self, 6880, s, pos)
+        l = s[pos]
+        return bytes(bytearray(s[pos + 1 : pos + l + 1])), pos + l + 1
 
 class PT_progmem_buffer(PT_string):
     __kaliru_mirror__ = True
@@ -81,11 +102,22 @@ class Enumeration(_k.Object):
     is_int = False
     is_dynamic_string = False
     def __init__(self, pt, enum_name, enums):
-        _k.new(self, 6881, pt, enum_name, enums)
+        self.pt = pt
+        self.max_length = pt.max_length
+        self.enum_name = enum_name
+        self.enums = enums
+        self.reverse_enums = {v: k for k, v in enums.items()}
     def encode(self, out, v):
-        return _k.call(self, 6882, out, v)
+        tv = self.enums.get(v)
+        if tv is None:
+            raise enumeration_error(self.enum_name, v)
+        self.pt.encode(out, tv)
     def parse(self, s, pos):
-        return _k.call(self, 6883, s, pos)
+        v, pos = self.pt.parse(s, pos)
+        tv = self.reverse_enums.get(v)
+        if tv is None:
+            tv = "?%d" % (v,)
+        return tv, pos
     enum_name = _k.Attr(6884, 'enum_name')
     enums = _k.Attr(6885, 'enums')
     max_length = _k.Attr(6886, 'max_length')
@@ -93,10 +125,36 @@ class Enumeration(_k.Object):
     reverse_enums = _k.Attr(6888, 'reverse_enums')
 
 def lookup_params(msgformat, enumerations=None):
-    return _k.fcall(6889, msgformat, enumerations)
+    if enumerations is None:
+        enumerations = {}
+    out = []
+    argparts = [arg.split("=") for arg in msgformat.split()[1:]]
+    for name, fmt in argparts:
+        pt = MessageTypes[fmt]
+        for enum_name, enums in enumerations.items():
+            if name == enum_name or name.endswith("_" + enum_name):
+                pt = Enumeration(pt, enum_name, enums)
+                break
+        out.append((name, pt))
+    return out
 
 def lookup_output_params(msgformat):
-    return _k.fcall(6890, msgformat)
+    param_types = []
+    args = msgformat
+    while True:
+        pos = args.find("%")
+        if pos < 0:
+            break
+        if pos + 1 >= len(args) or args[pos + 1] != "%":
+            for i in range(4):
+                t = MessageTypes.get(args[pos : pos + 1 + i])
+                if t is not None:
+                    param_types.append(t)
+                    break
+            else:
+                raise error("Invalid output format for '%s'" % (msgformat,))
+        args = args[pos + 1 :]
+    return param_types
 
 def convert_msg_format(msgformat):
     return _k.fcall(6891, msgformat)

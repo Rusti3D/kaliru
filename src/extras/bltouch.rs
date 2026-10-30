@@ -298,7 +298,7 @@ impl BLTouchEndstopWrapper {
         Ok(())
     }
 
-    fn wait_for_trigger(&self) -> KResult<()> {
+    pub fn wait_for_trigger(&self) -> KResult<()> {
         let c = self.finish_home_complete.borrow().clone();
         if let Some(c) = c {
             c.wait(crate::reactor::NEVER, None)?;

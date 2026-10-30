@@ -216,7 +216,7 @@ impl PrinterTemperatureMCU {
         self.fixed(rv / 0.002330, 25.0, 0.72 / rv)
     }
 
-    fn config_samd21_at(&self, addr: i64) -> KResult<()> {
+    pub fn config_samd21_at(&self, addr: i64) -> KResult<()> {
         let get1v = |val: i64| {
             let val = if val & 0x80 != 0 { 0x100 - val } else { val };
             1.0 - val as f64 / 1000.0
@@ -254,7 +254,7 @@ impl PrinterTemperatureMCU {
     }
 
     /// slope/base from two factory calibration reads
-    fn calibrated(&self, addr1: i64, addr2: i64, vcal: f64, adc_max: f64, t1: f64, t2: f64) -> KResult<()> {
+    pub fn calibrated(&self, addr1: i64, addr2: i64, vcal: f64, adc_max: f64, t1: f64, t2: f64) -> KResult<()> {
         let rv = self.reference_voltage;
         let cal_adc_1 = self.read16(addr1)? as f64 * vcal / (rv * adc_max);
         let cal_adc_2 = self.read16(addr2)? as f64 * vcal / (rv * adc_max);

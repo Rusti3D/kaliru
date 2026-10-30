@@ -19,9 +19,9 @@ class DigitalFilter(_k.Object):
     def _notch(self, freq, quality):
         return _k.call(self, 3302, freq, quality)
     def get_filter_sections(self):
-        return _k.call(self, 3303)
+        return self.filter_sections
     def get_initial_state(self):
-        return _k.call(self, 3304)
+        return self.initial_state
     filter_sections = _k.Attr(3305, 'filter_sections')
     initial_state = _k.Attr(3306, 'initial_state')
     sample_frequency = _k.Attr(3307, 'sample_frequency')
@@ -31,9 +31,9 @@ class FixedPointSosFilter(_k.Object):
     def __init__(self, filter_sections=None, initial_state=None, coeff_int_bits=2, value_int_bits=15):
         _k.new(self, 3308, filter_sections, initial_state, coeff_int_bits, value_int_bits)
     def get_filter_sections(self):
-        return _k.call(self, 3309)
+        return self._filter
     def get_initial_state(self):
-        return _k.call(self, 3310)
+        return self._state
     def get_coeff_int_bits(self):
         return _k.call(self, 3311)
     def get_value_int_bits(self):

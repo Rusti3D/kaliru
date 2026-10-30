@@ -30,7 +30,7 @@ pub struct TextFramebuffers {
     pub line_length: i64,
     /// all_framebuffers: (new data, data on the display, command)
     pub fbs: RefCell<Vec<(Vec<u8>, Vec<u8>, i64)>>,
-    icons: RefCell<IndexMap<String, (i64, Vec<i64>)>>,
+    pub icons: RefCell<IndexMap<String, (i64, Vec<i64>)>>,
 }
 
 impl TextFramebuffers {
@@ -113,8 +113,8 @@ pub struct HD44780 {
     pub pins: Vec<String>,
     pub mcu: Rc<Mcu>,
     pub oid: i64,
-    cmds: RefCell<Option<(CommandWrapper, CommandWrapper)>>,
-    fb: TextFramebuffers,
+    pub cmds: RefCell<Option<(CommandWrapper, CommandWrapper)>>,
+    pub fb: TextFramebuffers,
 }
 
 pub fn new_hd44780(config: &ConfigWrapper) -> KResult<Rc<dyn LcdChip>> {
@@ -182,7 +182,7 @@ impl HD44780 {
         Ok(())
     }
 
-    fn send(&self, cmds: &[u8], is_data: bool, minclock: u64, reqclock: u64) -> KResult<()> {
+    pub fn send(&self, cmds: &[u8], is_data: bool, minclock: u64, reqclock: u64) -> KResult<()> {
         let c = self.cmds.borrow();
         let (send_cmds_cmd, send_data_cmd) = c.as_ref().ok_or_else(|| KError::Other("'NoneType' object has no attribute 'send'".into()))?;
         let cmd_type = if is_data { send_data_cmd } else { send_cmds_cmd };

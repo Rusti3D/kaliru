@@ -138,6 +138,10 @@ pub fn known(name: &str) -> bool {
     IDS.contains(&name)
 }
 
+/// (subclass prefix, base class prefix) of Kalico subclasses whose objects
+/// are kaliru's base type (trad_rack's selector toolhead is a ToolHead)
+pub const ALIASES: &[(&str, &str)] = &[("klippy.extras.trad_rack.TradRackToolHead.", "klippy.toolhead.ToolHead.")];
+
 /// Resolve the registry against the generated IDs; names that are not
 /// Kalico's are a bug in the impls
 pub fn install_handlers(reg: Registry) {
@@ -161,6 +165,17 @@ pub fn install_handlers(reg: Registry) {
                 layer.insert(name, h);
             }
             None => unknown.push(name),
+        }
+    }
+    // a Kalico subclass kaliru implements as its base type: the base's
+    // handler for every name the subclass does not have its own for
+    for (sub, base) in ALIASES {
+        for (i, name) in IDS.iter().enumerate() {
+            if let (Some(rest), None) = (name.strip_prefix(sub), by_id[i]) {
+                if let Some(&j) = index.get(format!("{}{}", base, rest).as_str()) {
+                    by_id[i] = by_id[j];
+                }
+            }
         }
     }
     LAYER_FIELDS.with(|l| *l.borrow_mut() = layer);

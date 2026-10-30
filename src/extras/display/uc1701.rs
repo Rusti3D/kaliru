@@ -42,7 +42,7 @@ fn swizzle_bits(data: &[u8]) -> (Vec<u8>, Vec<u8>) {
 }
 
 /// the io a DisplayBase sends through
-enum Io {
+pub enum Io {
     // IO wrapper for "4 wire" spi bus (spi bus with an extra data/control line)
     Spi4Wire { spi: Rc<McuSpi>, mcu_dc: Rc<McuBusDigitalOut> },
     // IO wrapper for i2c bus
@@ -125,7 +125,7 @@ pub enum Chip {
 }
 
 pub struct DisplayBase {
-    io: Io,
+    pub io: Io,
     pub mcu: Rc<Mcu>,
     pub x_offset: i64,
     /// all_framebuffers: the 8 vram pages and the data on the display
@@ -133,12 +133,13 @@ pub struct DisplayBase {
     // Cache fonts and icons in display byte order
     pub font: Vec<(Vec<u8>, Vec<u8>)>,
     pub icons: RefCell<IndexMap<String, (Vec<u8>, Vec<u8>)>>,
-    reset: ResetHelper,
+    pub reset: Rc<ResetHelper>,
     pub chip: Chip,
 }
 
 impl DisplayBase {
     fn new(io: Io, columns: usize, x_offset: i64, reset: ResetHelper, chip: Chip) -> Self {
+        let reset = Rc::new(reset);
         let mcu = io.bus().0;
         DisplayBase {
             io,
@@ -152,7 +153,7 @@ impl DisplayBase {
         }
     }
 
-    fn send(&self, cmds: &[u8], is_data: bool) -> KResult<()> {
+    pub fn send(&self, cmds: &[u8], is_data: bool) -> KResult<()> {
         self.io.send(cmds, is_data)
     }
 }

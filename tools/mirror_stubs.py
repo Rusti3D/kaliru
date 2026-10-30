@@ -55,7 +55,8 @@ TRAIT_NAMES = {
     "AdcPin": ["get_mcu", "setup_adc_sample", "setup_adc_callback", "get_last_value"],
     "Endstop": ["get_mcu", "get_position_endstop"],
     "McuProbe": ["multi_probe_begin", "multi_probe_end", "probe_prepare", "probe_finish", "probing_move"],
-    "LcdChip": ["get_mcu", "init", "flush", "clear", "write_text", "write_graphics", "write_glyph", "get_dimensions"],
+    "LcdChip": ["get_mcu", "init", "flush", "clear", "write_text", "write_graphics", "write_glyph", "set_glyphs",
+                "get_dimensions"],
     "BulkAdcSensor": ["get_mcu", "get_samples_per_second", "get_range", "get_channel_count", "add_client",
                       "attach_load_cell_probe"],
 }
@@ -73,16 +74,24 @@ for i in ids if "--hand" not in sys.argv else []:
                                                and parts[-1][4:] == parts[-1][4:].upper()):
         handled.add(i)
         continue
-    k = next((j for j, s in enumerate(parts) if j > 1 and s[:1].isupper()), None)
-    if k is None:
-        continue
+    # (a lowercase class, e.g. hd44780_spi.hd44780_spi: the second-last part)
+    k = next((j for j, s in enumerate(parts) if j > 1 and s[:1].isupper()), len(parts) - 2)
     modfile = "/".join(parts[1:k])
+    # (a Kalico module kaliru implements in another's file)
+    modfile = {"extras/mpc_ambient_temperature": "extras/mpc_block_temperature"}.get(modfile, modfile)
     if any(parts[-1] in names and modfile in trait_files[tr] for tr, names in TRAIT_NAMES.items()):
         handled.add(i)
 
+# native.rs ALIASES: a subclass's names served by its base class's handlers
+for sub, base in re.findall(r'\("(klippy\.[\w.]+\.)", "(klippy\.[\w.]+\.)"\)', (root / "src/plugins/native.rs").read_text()):
+    for i in ids:
+        if i.startswith(sub) and base + i[len(sub):] in handled:
+            handled.add(i)
+
 # classes only python ever builds (verbatim __init__, never a kaliru
 # object): their attributes live in the instance's __dict__ (prelude.py Attr)
-PYTHON_ONLY = ("klippy.extras.gcode_macro.TemplateWrapperPython.",
+PYTHON_ONLY = ("klippy.reactor.ReactorCallback.", "klippy.extras.indx.compat.ConfigWrapper.",
+               "klippy.extras.indx.compat.ConfigContents.", "klippy.extras.indx.compat._ResponseHandle.", "klippy.extras.gcode_macro.TemplateWrapperPython.",
                "klippy.extras.gcode_macro.GetStatusWrapperPython.",
                "klippy.extras.gcode_macro.TemplateVariableWrapperPython.")
 handled |= {i for i in ids if i.startswith(PYTHON_ONLY)}

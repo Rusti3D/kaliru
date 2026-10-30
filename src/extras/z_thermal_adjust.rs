@@ -25,6 +25,7 @@ const CMD_SET_Z_THERMAL_ADJUST_HELP: &str = "Set/query Z Thermal Adjust paramete
 pub struct ZThermalAdjuster {
     me: Weak<ZThermalAdjuster>,
     pub printer: Rc<Printer>,
+    pub config: Rc<ConfigWrapper>,
     pub temp_coeff: Cell<f64>,
     pub off_above_z: f64,
     pub max_z_adjust_mm: f64,
@@ -100,6 +101,7 @@ impl ZThermalAdjuster {
             None
         };
         let z = Rc::new_cyclic(|me| ZThermalAdjuster {
+            config: Rc::new(config.clone()),
             me: me.clone(),
             printer: printer.clone(),
             temp_coeff: Cell::new(temp_coeff),

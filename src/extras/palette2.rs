@@ -66,23 +66,23 @@ fn tail(s: &str, n: usize) -> &str {
 
 /// the state reset by _reset()
 #[derive(Default)]
-struct Omega {
-    files: Vec<String>,
-    is_setup_complete: bool,
-    is_splicing: bool,
-    is_loading: bool,
-    remaining_load_length: Option<i64>,
-    algorithms: Vec<String>,
-    algorithms_counter: usize,
-    splices: Vec<(i64, String)>,
-    splices_counter: usize,
+pub struct Omega {
+    pub files: Vec<String>,
+    pub is_setup_complete: bool,
+    pub is_splicing: bool,
+    pub is_loading: bool,
+    pub remaining_load_length: Option<i64>,
+    pub algorithms: Vec<String>,
+    pub algorithms_counter: usize,
+    pub splices: Vec<(i64, String)>,
+    pub splices_counter: usize,
     /// {"number": n, "percent": p}
-    pings: Vec<(i64, f64)>,
-    pongs: Vec<(i64, f64)>,
-    current_ping: Option<String>,
-    header: [Option<String>; 9],
-    header_counter: usize,
-    last_command: String,
+    pub pings: Vec<(i64, f64)>,
+    pub pongs: Vec<(i64, f64)>,
+    pub current_ping: Option<String>,
+    pub header: [Option<String>; 9],
+    pub header_counter: usize,
+    pub last_command: String,
 }
 
 pub struct Palette2 {
@@ -99,11 +99,11 @@ pub struct Palette2 {
     pub feedrate_normal: f64,
     pub auto_load_speed: i64,
     pub auto_cancel_variation: Option<f64>,
-    st: RefCell<Omega>,
+    pub st: RefCell<Omega>,
     pub omega_drives: RefCell<Vec<String>>,
     pub read_timer: RefCell<Option<Timer>>,
     pub read_buffer: RefCell<String>,
-    read_queue: RefCell<VecDeque<String>>,
+    pub read_queue: RefCell<VecDeque<String>>,
     pub write_timer: RefCell<Option<Timer>>,
     write_queue: RefCell<VecDeque<Option<String>>>,
     pub heartbeat_timer: RefCell<Option<Timer>>,
@@ -280,7 +280,7 @@ impl Palette2 {
         self.wait_for_heartbeat()
     }
 
-    fn cmd_disconnect(&self) -> KResult<()> {
+    pub fn cmd_disconnect(&self) -> KResult<()> {
         self.gcode.respond_info("Disconnecting from Palette 2", true);
         // closed when dropped
         self.serial.borrow_mut().take();
@@ -325,7 +325,7 @@ impl Palette2 {
         Ok(())
     }
 
-    fn cmd_omega_default(&self, gcmd: &GCodeCommand) -> KResult<()> {
+    pub fn cmd_omega_default(&self, gcmd: &GCodeCommand) -> KResult<()> {
         logging::debug(&format!("Omega Code: {}", gcmd.get_command()));
         if self.check_p2(Some(gcmd)) {
             self.put(gcmd.get_commandline());
@@ -440,7 +440,7 @@ impl Palette2 {
         Ok(())
     }
 
-    fn p2cmd_o20(&self, params: &[&str]) -> KResult<()> {
+    pub fn p2cmd_o20(&self, params: &[&str]) -> KResult<()> {
         if !self.is_printing.get() {
             return Ok(());
         }
@@ -484,7 +484,7 @@ impl Palette2 {
         Ok(())
     }
 
-    fn p2cmd_o34(&self, params: &[&str]) -> KResult<()> {
+    pub fn p2cmd_o34(&self, params: &[&str]) -> KResult<()> {
         if !self.is_printing.get() {
             return Ok(());
         }
@@ -514,7 +514,7 @@ impl Palette2 {
         Ok(())
     }
 
-    fn p2cmd_o50(&self, params: &[&str]) -> KResult<()> {
+    pub fn p2cmd_o50(&self, params: &[&str]) -> KResult<()> {
         if params.len() > 1 {
             let fw = tail(params[0], 1);
             logging::info(&format!("Palette 2 firmware version {} detected", fw));
@@ -533,7 +533,7 @@ impl Palette2 {
         Ok(())
     }
 
-    fn p2cmd_o53(&self, params: &[&str]) -> KResult<()> {
+    pub fn p2cmd_o53(&self, params: &[&str]) -> KResult<()> {
         if params.len() > 1 && params[0] == "D1" {
             let p1 = tail(params[1], 1);
             let idx = py_int_base16(p1).ok_or_else(|| value_error(16, p1))?;
@@ -551,7 +551,7 @@ impl Palette2 {
         Ok(())
     }
 
-    fn p2cmd_o88(&self, params: &[&str]) -> KResult<()> {
+    pub fn p2cmd_o88(&self, params: &[&str]) -> KResult<()> {
         logging::error("Palette 2 error detected");
         let Some(first) = params.first() else {
             logging::error("Unable to parse Palette 2 error");
@@ -563,7 +563,7 @@ impl Palette2 {
         Ok(())
     }
 
-    fn p2cmd_o97(&self, params: &[&str]) -> KResult<()> {
+    pub fn p2cmd_o97(&self, params: &[&str]) -> KResult<()> {
         #[derive(Clone, Copy)]
         enum M {
             PrintCancelling,
@@ -635,13 +635,13 @@ impl Palette2 {
         Ok(())
     }
 
-    fn p2cmd_o100(&self) -> KResult<()> {
+    pub fn p2cmd_o100(&self) -> KResult<()> {
         logging::info("Pause request from Palette 2");
         self.st.borrow_mut().is_setup_complete = true;
         self.pause_resume.send_pause_command()
     }
 
-    fn p2cmd_o102(&self) -> KResult<()> {
+    pub fn p2cmd_o102(&self) -> KResult<()> {
         let toolhead = self.printer.lookup::<ToolHead>("toolhead")?;
         if !toolhead.get_extruder().get_heater()?.can_extrude.get() {
             self.put(COMMAND_SMART_LOAD_STOP);

@@ -94,7 +94,7 @@ pub struct ADS131MxBase {
     pub data_ready_pin: String,
     pub channels: Vec<i64>,
     pub channel_mask: i64,
-    ffreader: FixedFreqReader,
+    pub ffreader: Rc<FixedFreqReader>,
     pub batch_bulk: RefCell<Option<Rc<BatchBulkHelper>>>,
     pub attach_probe_cmd: RefCell<Option<CommandWrapper>>,
     pub query_ads131m0x_cmd: RefCell<Option<CommandWrapper>>,
@@ -124,7 +124,7 @@ impl ADS131MxBase {
         let samples_per_second = if enable_global_chop { (sps as f64 / 3.0).floor() as i64 } else { sps };
         let chip_smooth = samples_per_second as f64 * UPDATE_INTERVAL * 2.0;
         let unpack_format = format!("<{}", "i".repeat(channels.len()));
-        let ffreader = FixedFreqReader::new(&mcu, chip_smooth, &unpack_format);
+        let ffreader = Rc::new(FixedFreqReader::new(&mcu, chip_smooth, &unpack_format));
         let s = Rc::new(ADS131MxBase {
             printer: printer.clone(),
             reactor: printer.get_reactor(),

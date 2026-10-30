@@ -16,6 +16,8 @@ use std::rc::{Rc, Weak};
 
 pub struct DelayedGcode {
     me: Weak<DelayedGcode>,
+    pub name: String,
+    pub cmd_desc: String,
     pub reactor: Rc<Reactor>,
     pub gcode: Rc<GCodeDispatch>,
     pub timer_gcode: Rc<Template>,
@@ -39,6 +41,8 @@ impl DelayedGcode {
         let duration = config.getfloat("initial_duration", 0.0, Lim::new().min(0.0))?;
         let d = Rc::new_cyclic(|me| DelayedGcode {
             me: me.clone(),
+            name: name.clone(),
+            cmd_desc: cmd_desc.clone(),
             reactor: printer.get_reactor(),
             gcode: gcode.clone(),
             timer_gcode,

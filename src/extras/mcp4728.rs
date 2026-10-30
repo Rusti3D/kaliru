@@ -10,7 +10,7 @@ use crate::printer::{PObj, PrinterObject};
 use std::rc::Rc;
 
 pub struct Mcp4728 {
-    _i2c: Rc<McuI2c>,
+    pub i2c: Rc<McuI2c>,
 }
 
 pub fn load_config_prefix(config: &ConfigWrapper) -> KResult<PObj> {
@@ -25,7 +25,7 @@ pub fn load_config_prefix(config: &ConfigWrapper) -> KResult<PObj> {
             i2c.i2c_write(&[0x40 | ((i as u8) << 1), (((value >> 8) & 0x0F) | 0x80) as u8, (value & 0xFF) as u8], 0, 0)?;
         }
     }
-    Ok(Rc::new(Mcp4728 { _i2c: i2c }))
+    Ok(Rc::new(Mcp4728 { i2c }))
 }
 
 impl PrinterObject for Mcp4728 {

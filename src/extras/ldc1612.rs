@@ -59,7 +59,7 @@ const CMD_LDC_CALIBRATE_HELP: &str = "Calibrate LDC1612 DRIVE_CURRENT register";
 // Tool for determining appropriate DRIVE_CURRENT register
 pub struct DriveCurrentCalibrate {
     pub printer: Rc<Printer>,
-    sensor: RefCell<Weak<LDC1612>>,
+    pub sensor: RefCell<Weak<LDC1612>>,
     pub drive_cur: i64,
     pub name: String,
 }
@@ -132,7 +132,7 @@ pub struct LDC1612 {
     pub error_mask_amplitude: i64,
     pub sensor_div: i64,
     pub freq_conv: f64,
-    ffreader: FixedFreqReader,
+    pub ffreader: Rc<FixedFreqReader>,
     pub last_error_count: Cell<i64>,
     pub batch_bulk: RefCell<Option<Rc<BatchBulkHelper>>>,
     pub name: String,
@@ -172,7 +172,7 @@ impl LDC1612 {
         }));
         // Bulk sample message reading
         let chip_smooth = data_rate as f64 * BATCH_UPDATES * 2.0;
-        let ffreader = FixedFreqReader::new(&mcu, chip_smooth, ">I");
+        let ffreader = Rc::new(FixedFreqReader::new(&mcu, chip_smooth, ">I"));
         let name = config.get_name().split_whitespace().last().unwrap_or_default().to_string();
         let s = Rc::new(LDC1612 {
             calibration,

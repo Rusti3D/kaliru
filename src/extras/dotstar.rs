@@ -19,7 +19,8 @@ const BACKGROUND_PRIORITY_CLOCK: u64 = 0x7FFFFFFF00000000;
 pub struct PrinterDotstar {
     pub spi: Rc<McuSpi>,
     pub(crate) led_helper: RefCell<Option<Rc<LEDHelper>>>,
-    prev_data: RefCell<Option<Vec<Color>>>,
+    pub prev_data: RefCell<Option<Vec<Color>>>,
+    pub chain_count: i64,
 }
 
 impl PrinterDotstar {
@@ -41,7 +42,7 @@ impl PrinterDotstar {
         let spi = McuSpi::new(&mcu, None, None, 0, 500000, Some(sw_spi_pins), false);
         // Initialize color data
         let chain_count = config.getint("chain_count", 1, Lim::new().min(1))?;
-        let d = Rc::new(PrinterDotstar { spi, led_helper: RefCell::new(None), prev_data: RefCell::new(None) });
+        let d = Rc::new(PrinterDotstar { spi, led_helper: RefCell::new(None), prev_data: RefCell::new(None), chain_count });
         let w: Weak<Self> = Rc::downgrade(&d);
         let helper = LEDHelper::new(
             config,

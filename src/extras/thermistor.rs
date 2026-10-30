@@ -147,9 +147,24 @@ pub fn custom_thermistor(config: &ConfigWrapper) -> KResult<ThermistorParams> {
     Ok(ThermistorParams::Points { t1, r1, t2, r2, t3, r3 })
 }
 
+// A custom [thermistor] section
+pub struct CustomThermistor {
+    pub name: String,
+    pub params: ThermistorParams,
+}
+
+impl CustomThermistor {
+    pub fn new(config: &ConfigWrapper) -> KResult<Self> {
+        Ok(CustomThermistor { name: custom_name(config), params: custom_thermistor(config)? })
+    }
+
+    pub fn create(&self, config: &ConfigWrapper) -> KResult<Rc<dyn TempSensor>> {
+        printer_thermistor(config, &self.params)
+    }
+}
+
 pub fn load_config_prefix(config: &ConfigWrapper) -> KResult<PObj> {
-    let name = custom_name(config);
-    let params = custom_thermistor(config)?;
+    let CustomThermistor { name, params } = CustomThermistor::new(config)?;
     let pheaters = load_heaters(config)?;
     pheaters.add_sensor_factory(&name, Rc::new(move |config: &ConfigWrapper| printer_thermistor(config, &params)));
     Ok(none_object())

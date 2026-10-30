@@ -32,9 +32,11 @@ pub struct FilamentWidthSensor {
     pub is_active: Cell<bool>,
     // filament array [position, filamentWidth]
     pub filament_array: RefCell<Vec<(f64, f64)>>,
-    last_filament_width_reading: Cell<f64>,
+    pub last_filament_width_reading: Cell<f64>,
     pub toolhead: RefCell<Option<Rc<ToolHead>>>,
-    _mcu_adc: Rc<dyn AdcPin>,
+    pub mcu_adc: Rc<dyn AdcPin>,
+    pub pin: String,
+    pub measurement_max_difference: f64,
     pub extrude_factor_update_timer: RefCell<Option<Timer>>,
     pub gcode: Rc<GCodeDispatch>,
 }
@@ -80,7 +82,9 @@ impl FilamentWidthSensor {
             filament_array: RefCell::new(vec![]),
             last_filament_width_reading: Cell::new(0.0),
             toolhead: RefCell::new(None),
-            _mcu_adc: mcu_adc,
+            mcu_adc,
+            pin: pin.clone(),
+            measurement_max_difference,
             extrude_factor_update_timer: RefCell::new(None),
             gcode: gcode.clone(),
         });
@@ -199,7 +203,7 @@ impl FilamentWidthSensor {
         Ok(())
     }
 
-    fn cmd_clear_filament_array(&self, gcmd: &GCodeCommand) -> KResult<()> {
+    pub fn cmd_clear_filament_array(&self, gcmd: &GCodeCommand) -> KResult<()> {
         self.filament_array.borrow_mut().clear();
         gcmd.respond_info("Filament width measurements cleared!", true);
         // Set extrude multiplier to 100%

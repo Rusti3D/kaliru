@@ -2,6 +2,7 @@
 import _k
 from klippy import mcu
 
+from . import sos_filter
 Q2_INT_BITS = 2
 Q2_FRAC_BITS = 32 - (1 + Q2_INT_BITS)
 Q16_INT_BITS = 16
@@ -42,16 +43,39 @@ class ParamHelper(_k.Object):
     value = _k.Attr(3129, 'value')
 
 def booleanParamHelper(config, name, default=False):
-    return _k.fcall(3130, config, name, default)
+    return ParamHelper(config, name, "boolean", default)
 
 def intParamHelper(config, name, default=None, minval=None, maxval=None):
-    return _k.fcall(3131, config, name, default, minval, maxval)
+    return ParamHelper(
+        config, name, "int", default, minval=minval, maxval=maxval
+    )
 
-def floatParamHelper(config, name, default=None, minval=None, maxval=None, above=None, below=None):
-    return _k.fcall(3132, config, name, default, minval, maxval, above, below)
+def floatParamHelper(
+    config, name, default=None, minval=None, maxval=None, above=None, below=None
+):
+    return ParamHelper(
+        config,
+        name,
+        "float",
+        default,
+        minval=minval,
+        maxval=maxval,
+        above=above,
+        below=below,
+    )
 
-def floatListParamHelper(config, name, default=None, above=None, below=None, max_len=None):
-    return _k.fcall(3133, config, name, default, above, below, max_len)
+def floatListParamHelper(
+    config, name, default=None, above=None, below=None, max_len=None
+):
+    return ParamHelper(
+        config,
+        name,
+        "float_list",
+        default,
+        above=above,
+        below=below,
+        max_len=max_len,
+    )
 
 class ContinuousTareFilter(_k.Object):
     __kaliru_mirror__ = True
@@ -60,7 +84,23 @@ class ContinuousTareFilter(_k.Object):
     def __eq__(self, other):
         return _k.call(self, 3135, other)
     def design_filter(self, error_func):
-        return _k.call(self, 3136, error_func)
+        design = sos_filter.DigitalFilter(
+            self.sps,
+            error_func,
+            self.drift,
+            self.drift_delay,
+            self.buzz,
+            self.buzz_delay,
+            self.notches,
+            self.notch_quality,
+        )
+        fixed_filter = sos_filter.FixedPointSosFilter(
+            design.get_filter_sections(),
+            design.get_initial_state(),
+            Q2_INT_BITS,
+            Q16_INT_BITS,
+        )
+        return fixed_filter
     buzz = _k.Attr(3137, 'buzz')
     buzz_delay = _k.Attr(3138, 'buzz_delay')
     drift = _k.Attr(3139, 'drift')
@@ -79,8 +119,8 @@ class ContinuousTareFilterHelper(_k.Object):
         return _k.call(self, 3146, fixed_filter, cmd_queue)
     def update_from_command(self, gcmd):
         return _k.call(self, 3147, gcmd)
-    def get_sos_filter(self):
-        return _k.call(self, 3148)
+    def get_sos_filter(self) -> sos_filter.SosFilter:
+        return self._sos_filter
     _active_design = _k.Attr(3149, '_active_design')
     _buzz_delay_param = _k.Attr(3150, '_buzz_delay_param')
     _buzz_param = _k.Attr(3151, '_buzz_param')
@@ -148,13 +188,13 @@ class McuLoadCellProbe(_k.Object):
     def _on_connect(self):
         return _k.call(self, 3187)
     def get_oid(self):
-        return _k.call(self, 3188)
+        return self._oid
     def get_mcu(self):
         return _k.call(self, 3189)
-    def get_load_cell(self):
-        return _k.call(self, 3190)
+    def get_load_cell(self) -> LoadCell:
+        return self._load_cell
     def get_dispatch(self):
-        return _k.call(self, 3191)
+        return self._dispatch
     def set_endstop_range(self, gcmd=None):
         return _k.call(self, 3192, gcmd)
     def home_start(self, print_time):
@@ -182,7 +222,7 @@ class LoadCellPrimitives(_k.Object):
     def get_mcu(self):
         return _k.call(self, 3208)
     def get_dispatch(self):
-        return _k.call(self, 3209)
+        return self._dispatch
     def _start_collector(self):
         return _k.call(self, 3210)
     def tare(self, gcmd=None):
@@ -192,17 +232,17 @@ class LoadCellPrimitives(_k.Object):
     def home_wait(self, home_end_time):
         return _k.call(self, 3213, home_end_time)
     def add_stepper(self, stepper):
-        return _k.call(self, 3214, stepper)
+        self._dispatch.add_stepper(stepper)
     def get_steppers(self):
-        return _k.call(self, 3215)
+        return self.get_dispatch().get_steppers()
     def query_endstop(self, print_time):
-        return _k.call(self, 3216, print_time)
+        return False
     def probing_move(self, mcu_probe, pos, speed, gcmd):
         return _k.call(self, 3217, mcu_probe, pos, speed, gcmd)
     def probing_test(self, gcmd, timeout):
         return _k.call(self, 3218, gcmd, timeout)
     def validate_samples(self, samples, errors):
-        return _k.call(self, 3219, samples, errors)
+        self._load_cell.validate_samples(samples, errors)
     def get_status(self, eventtime):
         return _k.call(self, 3220, eventtime)
     _config_helper = _k.Attr(3221, '_config_helper')
@@ -220,7 +260,7 @@ class HomingMove(_k.Object):
     def home_start(self, print_time, sample_time, sample_count, rest_time, triggered=True):
         return _k.call(self, 3229, print_time, sample_time, sample_count, rest_time, triggered)
     def query_endstop(self, print_time):
-        return _k.call(self, 3230, print_time)
+        return False
     _load_cell_primitives = _k.Attr(3231, '_load_cell_primitives')
     add_stepper = _k.Attr(3232, 'add_stepper')
     get_mcu = _k.Attr(3233, 'get_mcu')

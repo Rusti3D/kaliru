@@ -5,7 +5,7 @@ from enum import Enum
 MIN_COUNTS_PER_GRAM = 1.0
 
 def select_column(data, column_idx):
-    return _k.fcall(3000, data, column_idx)
+    return list(zip(*data))[column_idx]
 
 def avg(data):
     return _k.fcall(3001, data)
@@ -89,8 +89,16 @@ class LoadCellGuidedCalibrationHelper(_k.Object):
     def __init__(self, printer, load_cell):
         _k.new(self, 3022, printer, load_cell)
     @staticmethod
-    def calibration_warning(gcmd, load_cell, counts):
-        return _k.fcall(3023, gcmd, load_cell, counts)
+    def calibration_warning(
+        gcmd: GCodeCommand, load_cell: LoadCell, counts: int
+    ):
+        if load_cell.counts_to_percent(counts) <= 2.0:
+            return
+        gcmd.respond_info(
+            "WARNING: tare value is more than 2% away from 0!\n"
+            "The load cell's range will be impacted.\n"
+            "Check for external force on the load cell."
+        )
     def verify_no_active_calibration(self):
         return _k.call(self, 3024)
     def register_commands(self):
@@ -196,8 +204,24 @@ class LoadCell(_k.Object):
         return _k.call(self, 3075, tare_counts_per_channel, save)
     def set_calibration(self, counts_per_gram, reference_tare_counts_per_channel, save=True):
         return _k.call(self, 3076, counts_per_gram, reference_tare_counts_per_channel, save)
-    def counts_to_grams(self, counts, reference=ZeroReference.TARE, channel=None):
-        return _k.call(self, 3077, counts, reference, channel)
+    def counts_to_grams(
+        self,
+        counts: int,
+        reference: ZeroReference = ZeroReference.TARE,
+        channel: int | None = None,
+    ) -> float | None:
+        if not self.is_calibrated():
+            return None
+        ref_tare: tuple[int, ...] = (0,) * self.channel_count
+        if reference == ZeroReference.REFERENCE_TARE:
+            ref_tare = self.reference_tare_counts_per_channel
+        elif reference == ZeroReference.TARE:
+            ref_tare = self.tare_counts_per_channel
+        ref_counts: int = (
+            sum(ref_tare) if channel is None else ref_tare[channel]
+        )
+        sample_delta: float = float(counts - ref_counts)
+        return self.invert * (sample_delta / self.counts_per_gram)
     def channel_saturation_range(self):
         return _k.call(self, 3078)
     def saturation_range(self):
@@ -209,7 +233,21 @@ class LoadCell(_k.Object):
     def avg_counts(self, num_samples=None):
         return _k.call(self, 3082, num_samples)
     def validate_samples(self, samples, errors):
-        return _k.call(self, 3083, samples, errors)
+        if errors:
+            raise self.printer.command_error(
+                "Sensor reported %i errors while sampling"
+                % (errors[0] + errors[1])
+            )
+        # check individual channels for saturated readings
+        range_min, range_max = self.channel_saturation_range()
+        first_channel_col = SampleStructure.channel_counts_col(0)
+        for sample in samples:
+            channel_counts = sample[first_channel_col::2]
+            for counts in channel_counts:
+                if counts >= range_max or counts <= range_min:
+                    raise self.printer.command_error(
+                        "Some samples are saturated (+/-100%)"
+                    )
     def _track_force(self, msg):
         return _k.call(self, 3084, msg)
     def _force_g(self):
@@ -219,7 +257,7 @@ class LoadCell(_k.Object):
     def is_calibrated(self):
         return _k.call(self, 3087)
     def get_sensor(self):
-        return _k.call(self, 3088)
+        return self.sensor
     def get_reference_tare_counts(self):
         return _k.call(self, 3089)
     def get_tare_counts(self):

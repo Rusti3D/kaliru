@@ -21,6 +21,7 @@ const DS18_MIN_REPORT_TIME: f64 = 1.0;
 const DS18_MAX_CONSECUTIVE_ERRORS: i64 = 4;
 
 pub struct DS18B20 {
+    pub name: String,
     pub sensor_id: Vec<u8>,
     pub min_temp: Cell<f64>,
     pub max_temp: Cell<f64>,
@@ -46,6 +47,7 @@ impl DS18B20 {
         let mcu = get_printer_mcu(&printer, &config.get("sensor_mcu", Dflt::Required)?)?;
         let oid = mcu.create_oid();
         let s = Rc::new(DS18B20 {
+            name: config.get_name().split_whitespace().last().unwrap_or_default().to_string(),
             sensor_id,
             min_temp: Cell::new(0.0),
             max_temp: Cell::new(0.0),

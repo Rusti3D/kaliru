@@ -242,4 +242,10 @@ pub fn register(r: &mut Registry) {
             "struct stepper_kinematics *"
         }))
     });
+
+    // run_hub_ctrl(enable_power): the hub-ctrl tool through sudo
+    r.method("klippy.chelper.run_hub_ctrl", |a| {
+        crate::chelper::hub_ctrl::run_hub_ctrl(a.arg(0).as_i64()?);
+        Ok(py_none())
+    });
 }

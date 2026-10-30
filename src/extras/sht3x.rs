@@ -46,6 +46,8 @@ fn index_error() -> KError {
 
 pub struct SHT3X {
     pub printer: Rc<Printer>,
+    pub name: String,
+    pub device_id: String,
     pub i2c: Rc<McuI2c>,
     pub report_time: i64,
     pub temp: Cell<f64>,
@@ -63,9 +65,11 @@ impl SHT3X {
         let i2c = mcu_i2c_from_config(config, Some(SHT3X_I2C_ADDR), 100000)?;
         let mcu = i2c.get_mcu();
         let report_time = config.getint("sht3x_report_time", 1, Lim::new().min(1))?;
-        config.get("sensor_type", Dflt::Required)?;
+        let device_id = config.get("sensor_type", Dflt::Required)?;
         let s = Rc::new(SHT3X {
             printer: printer.clone(),
+            name: name.clone(),
+            device_id,
             i2c,
             report_time,
             temp: Cell::new(0.0),

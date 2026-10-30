@@ -135,7 +135,9 @@ pub fn register_redirect<T: 'static>(f: fn(&Rc<dyn Any>) -> Option<(Rc<dyn Any>,
 fn wrap_impl(rust: Rc<dyn Any>, type_name: &str, pobj: Option<PObj>) -> KResult<PyRef> {
     if let Some(f) = TABLE.with(|t| t.borrow().redirects.get(&(*rust).type_id()).copied()) {
         if let Some((target, name)) = f(&rust) {
-            return wrap_impl(target, name, None);
+            // (the printer object python gets stays the one kaliru registered:
+            // get_status / stats go through it)
+            return wrap_impl(target, name, pobj);
         }
     }
     let pobj = pobj.or_else(|| {

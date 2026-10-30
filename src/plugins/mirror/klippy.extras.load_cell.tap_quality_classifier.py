@@ -60,7 +60,7 @@ class TapQualityClassifier(TapClassifierModule):
     printer = _k.Attr(3475, 'printer')
 
 def load_config(config):
-    return _k.fcall(3476, config)
+    return TapQualityClassifier(config)
 
 
 __getattr__ = _k.module_getattr(__name__)

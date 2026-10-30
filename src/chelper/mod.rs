@@ -1,4 +1,5 @@
 // Ports of the klippy/chelper C helper code
+pub mod hub_ctrl;
 pub mod itersolve;
 pub mod kin_cartesian;
 pub mod kin_corexy;

@@ -22,7 +22,8 @@ pub struct SafeZHoming {
     pub move_to_previous: bool,
     pub home_y_before_x: bool,
     pub gcode: Rc<GCodeDispatch>,
-    prev_g28: RefCell<Option<Handler>>,
+    pub prev_g28: RefCell<Option<Handler>>,
+    pub max_z: f64,
 }
 
 fn homed_axes(toolhead: &ToolHead, curtime: f64) -> String {
@@ -36,7 +37,7 @@ impl SafeZHoming {
         let z_hop = config.getfloat("z_hop", 0.0, Lim::new())?;
         let z_hop_speed = config.getfloat("z_hop_speed", 15.0, Lim::new().above(0.0))?;
         let zconfig = config.getsection("stepper_z");
-        let _max_z = zconfig.getfloat("position_max", Dflt::Required, Lim::new().no_note())?;
+        let max_z = zconfig.getfloat("position_max", Dflt::Required, Lim::new().no_note())?;
         let speed = config.getfloat("speed", 50.0, Lim::new().above(0.0))?;
         let move_to_previous = config.getboolean("move_to_previous", false)?;
         let home_y_before_x = config.getboolean("home_y_before_x", false)?;
@@ -54,6 +55,7 @@ impl SafeZHoming {
             home_y_before_x,
             gcode: gcode.clone(),
             prev_g28: RefCell::new(prev_g28),
+            max_z,
         });
         let ss = s.clone();
         gcode.register_command("G28", Some(Rc::new(move |g| ss.cmd_g28(g))), false, None)?;

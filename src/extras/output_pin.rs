@@ -43,7 +43,7 @@ pub type RequestCallback = Rc<dyn Fn(f64, f64) -> KResult<Option<(Action, f64)>>
 pub struct GCodeRequestQueue {
     pub printer: Rc<Printer>,
     pub mcu: Rc<Mcu>,
-    callback: RequestCallback,
+    pub callback: RequestCallback,
     pub rqueue: RefCell<Vec<(f64, f64)>>,
     pub next_min_flush_time: Cell<f64>,
     pub toolhead: RefCell<Option<Rc<ToolHead>>>,

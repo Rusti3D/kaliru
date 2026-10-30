@@ -254,7 +254,7 @@ const CMD_Z_TILT_ADJUST_HELP: &str = "Adjust the Z tilt";
 
 pub struct ZTilt {
     pub z_positions: Vec<(f64, f64)>,
-    retry_helper: RetryHelper,
+    pub retry_helper: Rc<RetryHelper>,
     pub probe_helper: RefCell<Option<Rc<ProbePointsHelper>>>,
     pub z_status: Rc<ZAdjustStatus>,
     pub z_helper: Rc<ZAdjustHelper>,
@@ -265,7 +265,7 @@ impl ZTilt {
     pub fn new(config: &ConfigWrapper) -> KResult<Rc<Self>> {
         let printer = config.get_printer();
         let z_positions = get_pairs(config, "z_positions")?;
-        let retry_helper = RetryHelper::new(config, "")?;
+        let retry_helper = Rc::new(RetryHelper::new(config, "")?);
         let slot: Rc<RefCell<Weak<ZTilt>>> = Rc::new(RefCell::new(Weak::new()));
         let sl = slot.clone();
         let probe_helper = ProbePointsHelper::new(
@@ -309,7 +309,7 @@ impl ZTilt {
         self.probe_helper().start_probe(gcmd)
     }
 
-    fn probe_finalize(&self, offsets: (f64, f64, f64), positions: &[Vec<f64>]) -> KResult<FinalizeResult> {
+    pub fn probe_finalize(&self, offsets: (f64, f64, f64), positions: &[Vec<f64>]) -> KResult<FinalizeResult> {
         // Setup for coordinate descent analysis
         let z_offset = offsets.2;
         logging::info(&format!("Calculating bed tilt with: {}", positions_repr(positions)));

@@ -2,6 +2,7 @@
 import _k
 from . import bulk_sensor
 
+import math
 MIN_MSG_TIME = 0.1
 TCODE_ERROR = 255
 TRINAMIC_DRIVERS = ['tmc2130', 'tmc2208', 'tmc2209', 'tmc2240', 'tmc2660', 'tmc5160', 'tmc5262']
@@ -29,13 +30,26 @@ class AngleCalibration(_k.Object):
     def connect(self):
         return _k.call(self, 273)
     def get_microsteps(self):
-        return _k.call(self, 274)
+        configfile = self.printer.lookup_object("configfile")
+        sconfig = configfile.get_status(None)["settings"]
+        stconfig = sconfig.get(self.stepper_name, {})
+        microsteps = stconfig["microsteps"]
+        full_steps = stconfig["full_steps_per_rotation"]
+        return microsteps, full_steps
     def get_stepper_phase(self):
         return _k.call(self, 275)
     def do_calibration_moves(self):
         return _k.call(self, 276)
     def calc_angles(self, meas):
-        return _k.call(self, 277, meas)
+        total_count = total_variance = 0
+        angles = {}
+        for step, data in meas.items():
+            count = len(data)
+            angle_avg = float(sum(data)) / count
+            angles[step] = angle_avg
+            total_count += count
+            total_variance += sum([(d - angle_avg) ** 2 for d in data])
+        return angles, math.sqrt(total_variance / total_count), total_count
     cmd_ANGLE_CALIBRATE_help = 'Calibrate angle sensor to stepper motor'
     def cmd_ANGLE_CALIBRATE(self, gcmd):
         return _k.call(self, 278, gcmd)
@@ -56,9 +70,10 @@ class HelperA1333(_k.Object):
     def __init__(self, config, spi, oid):
         _k.new(self, 288, config, spi, oid)
     def get_static_delay(self):
-        return _k.call(self, 289)
+        return 0.000001
     def start(self):
-        return _k.call(self, 290)
+        # Setup for angle query
+        self.spi.spi_transfer([0x32, 0x00])
     is_tcode_absolute = _k.Attr(291, 'is_tcode_absolute')
     last_temperature = _k.Attr(292, 'last_temperature')
     spi = _k.Attr(293, 'spi')
@@ -70,9 +85,12 @@ class HelperAS5047D(_k.Object):
     def __init__(self, config, spi, oid):
         _k.new(self, 294, config, spi, oid)
     def get_static_delay(self):
-        return _k.call(self, 295)
+        return 0.000100
     def start(self):
-        return _k.call(self, 296)
+        # Clear any errors from device
+        self.spi.spi_transfer([0xFF, 0xFC])  # Read DIAAGC
+        self.spi.spi_transfer([0x40, 0x01])  # Read ERRFL
+        self.spi.spi_transfer([0xC0, 0x00])
     is_tcode_absolute = _k.Attr(297, 'is_tcode_absolute')
     last_temperature = _k.Attr(298, 'last_temperature')
     spi = _k.Attr(299, 'spi')
@@ -86,7 +104,7 @@ class HelperTLE5012B(_k.Object):
     def _build_config(self):
         return _k.call(self, 301)
     def get_tcode_params(self):
-        return _k.call(self, 302)
+        return self.last_chip_mcu_clock, self.last_chip_clock, self.chip_freq
     def _calc_crc(self, data):
         return _k.call(self, 303, data)
     def _send_spi(self, msg):
@@ -131,11 +149,11 @@ class HelperMT6816(_k.Object):
     def _send_spi(self, msg):
         return _k.call(self, 325, msg)
     def get_static_delay(self):
-        return _k.call(self, 326)
+        return 0.000001
     def _read_reg(self, reg):
         return _k.call(self, 327, reg)
     def start(self):
-        return _k.call(self, 328)
+        pass
     cmd_ANGLE_DEBUG_READ_help = 'Query low-level angle sensor register'
     def cmd_ANGLE_DEBUG_READ(self, gcmd):
         return _k.call(self, 329, gcmd)
@@ -158,19 +176,36 @@ class HelperMT6826S(_k.Object):
     def _send_spi(self, msg):
         return _k.call(self, 339, msg)
     def get_static_delay(self):
-        return _k.call(self, 340)
+        return 0.00001
     def _read_reg(self, reg):
         return _k.call(self, 341, reg)
     def _write_reg(self, reg, data):
         return _k.call(self, 342, reg, data)
     def crc8(self, data):
-        return _k.call(self, 343, data)
+        polynomial = 0x07
+        crc = 0x00
+        for byte in data:
+            crc ^= byte
+            for _ in range(8):
+                if crc & 0x80:
+                    crc = (crc << 1) ^ polynomial
+                else:
+                    crc <<= 1
+                crc &= 0xFF
+        return crc
     def _read_angle(self, reg):
         return _k.call(self, 344, reg)
     def start(self):
-        return _k.call(self, 345)
+        val = self._read_reg(0x00D)
+        # Set histeresis to 0.003 degree
+        self._write_reg(0x00D, (val & 0xF8) | 0x5)
     def get_microsteps(self):
-        return _k.call(self, 346)
+        configfile = self.printer.lookup_object("configfile")
+        sconfig = configfile.get_status(None)["settings"]
+        stconfig = sconfig.get(self.stepper_name, {})
+        microsteps = stconfig["microsteps"]
+        full_steps = stconfig["full_steps_per_rotation"]
+        return microsteps, full_steps
     cmd_ANGLE_CHIP_CALIBRATE_help = 'Run MT6826s calibration sequence'
     def cmd_ANGLE_CHIP_CALIBRATE(self, gcmd):
         return _k.call(self, 347, gcmd)

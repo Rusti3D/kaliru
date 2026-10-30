@@ -42,7 +42,8 @@ const KIFS: [f64; 4] = [11750.0, 24000.0, 36000.0, 36000.0];
 
 pub struct TMC2240CurrentHelper {
     base: BaseTMCCurrentHelper,
-    rref: f64,
+    pub rref: f64,
+    pub current_range: i64,
     pub cs: Option<i64>,
 }
 
@@ -54,10 +55,11 @@ impl TMC2240CurrentHelper {
     pub fn new(config: &ConfigWrapper, mcu_tmc: &TmcMcuRef) -> KResult<Self> {
         let rref = config.getfloat("rref", Dflt::Required, Lim::new().min(12000.0).max(60000.0))?;
         let base = BaseTMCCurrentHelper::new(config, mcu_tmc, ifs_rms(rref, 3), false)?;
-        let mut h = TMC2240CurrentHelper { base, rref, cs: None };
+        let mut h = TMC2240CurrentHelper { base, rref, current_range: 0, cs: None };
         let current_range = h.calc_current_range(h.base.actual_current.get());
         let current_range = config.getint("current_range", current_range, Lim::new().min(current_range).max(3))?;
         h.base.fields.set_field("current_range", current_range)?;
+        h.current_range = current_range;
         h.cs = config.getint_opt("driver_CS", Lim::new().min(0).max(31))?;
         let (gscaler, irun, ihold) = h.calc_current(h.base.req_run_current.get(), h.base.req_hold_current.get())?;
         h.base.fields.set_field("globalscaler", gscaler)?;

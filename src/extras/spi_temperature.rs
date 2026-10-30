@@ -41,7 +41,7 @@ pub struct SensorBase {
     pub callback: RefCell<Option<TempCallback>>,
     pub min_sample_value: Cell<i64>,
     pub max_sample_value: Cell<i64>,
-    minmax_temp: Cell<Option<(f64, f64)>>,
+    pub minmax_temp: Cell<Option<(f64, f64)>>,
     last: Cell<Option<(i64, i64)>>,
     pub report_clock: Cell<i64>,
     pub spi: Rc<McuSpi>,
@@ -168,7 +168,7 @@ impl SensorBase {
         logging::warning(msg);
     }
 
-    fn handle_fault(&self, fault: i64) -> KResult<()> {
+    pub fn handle_fault(&self, fault: i64) -> KResult<()> {
         let faults: &[(i64, &str)] = match self.chip {
             Chip::Max31856 => &[
                 (0x80, "Max31856: Cold Junction Range Fault"),
@@ -294,7 +294,7 @@ const MAX31856_MASK_THERMOCOUPLE_OPEN_FAULT: u8 = 0x01;
 const MAX31856_SCALE: u32 = 5;
 const MAX31856_MULT: f64 = 0.0078125;
 
-fn max31856_spi_init(config: &ConfigWrapper) -> KResult<Vec<u8>> {
+pub fn max31856_spi_init(config: &ConfigWrapper) -> KResult<Vec<u8>> {
     let mut cmds = vec![];
     let mut value = MAX31856_CR0_AUTOCONVERT;
     if config.getboolean("tc_use_50Hz_filter", false)? {
@@ -336,7 +336,7 @@ const MAX31865_ADC_MAX: i64 = 1 << 15;
 const CVD_A: f64 = 3.9083e-3;
 const CVD_B: f64 = -5.775e-7;
 
-fn max31865_spi_init(config: &ConfigWrapper) -> KResult<Vec<u8>> {
+pub fn max31865_spi_init(config: &ConfigWrapper) -> KResult<Vec<u8>> {
     let mut value = MAX31865_CONFIG_BIAS | MAX31865_CONFIG_MODEAUTO | MAX31865_CONFIG_FAULTCLEAR;
     if config.getboolean("rtd_use_50Hz_filter", false)? {
         value |= MAX31865_CONFIG_FILT50HZ;

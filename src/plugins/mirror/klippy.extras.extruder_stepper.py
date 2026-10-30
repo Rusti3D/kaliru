@@ -7,7 +7,7 @@ class PrinterExtruderStepper(_k.Object):
     def __init__(self, config):
         _k.new(self, 1759, config)
     def handle_connect(self):
-        return _k.call(self, 1760)
+        self.extruder_stepper.sync_to_extruder(self.extruder_name)
     def find_past_position(self, print_time):
         return _k.call(self, 1761, print_time)
     def get_status(self, eventtime):

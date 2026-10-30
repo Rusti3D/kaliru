@@ -34,8 +34,8 @@ pub struct SX1509 {
     pub i2c: Rc<McuI2c>,
     pub mcu: Rc<Mcu>,
     pub last_clock: Cell<i64>,
-    reg_dict: RefCell<IndexMap<i64, i64>>,
-    reg_i_on_dict: RefCell<IndexMap<i64, i64>>,
+    pub reg_dict: RefCell<IndexMap<i64, i64>>,
+    pub reg_i_on_dict: RefCell<IndexMap<i64, i64>>,
 }
 
 impl SX1509 {

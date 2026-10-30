@@ -9,6 +9,7 @@ use crate::webhooks::{ClientConnection, ServerSocket, Ty, WebHooks, WebRequest};
 use crate::IndexMap;
 
 pub fn register(r: &mut Registry) {
+    register_servers(r);
     r.method("klippy.webhooks.WebHooks.register_endpoint", |a| {
         let cb = a.arg(1).clone();
         a.this::<WebHooks>()?.register_endpoint(&a.string(0)?, endpoint_of(cb))?;
@@ -109,4 +110,70 @@ fn types_of(o: &PyRef) -> KResult<Option<Vec<Ty>>> {
         });
     }
     Ok(Some(out))
+}
+
+// the api server socket and its client connections
+fn register_servers(r: &mut Registry) {
+    r.attr("klippy.webhooks.ServerSocket.fd_handle", |o| objects::unwrap_as::<ServerSocket>(o)?.fd_handle.borrow().clone().to_py(), None);
+    r.attr("klippy.webhooks.ServerSocket.webhooks", |o| objects::unwrap_as::<ServerSocket>(o)?.printer.lookup_object("webhooks")?.to_py(), None);
+    // {client_id: ClientConnection}
+    r.attr("klippy.webhooks.ServerSocket.clients", |o| {
+        let d = lookup("builtins", "dict")?.call(&[])?;
+        for (uid, c) in objects::unwrap_as::<ServerSocket>(o)?.clients.borrow().iter() {
+            d.call_method("__setitem__", &[&py_int(*uid as i64), &c.clone().to_py()?])?;
+        }
+        Ok(d)
+    }, None);
+    r.attr("klippy.webhooks.ClientConnection.fd_handle", |o| objects::unwrap_as::<ClientConnection>(o)?.fd_handle.borrow().clone().to_py(), None);
+    r.attr("klippy.webhooks.ClientConnection.server", |o| objects::unwrap_as::<ClientConnection>(o)?.server.upgrade().to_py(), None);
+    r.attr("klippy.webhooks.ClientConnection.webhooks", |o| objects::unwrap_as::<ClientConnection>(o)?.webhooks.upgrade().to_py(), None);
+    // deque([(time, request bytes)], maxlen=20) (a snapshot)
+    r.attr("klippy.webhooks.ClientConnection.request_log", |o| {
+        let items: KResult<Vec<PyRef>> = objects::unwrap_as::<ClientConnection>(o)?
+            .request_log
+            .borrow()
+            .iter()
+            .map(|(t, d)| Ok(py_tuple(vec![py_float(*t), lookup("builtins", "bytes")?.call(&[&d.clone().to_py()?])?])))
+            .collect();
+        lookup("collections", "deque")?.call(&[&py_list(items?), &py_int(crate::webhooks::REQUEST_LOG_SIZE as i64)])
+    }, None);
+    // {ClientConnection: template}
+    r.attr("klippy.webhooks.GCodeHelper.clients", |o| {
+        let d = lookup("builtins", "dict")?.call(&[])?;
+        for (c, template) in objects::unwrap_as::<crate::webhooks::GCodeHelper>(o)?.clients.borrow().values() {
+            d.call_method("__setitem__", &[&c.clone().to_py()?, &from_pyval(template)])?;
+        }
+        Ok(d)
+    }, None);
+
+    // _endpoints {path: callback(web_request)} / _mux_endpoints {path: (key,
+    // {value: callback})} (snapshots)
+    fn endpoint_to_py(cb: crate::webhooks::Endpoint) -> KResult<PyRef> {
+        py_function(Rc::new(move |args: &[PyRef]| {
+            cb(&*objects::unwrap_as::<WebRequest>(&args[0])?)?;
+            Ok(py_none())
+        }))
+    }
+    r.attr("klippy.webhooks.WebHooks._endpoints", |o| {
+        let d = lookup("builtins", "dict")?.call(&[])?;
+        for (path, cb) in objects::unwrap_as::<WebHooks>(o)?.endpoints.borrow().iter() {
+            d.call_method("__setitem__", &[&py_str(path), &endpoint_to_py(cb.clone())?])?;
+        }
+        Ok(d)
+    }, None);
+    r.attr("klippy.webhooks.WebHooks._mux_endpoints", |o| {
+        let d = lookup("builtins", "dict")?.call(&[])?;
+        for (path, (key, values)) in objects::unwrap_as::<WebHooks>(o)?.mux_endpoints.borrow().iter() {
+            let vd = lookup("builtins", "dict")?.call(&[])?;
+            for (v, cb) in values {
+                let k = match v {
+                    Some(v) => py_str(v),
+                    None => py_none(),
+                };
+                vd.call_method("__setitem__", &[&k, &endpoint_to_py(cb.clone())?])?;
+            }
+            d.call_method("__setitem__", &[&py_str(path), &py_tuple(vec![py_str(key), vd])])?;
+        }
+        Ok(d)
+    }, None);
 }

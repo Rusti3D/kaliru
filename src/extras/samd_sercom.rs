@@ -35,7 +35,7 @@ pub fn load_config_prefix(config: &ConfigWrapper) -> KResult<PObj> {
     let pin = clk_pin_params.borrow().pin.clone();
     mcu.add_config_cmd(&format!("set_sercom_pin bus={} sercom_pin_type=clk pin={}", sercom, pin), false, false);
 
-    if let Some(rx_pin) = rx_pin.filter(|p| !p.is_empty()) {
+    if let Some(rx_pin) = rx_pin.clone().filter(|p| !p.is_empty()) {
         let rx_pin_params = lookup(&rx_pin)?;
         if !same_rc(&rx_pin_params.borrow().chip, &mcu) {
             return Err(same_mcu_error());
@@ -43,11 +43,17 @@ pub fn load_config_prefix(config: &ConfigWrapper) -> KResult<PObj> {
         let pin = rx_pin_params.borrow().pin.clone();
         mcu.add_config_cmd(&format!("set_sercom_pin bus={} sercom_pin_type=rx pin={}", sercom, pin), false, false);
     }
-    Ok(Rc::new(SamdSERCOM))
+    Ok(Rc::new(SamdSERCOM { sercom, tx_pin, rx_pin, clk_pin, mcu }))
 }
 
 /// the SamdSERCOM object (it only keeps its config values)
-pub struct SamdSERCOM;
+pub struct SamdSERCOM {
+    pub sercom: String,
+    pub tx_pin: String,
+    pub rx_pin: Option<String>,
+    pub clk_pin: String,
+    pub mcu: Rc<crate::mcu::Mcu>,
+}
 
 impl PrinterObject for SamdSERCOM {
 }

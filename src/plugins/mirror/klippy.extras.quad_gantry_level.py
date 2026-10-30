@@ -12,9 +12,14 @@ class QuadGantryLevel(_k.Object):
     def probe_finalize(self, offsets, positions):
         return _k.call(self, 4370, offsets, positions)
     def linefit(self, p1, p2):
-        return _k.call(self, 4371, p1, p2)
+        if p1[1] == p2[1]:
+            # Straight line
+            return 0, p1[1]
+        m = (p2[1] - p1[1]) / (p2[0] - p1[0])
+        b = p1[1] - m * p1[0]
+        return m, b
     def plot(self, f, x):
-        return _k.call(self, 4372, f, x)
+        return f[0] * x + f[1]
     def get_status(self, eventtime):
         return _k.call(self, 4373, eventtime)
     gantry_corners = _k.Attr(4374, 'gantry_corners')

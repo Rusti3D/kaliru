@@ -485,7 +485,7 @@ fn template_function(o: &PyRef) -> KResult<PyRef> {
 }
 
 /// a render context python passes (a dict), as kaliru's jinja values
-fn template_context(context: Option<PyRef>) -> KResult<Option<IndexMap<String, Value>>> {
+pub(super) fn template_context(context: Option<PyRef>) -> KResult<Option<IndexMap<String, Value>>> {
     let Some(c) = context.filter(|c| !c.is_none()) else { return Ok(None) };
     match to_pyval(&c)? {
         crate::pyval::PyVal::Dict(d) => Ok(Some(d.iter().map(|(k, v)| (k.to_string(), Value::from_pyval(v))).collect())),

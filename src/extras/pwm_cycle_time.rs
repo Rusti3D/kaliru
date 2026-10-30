@@ -134,6 +134,7 @@ pub struct PrinterOutputPWMCycle {
     pub mcu_pin: Rc<McuPwmCycle>,
     pub last_cycle_time: Cell<f64>,
     pub default_cycle_time: f64,
+    pub shutdown_value: f64,
 }
 
 impl PrinterOutputPWMCycle {
@@ -163,6 +164,7 @@ impl PrinterOutputPWMCycle {
             mcu_pin,
             last_cycle_time: Cell::new(cycle_time),
             default_cycle_time: cycle_time,
+            shutdown_value,
         });
         // Register commands
         let pin_name = config.get_name().split_whitespace().nth(1).unwrap_or("").to_string();

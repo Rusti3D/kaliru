@@ -29,7 +29,7 @@ class VirtualSD(_k.Object):
     def do_cancel(self):
         return _k.call(self, 5813)
     def cmd_error(self, gcmd):
-        return _k.call(self, 5814, gcmd)
+        raise gcmd.error("SD write not supported")
     def _reset_file(self):
         return _k.call(self, 5815)
     cmd_SDCARD_RESET_FILE_help = 'Clears a loaded SD File. Stops the print if necessary'

@@ -30,7 +30,10 @@ pub struct HX71xBase {
     pub mcu: Rc<Mcu>,
     pub oid: i64,
     pub sps: i64,
-    ffreader: FixedFreqReader,
+    pub dout_pin: String,
+    pub sclk_pin: String,
+    pub gain_channel: i64,
+    pub ffreader: Rc<FixedFreqReader>,
     pub batch_bulk: RefCell<Option<Rc<BatchBulkHelper>>>,
     pub query_hx71x_cmd: RefCell<Option<CommandWrapper>>,
     pub attach_probe_cmd: RefCell<Option<CommandWrapper>>,
@@ -61,7 +64,7 @@ impl HX71xBase {
         // Bulk Sensor Setup
         // Clock tracking
         let chip_smooth = sps as f64 * UPDATE_INTERVAL * 2.0;
-        let ffreader = FixedFreqReader::new(&mcu, chip_smooth, "<i");
+        let ffreader = Rc::new(FixedFreqReader::new(&mcu, chip_smooth, "<i"));
         let s = Rc::new(HX71xBase {
             printer: printer.clone(),
             name,
@@ -71,6 +74,9 @@ impl HX71xBase {
             mcu: mcu.clone(),
             oid,
             sps,
+            dout_pin: dout_pin.clone(),
+            sclk_pin: sclk_pin.clone(),
+            gain_channel,
             ffreader,
             batch_bulk: RefCell::new(None),
             query_hx71x_cmd: RefCell::new(None),

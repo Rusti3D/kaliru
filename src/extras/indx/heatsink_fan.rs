@@ -15,8 +15,8 @@ use std::rc::Rc;
 const BLOCKED_CHECK_SECONDS: i64 = 5;
 
 pub struct IndxHeatsinkFan {
-    printer: Rc<Printer>,
-    mcu: Rc<Mcu>,
+    pub printer: Rc<Printer>,
+    pub mcu: Rc<Mcu>,
     pub fan: Rc<Fan>,
     pub check_timer: RefCell<Option<Timer>>,
     pub active_stopped_count: Cell<i64>,

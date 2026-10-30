@@ -3,6 +3,8 @@ import _k
 from klippy import mcu
 from . import probe
 
+import bisect
+import math
 
 class EddyCalibration(_k.Object):
     __kaliru_mirror__ = True
@@ -13,13 +15,36 @@ class EddyCalibration(_k.Object):
     def load_calibration(self, cal):
         return _k.call(self, 4221, cal)
     def apply_calibration(self, samples):
-        return _k.call(self, 4222, samples)
+        for i, (samp_time, freq, dummy_z) in enumerate(samples):
+            pos = bisect.bisect(self.cal_freqs, freq)
+            if pos >= len(self.cal_zpos):
+                zpos = -99.9
+            elif pos == 0:
+                zpos = 99.9
+            else:
+                # XXX - could further optimize and avoid div by zero
+                this_freq = self.cal_freqs[pos]
+                prev_freq = self.cal_freqs[pos - 1]
+                this_zpos = self.cal_zpos[pos]
+                prev_zpos = self.cal_zpos[pos - 1]
+                gain = (this_zpos - prev_zpos) / (this_freq - prev_freq)
+                offset = prev_zpos - prev_freq * gain
+                zpos = freq * gain + offset
+            samples[i] = (samp_time, freq, round(zpos, 6))
     def height_to_freq(self, height):
         return _k.call(self, 4223, height)
     def do_calibration_moves(self, move_speed):
         return _k.call(self, 4224, move_speed)
     def calc_freqs(self, meas):
-        return _k.call(self, 4225, meas)
+        total_count = total_variance = 0
+        positions = {}
+        for pos, freqs in meas.items():
+            count = len(freqs)
+            freq_avg = float(sum(freqs)) / count
+            positions[pos] = freq_avg
+            total_count += count
+            total_variance += sum([(f - freq_avg) ** 2 for f in freqs])
+        return positions, math.sqrt(total_variance / total_count), total_count
     def post_manual_probe(self, kin_pos):
         return _k.call(self, 4226, kin_pos)
     cmd_EDDY_CALIBRATE_help = 'Calibrate eddy current probe'
@@ -40,8 +65,8 @@ class EddyDistanceCollector(probe.ProbeDistanceCollector):
         return _k.call(self, 4235, msg)
     def finish(self, before_time):
         return _k.call(self, 4236, before_time)
-    def sample_rate(self):
-        return _k.call(self, 4237)
+    def sample_rate(self) -> float:
+        return self.endstop_wrapper._sensor_helper.get_sample_rate()
     endstop_wrapper = _k.Attr(4238, 'endstop_wrapper')
     samples = _k.Attr(4239, 'samples')
     stop_after = _k.Attr(4240, 'stop_after')
@@ -75,7 +100,7 @@ class EddyEndstopWrapper(_k.Object):
     def probing_move(self, pos, speed, gcmd):
         return _k.call(self, 4253, pos, speed, gcmd)
     def begin_collect_distance(self):
-        return _k.call(self, 4254)
+        return EddyDistanceCollector(self)
     def multi_probe_begin(self):
         return _k.call(self, 4255)
     def multi_probe_end(self):

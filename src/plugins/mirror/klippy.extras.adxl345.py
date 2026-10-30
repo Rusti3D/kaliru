@@ -64,7 +64,18 @@ class AccelCommandHelper(_k.Object):
     printer = _k.Attr(213, 'printer')
 
 def read_axes_map(config, scale_x, scale_y, scale_z):
-    return _k.fcall(214, config, scale_x, scale_y, scale_z)
+    am = {
+        "x": (0, scale_x),
+        "y": (1, scale_y),
+        "z": (2, scale_z),
+        "-x": (0, -scale_x),
+        "-y": (1, -scale_y),
+        "-z": (2, -scale_z),
+    }
+    axes_map = config.getlist("axes_map", ("x", "y", "z"), count=3)
+    if any([a not in am for a in axes_map]):
+        raise config.error("Invalid axes_map parameter")
+    return [am[a.strip()] for a in axes_map]
 
 class ADXL345(_k.Object):
     __kaliru_mirror__ = True
@@ -79,7 +90,10 @@ class ADXL345(_k.Object):
     def set_reg(self, reg, val, minclock=0):
         return _k.call(self, 219, reg, val, minclock)
     def start_internal_client(self):
-        return _k.call(self, 220)
+        self.check_connected()
+        aqh = AccelQueryHelper(self.printer)
+        self.batch_bulk.add_client(aqh.handle_batch)
+        return aqh
     def _convert_samples(self, samples):
         return _k.call(self, 221, samples)
     def _start_measurements(self):

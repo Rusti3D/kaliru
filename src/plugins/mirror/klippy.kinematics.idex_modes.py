@@ -12,7 +12,7 @@ class DualCarriages(_k.Object):
     def __init__(self, dc_config, rail_0, rail_1, axis):
         _k.new(self, 6404, dc_config, rail_0, rail_1, axis)
     def get_rails(self):
-        return _k.call(self, 6405)
+        return self.dc
     def get_primary_rail(self):
         return _k.call(self, 6406)
     def toggle_active_dc_rail(self, index):

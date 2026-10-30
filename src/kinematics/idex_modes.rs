@@ -27,20 +27,20 @@ pub const MIRROR: &str = "MIRROR";
 
 const VALID_MODES: [&str; 3] = [PRIMARY, COPY, MIRROR];
 
-struct SavedState {
-    carriage_modes: Vec<&'static str>,
-    axes_positions: Vec<f64>,
+pub struct SavedState {
+    pub carriage_modes: Vec<&'static str>,
+    pub axes_positions: Vec<f64>,
 }
 
 pub struct DualCarriages {
     pub printer: Rc<Printer>,
     pub axis: usize,
     pub dc: [Rc<DualCarriagesRail>; 2],
-    saved_states: RefCell<IndexMap<String, SavedState>>,
+    pub saved_states: RefCell<IndexMap<String, SavedState>>,
     pub safe_dist: f64,
 }
 
-fn mode_of(s: &str) -> &'static str {
+pub fn mode_of(s: &str) -> &'static str {
     match s {
         PRIMARY => PRIMARY,
         COPY => COPY,
@@ -231,7 +231,7 @@ impl DualCarriages {
         -1
     }
 
-    fn activate_dc_mode(&self, index: usize, mode: &'static str) -> KResult<()> {
+    pub fn activate_dc_mode(&self, index: usize, mode: &'static str) -> KResult<()> {
         let toolhead = self.toolhead()?;
         toolhead.flush_step_generation()?;
         let kin = toolhead.get_kinematics();
@@ -363,15 +363,18 @@ pub struct DualCarriagesRail {
     pub offset: Cell<f64>,
     pub scale: Cell<f64>,
     pub dc_stepper_kinematics: Vec<SkRef>,
+    pub orig_stepper_kinematics: Vec<SkRef>,
 }
 
 impl DualCarriagesRail {
     pub fn new(rail: &Rc<PrinterRail>, axis: usize, active: bool) -> Rc<Self> {
         let mut dc_sks = vec![];
+        let mut orig_sks = vec![];
         for s in rail.get_steppers() {
             let sk = dual_carriage_alloc();
             let orig_sk = s.get_stepper_kinematics().expect("stepper kinematics");
             dual_carriage_set_sk(&sk, &orig_sk);
+            orig_sks.push(orig_sk.clone());
             // Set the default transform for the other axis
             dual_carriage_set_transform(&sk, ENC_AXES[1 - axis], 1.0, 0.0);
             dc_sks.push(sk.clone());
@@ -384,6 +387,7 @@ impl DualCarriagesRail {
             offset: Cell::new(0.0),
             scale: Cell::new(if active { 1.0 } else { 0.0 }),
             dc_stepper_kinematics: dc_sks,
+            orig_stepper_kinematics: orig_sks,
         })
     }
 

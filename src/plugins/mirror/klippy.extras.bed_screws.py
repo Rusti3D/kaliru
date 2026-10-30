@@ -9,7 +9,12 @@ class BedScrews(_k.Object):
     def reset(self):
         return _k.call(self, 576)
     def move(self, coord, speed):
-        return _k.call(self, 577, coord, speed)
+        try:
+            self.printer.lookup_object("toolhead").manual_move(coord, speed)
+        except self.printer.command_error as e:
+            self.unregister_commands()
+            self.reset()
+            raise
     def move_to_screw(self, state, screw):
         return _k.call(self, 578, state, screw)
     def unregister_commands(self):

@@ -53,6 +53,7 @@ const PIN_ALIASES: [(&str, &str); 30] = [
 
 pub struct IndxToolboard {
     pub printer: Rc<Printer>,
+    pub config: Rc<ConfigWrapper>,
     pub name: String,
     pub mcu: Rc<Mcu>,
     pub heater: RefCell<Option<Rc<IndxToolboardHeater>>>,
@@ -72,6 +73,7 @@ impl IndxToolboard {
 
         let tb = Rc::new(IndxToolboard {
             printer: printer.clone(),
+            config: Rc::new(config.clone()),
             name: name.clone(),
             mcu: mcu.clone(),
             heater: RefCell::new(None),

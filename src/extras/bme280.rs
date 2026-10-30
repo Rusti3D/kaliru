@@ -311,10 +311,10 @@ pub struct BME280 {
     pub min_temp: Cell<f64>,
     pub max_temp: Cell<f64>,
     pub max_sample_time: Cell<Option<f64>>,
-    dig: RefCell<Dig>,
+    pub dig: RefCell<Dig>,
     pub sample_timer: RefCell<Option<Timer>>,
     pub chip_type: RefCell<&'static str>,
-    chip_registers: Cell<&'static [(&'static str, u8)]>,
+    pub chip_registers: Cell<&'static [(&'static str, u8)]>,
     pub last_gas_time: Cell<f64>,
     pub callback: RefCell<Option<TempCallback>>,
 }

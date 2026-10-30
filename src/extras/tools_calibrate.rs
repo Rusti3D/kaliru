@@ -92,8 +92,10 @@ pub struct ToolsCalibrate {
     pub lift_z: f64,
     pub lift_speed: f64,
     pub final_lift_z: f64,
-    sensor_location: Cell<Option<Position>>,
-    last_result: Cell<Option<Position>>,
+    pub sensor_location: Cell<Option<Position>>,
+    pub last_result: Cell<Option<Position>>,
+    pub name: String,
+    pub trigger_to_bottom_z: f64,
     pub last_probe_offset: Cell<f64>,
     pub calibration_probe_inactive: Cell<bool>,
     pub gcode: Rc<GCodeDispatch>,
@@ -114,12 +116,14 @@ impl ToolsCalibrate {
 
         let lower_z = config.getfloat("lower_z", 0.5, Lim::new())?;
         let lift_z = config.getfloat("lift_z", 1.0, Lim::new())?;
-        config.getfloat("trigger_to_bottom_z", 0.0, Lim::new())?;
+        let trigger_to_bottom_z = config.getfloat("trigger_to_bottom_z", 0.0, Lim::new())?;
         let lift_speed = config.getfloat("lift_speed", probe_multi_axis.lift_speed, Lim::new())?;
         let final_lift_z = config.getfloat("final_lift_z", 4.0, Lim::new())?;
 
         let gcode = printer.lookup::<GCodeDispatch>("gcode")?;
         let t = Rc::new(ToolsCalibrate {
+            name: config.get_name().to_string(),
+            trigger_to_bottom_z,
             printer: printer.clone(),
             probe_multi_axis,
             travel_speed,
@@ -192,7 +196,7 @@ impl ToolsCalibrate {
         Ok([center_x, (near_y + far_y) / 2.0])
     }
 
-    fn locate_sensor(&self, gcmd: &GCodeCommand) -> KResult<Position> {
+    pub fn locate_sensor(&self, gcmd: &GCodeCommand) -> KResult<Position> {
         let toolhead = self.printer.lookup::<ToolHead>("toolhead")?;
         let mut position = toolhead.get_position();
         let down_pos = self.probe_multi_axis.run_probe("z-", gcmd, 1.0, Some(1), 100.0)?;
@@ -302,6 +306,8 @@ impl PrinterObject for ToolsCalibrate {
 
 pub struct PrinterProbeMultiAxis {
     pub printer: Rc<Printer>,
+    pub name: String,
+    pub max_travel: f64,
     pub mcu_probe: [Rc<ProbeEndstopWrapper>; 3],
     pub speed: f64,
     pub lift_speed: f64,
@@ -318,7 +324,7 @@ impl PrinterProbeMultiAxis {
         let printer = config.get_printer();
         let speed = config.getfloat("speed", 5.0, Lim::new().above(0.0))?;
         let lift_speed = config.getfloat("lift_speed", speed, Lim::new().above(0.0))?;
-        config.getfloat("max_travel", Dflt::from(PyVal::Int(4)), Lim::new().above(0.0))?;
+        let max_travel = config.getfloat("max_travel", Dflt::from(PyVal::Int(4)), Lim::new().above(0.0))?;
         let gcode = printer.lookup::<GCodeDispatch>("gcode")?;
         printer.load_object(config, "gcode_move", true)?;
 
@@ -329,6 +335,8 @@ impl PrinterProbeMultiAxis {
         let samples_tolerance = config.getfloat("samples_tolerance", 0.100, Lim::new().min(0.0))?;
         let samples_retries = config.getint("samples_tolerance_retries", 0, Lim::new().min(0))?;
         let p = Rc::new(PrinterProbeMultiAxis {
+            name: config.get_name().to_string(),
+            max_travel,
             printer: printer.clone(),
             mcu_probe: [mcu_probe_x, mcu_probe_y, mcu_probe_z],
             speed,
@@ -420,7 +428,7 @@ impl PrinterProbeMultiAxis {
         Self::calc_mean(&axis_sorted[middle - 1..middle + 1])
     }
 
-    fn run_probe(&self, dir: &str, gcmd: &GCodeCommand, speed_ratio: f64, samples: Option<i64>, max_distance: f64) -> KResult<Position> {
+    pub fn run_probe(&self, dir: &str, gcmd: &GCodeCommand, speed_ratio: f64, samples: Option<i64>, max_distance: f64) -> KResult<Position> {
         let speed = gcmd.get_float("PROBE_SPEED", Some(self.speed), Lim::new().above(0.0))? * speed_ratio;
         let Some((axis, sense)) = direction(dir) else {
             return Err(KError::command("Wrong value for DIRECTION."));
@@ -490,7 +498,7 @@ impl PinChip for PrinterProbeMultiAxis {
 // Endstop wrapper that enables probe specific features
 pub struct ProbeEndstopWrapper {
     pub printer: Rc<Printer>,
-    axis: char,
+    pub axis: char,
     pub idex: bool,
     pub mcu_endstop: Rc<McuEndstop>,
 }

@@ -2,6 +2,9 @@
 import _k
 from contextlib import contextmanager
 
+import math
+import os
+import tempfile
 
 class TestAxis(_k.Object):
     __kaliru_mirror__ = True
@@ -21,7 +24,69 @@ def _parse_axis(gcmd, raw_axis):
 
 @contextmanager
 def suspend_limits(printer, max_accel, max_velocity, input_shaping):
-    return _k.fcall(4461, printer, max_accel, max_velocity, input_shaping)
+    # Override maximum acceleration and cruise ratio
+    # based on the maximum test frequency
+    gcode = printer.lookup_object("gcode")
+    input_shaper = printer.lookup_object("input_shaper", None)
+    if input_shaper is not None and not input_shaping:
+        input_shaper.disable_shaping()
+        gcode.respond_info("Disabled [input_shaper] for resonance testing")
+    else:
+        input_shaper = None
+    toolhead = printer.lookup_object("toolhead")
+    systime = printer.get_reactor().monotonic()
+    toolhead_info = toolhead.get_status(systime)
+    old_max_accel = toolhead_info["max_accel"]
+    old_minimum_cruise_ratio = toolhead_info["minimum_cruise_ratio"]
+    old_max_velocity = toolhead_info["max_velocity"]
+    gcode.run_script_from_command(
+        "SET_VELOCITY_LIMIT ACCEL=%.3f MINIMUM_CRUISE_RATIO=0 VELOCITY=%.3f"
+        % (max_accel, max_velocity)
+    )
+    kin = toolhead.get_kinematics()
+    old_max_velocities = getattr(kin, "max_velocities", None)
+    if old_max_velocities is not None:
+        kin.max_velocities = [
+            max_velocity,
+            max_velocity,
+            old_max_velocities[-1],
+        ]
+    old_max_accels = getattr(kin, "max_accels", None)
+    if old_max_accels is not None:
+        kin.max_accels = [max_accel, max_accel, old_max_accels[-1]]
+    # FIXME: could be cleaner if limited_corexy were using the same format than
+    # limited_cartesian
+    old_max_x_accel = getattr(kin, "max_x_accel", None)
+    if old_max_x_accel is not None:
+        kin.max_x_accel = max_accel
+    old_max_y_accel = getattr(kin, "max_y_accel", None)
+    if old_max_y_accel is not None:
+        kin.max_y_accel = max_accel
+    old_scale_per_axis = getattr(kin, "scale_per_axis", None)
+    if old_scale_per_axis is not None:
+        kin.scale_per_axis = False
+    try:
+        yield
+    finally:
+        # Restore input shaper if it was disabled for resonance testing
+        if input_shaper is not None:
+            input_shaper.enable_shaping()
+            gcode.respond_info("Re-enabled [input_shaper]")
+        # Restore the original acceleration values
+        gcode.run_script_from_command(
+            "SET_VELOCITY_LIMIT ACCEL=%.3f MINIMUM_CRUISE_RATIO=%.3f VELOCITY=%.3f"
+            % (old_max_accel, old_minimum_cruise_ratio, old_max_velocity)
+        )
+        if old_max_velocities is not None:
+            kin.max_velocities = old_max_velocities
+        if old_max_accels is not None:
+            kin.max_accels = old_max_accels
+        if old_max_x_accel is not None:
+            kin.max_x_accel = old_max_x_accel
+        if old_max_y_accel is not None:
+            kin.max_y_accel = old_max_y_accel
+        if old_scale_per_axis is not None:
+            kin.scale_per_axis = old_scale_per_axis
 
 class VibrationPulseTestGenerator(_k.Object):
     __kaliru_mirror__ = True
@@ -30,7 +95,20 @@ class VibrationPulseTestGenerator(_k.Object):
     def prepare_test(self, gcmd):
         return _k.call(self, 4463, gcmd)
     def gen_test(self):
-        return _k.call(self, 4464)
+        freq = self.freq_start
+        res = []
+        sign = 1.0
+        time = 0.0
+        while freq <= self.freq_end + 0.000001:
+            t_seg = 0.25 / freq
+            accel = self.test_accel_per_hz * freq
+            time += t_seg
+            res.append((time, sign * accel, freq))
+            time += t_seg
+            res.append((time, -sign * accel, freq))
+            freq += 2.0 * t_seg * self.test_hz_per_sec
+            sign = -sign
+        return res
     def get_max_freq(self):
         return _k.call(self, 4465)
     def get_accel_per_hz(self):
@@ -51,11 +129,35 @@ class SweepingVibrationsTestGenerator(_k.Object):
     def prepare_test(self, gcmd):
         return _k.call(self, 4476, gcmd)
     def gen_test(self):
-        return _k.call(self, 4477)
+        test_seq = self.vibration_generator.gen_test()
+        accel_fraction = math.sqrt(2.0) * 0.125
+        if self.test_sweeping_period:
+            t_rem = self.test_sweeping_period * accel_fraction
+            sweeping_accel = self.test_sweeping_accel
+        else:
+            t_rem = float("inf")
+            sweeping_accel = 0.0
+        res = []
+        last_t = 0.0
+        sig = 1.0
+        accel_fraction += 0.25
+        for next_t, accel, freq in test_seq:
+            t_seg = next_t - last_t
+            while t_rem <= t_seg:
+                last_t += t_rem
+                res.append((last_t, accel + sweeping_accel * sig, freq))
+                t_seg -= t_rem
+                t_rem = self.test_sweeping_period * accel_fraction
+                accel_fraction = 0.5
+                sig = -sig
+            t_rem -= t_seg
+            res.append((next_t, accel + sweeping_accel * sig, freq))
+            last_t = next_t
+        return res
     def get_max_freq(self):
-        return _k.call(self, 4478)
+        return self.vibration_generator.get_max_freq()
     def get_accel_per_hz(self):
-        return _k.call(self, 4479)
+        return self.vibration_generator.get_accel_per_hz()
     sweeping_accel = _k.Attr(4480, 'sweeping_accel')
     sweeping_period = _k.Attr(4481, 'sweeping_period')
     test_sweeping_accel = _k.Attr(4482, 'test_sweeping_accel')
@@ -67,7 +169,22 @@ class ResonanceTestExecutor(_k.Object):
     def __init__(self, config):
         _k.new(self, 4485, config)
     def run_test(self, test_seq, axis, gcmd):
-        return _k.call(self, 4486, test_seq, axis, gcmd)
+        # Derive the required limits from the actual test sequence, so that
+        # ACCEL_PER_HZ overrides and the sweeping acceleration are covered
+        max_accel = 0.0
+        max_v = v = last_t = 0.0
+        for next_t, accel, freq in test_seq:
+            max_accel = max(max_accel, abs(accel))
+            v += accel * (next_t - last_t)
+            max_v = max(max_v, abs(v))
+            last_t = next_t
+        with suspend_limits(
+            self.printer,
+            max_accel + 10.0,
+            max_v + 1.0,
+            gcmd.get_int("INPUT_SHAPING", 0),
+        ):
+            self._run_test(test_seq, axis, gcmd)
     def _run_test(self, test_seq, axis, gcmd):
         return _k.call(self, 4487, test_seq, axis, gcmd)
     gcode = _k.Attr(4488, 'gcode')
@@ -95,11 +212,36 @@ class ResonanceTester(_k.Object):
     def cmd_MEASURE_AXES_NOISE(self, gcmd):
         return _k.call(self, 4497, gcmd)
     def is_valid_name_suffix(self, name_suffix):
-        return _k.call(self, 4498, name_suffix)
-    def get_filename(self, base, name_suffix, axis=None, point=None, chip_name=None):
-        return _k.call(self, 4499, base, name_suffix, axis, point, chip_name)
-    def save_calibration_data(self, base_name, name_suffix, shaper_calibrate, axis, calibration_data, all_shapers=None, point=None, max_freq=None, accel_per_hz=None):
-        return _k.call(self, 4500, base_name, name_suffix, shaper_calibrate, axis, calibration_data, all_shapers, point, max_freq, accel_per_hz)
+        return name_suffix.replace("-", "").replace("_", "").isalnum()
+    def get_filename(
+        self, base, name_suffix, axis=None, point=None, chip_name=None
+    ):
+        name = base
+        if axis:
+            name += "_" + axis.get_name()
+        if chip_name:
+            name += "_" + chip_name.replace(" ", "_")
+        if point:
+            name += "_%.3f_%.3f_%.3f" % (point[0], point[1], point[2])
+        name += "_" + name_suffix
+        return os.path.join(tempfile.gettempdir(), name + ".csv")
+    def save_calibration_data(
+        self,
+        base_name,
+        name_suffix,
+        shaper_calibrate,
+        axis,
+        calibration_data,
+        all_shapers=None,
+        point=None,
+        max_freq=None,
+        accel_per_hz=None,
+    ):
+        output = self.get_filename(base_name, name_suffix, axis, point)
+        shaper_calibrate.save_calibration_data(
+            output, calibration_data, all_shapers, max_freq, accel_per_hz
+        )
+        return output
     def _check_active_fans(self, gcmd):
         return _k.call(self, 4501, gcmd)
     accel_chip_names = _k.Attr(4502, 'accel_chip_names')

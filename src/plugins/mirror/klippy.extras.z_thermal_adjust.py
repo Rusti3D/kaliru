@@ -8,7 +8,13 @@ class ZThermalAdjuster(_k.Object):
     def __init__(self, config):
         _k.new(self, 5920, config)
     def register_commands(self, component):
-        return _k.call(self, 5921, component)
+        self.gcode.register_mux_command(
+            "SET_Z_THERMAL_ADJUST",
+            "COMPONENT",
+            component,
+            self.cmd_SET_Z_THERMAL_ADJUST,
+            desc=self.cmd_SET_Z_THERMAL_ADJUST_help,
+        )
     def handle_connect(self):
         return _k.call(self, 5922)
     def get_status(self, eventtime):

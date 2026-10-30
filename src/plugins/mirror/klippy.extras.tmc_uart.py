@@ -53,7 +53,7 @@ class MCU_TMC_uart_bitbang(_k.Object):
     def reg_write(self, instance_id, addr, reg, val, print_time=None):
         return _k.call(self, 5368, instance_id, addr, reg, val, print_time)
     def get_mcu(self):
-        return _k.call(self, 5369)
+        return self.mcu
     analog_mux = _k.Attr(5370, 'analog_mux')
     cmd_queue = _k.Attr(5371, 'cmd_queue')
     instances = _k.Attr(5372, 'instances')

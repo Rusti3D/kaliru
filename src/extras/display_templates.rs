@@ -30,7 +30,7 @@ pub fn literal_eval(src: &str) -> Result<Value, (String, String)> {
 // Storage of [display_template my_template] config sections
 pub struct DisplayTemplate {
     pub name: String,
-    params: IndexMap<String, Value>,
+    pub params: IndexMap<String, Value>,
     pub template: Rc<Template>,
 }
 

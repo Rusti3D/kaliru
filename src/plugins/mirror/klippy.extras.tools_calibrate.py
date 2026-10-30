@@ -3,6 +3,8 @@ import _k
 import collections
 import enum
 
+import logging
+from klippy import pins
 Position = collections.namedtuple('Position', ['x', 'y', 'z'])
 HINT_TIMEOUT = '\nIf the probe did not move far enough to trigger, then\nconsider reducing/increasing the axis minimum/maximum\nposition so the probe can travel further (the minimum\nposition can be negative).\n'
 
@@ -19,8 +21,30 @@ class ToolsCalibrate(_k.Object):
         return _k.call(self, 5401, eventtime)
     def get_status(self, eventtime):
         return _k.call(self, 5402, eventtime)
-    def probe_xy(self, toolhead, top_pos, direction, gcmd, spread, samples=None):
-        return _k.call(self, 5403, toolhead, top_pos, direction, gcmd, spread, samples)
+    def probe_xy(
+        self, toolhead, top_pos, direction, gcmd, spread, samples=None
+    ):
+        [axis, offset] = Directions[direction]
+        start_pos = list(top_pos)
+        start_pos[axis] -= offset * spread[axis]
+        logging.info(
+            f"tools_calibrate: probe_xy({top_pos=}, {start_pos=}, {direction=})"
+        )
+        toolhead.manual_move(
+            [None, None, top_pos[2] + self.lift_z], self.lift_speed
+        )
+        toolhead.manual_move(
+            [start_pos[0], start_pos[1], None], self.travel_speed
+        )
+        toolhead.manual_move(
+            [None, None, top_pos[2] - self.lower_z], self.lift_speed
+        )
+        return self.probe_multi_axis.run_probe(
+            direction,
+            gcmd,
+            samples=samples,
+            max_distance=spread[axis] * 1.8,
+        )[axis]
     def calibrate_xy(self, toolhead, top_pos, gcmd, spread, samples=None):
         return _k.call(self, 5404, toolhead, top_pos, gcmd, spread, samples)
     def locate_sensor(self, gcmd):
@@ -60,7 +84,11 @@ class PrinterProbeMultiAxis(_k.Object):
     def __init__(self, config, mcu_probe_x, mcu_probe_y, mcu_probe_z):
         _k.new(self, 5427, config, mcu_probe_x, mcu_probe_y, mcu_probe_z)
     def setup_pin(self, pin_type, pin_params):
-        return _k.call(self, 5428, pin_type, pin_params)
+        if pin_type != "endstop" or pin_params["pin"] != "xy_virtual_endstop":
+            raise pins.error("Probe virtual endstop only useful as endstop pin")
+        if pin_params["invert"] or pin_params["pullup"]:
+            raise pins.error("Can not pullup/invert probe virtual endstop")
+        return self.mcu_probe
     def get_lift_speed(self, gcmd=None):
         return _k.call(self, 5429, gcmd)
     def _probe(self, speed, axis, sense, max_distance):

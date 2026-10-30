@@ -48,7 +48,31 @@ class aip31068_spi(_k.Object):
         _k.new(self, 1101, config)
     @staticmethod
     def encode(data, width=9):
-        return _k.fcall(1102, data, width)
+        encoded_bytes = []
+        accumulator = 0  # To accumulate bits
+        acc_bits = 0  # Count of bits in the accumulator
+        for num in data:
+            # check that num will fit in width bits
+            if num >= (1 << width):
+                raise ValueError(
+                    "Number {} does not fit in {} bits".format(num, width)
+                )
+            # Shift the current number into the accumulator from the right
+            accumulator = (accumulator << width) | num
+            acc_bits += width  # Update the count of bits in the accumulator
+            # While we have at least 8 bits, form a byte and append it
+            while acc_bits >= 8:
+                acc_bits -= 8  # Decrease bit count by 8
+                # Extract the 8 most significant bits to form a byte
+                byte = (accumulator >> acc_bits) & 0xFF
+                # Remove msb 8 bits from the accumulator
+                accumulator &= (1 << acc_bits) - 1
+                encoded_bytes.append(byte)
+        # Handle any remaining bits by padding them on the right to byte
+        if acc_bits > 0:
+            last_byte = accumulator << (8 - acc_bits)
+            encoded_bytes.append(last_byte)
+        return encoded_bytes
     def send(self, data, minclock=0):
         return _k.call(self, 1103, data, minclock)
     def flush(self):

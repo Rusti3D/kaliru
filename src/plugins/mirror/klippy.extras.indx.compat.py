@@ -2,11 +2,15 @@
 import _k
 from klippy.configfile import ConfigWrapper as RealConfigWrapper
 
+from klippy.configfile import error as ConfigError
 
 class ConfigWrapper(RealConfigWrapper):
     __kaliru_mirror__ = True
     def __init__(self, printer, name, contents, fallback=None):
-        _k.new(self, 2512, printer, name, contents, fallback)
+        self.section = name
+        self.printer = printer
+        self.fileconfig = ConfigContents(name, contents, fallback)
+        self.access_tracking = {}
     access_tracking = _k.Attr(2513, 'access_tracking')
     fileconfig = _k.Attr(2514, 'fileconfig')
     printer = _k.Attr(2515, 'printer')
@@ -15,44 +19,69 @@ class ConfigWrapper(RealConfigWrapper):
 class ConfigContents(_k.Object):
     __kaliru_mirror__ = True
     def __init__(self, section, contents, fallback):
-        _k.new(self, 2517, section, contents, fallback)
+        self.section = section
+        self.contents = contents
+        self.fallback = fallback
     def has_option(self, section, option):
-        return _k.call(self, 2518, section, option)
+        if section != self.section:
+            return False
+        return option in self.contents
     def sections(self):
-        return _k.call(self, 2519)
+        return [self.section]
     def getsection(self, _section):
-        return _k.call(self, 2520, _section)
+        return self
     def get(self, section, option):
-        return _k.call(self, 2521, section, option)
+        if not self.has_option(section, option):
+            if self.fallback:
+                return self.fallback.get(section, option)
+            raise ConfigError(f"missing option {section}:{option}")
+        return self.contents[option]
     def get_converted(self, section, option, conv):
-        return _k.call(self, 2522, section, option, conv)
+        return conv(self.get(section, option))
     def getint(self, section, option):
-        return _k.call(self, 2523, section, option)
+        return self.get_converted(section, option, int)
     def getfloat(self, section, option):
-        return _k.call(self, 2524, section, option)
+        return self.get_converted(section, option, float)
     def getboolean(self, section, option):
-        return _k.call(self, 2525, section, option)
+        return self.get_converted(section, option, bool)
     contents = _k.Attr(2526, 'contents')
     fallback = _k.Attr(2527, 'fallback')
     section = _k.Attr(2528, 'section')
 
 def register_response(mcu, callback, msgformat):
-    return _k.fcall(2529, mcu, callback, msgformat)
+    """
+    Register an MCU response handler, returning a handle with .unregister().
+    Compatibility layer for Kalico and Klipper.
+    """
+    register = mcu.register_response  # Kalico + old Klipper
+    name = msgformat.split()[0]
+    register(callback, name)
+    return _ResponseHandle(mcu, name)
 
 class _ResponseHandle(_k.Object):
     __kaliru_mirror__ = True
     def __init__(self, mcu, name):
-        _k.new(self, 2530, mcu, name)
+        self._mcu = mcu
+        self._name = name
     def unregister(self):
-        return _k.call(self, 2531)
+        self._mcu.register_response(None, self._name)
     _mcu = _k.Attr(2532, '_mcu')
     _name = _k.Attr(2533, '_name')
 
 def register_adc_callback(adc, callback):
-    return _k.fcall(2534, adc, callback)
+    """
+    Register ADC callback. Compatibility layer for Kalico and Klipper.
+    """
+    # Old klipper and Kalico ADC callback style
+    adc.setup_adc_callback(0.3, callback)
+    adc.setup_adc_sample(0.001, 8)
 
 def get_tmc_current_helper(stepper):
-    return _k.fcall(2535, stepper)
+    """
+    Return the current helper for a stepper.
+    Compatibility layer for Kalico and Klipper.
+    """
+    return stepper.get_tmc_current_helper()
 
 
 __getattr__ = _k.module_getattr(__name__)

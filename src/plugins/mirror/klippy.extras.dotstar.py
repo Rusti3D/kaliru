@@ -8,7 +8,7 @@ class PrinterDotstar(_k.Object):
     def __init__(self, config):
         _k.new(self, 1633, config)
     def handle_connect(self):
-        return _k.call(self, 1634)
+        self.update_leds(self.led_helper.get_status()["color_data"], None)
     def update_leds(self, led_state, print_time):
         return _k.call(self, 1635, led_state, print_time)
     def get_status(self, eventtime):

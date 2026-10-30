@@ -121,8 +121,8 @@ pub struct Kwargs {
 
 /// MenuContainer state
 #[derive(Default)]
-struct Container {
-    selected: Cell<Option<i64>>,
+pub(crate) struct Container {
+    pub(crate) selected: Cell<Option<i64>>,
     allitems: RefCell<Vec<(Rc<MenuItem>, String)>>,
     names: RefCell<Vec<String>>,
     items: RefCell<Vec<Rc<MenuItem>>>,
@@ -133,7 +133,7 @@ struct Container {
 }
 
 /// MenuInput state
-struct Input {
+pub(crate) struct Input {
     input_min: Cell<Option<f64>>,
     input_max: Cell<Option<f64>>,
     input_step: f64,
@@ -143,7 +143,7 @@ struct Input {
     input_max_tpl: Option<Rc<Template>>,
     is_dirty: Cell<bool>,
     last_change: Cell<Option<f64>>,
-    input_value: Cell<Option<f64>>,
+    pub(crate) input_value: Cell<Option<f64>>,
 }
 
 /// MenuDialog state
@@ -155,10 +155,10 @@ struct Dialog {
 }
 
 /// MenuFileBrowser state
-struct FileBrowser {
+pub(crate) struct FileBrowser {
     sort_by: String,
-    root_dir: Option<PathBuf>,
-    path: Option<PathBuf>,
+    pub(crate) root_dir: Option<PathBuf>,
+    pub(crate) path: Option<PathBuf>,
 }
 
 pub struct MenuItem {
@@ -168,7 +168,7 @@ pub struct MenuItem {
     pub index: Option<i64>,
     pub enable: bool,
     pub name: Option<String>,
-    context: Option<Ctx>,
+    pub(crate) context: Option<Ctx>,
     pub enable_tpl: Option<Rc<Template>>,
     pub name_tpl: RefCell<Option<Rc<Template>>>,
     pub suffix: String,
@@ -181,10 +181,10 @@ pub struct MenuItem {
     pub scroll_request_pending: Cell<Option<bool>>,
     pub scroll_next: Cell<f64>,
     scripts: RefCell<IndexMap<String, Script>>,
-    container: Container,
-    input: Option<Input>,
+    pub(crate) container: Container,
+    pub(crate) input: Option<Input>,
     dialog: RefCell<Option<Dialog>>,
-    fb: Option<FileBrowser>,
+    pub(crate) fb: Option<FileBrowser>,
 }
 
 /// the config source of a menu item: a config section or kwargs
@@ -476,7 +476,7 @@ impl MenuItem {
         if let Some(c) = &self.context {
             context.extend(c.clone());
         }
-        let menu = context.get("menu").cloned().ok_or_else(|| KError::Other("'menu'".into()))?;
+        let menu = context.get("menu").cloned().ok_or_else(|| KError::Py("KeyError".into(), "'menu'".into()))?;
         dict_set(&menu, "ns", Value::str(&self.get_ns(".")));
         Ok(context)
     }
@@ -530,7 +530,7 @@ impl MenuItem {
         })
     }
 
-    fn eval_enable(&self, context: &Ctx) -> bool {
+    pub fn eval_enable(&self, context: &Ctx) -> bool {
         if let Some(tpl) = &self.enable_tpl {
             return match self.eval_tpl(tpl, context) {
                 Ok(v) => v.truthy(),
@@ -658,7 +658,7 @@ impl MenuItem {
         }
     }
 
-    fn run_script(&self, name: &str, event: Option<&str>, context: Option<&Ctx>, render_only: bool) -> KResult<String> {
+    pub fn run_script(&self, name: &str, event: Option<&str>, context: Option<&Ctx>, render_only: bool) -> KResult<String> {
         let mut result = String::new();
         // init context
         if self.scripts.borrow().contains_key(name) {
@@ -764,7 +764,7 @@ impl MenuItem {
         }
     }
 
-    fn step_value(&self, fast_rate: bool, up: bool) {
+    pub fn step_value(&self, fast_rate: bool, up: bool) {
         let Some(i) = &self.input else { return };
         let last_value = i.input_value.get();
         let Some(v) = last_value else { return };
@@ -1205,11 +1205,11 @@ impl MenuItem {
 
     // MenuDialog
 
-    fn dialog_values(&self) -> IndexMap<String, Value> {
+    pub fn dialog_values(&self) -> IndexMap<String, Value> {
         self.dialog.borrow().as_ref().map(|d| d.values.borrow().clone()).unwrap_or_default()
     }
 
-    fn dialog_set_value(&self, ns: &str, value: Value) -> KResult<()> {
+    pub fn dialog_set_value(&self, ns: &str, value: Value) -> KResult<()> {
         if let Some(d) = self.dialog.borrow().as_ref() {
             d.values.borrow_mut().insert(ns.to_string(), value);
         }
@@ -1297,7 +1297,7 @@ pub struct MenuManager {
     pub printer: Rc<Printer>,
     pub gcode: Rc<GCodeDispatch>,
     pub gcode_queue: RefCell<Vec<String>>,
-    context: RefCell<Ctx>,
+    pub context: RefCell<Ctx>,
     pub root: RefCell<Option<Rc<MenuItem>>>,
     pub root_name: String,
     pub cols: i64,
@@ -1464,7 +1464,7 @@ impl MenuManager {
         eventtime + TIMER_DELAY
     }
 
-    fn timeout_check(&self) -> KResult<()> {
+    pub fn timeout_check(&self) -> KResult<()> {
         let root_is_container = self.root.borrow().as_ref().map(|r| r.kind.is_container()).unwrap_or(false);
         if self.is_running() && self.timeout > 0 && root_is_container {
             if self.timer.get() >= self.timeout {
@@ -1521,7 +1521,7 @@ impl MenuManager {
         Ok(String::new())
     }
 
-    fn get_context(&self, cxt: Option<&Ctx>) -> Ctx {
+    pub fn get_context(&self, cxt: Option<&Ctx>) -> Ctx {
         let mut context = self.context.borrow().clone();
         if let Some(c) = cxt {
             context.extend(c.clone());

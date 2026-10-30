@@ -33,7 +33,7 @@ const PCA9632_LED3: u8 = 0x06;
 pub struct PCA9632 {
     pub i2c: Rc<McuI2c>,
     pub color_map: Vec<usize>,
-    prev_regs: RefCell<IndexMap<u8, u8>>,
+    pub prev_regs: RefCell<IndexMap<u8, u8>>,
     pub(crate) led_helper: RefCell<Option<Rc<LEDHelper>>>,
 }
 

@@ -41,11 +41,11 @@ fn char_glyph(name: &str) -> Option<&'static [u8; 16]> {
 /// how a DisplayBase sends: ST7920 (mcu commands) or EmulatedST7920 (spi)
 pub enum Io {
     Native { mcu: Rc<Mcu>, oid: i64, pins: [String; 3], cmds: RefCell<Option<(CommandWrapper, CommandWrapper)>> },
-    Emulated { spi: Rc<McuSpi>, en_helper: EnableHelper, en_set: Cell<bool> },
+    Emulated { spi: Rc<McuSpi>, en_helper: Rc<EnableHelper>, en_set: Cell<bool> },
 }
 
 /// a framebuffer: (new data, data on the display, id)
-type Framebuffer = (Vec<u8>, Vec<u8>, i64);
+pub type Framebuffer = (Vec<u8>, Vec<u8>, i64);
 
 pub struct DisplayBase {
     pub io: Io,
@@ -53,7 +53,7 @@ pub struct DisplayBase {
     pub is_extended: Cell<bool>,
     /// all_framebuffers: text (0x80), glyph (0x40), then the 32 graphics
     /// framebuffers (0..31)
-    fbs: RefCell<Vec<Framebuffer>>,
+    pub fbs: RefCell<Vec<Framebuffer>>,
     pub cached_glyphs: RefCell<IndexMap<String, (String, Vec<u8>)>>,
     pub icons: RefCell<IndexMap<String, (Vec<i64>, Vec<i64>)>>,
 }
@@ -315,7 +315,7 @@ pub fn new_st7920(config: &ConfigWrapper) -> KResult<Rc<dyn LcdChip>> {
     Ok(d)
 }
 
-fn build_config(d: &DisplayBase) -> KResult<()> {
+pub fn build_config(d: &DisplayBase) -> KResult<()> {
     let Io::Native { mcu, oid, pins, cmds } = &d.io else { return Ok(()) };
     // configure send functions
     mcu.add_config_cmd(
@@ -393,5 +393,5 @@ pub fn new_emulated_st7920(config: &ConfigWrapper) -> KResult<Rc<dyn LcdChip>> {
     // create enable helper
     let en_helper = EnableHelper::new(&printer, &config.get("en_pin", Dflt::Required)?, &spi)?;
     // init display base
-    Ok(Rc::new(DisplayBase::new(Io::Emulated { spi, en_helper, en_set: Cell::new(false) }, mcu)))
+    Ok(Rc::new(DisplayBase::new(Io::Emulated { spi, en_helper: Rc::new(en_helper), en_set: Cell::new(false) }, mcu)))
 }

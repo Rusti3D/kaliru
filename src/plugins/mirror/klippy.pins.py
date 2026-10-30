@@ -47,7 +47,7 @@ class PrinterPins(_k.Object):
     pin_resolvers = _k.Attr(6972, 'pin_resolvers')
 
 def add_printer_objects(config):
-    return _k.fcall(6973, config)
+    config.get_printer().add_object("pins", PrinterPins())
 
 
 __getattr__ = _k.module_getattr(__name__)

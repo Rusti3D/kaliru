@@ -69,7 +69,7 @@ pub struct ZTilt {
     pub printer: Rc<Printer>,
     pub section: String,
     pub z_positions: RefCell<Vec<(f64, f64)>>,
-    retry_helper: RetryHelper,
+    pub retry_helper: Rc<RetryHelper>,
     pub probe_helper: RefCell<Option<Rc<ProbePointsHelper>>>,
     pub z_offsets: RefCell<Option<Vec<f64>>>,
     pub z_status: Rc<ZAdjustStatus>,
@@ -109,7 +109,7 @@ impl ZTilt {
         let section = config.get_name().to_string();
         let z_positions = get_pairs(config, "z_positions")?;
         let z_count = z_positions.len();
-        let retry_helper = RetryHelper::new(config, "")?;
+        let retry_helper = Rc::new(RetryHelper::new(config, "")?);
         let slot: Rc<RefCell<Weak<ZTilt>>> = Rc::new(RefCell::new(Weak::new()));
         let probe_helper = ProbePointsHelper::new(config, finalize_cb(&slot, ZTilt::probe_finalize), None, "points", false, false)?;
         probe_helper.minimum_points(2)?;
@@ -232,7 +232,7 @@ impl ZTilt {
         Ok(adjustments)
     }
 
-    fn probe_finalize(&self, offsets: (f64, f64, f64), positions: &[Vec<f64>]) -> KResult<FinalizeResult> {
+    pub fn probe_finalize(&self, offsets: (f64, f64, f64), positions: &[Vec<f64>]) -> KResult<FinalizeResult> {
         let positions: Vec<Vec<f64>> = match self.z_offsets.borrow().as_ref() {
             Some(z_offsets) => positions.iter().zip(z_offsets).map(|(p, o)| vec![p[0], p[1], p[2] - o]).collect(),
             None => positions.to_vec(),
@@ -260,7 +260,7 @@ impl ZTilt {
         Self::respond(gcmd, "The SAVE_CONFIG command will update the printer config\nfile with these parameters and restart the printer.");
     }
 
-    fn cal_finalize(&self, offsets: (f64, f64, f64), positions: &[Vec<f64>]) -> KResult<FinalizeResult> {
+    pub fn cal_finalize(&self, offsets: (f64, f64, f64), positions: &[Vec<f64>]) -> KResult<FinalizeResult> {
         let avlen = self.cal_avg_len.get() as usize;
         let new_params = self.perform_coordinate_descent(offsets, positions);
         self.apply_adjustments(offsets, &new_params)?;
@@ -302,7 +302,7 @@ impl ZTilt {
         Self::helper(&self.ad_helper).start_probe(gcmd)
     }
 
-    fn ad_finalize(&self, offsets: (f64, f64, f64), positions: &[Vec<f64>]) -> KResult<FinalizeResult> {
+    pub fn ad_finalize(&self, offsets: (f64, f64, f64), positions: &[Vec<f64>]) -> KResult<FinalizeResult> {
         let avlen = self.cal_avg_len.get() as usize;
         let delta = self.ad_delta.get();
         let speed = Self::helper(&self.probe_helper).get_lift_speed(None)?;

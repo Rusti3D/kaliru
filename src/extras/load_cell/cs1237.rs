@@ -26,7 +26,11 @@ pub struct CS1237 {
     pub sps: i64,
     pub mcu: Rc<Mcu>,
     pub oid: i64,
-    ffreader: FixedFreqReader,
+    pub dout_pin: String,
+    pub sclk_pin: String,
+    pub chip_config: i64,
+    pub reference_output: bool,
+    pub ffreader: Rc<FixedFreqReader>,
     pub batch_bulk: RefCell<Option<Rc<BatchBulkHelper>>>,
     pub query_cmd: RefCell<Option<CommandWrapper>>,
     pub attach_probe_cmd: RefCell<Option<CommandWrapper>>,
@@ -55,7 +59,7 @@ impl CS1237 {
         let oid = mcu.create_oid();
 
         let chip_smooth = sps as f64 * UPDATE_INTERVAL * 2.0;
-        let ffreader = FixedFreqReader::new(&mcu, chip_smooth, "<i");
+        let ffreader = Rc::new(FixedFreqReader::new(&mcu, chip_smooth, "<i"));
         let s = Rc::new(CS1237 {
             printer: printer.clone(),
             name,
@@ -64,6 +68,10 @@ impl CS1237 {
             sps,
             mcu: mcu.clone(),
             oid,
+            dout_pin: dout_pin.clone(),
+            sclk_pin: sclk_pin.clone(),
+            chip_config,
+            reference_output,
             ffreader,
             batch_bulk: RefCell::new(None),
             query_cmd: RefCell::new(None),

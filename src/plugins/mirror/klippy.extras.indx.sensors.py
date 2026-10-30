@@ -11,13 +11,19 @@ class IndxHeaterTemperatureSensor(_k.Object):
     def __init__(self, toolboard, source):
         _k.new(self, 2658, toolboard, source)
     def handle_nozzle_temperature(self, reading):
-        return _k.call(self, 2659, reading)
+        self.temperature_callback(reading.time, reading.nozzle_temperature)
     def handle_sensor_temperature(self, reading):
-        return _k.call(self, 2660, reading)
+        self.temperature_callback(reading.time, reading.sensor_temperature)
     def handle_model_temperature(self, reading):
-        return _k.call(self, 2661, reading)
+        self.temperature_callback(
+            reading.time, self.toolboard.heater.thermal_model.temperature
+        )
     def handle_model_delta(self, reading):
-        return _k.call(self, 2662, reading)
+        self.temperature_callback(
+            reading.time,
+            self.toolboard.heater.thermal_model.temperature
+            - reading.nozzle_temperature,
+        )
     def setup_callback(self, temperature_callback):
         return _k.call(self, 2663, temperature_callback)
     def get_report_time_delta(self):

@@ -70,7 +70,7 @@ impl PhaseCalc {
         ((driver_phase as f64 / driver_phases as f64 * phases as f64 + 0.5).trunc() as i64).rem_euclid(phases)
     }
 
-    fn calc_phase(&self, trig_mcu_pos: i64) -> KResult<i64> {
+    pub fn calc_phase(&self, trig_mcu_pos: i64) -> KResult<i64> {
         let mut mcu_phase_offset = 0;
         if let Some(tmc) = self.tmc_module.borrow().as_ref() {
             match tmc.get_phase_offset().0 {
@@ -102,6 +102,7 @@ pub struct EndstopPhase {
     pub endstop_phase: Cell<Option<i64>>,
     pub endstop_align_zero: bool,
     pub endstop_phase_accuracy: i64,
+    pub endstop_accuracy: Option<f64>,
 }
 
 impl EndstopPhase {
@@ -159,6 +160,7 @@ impl EndstopPhase {
             endstop_phase: Cell::new(endstop_phase),
             endstop_align_zero,
             endstop_phase_accuracy,
+            endstop_accuracy,
         });
         *slot.borrow_mut() = Rc::downgrade(&e);
         Ok(e)
@@ -178,7 +180,7 @@ impl EndstopPhase {
         (pe / full_step + 0.5).trunc() * full_step - pe + phase_offset
     }
 
-    fn get_homed_offset(&self, trig_mcu_pos: i64) -> KResult<f64> {
+    pub fn get_homed_offset(&self, trig_mcu_pos: i64) -> KResult<f64> {
         let phase = self.phase_calc.calc_phase(trig_mcu_pos)?;
         let Some(endstop_phase) = self.endstop_phase.get() else {
             logging::info(&format!("Setting {} endstop phase to {}", self.name, phase));

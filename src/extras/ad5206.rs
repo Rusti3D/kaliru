@@ -10,7 +10,7 @@ use crate::printer::{PObj, PrinterObject};
 use std::rc::Rc;
 
 pub struct Ad5206 {
-    _spi: Rc<McuSpi>,
+    pub spi: Rc<McuSpi>,
 }
 
 /// a byte of a command buffer (bytearray() rejects values above 255)
@@ -28,7 +28,7 @@ pub fn load_config_prefix(config: &ConfigWrapper) -> KResult<PObj> {
             spi.spi_send(&[i as u8, byte((val * 256.0 / scale + 0.5) as i64)?], 0, 0)?;
         }
     }
-    Ok(Rc::new(Ad5206 { _spi: spi }))
+    Ok(Rc::new(Ad5206 { spi }))
 }
 
 impl PrinterObject for Ad5206 {

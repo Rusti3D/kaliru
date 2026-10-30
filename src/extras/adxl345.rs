@@ -83,7 +83,7 @@ pub struct AccelQueryHelper {
     pub request_start_time: f64,
     pub request_end_time: Cell<f64>,
     pub msgs: RefCell<Vec<PyVal>>,
-    samples: RefCell<Vec<AccelMeasurement>>,
+    pub samples: RefCell<Vec<AccelMeasurement>>,
 }
 
 impl AccelQueryHelper {
@@ -181,12 +181,16 @@ impl AccelQueryHelper {
 }
 
 /// what AccelCommandHelper and resonance_tester use of an accelerometer
-pub trait AccelChip {
+pub trait AccelChip: std::any::Any {
     fn start_internal_client(&self) -> KResult<Rc<AccelQueryHelper>>;
     fn read_reg(&self, reg: i64) -> KResult<i64>;
     fn set_reg(&self, reg: i64, val: i64) -> KResult<()>;
     /// chip.name
     fn chip_name(&self) -> String;
+    /// the Rust type's path (python plugins find the Kalico class by it)
+    fn type_name(&self) -> &'static str {
+        std::any::type_name::<Self>()
+    }
 }
 
 /// a printer object as an accelerometer chip
@@ -214,7 +218,7 @@ const CMD_ACCELEROMETER_DEBUG_WRITE_HELP: &str = "Set register (for debugging)";
 // Helper class for G-Code commands
 pub struct AccelCommandHelper {
     pub printer: Rc<Printer>,
-    chip: RefCell<Weak<dyn AccelChip>>,
+    pub chip: RefCell<Weak<dyn AccelChip>>,
     pub bg_client: RefCell<Option<Rc<AccelQueryHelper>>>,
     pub base_name: String,
     pub name: String,
@@ -388,13 +392,13 @@ pub const BATCH_UPDATES: f64 = 0.100;
 pub struct ADXL345 {
     pub printer: Rc<Printer>,
     _cmd_helper: RefCell<Option<Rc<AccelCommandHelper>>>,
-    axes_map: AxisMap,
+    pub axes_map: AxisMap,
     pub data_rate: i64,
     pub spi: Rc<McuSpi>,
     pub mcu: Rc<Mcu>,
     pub oid: i64,
     pub query_adxl345_cmd: RefCell<Option<CommandWrapper>>,
-    ffreader: FixedFreqReader,
+    pub ffreader: Rc<FixedFreqReader>,
     pub last_error_count: Cell<i64>,
     pub(crate) batch_bulk: RefCell<Option<Rc<BatchBulkHelper>>>,
     pub name: String,
@@ -424,7 +428,7 @@ impl ADXL345 {
         }));
         // Bulk sample message reading
         let chip_smooth = data_rate as f64 * BATCH_UPDATES * 2.0;
-        let ffreader = FixedFreqReader::new(&mcu, chip_smooth, "BBBBB");
+        let ffreader = Rc::new(FixedFreqReader::new(&mcu, chip_smooth, "BBBBB"));
         let name = config.get_name().split_whitespace().last().unwrap_or_default().to_string();
         let a = Rc::new(ADXL345 {
             printer: printer.clone(),

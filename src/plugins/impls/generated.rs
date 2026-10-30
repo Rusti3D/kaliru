@@ -4560,6 +4560,7 @@ pub fn register(r: &mut Registry) {
         let p0 = super::gcode::gcmd_from_py(a.arg(0))?;
         s.cmd_led_set_current(&p0).to_py()
     });
+    r.attr("klippy.extras.indx.toolboard.IndxToolboard.config", |o| objects::unwrap_as::<crate::extras::indx::toolboard::IndxToolboard>(o)?.config.clone().to_py(), None);
     r.attr("klippy.extras.indx.toolboard.IndxToolboard.dock_measurement", |o| objects::unwrap_as::<crate::extras::indx::toolboard::IndxToolboard>(o)?.dock_measurement.borrow().clone().to_py(), Some(|o, v| {
         *objects::unwrap_as::<crate::extras::indx::toolboard::IndxToolboard>(o)?.dock_measurement.borrow_mut() = FromPy::from_py(v)?;
         Ok(())
@@ -5022,6 +5023,8 @@ pub fn register(r: &mut Registry) {
         objects::unwrap_as::<crate::extras::load_cell::ads1220::ADS1220>(o)?.consecutive_fails.set(FromPy::from_py(v)?);
         Ok(())
     }));
+    r.attr("klippy.extras.load_cell.ads1220.ADS1220.data_ready_pin", |o| objects::unwrap_as::<crate::extras::load_cell::ads1220::ADS1220>(o)?.data_ready_pin.clone().to_py(), None);
+    r.attr("klippy.extras.load_cell.ads1220.ADS1220.ffreader", |o| objects::unwrap_as::<crate::extras::load_cell::ads1220::ADS1220>(o)?.ffreader.clone().to_py(), None);
     r.attr("klippy.extras.load_cell.ads1220.ADS1220.gain", |o| objects::unwrap_as::<crate::extras::load_cell::ads1220::ADS1220>(o)?.gain.clone().to_py(), None);
     r.attr("klippy.extras.load_cell.ads1220.ADS1220.is_turbo", |o| objects::unwrap_as::<crate::extras::load_cell::ads1220::ADS1220>(o)?.is_turbo.clone().to_py(), None);
     r.attr("klippy.extras.load_cell.ads1220.ADS1220.last_error_count", |o| objects::unwrap_as::<crate::extras::load_cell::ads1220::ADS1220>(o)?.last_error_count.get().to_py(), Some(|o, v| {
@@ -5114,6 +5117,7 @@ pub fn register(r: &mut Registry) {
     }));
     r.attr("klippy.extras.load_cell.ads131m0x.ADS131MxBase.data_ready_pin", |o| objects::unwrap_as::<crate::extras::load_cell::ads131m0x::ADS131MxBase>(o)?.data_ready_pin.clone().to_py(), None);
     r.attr("klippy.extras.load_cell.ads131m0x.ADS131MxBase.enable_global_chop", |o| objects::unwrap_as::<crate::extras::load_cell::ads131m0x::ADS131MxBase>(o)?.enable_global_chop.clone().to_py(), None);
+    r.attr("klippy.extras.load_cell.ads131m0x.ADS131MxBase.ffreader", |o| objects::unwrap_as::<crate::extras::load_cell::ads131m0x::ADS131MxBase>(o)?.ffreader.clone().to_py(), None);
     r.attr("klippy.extras.load_cell.ads131m0x.ADS131MxBase.gain", |o| objects::unwrap_as::<crate::extras::load_cell::ads131m0x::ADS131MxBase>(o)?.gain.clone().to_py(), None);
     r.attr("klippy.extras.load_cell.ads131m0x.ADS131MxBase.global_chop_delay", |o| objects::unwrap_as::<crate::extras::load_cell::ads131m0x::ADS131MxBase>(o)?.global_chop_delay.clone().to_py(), None);
     r.attr("klippy.extras.load_cell.ads131m0x.ADS131MxBase.last_error_count", |o| objects::unwrap_as::<crate::extras::load_cell::ads131m0x::ADS131MxBase>(o)?.last_error_count.get().to_py(), Some(|o, v| {
@@ -5168,6 +5172,9 @@ pub fn register(r: &mut Registry) {
         *objects::unwrap_as::<crate::extras::load_cell::cs1237::CS1237>(o)?.batch_bulk.borrow_mut() = FromPy::from_py(v)?;
         Ok(())
     }));
+    r.attr("klippy.extras.load_cell.cs1237.CS1237.chip_config", |o| objects::unwrap_as::<crate::extras::load_cell::cs1237::CS1237>(o)?.chip_config.clone().to_py(), None);
+    r.attr("klippy.extras.load_cell.cs1237.CS1237.dout_pin", |o| objects::unwrap_as::<crate::extras::load_cell::cs1237::CS1237>(o)?.dout_pin.clone().to_py(), None);
+    r.attr("klippy.extras.load_cell.cs1237.CS1237.ffreader", |o| objects::unwrap_as::<crate::extras::load_cell::cs1237::CS1237>(o)?.ffreader.clone().to_py(), None);
     r.attr("klippy.extras.load_cell.cs1237.CS1237.last_error_count", |o| objects::unwrap_as::<crate::extras::load_cell::cs1237::CS1237>(o)?.last_error_count.get().to_py(), Some(|o, v| {
         objects::unwrap_as::<crate::extras::load_cell::cs1237::CS1237>(o)?.last_error_count.set(FromPy::from_py(v)?);
         Ok(())
@@ -5177,6 +5184,8 @@ pub fn register(r: &mut Registry) {
     r.attr("klippy.extras.load_cell.cs1237.CS1237.oid", |o| objects::unwrap_as::<crate::extras::load_cell::cs1237::CS1237>(o)?.oid.clone().to_py(), None);
     r.attr("klippy.extras.load_cell.cs1237.CS1237.printer", |o| objects::unwrap_as::<crate::extras::load_cell::cs1237::CS1237>(o)?.printer.clone().to_py(), None);
     r.attr("klippy.extras.load_cell.cs1237.CS1237.query_cmd", |o| (match objects::unwrap_as::<crate::extras::load_cell::cs1237::CS1237>(o)?.query_cmd.borrow().clone() { Some(v) => objects::wrap(Rc::new(v)), None => Ok(py_none()) }), None);
+    r.attr("klippy.extras.load_cell.cs1237.CS1237.reference_output", |o| objects::unwrap_as::<crate::extras::load_cell::cs1237::CS1237>(o)?.reference_output.clone().to_py(), None);
+    r.attr("klippy.extras.load_cell.cs1237.CS1237.sclk_pin", |o| objects::unwrap_as::<crate::extras::load_cell::cs1237::CS1237>(o)?.sclk_pin.clone().to_py(), None);
     r.attr("klippy.extras.load_cell.cs1237.CS1237.sps", |o| objects::unwrap_as::<crate::extras::load_cell::cs1237::CS1237>(o)?.sps.clone().to_py(), None);
 
     // ---- klippy.extras.load_cell.hx71x
@@ -5211,6 +5220,9 @@ pub fn register(r: &mut Registry) {
         objects::unwrap_as::<crate::extras::load_cell::hx71x::HX71xBase>(o)?.consecutive_fails.set(FromPy::from_py(v)?);
         Ok(())
     }));
+    r.attr("klippy.extras.load_cell.hx71x.HX71xBase.dout_pin", |o| objects::unwrap_as::<crate::extras::load_cell::hx71x::HX71xBase>(o)?.dout_pin.clone().to_py(), None);
+    r.attr("klippy.extras.load_cell.hx71x.HX71xBase.ffreader", |o| objects::unwrap_as::<crate::extras::load_cell::hx71x::HX71xBase>(o)?.ffreader.clone().to_py(), None);
+    r.attr("klippy.extras.load_cell.hx71x.HX71xBase.gain_channel", |o| objects::unwrap_as::<crate::extras::load_cell::hx71x::HX71xBase>(o)?.gain_channel.clone().to_py(), None);
     r.attr("klippy.extras.load_cell.hx71x.HX71xBase.last_error_count", |o| objects::unwrap_as::<crate::extras::load_cell::hx71x::HX71xBase>(o)?.last_error_count.get().to_py(), Some(|o, v| {
         objects::unwrap_as::<crate::extras::load_cell::hx71x::HX71xBase>(o)?.last_error_count.set(FromPy::from_py(v)?);
         Ok(())
@@ -5220,6 +5232,7 @@ pub fn register(r: &mut Registry) {
     r.attr("klippy.extras.load_cell.hx71x.HX71xBase.oid", |o| objects::unwrap_as::<crate::extras::load_cell::hx71x::HX71xBase>(o)?.oid.clone().to_py(), None);
     r.attr("klippy.extras.load_cell.hx71x.HX71xBase.printer", |o| objects::unwrap_as::<crate::extras::load_cell::hx71x::HX71xBase>(o)?.printer.clone().to_py(), None);
     r.attr("klippy.extras.load_cell.hx71x.HX71xBase.query_hx71x_cmd", |o| (match objects::unwrap_as::<crate::extras::load_cell::hx71x::HX71xBase>(o)?.query_hx71x_cmd.borrow().clone() { Some(v) => objects::wrap(Rc::new(v)), None => Ok(py_none()) }), None);
+    r.attr("klippy.extras.load_cell.hx71x.HX71xBase.sclk_pin", |o| objects::unwrap_as::<crate::extras::load_cell::hx71x::HX71xBase>(o)?.sclk_pin.clone().to_py(), None);
     r.attr("klippy.extras.load_cell.hx71x.HX71xBase.sensor_type", |o| objects::unwrap_as::<crate::extras::load_cell::hx71x::HX71xBase>(o)?.sensor_type.to_py(), None);
     r.attr("klippy.extras.load_cell.hx71x.HX71xBase.sps", |o| objects::unwrap_as::<crate::extras::load_cell::hx71x::HX71xBase>(o)?.sps.clone().to_py(), None);
 
@@ -5708,6 +5721,7 @@ pub fn register(r: &mut Registry) {
     });
     r.attr("klippy.extras.load_cell.sos_filter.DigitalFilter.filter_sections", |o| objects::unwrap_as::<crate::extras::load_cell::sos_filter::DigitalFilter>(o)?.filter_sections.clone().into_iter().map(|v| v.to_vec().to_py()).collect::<KResult<Vec<_>>>().map(py_list), None);
     r.attr("klippy.extras.load_cell.sos_filter.DigitalFilter.initial_state", |o| objects::unwrap_as::<crate::extras::load_cell::sos_filter::DigitalFilter>(o)?.initial_state.clone().into_iter().map(|v| v.to_vec().to_py()).collect::<KResult<Vec<_>>>().map(py_list), None);
+    r.attr("klippy.extras.load_cell.sos_filter.DigitalFilter.sample_frequency", |o| objects::unwrap_as::<crate::extras::load_cell::sos_filter::DigitalFilter>(o)?.sample_frequency.clone().to_py(), None);
     r.method("klippy.extras.load_cell.sos_filter.FixedPointSosFilter.get_coeff_int_bits", |a| {
         let s = a.this::<crate::extras::load_cell::sos_filter::FixedPointSosFilter>()?;
         s.get_coeff_int_bits().to_py()
@@ -6630,8 +6644,11 @@ pub fn register(r: &mut Registry) {
         let p0 = super::gcode::gcmd_from_py(a.arg(0))?;
         s.cmd_nozzle_cleanup(&p0).to_py()
     });
+    r.attr("klippy.extras.nozzle_cleanup.NozzleCleanup.nozzle_scrubber", |o| objects::unwrap_as::<crate::extras::nozzle_cleanup::NozzleCleanup>(o)?.nozzle_scrubber.clone().to_py(), None);
+    r.attr("klippy.extras.nozzle_cleanup.NozzleCleanup.options", |o| objects::unwrap_as::<crate::extras::nozzle_cleanup::NozzleCleanup>(o)?.options.clone().to_py(), None);
     r.attr("klippy.extras.nozzle_cleanup.NozzleCleanup.printer", |o| objects::unwrap_as::<crate::extras::nozzle_cleanup::NozzleCleanup>(o)?.printer.clone().to_py(), None);
     r.attr("klippy.extras.nozzle_cleanup.NozzleCleanup.probe", |o| objects::unwrap_as::<crate::extras::nozzle_cleanup::NozzleCleanup>(o)?.probe.clone().to_py(), None);
+    r.attr("klippy.extras.nozzle_cleanup.NozzleCleanup.retry_policy", |o| objects::unwrap_as::<crate::extras::nozzle_cleanup::NozzleCleanup>(o)?.retry_policy.clone().to_py(), None);
     r.method("klippy.extras.nozzle_cleanup.load_config", |a| {
         let p0 = super::configfile::config_from_py(a.arg(0))?;
         crate::extras::nozzle_cleanup::load_config(&p0).to_py()
@@ -7151,6 +7168,22 @@ pub fn register(r: &mut Registry) {
     });
 
     // ---- klippy.extras.probe
+    r.ctor("klippy.extras.probe.GcodeNozzleScrubberConfig.__init__", |a| {
+        let p0 = super::configfile::config_from_py(a.arg(0))?;
+        let o: Rc<dyn Any> = Rc::new(crate::extras::probe::GcodeNozzleScrubberConfig::new(&p0)?);
+        Ok(o)
+    });
+    r.method("klippy.extras.probe.GcodeNozzleScrubberConfig.customize", |a| {
+        let s = a.this::<crate::extras::probe::GcodeNozzleScrubberConfig>()?;
+        let p0 = super::gcode::gcmd_from_py(a.arg(0))?;
+        s.customize(&p0).to_py()
+    });
+    r.attr("klippy.extras.probe.GcodeNozzleScrubberConfig._cfg_scrubbing_frequency", |o| objects::unwrap_as::<crate::extras::probe::GcodeNozzleScrubberConfig>(o)?.cfg_scrubbing_frequency.clone().to_py(), None);
+    r.attr("klippy.extras.probe.GcodeNozzleScrubberConfig.scrubbing_frequency", |o| objects::unwrap_as::<crate::extras::probe::GcodeNozzleScrubberConfig>(o)?.scrubbing_frequency.get().to_py(), Some(|o, v| {
+        objects::unwrap_as::<crate::extras::probe::GcodeNozzleScrubberConfig>(o)?.scrubbing_frequency.set(FromPy::from_py(v)?);
+        Ok(())
+    }));
+    r.attr("klippy.extras.probe.GcodeNozzleScrubberConfig.template", |o| objects::unwrap_as::<crate::extras::probe::GcodeNozzleScrubberConfig>(o)?.template.clone().to_py(), None);
     r.ctor("klippy.extras.probe.GcodeNozzleScrubber.__init__", |a| {
         let p0 = super::configfile::config_from_py(a.arg(0))?;
         let o: Rc<dyn Any> = Rc::new(crate::extras::probe::GcodeNozzleScrubber::new(&p0)?);
@@ -7164,6 +7197,7 @@ pub fn register(r: &mut Registry) {
         s.clean_nozzle(&p0, p1, p2).to_py()
     });
     r.attr("klippy.extras.probe.GcodeNozzleScrubber._printer", |o| objects::unwrap_as::<crate::extras::probe::GcodeNozzleScrubber>(o)?.printer.clone().to_py(), None);
+    r.attr("klippy.extras.probe.GcodeNozzleScrubber.config", |o| objects::unwrap_as::<crate::extras::probe::GcodeNozzleScrubber>(o)?.config.clone().to_py(), None);
     r.method("klippy.extras.probe.ProbeRetryState.reset", |a| {
         let s = a.this::<crate::extras::probe::ProbeRetryState>()?;
         s.reset().to_py()
@@ -7304,6 +7338,8 @@ pub fn register(r: &mut Registry) {
         let p0 = super::traits::client_callback_from_py(a.arg(0));
         s.add_client(p0).to_py()
     });
+    r.attr("klippy.extras.probe_eddy_current.PrinterEddyProbe.calibration", |o| objects::unwrap_as::<crate::extras::probe_eddy_current::PrinterEddyProbe>(o)?.calibration.clone().to_py(), None);
+    r.attr("klippy.extras.probe_eddy_current.PrinterEddyProbe.probe", |o| objects::unwrap_as::<crate::extras::probe_eddy_current::PrinterEddyProbe>(o)?.probe.clone().to_py(), None);
     r.attr("klippy.extras.probe_eddy_current.PrinterEddyProbe.sensor_helper", |o| objects::unwrap_as::<crate::extras::probe_eddy_current::PrinterEddyProbe>(o)?.sensor_helper.clone().to_py(), None);
     r.method("klippy.extras.probe_eddy_current.load_config_prefix", |a| {
         let p0 = super::configfile::config_from_py(a.arg(0))?;
@@ -7953,6 +7989,7 @@ pub fn register(r: &mut Registry) {
         let p0 = super::gcode::gcmd_from_py(a.arg(0))?;
         s.cmd_screws_tilt_calculate(&p0).to_py()
     });
+    r.attr("klippy.extras.screws_tilt_adjust.ScrewsTiltAdjust.config", |o| objects::unwrap_as::<crate::extras::screws_tilt_adjust::ScrewsTiltAdjust>(o)?.config.clone().to_py(), None);
     r.attr("klippy.extras.screws_tilt_adjust.ScrewsTiltAdjust.direction", |o| objects::unwrap_as::<crate::extras::screws_tilt_adjust::ScrewsTiltAdjust>(o)?.direction.borrow().clone().to_py(), Some(|o, v| {
         *objects::unwrap_as::<crate::extras::screws_tilt_adjust::ScrewsTiltAdjust>(o)?.direction.borrow_mut() = FromPy::from_py(v)?;
         Ok(())
@@ -8054,15 +8091,6 @@ pub fn register(r: &mut Registry) {
     });
 
     // ---- klippy.extras.shaper_calibrate
-    r.ctor("klippy.extras.shaper_calibrate.CalibrationData.__init__", |a| {
-        let p0: Vec<f64> = FromPy::from_py(a.arg(0))?;
-        let p1: Vec<f64> = FromPy::from_py(a.arg(1))?;
-        let p2: Vec<f64> = FromPy::from_py(a.arg(2))?;
-        let p3: Vec<f64> = FromPy::from_py(a.arg(3))?;
-        let p4: Vec<f64> = FromPy::from_py(a.arg(4))?;
-        let o: Rc<dyn Any> = Rc::new(crate::extras::shaper_calibrate::CalibrationData::new(p0, p1, p2, p3, p4));
-        Ok(o)
-    });
     r.attr("klippy.extras.shaper_calibrate.CalibrationData.data_sets", |o| objects::unwrap_as::<crate::extras::shaper_calibrate::CalibrationData>(o)?.data_sets.clone().to_py(), None);
     r.attr("klippy.extras.shaper_calibrate.CalibrationData.freq_bins", |o| objects::unwrap_as::<crate::extras::shaper_calibrate::CalibrationData>(o)?.freq_bins.clone().to_py(), None);
     r.attr("klippy.extras.shaper_calibrate.CalibrationData.psd_sum", |o| objects::unwrap_as::<crate::extras::shaper_calibrate::CalibrationData>(o)?.psd_sum.clone().to_py(), None);
@@ -8794,8 +8822,11 @@ pub fn register(r: &mut Registry) {
         let o: Rc<dyn Any> = Rc::new(crate::extras::temperature_fan::ControlCurve::new(&p0, &p1)?);
         Ok(o)
     });
+    r.attr("klippy.extras.temperature_fan.ControlCurve.cooling_hysteresis", |o| objects::unwrap_as::<crate::extras::temperature_fan::ControlCurve>(o)?.cooling_hysteresis.clone().to_py(), None);
     r.attr("klippy.extras.temperature_fan.ControlCurve.curve_cooling", |o| objects::unwrap_as::<crate::extras::temperature_fan::ControlCurve>(o)?.curve_cooling.clone().to_vec().to_py(), None);
     r.attr("klippy.extras.temperature_fan.ControlCurve.curve_heating", |o| objects::unwrap_as::<crate::extras::temperature_fan::ControlCurve>(o)?.curve_heating.clone().to_vec().to_py(), None);
+    r.attr("klippy.extras.temperature_fan.ControlCurve.heating_hysteresis", |o| objects::unwrap_as::<crate::extras::temperature_fan::ControlCurve>(o)?.heating_hysteresis.clone().to_py(), None);
+    r.attr("klippy.extras.temperature_fan.ControlCurve.smooth_readings", |o| objects::unwrap_as::<crate::extras::temperature_fan::ControlCurve>(o)?.smooth_readings.clone().to_py(), None);
     r.method("klippy.extras.temperature_fan.load_config_prefix", |a| {
         let p0 = super::configfile::config_from_py(a.arg(0))?;
         crate::extras::temperature_fan::load_config_prefix(&p0).to_py()
@@ -9898,6 +9929,7 @@ pub fn register(r: &mut Registry) {
         objects::unwrap_as::<crate::extras::trad_rack::TradRack>(o)?.bowden_load_length.set(FromPy::from_py(v)?);
         Ok(())
     }));
+    r.attr("klippy.extras.trad_rack.TradRack.bowden_load_length_filter", |o| objects::unwrap_as::<crate::extras::trad_rack::TradRack>(o)?.bowden_load_length_filter.clone().to_py(), None);
     r.attr("klippy.extras.trad_rack.TradRack.bowden_load_lengths_filename", |o| objects::unwrap_as::<crate::extras::trad_rack::TradRack>(o)?.bowden_load_lengths_filename.clone().to_py(), None);
     r.attr("klippy.extras.trad_rack.TradRack.bowden_unload_calibrated", |o| objects::unwrap_as::<crate::extras::trad_rack::TradRack>(o)?.bowden_unload_calibrated.get().to_py(), Some(|o, v| {
         objects::unwrap_as::<crate::extras::trad_rack::TradRack>(o)?.bowden_unload_calibrated.set(FromPy::from_py(v)?);
@@ -9907,6 +9939,7 @@ pub fn register(r: &mut Registry) {
         objects::unwrap_as::<crate::extras::trad_rack::TradRack>(o)?.bowden_unload_length.set(FromPy::from_py(v)?);
         Ok(())
     }));
+    r.attr("klippy.extras.trad_rack.TradRack.bowden_unload_length_filter", |o| objects::unwrap_as::<crate::extras::trad_rack::TradRack>(o)?.bowden_unload_length_filter.clone().to_py(), None);
     r.attr("klippy.extras.trad_rack.TradRack.bowden_unload_lengths_filename", |o| objects::unwrap_as::<crate::extras::trad_rack::TradRack>(o)?.bowden_unload_lengths_filename.clone().to_py(), None);
     r.attr("klippy.extras.trad_rack.TradRack.buffer_pull_speed", |o| objects::unwrap_as::<crate::extras::trad_rack::TradRack>(o)?.buffer_pull_speed.clone().to_py(), None);
     r.attr("klippy.extras.trad_rack.TradRack.config_bowden_length", |o| objects::unwrap_as::<crate::extras::trad_rack::TradRack>(o)?.config_bowden_length.clone().to_py(), None);
@@ -9933,6 +9966,7 @@ pub fn register(r: &mut Registry) {
     }));
     r.attr("klippy.extras.trad_rack.TradRack.keep_servo_down_after_lane_load", |o| objects::unwrap_as::<crate::extras::trad_rack::TradRack>(o)?.keep_servo_down_after_lane_load.clone().to_py(), None);
     r.attr("klippy.extras.trad_rack.TradRack.lane_count", |o| objects::unwrap_as::<crate::extras::trad_rack::TradRack>(o)?.lane_count.clone().to_py(), None);
+    r.attr("klippy.extras.trad_rack.TradRack.lane_position_manager", |o| objects::unwrap_as::<crate::extras::trad_rack::TradRack>(o)?.lane_position_manager.clone().to_py(), None);
     crate::vec_attr!(r, "klippy.extras.trad_rack.TradRack.lane_positions", crate::extras::trad_rack::TradRack, lane_positions);
     crate::vec_attr!(r, "klippy.extras.trad_rack.TradRack.lanes_buffered", crate::extras::trad_rack::TradRack, lanes_buffered);
     crate::vec_attr!(r, "klippy.extras.trad_rack.TradRack.lanes_dead", crate::extras::trad_rack::TradRack, lanes_dead);
@@ -9985,6 +10019,7 @@ pub fn register(r: &mut Registry) {
     r.attr("klippy.extras.trad_rack.TradRack.selector_unload_length", |o| objects::unwrap_as::<crate::extras::trad_rack::TradRack>(o)?.selector_unload_length.clone().to_py(), None);
     r.attr("klippy.extras.trad_rack.TradRack.selector_unload_length_extra", |o| objects::unwrap_as::<crate::extras::trad_rack::TradRack>(o)?.selector_unload_length_extra.clone().to_py(), None);
     r.attr("klippy.extras.trad_rack.TradRack.selector_unload_speed", |o| objects::unwrap_as::<crate::extras::trad_rack::TradRack>(o)?.selector_unload_speed.clone().to_py(), None);
+    r.attr("klippy.extras.trad_rack.TradRack.servo", |o| objects::unwrap_as::<crate::extras::trad_rack::TradRack>(o)?.servo.clone().to_py(), None);
     r.attr("klippy.extras.trad_rack.TradRack.servo_down_angle", |o| objects::unwrap_as::<crate::extras::trad_rack::TradRack>(o)?.servo_down_angle.clone().to_py(), None);
     r.attr("klippy.extras.trad_rack.TradRack.servo_raised", |o| objects::unwrap_as::<crate::extras::trad_rack::TradRack>(o)?.servo_raised.get().to_py(), Some(|o, v| {
         objects::unwrap_as::<crate::extras::trad_rack::TradRack>(o)?.servo_raised.set(FromPy::from_py(v)?);
@@ -10011,13 +10046,6 @@ pub fn register(r: &mut Registry) {
     r.attr("klippy.extras.trad_rack.TradRack.tr_toolhead", |o| objects::unwrap_as::<crate::extras::trad_rack::TradRack>(o)?.tr_toolhead.clone().to_py(), None);
     r.attr("klippy.extras.trad_rack.TradRack.unload_with_toolhead_sensor", |o| objects::unwrap_as::<crate::extras::trad_rack::TradRack>(o)?.unload_with_toolhead_sensor.clone().to_py(), None);
     r.attr("klippy.extras.trad_rack.TradRack.user_wait_time", |o| objects::unwrap_as::<crate::extras::trad_rack::TradRack>(o)?.user_wait_time.clone().to_py(), None);
-    r.method("klippy.extras.trad_rack.TradRackKinematics.home_axis", |a| {
-        let s = a.this::<crate::extras::trad_rack::TradRackKinematics>()?;
-        let p0 = objects::unwrap_as::<crate::extras::homing::Homing>(a.arg(0))?;
-        let p1 = a.arg(1).as_i64()? as usize;
-        let p2 = objects::unwrap_as::<crate::stepper::PrinterRail>(a.arg(2))?;
-        s.home_axis(&p0, p1, &p2).to_py()
-    });
     r.method("klippy.extras.trad_rack.TradRackKinematics._check_endstops", |a| {
         let s = a.this::<crate::extras::trad_rack::TradRackKinematics>()?;
         let p0 = objects::unwrap_as::<crate::toolhead::Move>(a.arg(0))?;
@@ -10034,8 +10062,6 @@ pub fn register(r: &mut Registry) {
     r.attr("klippy.extras.trad_rack.TradRackKinematics.fil_max_accel", |o| objects::unwrap_as::<crate::extras::trad_rack::TradRackKinematics>(o)?.fil_max_accel.clone().to_py(), None);
     r.attr("klippy.extras.trad_rack.TradRackKinematics.fil_max_velocity", |o| objects::unwrap_as::<crate::extras::trad_rack::TradRackKinematics>(o)?.fil_max_velocity.clone().to_py(), None);
     r.attr("klippy.extras.trad_rack.TradRackKinematics.limits", |o| objects::unwrap_as::<crate::extras::trad_rack::TradRackKinematics>(o)?.limits.borrow().clone().to_vec().to_py(), None);
-    r.attr("klippy.extras.trad_rack.TradRackKinematics.printer", |o| objects::unwrap_as::<crate::extras::trad_rack::TradRackKinematics>(o)?.printer.clone().to_py(), None);
-    r.attr("klippy.extras.trad_rack.TradRackKinematics.rails", |o| objects::unwrap_as::<crate::extras::trad_rack::TradRackKinematics>(o)?.rails.clone().to_vec().to_py(), None);
     r.attr("klippy.extras.trad_rack.TradRackKinematics.sel_max_accel", |o| objects::unwrap_as::<crate::extras::trad_rack::TradRackKinematics>(o)?.sel_max_accel.clone().to_py(), None);
     r.attr("klippy.extras.trad_rack.TradRackKinematics.sel_max_velocity", |o| objects::unwrap_as::<crate::extras::trad_rack::TradRackKinematics>(o)?.sel_max_velocity.clone().to_py(), None);
     r.attr("klippy.extras.trad_rack.TradRackKinematics.selector_max", |o| objects::unwrap_as::<crate::extras::trad_rack::TradRackKinematics>(o)?.selector_max.clone().to_py(), None);
@@ -10063,9 +10089,19 @@ pub fn register(r: &mut Registry) {
         let s = a.this::<crate::extras::trad_rack::TradRackLanePositionManager>()?;
         s.get_lane_positions().to_py()
     });
+    r.method("klippy.extras.trad_rack.TradRackLanePositionManager.process_selector_calibration", |a| {
+        let s = a.this::<crate::extras::trad_rack::TradRackLanePositionManager>()?;
+        let p0: f64 = FromPy::from_py(a.arg(0))?;
+        let p1: f64 = FromPy::from_py(a.arg(1))?;
+        let p2 = a.arg(2).as_i64()? as usize;
+        s.process_selector_calibration(p0, p1, p2).to_py()
+    });
     r.attr("klippy.extras.trad_rack.TradRackLanePositionManager.lane_count", |o| objects::unwrap_as::<crate::extras::trad_rack::TradRackLanePositionManager>(o)?.lane_count.clone().to_py(), None);
     r.attr("klippy.extras.trad_rack.TradRackLanePositionManager.lane_offsets", |o| objects::unwrap_as::<crate::extras::trad_rack::TradRackLanePositionManager>(o)?.lane_offsets.clone().to_py(), None);
-    r.attr("klippy.extras.trad_rack.TradRackLanePositionManager.lane_spacing", |o| objects::unwrap_as::<crate::extras::trad_rack::TradRackLanePositionManager>(o)?.lane_spacing.clone().to_py(), None);
+    r.attr("klippy.extras.trad_rack.TradRackLanePositionManager.lane_spacing", |o| objects::unwrap_as::<crate::extras::trad_rack::TradRackLanePositionManager>(o)?.lane_spacing.get().to_py(), Some(|o, v| {
+        objects::unwrap_as::<crate::extras::trad_rack::TradRackLanePositionManager>(o)?.lane_spacing.set(FromPy::from_py(v)?);
+        Ok(())
+    }));
     r.attr("klippy.extras.trad_rack.TradRackLanePositionManager.lane_spacing_mod_internal", |o| objects::unwrap_as::<crate::extras::trad_rack::TradRackLanePositionManager>(o)?.lane_spacing_mod_internal.clone().to_py(), None);
     r.attr("klippy.extras.trad_rack.TradRackLanePositionManager.lane_spacing_mods", |o| objects::unwrap_as::<crate::extras::trad_rack::TradRackLanePositionManager>(o)?.lane_spacing_mods.clone().to_py(), None);
     r.ctor("klippy.extras.trad_rack.TradRackExtruderSyncManager.__init__", |a| {
@@ -10123,12 +10159,24 @@ pub fn register(r: &mut Registry) {
         let o: Rc<dyn Any> = Rc::new(crate::extras::trad_rack::MovingAverageFilter::new(p0));
         Ok(o)
     });
+    r.method("klippy.extras.trad_rack.MovingAverageFilter.update", |a| {
+        let s = a.this::<crate::extras::trad_rack::MovingAverageFilter>()?;
+        let p0: f64 = FromPy::from_py(a.arg(0))?;
+        s.update(p0).to_py()
+    });
+    r.method("klippy.extras.trad_rack.MovingAverageFilter.reset", |a| {
+        let s = a.this::<crate::extras::trad_rack::MovingAverageFilter>()?;
+        s.reset().to_py()
+    });
     r.method("klippy.extras.trad_rack.MovingAverageFilter.get_entry_count", |a| {
         let s = a.this::<crate::extras::trad_rack::MovingAverageFilter>()?;
         s.get_entry_count().to_py()
     });
     r.attr("klippy.extras.trad_rack.MovingAverageFilter.max_entries", |o| objects::unwrap_as::<crate::extras::trad_rack::MovingAverageFilter>(o)?.max_entries.clone().to_py(), None);
-    r.attr("klippy.extras.trad_rack.MovingAverageFilter.total", |o| objects::unwrap_as::<crate::extras::trad_rack::MovingAverageFilter>(o)?.total.clone().to_py(), None);
+    r.attr("klippy.extras.trad_rack.MovingAverageFilter.total", |o| objects::unwrap_as::<crate::extras::trad_rack::MovingAverageFilter>(o)?.total.get().to_py(), Some(|o, v| {
+        objects::unwrap_as::<crate::extras::trad_rack::MovingAverageFilter>(o)?.total.set(FromPy::from_py(v)?);
+        Ok(())
+    }));
     r.method("klippy.extras.trad_rack.TradRackRunoutSensor.sensor_callback", |a| {
         let s = a.this::<crate::extras::trad_rack::TradRackRunoutSensor>()?;
         let p0: f64 = FromPy::from_py(a.arg(0))?;
@@ -10657,6 +10705,7 @@ pub fn register(r: &mut Registry) {
         Ok(())
     }));
     r.attr("klippy.extras.z_thermal_adjust.ZThermalAdjuster.component", |o| objects::unwrap_as::<crate::extras::z_thermal_adjust::ZThermalAdjuster>(o)?.component.clone().to_py(), None);
+    r.attr("klippy.extras.z_thermal_adjust.ZThermalAdjuster.config", |o| objects::unwrap_as::<crate::extras::z_thermal_adjust::ZThermalAdjuster>(o)?.config.clone().to_py(), None);
     r.attr("klippy.extras.z_thermal_adjust.ZThermalAdjuster.inv_smooth_time", |o| objects::unwrap_as::<crate::extras::z_thermal_adjust::ZThermalAdjuster>(o)?.inv_smooth_time.clone().to_py(), None);
     crate::vec_attr!(r, "klippy.extras.z_thermal_adjust.ZThermalAdjuster.last_position", crate::extras::z_thermal_adjust::ZThermalAdjuster, last_position);
     r.attr("klippy.extras.z_thermal_adjust.ZThermalAdjuster.last_temp", |o| objects::unwrap_as::<crate::extras::z_thermal_adjust::ZThermalAdjuster>(o)?.last_temp.get().to_py(), Some(|o, v| {
@@ -11318,6 +11367,7 @@ pub fn register(r: &mut Registry) {
         objects::unwrap_as::<crate::kinematics::idex_modes::DualCarriagesRail>(o)?.offset.set(FromPy::from_py(v)?);
         Ok(())
     }));
+    r.attr("klippy.kinematics.idex_modes.DualCarriagesRail.orig_stepper_kinematics", |o| objects::unwrap_as::<crate::kinematics::idex_modes::DualCarriagesRail>(o)?.orig_stepper_kinematics.clone().into_iter().map(|v| super::chelper::sk_to_py(Some(v))).collect::<KResult<Vec<_>>>().map(py_list), None);
     r.attr("klippy.kinematics.idex_modes.DualCarriagesRail.rail", |o| objects::unwrap_as::<crate::kinematics::idex_modes::DualCarriagesRail>(o)?.rail.clone().to_py(), None);
     r.attr("klippy.kinematics.idex_modes.DualCarriagesRail.scale", |o| objects::unwrap_as::<crate::kinematics::idex_modes::DualCarriagesRail>(o)?.scale.get().to_py(), Some(|o, v| {
         objects::unwrap_as::<crate::kinematics::idex_modes::DualCarriagesRail>(o)?.scale.set(FromPy::from_py(v)?);
@@ -11442,92 +11492,6 @@ pub fn register(r: &mut Registry) {
     });
     r.attr("klippy.mcu.CommandQueryWrapper._cmd", |o| objects::unwrap_as::<crate::mcu::CommandQueryWrapper>(o)?.cmd.clone().to_py(), None);
     r.attr("klippy.mcu.CommandWrapper._cmd", |o| objects::unwrap_as::<crate::mcu::CommandWrapper>(o)?.cmd.clone().to_py(), None);
-    r.attr("klippy.mcu.MCURestartHelper._config_reset_cmd", |o| (match objects::unwrap_as::<crate::mcu::RestartHelper>(o)?.config_reset_cmd.borrow().clone() { Some(v) => objects::wrap(Rc::new(v)), None => Ok(py_none()) }), None);
-    r.attr("klippy.mcu.MCURestartHelper._is_mcu_bridge", |o| objects::unwrap_as::<crate::mcu::RestartHelper>(o)?.is_mcu_bridge.get().to_py(), Some(|o, v| {
-        objects::unwrap_as::<crate::mcu::RestartHelper>(o)?.is_mcu_bridge.set(FromPy::from_py(v)?);
-        Ok(())
-    }));
-    r.attr("klippy.mcu.MCURestartHelper._reset_cmd", |o| (match objects::unwrap_as::<crate::mcu::RestartHelper>(o)?.reset_cmd.borrow().clone() { Some(v) => objects::wrap(Rc::new(v)), None => Ok(py_none()) }), None);
-    r.attr("klippy.mcu.MCURestartHelper._restart_method", |o| objects::unwrap_as::<crate::mcu::RestartHelper>(o)?.restart_method.borrow().clone().to_py(), Some(|o, v| {
-        *objects::unwrap_as::<crate::mcu::RestartHelper>(o)?.restart_method.borrow_mut() = FromPy::from_py(v)?;
-        Ok(())
-    }));
-    r.attr("klippy.mcu.MCUConnectHelper._baud", |o| objects::unwrap_as::<crate::mcu::ConnHelper>(o)?.baud.get().to_py(), Some(|o, v| {
-        objects::unwrap_as::<crate::mcu::ConnHelper>(o)?.baud.set(FromPy::from_py(v)?);
-        Ok(())
-    }));
-    r.attr("klippy.mcu.MCUConnectHelper._canbus_iface", |o| objects::unwrap_as::<crate::mcu::ConnHelper>(o)?.canbus_iface.borrow().clone().to_py(), Some(|o, v| {
-        *objects::unwrap_as::<crate::mcu::ConnHelper>(o)?.canbus_iface.borrow_mut() = FromPy::from_py(v)?;
-        Ok(())
-    }));
-    r.attr("klippy.mcu.MCUConnectHelper._emergency_stop_cmd", |o| (match objects::unwrap_as::<crate::mcu::ConnHelper>(o)?.emergency_stop_cmd.borrow().clone() { Some(v) => objects::wrap(Rc::new(v)), None => Ok(py_none()) }), None);
-    r.attr("klippy.mcu.MCUConnectHelper._is_shutdown", |o| objects::unwrap_as::<crate::mcu::ConnHelper>(o)?.is_shutdown.get().to_py(), Some(|o, v| {
-        objects::unwrap_as::<crate::mcu::ConnHelper>(o)?.is_shutdown.set(FromPy::from_py(v)?);
-        Ok(())
-    }));
-    r.attr("klippy.mcu.MCUConnectHelper._is_timeout", |o| objects::unwrap_as::<crate::mcu::ConnHelper>(o)?.is_timeout.get().to_py(), Some(|o, v| {
-        objects::unwrap_as::<crate::mcu::ConnHelper>(o)?.is_timeout.set(FromPy::from_py(v)?);
-        Ok(())
-    }));
-    r.attr("klippy.mcu.MCUConnectHelper._serialport", |o| objects::unwrap_as::<crate::mcu::ConnHelper>(o)?.serialport.borrow().clone().to_py(), Some(|o, v| {
-        *objects::unwrap_as::<crate::mcu::ConnHelper>(o)?.serialport.borrow_mut() = FromPy::from_py(v)?;
-        Ok(())
-    }));
-    r.attr("klippy.mcu.MCUConnectHelper._shutdown_msg", |o| objects::unwrap_as::<crate::mcu::ConnHelper>(o)?.shutdown_msg.borrow().clone().to_py(), Some(|o, v| {
-        *objects::unwrap_as::<crate::mcu::ConnHelper>(o)?.shutdown_msg.borrow_mut() = FromPy::from_py(v)?;
-        Ok(())
-    }));
-    r.attr("klippy.mcu.MCUStatsHelper._get_status_info", |o| objects::unwrap_as::<crate::mcu::StatsHelper>(o)?.get_status_info.borrow().clone().to_py(), None);
-    r.attr("klippy.mcu.MCUStatsHelper._mcu_freq", |o| objects::unwrap_as::<crate::mcu::StatsHelper>(o)?.mcu_freq.get().to_py(), Some(|o, v| {
-        objects::unwrap_as::<crate::mcu::StatsHelper>(o)?.mcu_freq.set(FromPy::from_py(v)?);
-        Ok(())
-    }));
-    r.attr("klippy.mcu.MCUStatsHelper._mcu_tick_avg", |o| objects::unwrap_as::<crate::mcu::StatsHelper>(o)?.mcu_tick_avg.get().to_py(), Some(|o, v| {
-        objects::unwrap_as::<crate::mcu::StatsHelper>(o)?.mcu_tick_avg.set(FromPy::from_py(v)?);
-        Ok(())
-    }));
-    r.attr("klippy.mcu.MCUStatsHelper._mcu_tick_awake", |o| objects::unwrap_as::<crate::mcu::StatsHelper>(o)?.mcu_tick_awake.get().to_py(), Some(|o, v| {
-        objects::unwrap_as::<crate::mcu::StatsHelper>(o)?.mcu_tick_awake.set(FromPy::from_py(v)?);
-        Ok(())
-    }));
-    r.attr("klippy.mcu.MCUStatsHelper._mcu_tick_stddev", |o| objects::unwrap_as::<crate::mcu::StatsHelper>(o)?.mcu_tick_stddev.get().to_py(), Some(|o, v| {
-        objects::unwrap_as::<crate::mcu::StatsHelper>(o)?.mcu_tick_stddev.set(FromPy::from_py(v)?);
-        Ok(())
-    }));
-    r.attr("klippy.mcu.MCUStatsHelper._stats_sumsq_base", |o| objects::unwrap_as::<crate::mcu::StatsHelper>(o)?.stats_sumsq_base.get().to_py(), Some(|o, v| {
-        objects::unwrap_as::<crate::mcu::StatsHelper>(o)?.stats_sumsq_base.set(FromPy::from_py(v)?);
-        Ok(())
-    }));
-    r.attr("klippy.mcu.MCUConfigHelper._cached_init_state", |o| objects::unwrap_as::<crate::mcu::ConfigHelper>(o)?.cached_init_state.get().to_py(), Some(|o, v| {
-        objects::unwrap_as::<crate::mcu::ConfigHelper>(o)?.cached_init_state.set(FromPy::from_py(v)?);
-        Ok(())
-    }));
-    crate::vec_attr!(r, "klippy.mcu.MCUConfigHelper._config_cmds", crate::mcu::ConfigHelper, config_cmds);
-    crate::vec_attr!(r, "klippy.mcu.MCUConfigHelper._config_cmds_post_inits", crate::mcu::ConfigHelper, config_cmds_post_inits);
-    r.attr("klippy.mcu.MCUConfigHelper._config_crc", |o| objects::unwrap_as::<crate::mcu::ConfigHelper>(o)?.config_crc.get().to_py(), Some(|o, v| {
-        objects::unwrap_as::<crate::mcu::ConfigHelper>(o)?.config_crc.set(FromPy::from_py(v)?);
-        Ok(())
-    }));
-    crate::vec_attr!(r, "klippy.mcu.MCUConfigHelper._init_cmds", crate::mcu::ConfigHelper, init_cmds);
-    crate::vec_attr!(r, "klippy.mcu.MCUConfigHelper._init_cmds_post_inits", crate::mcu::ConfigHelper, init_cmds_post_inits);
-    r.attr("klippy.mcu.MCUConfigHelper._mcu_freq", |o| objects::unwrap_as::<crate::mcu::ConfigHelper>(o)?.mcu_freq.get().to_py(), Some(|o, v| {
-        objects::unwrap_as::<crate::mcu::ConfigHelper>(o)?.mcu_freq.set(FromPy::from_py(v)?);
-        Ok(())
-    }));
-    r.attr("klippy.mcu.MCUConfigHelper._oid_count", |o| objects::unwrap_as::<crate::mcu::ConfigHelper>(o)?.oid_count.get().to_py(), Some(|o, v| {
-        objects::unwrap_as::<crate::mcu::ConfigHelper>(o)?.oid_count.set(FromPy::from_py(v)?);
-        Ok(())
-    }));
-    r.attr("klippy.mcu.MCUConfigHelper._oid_count_post_inits", |o| objects::unwrap_as::<crate::mcu::ConfigHelper>(o)?.oid_count_post_inits.get().to_py(), Some(|o, v| {
-        objects::unwrap_as::<crate::mcu::ConfigHelper>(o)?.oid_count_post_inits.set(FromPy::from_py(v)?);
-        Ok(())
-    }));
-    r.attr("klippy.mcu.MCUConfigHelper._reserved_move_slots", |o| objects::unwrap_as::<crate::mcu::ConfigHelper>(o)?.reserved_move_slots.get().to_py(), Some(|o, v| {
-        objects::unwrap_as::<crate::mcu::ConfigHelper>(o)?.reserved_move_slots.set(FromPy::from_py(v)?);
-        Ok(())
-    }));
-    crate::vec_attr!(r, "klippy.mcu.MCUConfigHelper._restart_cmds", crate::mcu::ConfigHelper, restart_cmds);
-    crate::vec_attr!(r, "klippy.mcu.MCUConfigHelper._restart_cmds_post_inits", crate::mcu::ConfigHelper, restart_cmds_post_inits);
     r.ctor("klippy.mcu.MCU.__init__", |a| {
         let p0 = super::configfile::config_from_py(a.arg(0))?;
         let p1 = FromPy::from_py(a.arg(1))?;

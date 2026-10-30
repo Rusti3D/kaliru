@@ -5,7 +5,7 @@ use super::*;
 pub fn register(_r: &mut Registry) {
     use crate::extras as x;
     objects::register_class::<x::ad5206::Ad5206>("klippy.extras.ad5206", "ad5206");
-    objects::register_class::<x::dac084s085::Dac084S085>("klippy.extras.dac084s085", "dac084S085");
+    objects::register_class::<x::dac084s085::Dac084S085>("klippy.extras.dac084S085", "dac084S085");
     objects::register_class::<x::display::PrinterLCD>("klippy.extras.display.display", "PrinterLCD");
     objects::register_class::<x::stepper_enable::StepperEnablePin>("klippy.extras.stepper_enable", "StepperEnablePin");
     objects::register_class::<x::tmc_uart::McuTmcUartBitbang>("klippy.extras.tmc_uart", "MCU_TMC_uart_bitbang");

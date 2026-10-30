@@ -1259,7 +1259,7 @@ pub struct StatsHelper {
 #[derive(Default)]
 pub struct ConfigHelper {
     pub oid_count: Cell<i64>,
-    config_callbacks: RefCell<Vec<ConfigCallback>>,
+    pub(crate) config_callbacks: RefCell<Vec<ConfigCallback>>,
     pub config_cmds: RefCell<Vec<String>>,
     pub restart_cmds: RefCell<Vec<String>>,
     pub init_cmds: RefCell<Vec<String>>,
@@ -1290,10 +1290,10 @@ pub struct Mcu {
     pub reactor: Rc<Reactor>,
     pub name: String,
     pub serial: Rc<SerialReader>,
-    conn: ConnHelper,
-    restart: RestartHelper,
-    cfg: ConfigHelper,
-    stats_h: StatsHelper,
+    pub(crate) conn: ConnHelper,
+    pub(crate) restart: RestartHelper,
+    pub(crate) cfg: ConfigHelper,
+    pub(crate) stats_h: StatsHelper,
     // noncritical mcus
     pub is_non_critical: Cell<bool>,
     pub non_critical_recon_timer: RefCell<Option<Timer>>,
@@ -1401,7 +1401,7 @@ impl Mcu {
 
     // ------------------------------------------------ MCURestartHelper
 
-    fn restart_init(self: &Rc<Self>, config: &ConfigWrapper) -> KResult<()> {
+    pub(crate) fn restart_init(self: &Rc<Self>, config: &ConfigWrapper) -> KResult<()> {
         if self.conn.baud.get() != 0 {
             let m = config.getchoice_opt("restart_method", &["arduino", "cheetah", "command", "rpi_usb"])?;
             *self.restart.restart_method.borrow_mut() = m;
@@ -1417,7 +1417,7 @@ impl Mcu {
     }
 
     // Connection phase
-    fn restart_check_restart(&self, reason: &str) -> KResult<()> {
+    pub(crate) fn restart_check_restart(&self, reason: &str) -> KResult<()> {
         let start_reason = self.printer.start_arg("start_reason");
         if start_reason.as_ref().and_then(|v| v.as_str()) == Some("firmware_restart") {
             return Ok(());
@@ -1428,11 +1428,11 @@ impl Mcu {
         Err(error(format!("Attempt MCU '{}' restart failed", self.name)))
     }
 
-    fn restart_check_restart_on_crc_mismatch(&self) -> KResult<()> {
+    pub(crate) fn restart_check_restart_on_crc_mismatch(&self) -> KResult<()> {
         self.restart_check_restart("CRC mismatch")
     }
 
-    fn restart_check_restart_on_send_config(&self) -> KResult<()> {
+    pub(crate) fn restart_check_restart_on_send_config(&self) -> KResult<()> {
         if self.restart.restart_method.borrow().as_deref() == Some("rpi_usb") {
             // Only configure mcu after usb power reset
             self.restart_check_restart("full reset before config")?;
@@ -1440,7 +1440,7 @@ impl Mcu {
         Ok(())
     }
 
-    fn restart_check_restart_on_attach(&self) -> KResult<()> {
+    pub(crate) fn restart_check_restart_on_attach(&self) -> KResult<()> {
         let serialport = self.conn.serialport.borrow().clone();
         if self.restart.restart_method.borrow().as_deref() == Some("rpi_usb") && !std::path::Path::new(&serialport).exists() {
             // Try toggling usb power
@@ -1449,13 +1449,13 @@ impl Mcu {
         Ok(())
     }
 
-    fn restart_lookup_attach_uart_rts(&self) -> bool {
+    pub(crate) fn restart_lookup_attach_uart_rts(&self) -> bool {
         // Cheetah boards require RTS to be deasserted
         // else a reset will trigger the built-in bootloader.
         self.restart.restart_method.borrow().as_deref() != Some("cheetah")
     }
 
-    fn restart_mcu_identify(self: &Rc<Self>) -> KResult<()> {
+    pub(crate) fn restart_mcu_identify(self: &Rc<Self>) -> KResult<()> {
         if self.non_critical_disconnected.get() {
             return Ok(());
         }
@@ -1475,7 +1475,7 @@ impl Mcu {
         Ok(())
     }
 
-    fn restart_recon_handle_shutdown(&self) -> KResult<bool> {
+    pub(crate) fn restart_recon_handle_shutdown(&self) -> KResult<bool> {
         // A firmware shutdown survives the loss of the host connection.
         // Ask the mcu to reset so a later reconnect attempt starts from
         // a clean state.  Returns True if the mcu was shutdown.
@@ -1500,23 +1500,23 @@ impl Mcu {
         Ok(true)
     }
 
-    fn restart_disconnect(&self) {
+    pub(crate) fn restart_disconnect(&self) {
         self.serial.disconnect();
     }
 
-    fn restart_arduino(&self) -> KResult<()> {
+    pub(crate) fn restart_arduino(&self) -> KResult<()> {
         logging::info(&format!("Attempting MCU '{}' reset", self.name));
         self.restart_disconnect();
         crate::serialhdl::arduino_reset(&self.conn.serialport.borrow(), &self.reactor)
     }
 
-    fn restart_cheetah(&self) -> KResult<()> {
+    pub(crate) fn restart_cheetah(&self) -> KResult<()> {
         logging::info(&format!("Attempting MCU '{}' Cheetah-style reset", self.name));
         self.restart_disconnect();
         crate::serialhdl::cheetah_reset(&self.conn.serialport.borrow(), &self.reactor)
     }
 
-    fn restart_via_command(&self) -> KResult<()> {
+    pub(crate) fn restart_via_command(&self) -> KResult<()> {
         let no_cmds = self.restart.reset_cmd.borrow().is_none() && self.restart.config_reset_cmd.borrow().is_none();
         if no_cmds || !self.clocksync.is_active() {
             logging::info(&format!("Unable to issue reset command on MCU '{}'", self.name));
@@ -1542,14 +1542,16 @@ impl Mcu {
         Ok(())
     }
 
-    fn restart_rpi_usb(&self) -> KResult<()> {
+    pub(crate) fn restart_rpi_usb(&self) -> KResult<()> {
         logging::info(&format!("Attempting MCU '{}' reset via rpi usb power", self.name));
         self.restart_disconnect();
-        // ponytail: chelper.run_hub_ctrl (hub-ctrl.c) is not ported yet
-        Err(KError::Other("chelper.run_hub_ctrl is not ported to Kaliru yet".into()))
+        crate::chelper::hub_ctrl::run_hub_ctrl(0);
+        self.reactor.pause(self.reactor.monotonic() + 2.0)?;
+        crate::chelper::hub_ctrl::run_hub_ctrl(1);
+        Ok(())
     }
 
-    fn restart_firmware_restart(&self, force: bool) -> KResult<()> {
+    pub(crate) fn restart_firmware_restart(&self, force: bool) -> KResult<()> {
         if (self.restart.is_mcu_bridge.get() && !force) || self.non_critical_disconnected.get() {
             return Ok(());
         }
@@ -1564,7 +1566,7 @@ impl Mcu {
 
     // ------------------------------------------------ MCUConnectHelper
 
-    fn conn_init(self: &Rc<Self>, config: &ConfigWrapper) -> KResult<()> {
+    pub(crate) fn conn_init(self: &Rc<Self>, config: &ConfigWrapper) -> KResult<()> {
         let canbus_uuid = config.get_opt("canbus_uuid")?;
         if let Some(canbus_uuid) = canbus_uuid {
             *self.conn.serialport.borrow_mut() = canbus_uuid.clone();
@@ -1592,7 +1594,7 @@ impl Mcu {
         Ok(())
     }
 
-    fn conn_handle_shutdown(&self, params: &Params) -> KResult<()> {
+    pub(crate) fn conn_handle_shutdown(&self, params: &Params) -> KResult<()> {
         if self.conn.is_shutdown.get() {
             return Ok(());
         }
@@ -1614,14 +1616,14 @@ impl Mcu {
         Ok(())
     }
 
-    fn conn_handle_starting(&self, _params: &Params) -> KResult<()> {
+    pub(crate) fn conn_handle_starting(&self, _params: &Params) -> KResult<()> {
         if !self.conn.is_shutdown.get() && !self.is_non_critical.get() {
             self.printer.invoke_async_shutdown(&format!("MCU '{}' spontaneous restart", self.name), None);
         }
         Ok(())
     }
 
-    fn conn_log_info(&self) -> String {
+    pub(crate) fn conn_log_info(&self) -> String {
         let msgparser = self.serial.get_msgparser();
         let app = py_str(msgparser.get_app_info());
         let message_count = msgparser.get_messages().len();
@@ -1642,7 +1644,7 @@ impl Mcu {
         .join("\n")
     }
 
-    fn conn_attach_file(&self) -> KResult<()> {
+    pub(crate) fn conn_attach_file(&self) -> KResult<()> {
         // In a debugging mode.  Open debug output file and read data dictionary
         let arg = |k: &str| self.printer.start_arg(k).map(|v| v.str());
         let (out_fname, dict_fname) = if self.name == "mcu" {
@@ -1678,7 +1680,7 @@ impl Mcu {
         Ok(self.serial.check_connect(&serialport, self.conn.baud.get() as u32, rts))
     }
 
-    fn conn_attach(&self) -> KResult<()> {
+    pub(crate) fn conn_attach(&self) -> KResult<()> {
         self.restart_check_restart_on_attach()?;
         let serialport = self.conn.serialport.borrow().clone();
         let res = (|| {
@@ -1699,7 +1701,7 @@ impl Mcu {
         }
     }
 
-    fn conn_mcu_identify(self: &Rc<Self>) -> KResult<()> {
+    pub(crate) fn conn_mcu_identify(self: &Rc<Self>) -> KResult<()> {
         if self.non_critical_disconnected.get() {
             return Ok(());
         }
@@ -1722,7 +1724,7 @@ impl Mcu {
         Ok(())
     }
 
-    fn conn_analyze_shutdown(&self) {
+    pub(crate) fn conn_analyze_shutdown(&self) {
         if self.is_fileoutput() || self.non_critical_disconnected.get() || !get_danger_options().log_shutdown_info {
             return;
         }
@@ -1736,7 +1738,7 @@ impl Mcu {
         ));
     }
 
-    fn conn_shutdown(&self, force: bool) -> KResult<()> {
+    pub(crate) fn conn_shutdown(&self, force: bool) -> KResult<()> {
         let cmd = self.conn.emergency_stop_cmd.borrow();
         let Some(cmd) = cmd.as_ref() else { return Ok(()) };
         if self.non_critical_disconnected.get() || (self.conn.is_shutdown.get() && !force) {
@@ -1745,7 +1747,7 @@ impl Mcu {
         cmd.send(&[], 0, 0)
     }
 
-    fn conn_check_timeout(self: &Rc<Self>, eventtime: f64) -> KResult<()> {
+    pub(crate) fn conn_check_timeout(self: &Rc<Self>, eventtime: f64) -> KResult<()> {
         if self.clocksync.is_active() || self.is_fileoutput() || self.conn.is_timeout.get() {
             return Ok(());
         }
@@ -1767,24 +1769,24 @@ impl Mcu {
         Ok(())
     }
 
-    fn conn_force_local_shutdown(&self) -> KResult<()> {
+    pub(crate) fn conn_force_local_shutdown(&self) -> KResult<()> {
         self.conn.is_shutdown.set(true);
         self.conn_shutdown(true)
     }
 
-    fn conn_disconnect(&self) {
+    pub(crate) fn conn_disconnect(&self) {
         self.clocksync.disconnect();
         self.serial.disconnect();
     }
 
     // ------------------------------------------------ MCUStatsHelper
 
-    fn stats_init(self: &Rc<Self>) {
+    pub(crate) fn stats_init(self: &Rc<Self>) {
         on_event(&self.printer, "klippy:ready", self, |m| m.stats_ready());
         on_event(&self.printer, "klippy:mcu_identify", self, |m| m.stats_mcu_identify());
     }
 
-    fn stats_handle_mcu_stats(&self, params: &Params) -> KResult<()> {
+    pub(crate) fn stats_handle_mcu_stats(&self, params: &Params) -> KResult<()> {
         let s = &self.stats_h;
         let count = pint(params, "count") as f64;
         let tick_sum = pint(params, "sum") as f64;
@@ -1797,7 +1799,7 @@ impl Mcu {
         Ok(())
     }
 
-    fn stats_mcu_identify(self: &Rc<Self>) -> KResult<()> {
+    pub(crate) fn stats_mcu_identify(self: &Rc<Self>) -> KResult<()> {
         if self.non_critical_disconnected.get() {
             return Ok(());
         }
@@ -1831,7 +1833,7 @@ impl Mcu {
         Ok(())
     }
 
-    fn stats_ready(&self) -> KResult<()> {
+    pub(crate) fn stats_ready(&self) -> KResult<()> {
         if self.is_fileoutput() {
             return Ok(());
         }
@@ -1850,11 +1852,11 @@ impl Mcu {
         Ok(())
     }
 
-    fn stats_set_status_info(&self, key: &str, value: PyVal) {
+    pub(crate) fn stats_set_status_info(&self, key: &str, value: PyVal) {
         self.stats_h.get_status_info.borrow_mut().insert(key.to_string().into(), value);
     }
 
-    fn stats_stats(&self, eventtime: f64) -> (bool, String) {
+    pub(crate) fn stats_stats(&self, eventtime: f64) -> (bool, String) {
         let s = &self.stats_h;
         let load = format!(
             "mcu_awake={:.3} mcu_task_avg={:.6} mcu_task_stddev={:.6}",
@@ -1879,7 +1881,7 @@ impl Mcu {
 
     // ------------------------------------------------ MCUConfigHelper
 
-    fn cfg_init(self: &Rc<Self>) -> KResult<()> {
+    pub(crate) fn cfg_init(self: &Rc<Self>) -> KResult<()> {
         let ppins = self.printer.lookup::<PinsObject>("pins")?;
         let chip: Rc<dyn PinChip> = self.clone();
         ppins.0.borrow_mut().register_chip(&self.name, chip)?;
@@ -1888,7 +1890,7 @@ impl Mcu {
         Ok(())
     }
 
-    fn cfg_send_config(&self, prev_crc: Option<i64>) -> KResult<()> {
+    pub(crate) fn cfg_send_config(&self, prev_crc: Option<i64>) -> KResult<()> {
         let c = &self.cfg;
         if !c.cached_init_state.get() {
             // first time config, we haven't created callback oids yet
@@ -1997,7 +1999,7 @@ impl Mcu {
         })
     }
 
-    fn cfg_reset_to_initial_state(&self) {
+    pub(crate) fn cfg_reset_to_initial_state(&self) {
         let c = &self.cfg;
         if c.cached_init_state.get() {
             c.oid_count.set(c.oid_count_post_inits.get());
@@ -2008,7 +2010,7 @@ impl Mcu {
         c.reserved_move_slots.set(0);
     }
 
-    fn cfg_connect(&self) -> KResult<()> {
+    pub(crate) fn cfg_connect(&self) -> KResult<()> {
         if self.non_critical_disconnected.get() {
             self.schedule_non_critical_reconnect();
             return Ok(());
@@ -2016,7 +2018,7 @@ impl Mcu {
         self.cfg_connect_config()
     }
 
-    fn cfg_connect_config(&self) -> KResult<()> {
+    pub(crate) fn cfg_connect_config(&self) -> KResult<()> {
         let mut config_params = self.cfg_send_get_config()?;
         if config_params.is_config == 0 {
             self.restart_check_restart_on_send_config()?;
@@ -2055,7 +2057,7 @@ impl Mcu {
         Ok(())
     }
 
-    fn cfg_mcu_identify(&self) -> KResult<()> {
+    pub(crate) fn cfg_mcu_identify(&self) -> KResult<()> {
         if self.non_critical_disconnected.get() {
             return Ok(());
         }
@@ -2083,7 +2085,7 @@ impl Mcu {
     }
 
     // Config creation helpers
-    fn cfg_setup_pin(self: &Rc<Self>, pin_type: &str, pin_params: &SharedPinParams) -> Result<Rc<dyn Any>, String> {
+    pub(crate) fn cfg_setup_pin(self: &Rc<Self>, pin_type: &str, pin_params: &SharedPinParams) -> Result<Rc<dyn Any>, String> {
         Ok(match pin_type {
             "endstop" => McuEndstop::new(self, pin_params) as Rc<dyn Any>,
             "digital_out" => McuDigitalOut::new(self, pin_params),
@@ -2205,8 +2207,8 @@ impl Mcu {
         match res {
             Ok(false) => return Ok(false),
             Ok(true) => {}
-            Err(_) => {
-                logging::exception(&format!("Reconnect attempt on MCU '{}' failed", self.name));
+            Err(e) => {
+                logging::exception_err(&format!("Reconnect attempt on MCU '{}' failed", self.name), &e);
                 self.abort_recon_attempt();
                 return Ok(false);
             }

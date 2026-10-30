@@ -135,7 +135,7 @@ const TMC_BAUD_RATE: f64 = 40000.0;
 const TMC_BAUD_RATE_AVR: f64 = 9000.0;
 
 /// the analog mux instance id (None without select_pins)
-type InstanceId = Option<Vec<i64>>;
+pub type InstanceId = Option<Vec<i64>>;
 
 // Code for sending messages on a TMC uart
 pub struct McuTmcUartBitbang {
@@ -146,7 +146,7 @@ pub struct McuTmcUartBitbang {
     pub tx_pin: String,
     pub oid: i64,
     pub analog_mux: Option<Rc<McuAnalogMux>>,
-    instances: RefCell<Vec<(InstanceId, i64)>>,
+    pub instances: RefCell<Vec<(InstanceId, i64)>>,
     pub tmcuart_send_cmd: RefCell<Option<CommandQueryWrapper>>,
 }
 
@@ -201,7 +201,7 @@ impl McuTmcUartBitbang {
         Ok(())
     }
 
-    fn register_instance(
+    pub fn register_instance(
         &self,
         rx_pin_params: &SharedPinParams,
         tx_pin_params: &SharedPinParams,
@@ -294,7 +294,7 @@ impl McuTmcUartBitbang {
         cmd.send(data, minclock, 0, true)
     }
 
-    fn reg_read(&self, instance_id: &InstanceId, addr: i64, reg: i64) -> KResult<(Option<i64>, f64)> {
+    pub fn reg_read(&self, instance_id: &InstanceId, addr: i64, reg: i64) -> KResult<(Option<i64>, f64)> {
         if let (Some(m), Some(id)) = (&self.analog_mux, instance_id) {
             m.activate(id)?;
         }
@@ -311,7 +311,7 @@ impl McuTmcUartBitbang {
         Ok((data, receive_time))
     }
 
-    fn reg_write(&self, instance_id: &InstanceId, addr: i64, reg: i64, val: i64, print_time: Option<f64>) -> KResult<()> {
+    pub fn reg_write(&self, instance_id: &InstanceId, addr: i64, reg: i64, val: i64, print_time: Option<f64>) -> KResult<()> {
         let mut minclock = 0;
         if let Some(pt) = print_time {
             minclock = self.mcu.print_time_to_clock(pt);
@@ -326,7 +326,7 @@ impl McuTmcUartBitbang {
 }
 
 // Lookup a (possibly shared) tmc uart
-fn lookup_tmc_uart_bitbang(config: &ConfigWrapper, max_addr: i64) -> KResult<(InstanceId, i64, Rc<McuTmcUartBitbang>)> {
+pub fn lookup_tmc_uart_bitbang(config: &ConfigWrapper, max_addr: i64) -> KResult<(InstanceId, i64, Rc<McuTmcUartBitbang>)> {
     let printer = config.get_printer();
     let ppins = printer.lookup::<PinsObject>("pins")?;
     let uart_pin = config.get("uart_pin", Dflt::Required)?;
@@ -361,7 +361,7 @@ pub struct McuTmcUart {
     pub name_to_reg: IndexMap<String, i64>,
     pub fields: Rc<FieldHelper>,
     pub ifcnt: RefCell<Option<i64>>,
-    instance_id: InstanceId,
+    pub instance_id: InstanceId,
     pub addr: i64,
     pub mcu_uart: Rc<McuTmcUartBitbang>,
     pub tmc_frequency: f64,

@@ -169,6 +169,18 @@ pub fn register(r: &mut Registry) {
     }, None);
 
     r.attr("klippy.reactor.ReactorFileHandler.fd", |o| Ok(py_int(objects::unwrap_as::<crate::reactor::ReactorFileHandler>(o)?.fd as i64)), None);
+    // read_callback(eventtime) / write_callback(eventtime) or None
+    fn fd_callback(cb: Rc<dyn Fn(f64)>) -> KResult<PyRef> {
+        crate::plugins::callable::py_function(Rc::new(move |a: &[PyRef]| {
+            cb(a[0].as_f64()?);
+            Ok(py_none())
+        }))
+    }
+    r.attr("klippy.reactor.ReactorFileHandler.read_callback", |o| fd_callback(objects::unwrap_as::<crate::reactor::ReactorFileHandler>(o)?.read_callback.clone()), None);
+    r.attr("klippy.reactor.ReactorFileHandler.write_callback", |o| match objects::unwrap_as::<crate::reactor::ReactorFileHandler>(o)?.write_callback.clone() {
+        Some(cb) => fd_callback(cb),
+        None => Ok(py_none()),
+    }, None);
 }
 
 /// A python callable called with eventtime; a raise is reactor.run()'s

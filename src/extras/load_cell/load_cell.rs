@@ -70,7 +70,19 @@ fn opt_i(v: Option<i64>) -> PyVal {
 }
 
 impl ForceSample {
-    fn to_pyval(&self) -> PyVal {
+    /// a row as to_pyval() builds it
+    pub fn from_pyval(row: &PyVal) -> Option<Self> {
+        let r = row.items()?;
+        let f = |v: &PyVal| v.as_f64();
+        let i = |v: &PyVal| v.as_i64();
+        let mut channels = vec![];
+        for c in r.get(4..)?.chunks(2) {
+            channels.push((f(&c[0]), i(c.get(1)?)?));
+        }
+        Some(ForceSample { time: f(r.first()?)?, force: f(r.get(1)?), counts: i(r.get(2)?)?, tare_counts: i(r.get(3)?), channels })
+    }
+
+    pub fn to_pyval(&self) -> PyVal {
         let mut row = vec![PyVal::Float(self.time), opt_f(self.force), PyVal::Int(self.counts), opt_i(self.tare_counts)];
         for (force, counts) in &self.channels {
             row.push(opt_f(*force));
@@ -114,9 +126,9 @@ pub type ForceClient = Rc<dyn Fn(&ForceMsg) -> bool>;
 
 // Helper for event driven webhooks and subscription based API clients
 pub(crate) struct ApiClientHelper<M: ApiMsg + 'static = ForceMsg> {
-    printer: Rc<Printer>,
-    client_cbs: RefCell<Vec<Rc<dyn Fn(&M) -> bool>>>,
-    webhooks_start_resp: RefCell<PyVal>,
+    pub(crate) printer: Rc<Printer>,
+    pub(crate) client_cbs: RefCell<Vec<Rc<dyn Fn(&M) -> bool>>>,
+    pub(crate) webhooks_start_resp: RefCell<PyVal>,
 }
 
 impl<M: ApiMsg + 'static> ApiClientHelper<M> {
@@ -173,13 +185,14 @@ const CMD_LOAD_CELL_DIAGNOSTIC_HELP: &str = "Check the health of the load cell";
 pub struct LoadCellCommandHelper {
     pub printer: Rc<Printer>,
     pub load_cell: Weak<LoadCell>,
+    pub name: String,
 }
 
 impl LoadCellCommandHelper {
     fn new(config: &ConfigWrapper, load_cell: &Rc<LoadCell>) -> KResult<()> {
-        let h = Rc::new(LoadCellCommandHelper { printer: config.get_printer(), load_cell: Rc::downgrade(load_cell) });
         let name_parts: Vec<&str> = config.get_name().split_whitespace().collect();
         let name = name_parts[name_parts.len() - 1];
+        let h = Rc::new(LoadCellCommandHelper { printer: config.get_printer(), load_cell: Rc::downgrade(load_cell), name: name.to_string() });
         h.register_commands(Some(name))?;
         if name_parts.len() == 1 {
             h.register_commands(None)?;
@@ -731,7 +744,7 @@ pub struct LoadCell {
     pub tare_force: Cell<Option<f64>>,
     pub counts_per_gram: Cell<Option<f64>>,
     pub invert: f64,
-    clients: Rc<ApiClientHelper>,
+    pub(crate) clients: Rc<ApiClientHelper>,
 }
 
 impl LoadCell {

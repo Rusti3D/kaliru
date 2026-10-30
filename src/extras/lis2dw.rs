@@ -42,7 +42,7 @@ pub const LIS2DW_TYPE: &str = "LIS2DW";
 pub const LIS3DH_TYPE: &str = "LIS3DH";
 
 /// the spi or i2c bus of the chip
-enum Bus {
+pub enum Bus {
     Spi(Rc<McuSpi>),
     I2c(Rc<McuI2c>),
 }
@@ -79,13 +79,13 @@ pub struct LIS2DW {
     pub printer: Rc<Printer>,
     cmd_helper: RefCell<Option<Rc<AccelCommandHelper>>>,
     pub(crate) lis_type: &'static str,
-    axes_map: AxisMap,
+    pub axes_map: AxisMap,
     pub data_rate: i64,
-    bus: Bus,
+    pub bus: Bus,
     pub mcu: Rc<Mcu>,
     pub oid: i64,
     pub query_lis2dw_cmd: RefCell<Option<CommandWrapper>>,
-    ffreader: FixedFreqReader,
+    pub ffreader: Rc<FixedFreqReader>,
     pub last_error_count: Cell<i64>,
     pub(crate) batch_bulk: RefCell<Option<Rc<BatchBulkHelper>>>,
     pub name: String,
@@ -124,7 +124,7 @@ impl LIS2DW {
         }));
         // Bulk sample message reading
         let chip_smooth = data_rate as f64 * BATCH_UPDATES * 2.0;
-        let ffreader = FixedFreqReader::new(&mcu, chip_smooth, "<hhh");
+        let ffreader = Rc::new(FixedFreqReader::new(&mcu, chip_smooth, "<hhh"));
         let name = config.get_name().split_whitespace().last().unwrap_or_default().to_string();
         let l = Rc::new(LIS2DW {
             printer: printer.clone(),

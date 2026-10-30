@@ -18,6 +18,7 @@ const CMD_SET_FAN_SPEED_HELP: &str = "Sets the speed of a fan";
 
 pub struct PrinterFanGeneric {
     pub fan: Rc<Fan>,
+    pub fan_name: String,
     pub template_eval: Rc<PrinterTemplateEvaluator>,
     template_cb: RefCell<Option<TemplateCallback>>,
 }
@@ -29,7 +30,7 @@ impl PrinterFanGeneric {
         let fan_name = config.get_name().split_whitespace().last().unwrap_or("").to_string();
         // Template handling
         let template_eval = lookup_template_eval(config)?;
-        let f = Rc::new(PrinterFanGeneric { fan, template_eval, template_cb: RefCell::new(None) });
+        let f = Rc::new(PrinterFanGeneric { fan, fan_name: fan_name.clone(), template_eval, template_cb: RefCell::new(None) });
         let w = Rc::downgrade(&f);
         *f.template_cb.borrow_mut() = Some(Rc::new(move |text: &str| match w.upgrade() {
             Some(f) => f.template_update(text),

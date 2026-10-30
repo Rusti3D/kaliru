@@ -112,4 +112,84 @@ pub fn register(r: &mut Registry) {
         }
         this(a)?.create_command(&msg)?.to_py()
     });
+
+    // ---- the param types: MessageTypes' PT_* objects, or the Enumeration
+    {
+        use crate::msgproto::{BaseType, Enumeration, ParamType};
+        fn base_to_py(b: BaseType) -> KResult<PyRef> {
+            let fmt = match b {
+                BaseType::Uint32 => "%u",
+                BaseType::Int32 => "%i",
+                BaseType::Uint16 => "%hu",
+                BaseType::Int16 => "%hi",
+                BaseType::Byte => "%c",
+                BaseType::String => "%s",
+                BaseType::ProgmemBuffer => "%.*s",
+                BaseType::Buffer => "%*s",
+            };
+            lookup("klippy.msgproto", "MessageTypes")?.call_method("__getitem__", &[&py_str(fmt)])
+        }
+        fn pt_to_py(p: &ParamType) -> KResult<PyRef> {
+            match p {
+                ParamType::Base(b) => base_to_py(*b),
+                ParamType::Enum(e) => objects::wrap(e.clone()),
+            }
+        }
+        r.attr("klippy.msgproto.Enumeration.pt", |o| base_to_py(objects::unwrap_as::<Enumeration>(o)?.pt), None);
+        r.attr("klippy.msgproto.Enumeration.max_length", |o| Ok(py_int(objects::unwrap_as::<Enumeration>(o)?.pt.max_length() as i64)), None);
+        r.attr("klippy.msgproto.Enumeration.enums", |o| {
+            let d = lookup("builtins", "dict")?.call(&[])?;
+            for (k, v) in &objects::unwrap_as::<Enumeration>(o)?.table.enums {
+                d.call_method("__setitem__", &[&py_str(k), &py_int(*v)])?;
+            }
+            Ok(d)
+        }, None);
+        r.attr("klippy.msgproto.Enumeration.reverse_enums", |o| {
+            let d = lookup("builtins", "dict")?.call(&[])?;
+            for (k, v) in &objects::unwrap_as::<Enumeration>(o)?.table.enums {
+                d.call_method("__setitem__", &[&py_int(*v), &py_str(k)])?;
+            }
+            Ok(d)
+        }, None);
+        // [(name, type)] / {name: type} / [type]
+        r.attr("klippy.msgproto.MessageFormat.param_names", |o| {
+            let items: KResult<Vec<PyRef>> =
+                objects::unwrap_as::<MessageFormat>(o)?.param_names.iter().map(|(n, p)| Ok(py_tuple(vec![py_str(n), pt_to_py(p)?]))).collect();
+            Ok(py_list(items?))
+        }, None);
+        r.attr("klippy.msgproto.MessageFormat.param_types", |o| {
+            let items: KResult<Vec<PyRef>> = objects::unwrap_as::<MessageFormat>(o)?.param_names.iter().map(|(_, p)| pt_to_py(p)).collect();
+            Ok(py_list(items?))
+        }, None);
+        r.attr("klippy.msgproto.MessageFormat.name_to_type", |o| {
+            let m = objects::unwrap_as::<MessageFormat>(o)?;
+            let d = lookup("builtins", "dict")?.call(&[])?;
+            // (in the format's parameter order, as python builds it)
+            for (n, p) in &m.param_names {
+                d.call_method("__setitem__", &[&py_str(n), &pt_to_py(p)?])?;
+            }
+            Ok(d)
+        }, None);
+        r.attr("klippy.msgproto.OutputFormat.param_types", |o| {
+            let items: KResult<Vec<PyRef>> = objects::unwrap_as::<OutputFormat>(o)?.param_types.iter().map(|b| base_to_py(*b)).collect();
+            Ok(py_list(items?))
+        }, None);
+    }
+
+    // unknown: UnknownFormat(); msgid_parser: PT_int32()
+    r.attr("klippy.msgproto.MessageParser.unknown", |o| {
+        mp(o)?;
+        objects::wrap(Rc::new(crate::msgproto::UnknownFormat))
+    }, None);
+    r.attr("klippy.msgproto.MessageParser.msgid_parser", |o| {
+        mp(o)?;
+        lookup("klippy.msgproto", "PT_int32")?.call(&[])
+    }, None);
+    // the clock queries' command queue (allocated at connect)
+    r.attr("klippy.clocksync.ClockSync.cmd_queue", |o| {
+        match objects::unwrap_as::<crate::clocksync::ClockSync>(o)?.cmd_queue.borrow().clone() {
+            Some(cq) => super::mcu::cq_to_py(cq),
+            None => Ok(py_none()),
+        }
+    }, None);
 }

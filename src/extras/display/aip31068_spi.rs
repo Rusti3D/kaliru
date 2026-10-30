@@ -62,7 +62,7 @@ pub struct Aip31068Spi {
     pub printer: Rc<Printer>,
     pub spi: Rc<McuSpi>,
     pub mcu: Rc<Mcu>,
-    fb: TextFramebuffers,
+    pub fb: TextFramebuffers,
 }
 
 pub fn new_aip31068_spi(config: &ConfigWrapper) -> KResult<Rc<dyn LcdChip>> {

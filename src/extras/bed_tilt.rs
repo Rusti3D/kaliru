@@ -146,7 +146,7 @@ impl BedTiltCalibrate {
         Ok(c)
     }
 
-    fn probe_finalize(&self, offsets: (f64, f64, f64), positions: &[Vec<f64>]) -> KResult<FinalizeResult> {
+    pub fn probe_finalize(&self, offsets: (f64, f64, f64), positions: &[Vec<f64>]) -> KResult<FinalizeResult> {
         let bedtilt = self.bedtilt.upgrade().ok_or_else(|| KError::Other("bed_tilt gone".into()))?;
         // Setup for coordinate descent analysis
         let z_offset = offsets.2;

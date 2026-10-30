@@ -53,7 +53,7 @@ impl SaveVariables {
         Ok(s)
     }
 
-    fn load_variables(&self) -> KResult<()> {
+    pub fn load_variables(&self) -> KResult<()> {
         let r = (|| -> Result<IndexMap<String, Value>, String> {
             let mut allvars = IndexMap::default();
             let mut varfile = new_parser();

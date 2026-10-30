@@ -12,7 +12,7 @@ class error(Exception):
     pass
 
 def identity(v):
-    return _k.fcall(1207, v)
+    return v
 
 class MenuElement(_k.Object):
     __kaliru_mirror__ = True
@@ -60,7 +60,9 @@ class MenuElement(_k.Object):
     def get_ns(self, name="."):
         return _k.call(self, 1228, name)
     def send_event(self, event, *args):
-        return _k.call(self, 1229, event, args)
+        return self.manager.send_event(
+            "%s:%s" % (self.get_ns(), str(event)), *args
+        )
     def get_script(self, name):
         return _k.call(self, 1230, name)
     def _run_script(self, name, context):
@@ -75,7 +77,7 @@ class MenuElement(_k.Object):
         return _k.call(self, 1234)
     @property
     def index(self):
-        return _k.call(self, 1235)
+        return self._index
     __scroll_next = _k.Attr(1236, '__scroll_next')
     __scroll_pos = _k.Attr(1237, '__scroll_pos')
     __scroll_request_pending = _k.Attr(1238, '__scroll_request_pending')
@@ -110,7 +112,13 @@ class MenuContainer(MenuElement):
     def stop_editing(self):
         return _k.call(self, 1259)
     def lookup_item(self, item):
-        return _k.call(self, 1260, item)
+        if isinstance(item, str):
+            name = item.strip()
+            ns = self.get_ns(name)
+            return (self.manager.lookup_menuitem(ns), name)
+        elif isinstance(item, MenuElement):
+            return (item, item.get_ns())
+        return (None, item)
     def _lookup_item(self, item):
         return _k.call(self, 1261, item)
     def _index_of(self, item):
@@ -219,7 +227,10 @@ class MenuInput(MenuCommand):
     def dec_value(self, fast_rate=False):
         return _k.call(self, 1312, fast_rate)
     def handle_script_click(self):
-        return _k.call(self, 1313)
+        if not self.is_editing():
+            self.start_editing()
+        elif self.is_editing():
+            self.stop_editing()
     __last_change = _k.Attr(1314, '__last_change')
     _input = _k.Attr(1315, '_input')
     _input_max = _k.Attr(1316, '_input_max')
@@ -251,11 +262,12 @@ class MenuVSDList(MenuList):
     def _populate(self):
         return _k.call(self, 1331)
 
-def sort_key_name(item):
-    return _k.fcall(1332, item)
+def sort_key_name(item: pathlib.Path):
+    # Most people expect insensitive sort
+    return item.name.lower()
 
-def sort_key_mtime(item):
-    return _k.fcall(1333, item)
+def sort_key_mtime(item: pathlib.Path):
+    return item.stat().st_mtime
 
 class MenuFileBrowser(MenuList):
     __kaliru_mirror__ = True
@@ -281,7 +293,7 @@ class MenuDialog(MenuList):
     def select_at(self, index):
         return _k.call(self, 1344, index)
     def handle_script_gcode(self):
-        return _k.call(self, 1345)
+        self.manager.back()
     def _on_confirm(self, el, context):
         return _k.call(self, 1346, el, context)
     def _on_cancel(self, el, context):
@@ -322,7 +334,7 @@ class MenuManager(_k.Object):
     def timeout_check(self, eventtime):
         return _k.call(self, 1367, eventtime)
     def send_event(self, event, *args):
-        return _k.call(self, 1368, event, args)
+        return self.printer.send_event("menu:" + str(event), *args)
     def is_running(self):
         return _k.call(self, 1369)
     def begin(self, eventtime):
@@ -367,11 +379,22 @@ class MenuManager(_k.Object):
     def dispatch_gcode(self, eventtime):
         return _k.call(self, 1389, eventtime)
     def menuitem_from(self, type, **kwargs):
-        return _k.call(self, 1390, type, kwargs)
+        if type not in menu_items:
+            raise error(
+                "Choice '%s' for option '%s'"
+                " is not a valid choice" % (type, menu_items)
+            )
+        return menu_items[type](self, None, **kwargs)
     def add_menuitem(self, name, item):
         return _k.call(self, 1391, name, item)
     def lookup_menuitem(self, name, default=sentinel):
-        return _k.call(self, 1392, name, default)
+        if name is None:
+            return None
+        if name in self.menuitems:
+            return self.menuitems[name]
+        if default is sentinel:
+            raise self.printer.config_error("Unknown menuitem '%s'" % (name,))
+        return default
     def lookup_children(self, ns):
         return _k.call(self, 1393, ns)
     def load_config(self, *args):
@@ -384,13 +407,24 @@ class MenuManager(_k.Object):
         return _k.call(self, 1397, key, eventtime)
     @classmethod
     def stripliterals(cls, s):
-        return _k.fcall(1398, cls, s)
+        """Literals are beginning or ending by the double or single quotes"""
+        s = str(s)
+        if (s.startswith('"') and s.endswith('"')) or (
+            s.startswith("'") and s.endswith("'")
+        ):
+            s = s[1:-1]
+        return s
     @classmethod
     def aslatin(cls, s):
-        return _k.fcall(1399, cls, s)
+        if isinstance(s, str):
+            return s
+        elif isinstance(s, bytes):
+            return s.decode("latin-1", "ignore")
+        else:
+            return str(s)
     @classmethod
     def asflat(cls, s):
-        return _k.fcall(1400, cls, s)
+        return cls.stripliterals("".join(cls.aslatin(s).splitlines()))
     _reverse_navigation = _k.Attr(1401, '_reverse_navigation')
     _root = _k.Attr(1402, '_root')
     children = _k.Attr(1403, 'children')

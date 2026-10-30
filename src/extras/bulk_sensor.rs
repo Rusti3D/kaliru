@@ -29,13 +29,13 @@ pub type ClientCallback = Rc<dyn Fn(&PyVal) -> bool>;
 pub struct BatchBulkHelper {
     me: Weak<BatchBulkHelper>,
     pub printer: Rc<Printer>,
-    batch_cb: BatchCallback,
-    start_cb: Option<StartStopCallback>,
-    stop_cb: Option<StartStopCallback>,
+    pub batch_cb: BatchCallback,
+    pub start_cb: Option<StartStopCallback>,
+    pub stop_cb: Option<StartStopCallback>,
     pub(crate) is_started: Cell<bool>,
     pub batch_interval: f64,
     pub batch_timer: RefCell<Option<Timer>>,
-    client_cbs: RefCell<Vec<ClientCallback>>,
+    pub client_cbs: RefCell<Vec<ClientCallback>>,
     pub webhooks_start_resp: RefCell<PyVal>,
 }
 
@@ -216,7 +216,7 @@ impl BatchWebhooksClient {
 // Helper class to store incoming messages in a queue
 pub struct BulkDataQueue {
     // Measurement storage (python: accessed from a background thread)
-    raw_samples: Rc<RefCell<Vec<Params>>>,
+    pub raw_samples: Rc<RefCell<Vec<Params>>>,
 }
 
 impl BulkDataQueue {
@@ -271,6 +271,8 @@ pub struct ClockSyncRegression {
     pub mcu_clock_variance: Cell<f64>,
     pub chip_clock_avg: Cell<f64>,
     pub chip_clock_covariance: Cell<f64>,
+    /// set by reset()
+    pub last_mcu_clock: Cell<Option<f64>>,
 }
 
 impl ClockSyncRegression {
@@ -285,11 +287,13 @@ impl ClockSyncRegression {
             mcu_clock_variance: Cell::new(0.0),
             chip_clock_avg: Cell::new(0.0),
             chip_clock_covariance: Cell::new(0.0),
+            last_mcu_clock: Cell::new(None),
         }
     }
 
     pub fn reset(&self, mcu_clock: f64, chip_clock: f64) {
         self.mcu_clock_avg.set(mcu_clock);
+        self.last_mcu_clock.set(Some(mcu_clock));
         self.chip_clock_avg.set(chip_clock);
         self.mcu_clock_variance.set(0.0);
         self.chip_clock_covariance.set(0.0);
@@ -402,14 +406,16 @@ pub type RawSample = (f64, Vec<i64>);
 // samples at a fixed frequency (and produce fixed data size samples).
 pub struct FixedFreqReader {
     pub mcu: Rc<Mcu>,
-    clock_sync: ClockSyncRegression,
+    pub clock_sync: Rc<ClockSyncRegression>,
     unpack: SampleFormat,
+    /// the struct format of a sample
+    pub unpack_fmt: String,
     pub bytes_per_sample: usize,
     pub samples_per_block: usize,
     pub last_sequence: Cell<i64>,
     pub max_query_duration: Cell<i64>,
     pub last_overflows: Cell<i64>,
-    bulk_queue: RefCell<Option<BulkDataQueue>>,
+    pub bulk_queue: RefCell<Option<Rc<BulkDataQueue>>>,
     pub oid: Cell<Option<i64>>,
     pub query_status_cmd: RefCell<Option<CommandQueryWrapper>>,
 }
@@ -420,8 +426,9 @@ impl FixedFreqReader {
         let bytes_per_sample = unpack.size();
         FixedFreqReader {
             mcu: mcu.clone(),
-            clock_sync: ClockSyncRegression::new(mcu, chip_clock_smooth, 1.0 / 20.0),
+            clock_sync: Rc::new(ClockSyncRegression::new(mcu, chip_clock_smooth, 1.0 / 20.0)),
             unpack,
+            unpack_fmt: unpack_fmt.to_string(),
             bytes_per_sample,
             samples_per_block: MAX_BULK_MSG_SIZE / bytes_per_sample,
             last_sequence: Cell::new(0),
@@ -444,7 +451,7 @@ impl FixedFreqReader {
             false,
         )?);
         // Read sensor_bulk_data messages and store in a queue
-        *self.bulk_queue.borrow_mut() = Some(BulkDataQueue::new(&self.mcu, "sensor_bulk_data", Some(oid)));
+        *self.bulk_queue.borrow_mut() = Some(Rc::new(BulkDataQueue::new(&self.mcu, "sensor_bulk_data", Some(oid))));
         Ok(())
     }
 
@@ -461,7 +468,7 @@ impl FixedFreqReader {
         if q.is_none() {
             return Err(KError::Other("'NoneType' object has no attribute 'clear_queue'".into()));
         }
-        Ok(std::cell::Ref::map(q, |q| q.as_ref().unwrap()))
+        Ok(std::cell::Ref::map(q, |q| &**q.as_ref().unwrap()))
     }
 
     pub fn note_start(&self) -> KResult<()> {

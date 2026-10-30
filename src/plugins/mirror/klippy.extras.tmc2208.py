@@ -36,7 +36,10 @@ class TMC2208(_k.Object):
     def __init__(self, config):
         _k.new(self, 5249, config)
     def read_translate(self, reg_name, val):
-        return _k.call(self, 5250, reg_name, val)
+        if reg_name == "IOIN":
+            drv_type = self.fields.get_field("sel_a", val)
+            reg_name = "IOIN@TMC220x" if drv_type else "IOIN@TMC222x"
+        return reg_name, val
     fields = _k.Attr(5251, 'fields')
     get_phase_offset = _k.Attr(5252, 'get_phase_offset')
     get_status = _k.Attr(5253, 'get_status')

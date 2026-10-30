@@ -111,8 +111,8 @@ impl KalicoTelemetry {
     pub fn handle_ready(&self) {
         match self.collect_telemetry() {
             Ok(data) => send(data),
-            Err(_) => {
-                logging::exception("exception collecting telemetry");
+            Err(e) => {
+                logging::exception_err("exception collecting telemetry", &e);
                 // python then fails on the unbound 'data' (UnboundLocalError)
             }
         }

@@ -225,6 +225,7 @@ pub struct PrinterOutputPin {
     pub printer: Rc<Printer>,
     pub mcu_pin: Rc<McuQueuedPwm>,
     pub scale: f64,
+    pub shutdown_value: f64,
     pub last_print_time: Cell<f64>,
     pub last_value: Cell<f64>,
 }
@@ -254,7 +255,7 @@ impl PrinterOutputPin {
         let last_value = config.getfloat("value", 0.0, Lim::new().min(0.0).max(scale))? / scale;
         let shutdown_value = config.getfloat("shutdown_value", 0.0, Lim::new().min(0.0).max(scale))? / scale;
         mcu_pin.setup_start_value(last_value, shutdown_value);
-        let o = Rc::new(PrinterOutputPin { printer: printer.clone(), mcu_pin, scale, last_print_time: Cell::new(0.0), last_value: Cell::new(last_value) });
+        let o = Rc::new(PrinterOutputPin { printer: printer.clone(), mcu_pin, scale, shutdown_value, last_print_time: Cell::new(0.0), last_value: Cell::new(last_value) });
         // Register commands
         let pin_name = config.get_name().split_whitespace().nth(1).unwrap_or("").to_string();
         let gcode = printer.lookup::<GCodeDispatch>("gcode")?;

@@ -25,7 +25,7 @@ pub struct HD44780Spi {
     pub data_mask: u8,
     pub command_mask: u8,
     pub enable_mask: u8,
-    fb: TextFramebuffers,
+    pub fb: TextFramebuffers,
 }
 
 pub fn new_hd44780_spi(config: &ConfigWrapper) -> KResult<Rc<dyn LcdChip>> {

@@ -225,6 +225,24 @@ pub fn generic(name: &str) -> Option<Method> {
             Some(c) => Ok(py_int(c.write_glyph(a.arg(0).as_i64()?, a.arg(1).as_i64()?, &a.string(2)?))),
             None => Err(not_mirrored(a, "write_glyph")),
         },
+        // set_glyphs({name: {"icon16x16": (icon1, icon2), "icon5x8": (slot, rows)}})
+        "set_glyphs" => |a| match view::<dyn LcdChip>(a) {
+            Some(c) => {
+                let mut glyphs = crate::IndexMap::default();
+                for name in dict_keys(a.arg(0))? {
+                    let g = dict_get(a.arg(0), &name)?;
+                    let icon = |k: &str| -> KResult<Option<PyRef>> {
+                        Ok(if g.call_method("__contains__", &[&py_str(k)])?.is_true()? { Some(dict_get(&g, k)?) } else { None })
+                    };
+                    let icon16x16: Option<(Vec<i64>, Vec<i64>)> = icon("icon16x16")?.map(|v| FromPy::from_py(&v)).transpose()?;
+                    let icon5x8: Option<(i64, Vec<i64>)> = icon("icon5x8")?.map(|v| FromPy::from_py(&v)).transpose()?;
+                    glyphs.insert(name, crate::extras::display_templates::Glyph { icon16x16, icon5x8 });
+                }
+                c.set_glyphs(&glyphs);
+                Ok(py_none())
+            }
+            None => Err(not_mirrored(a, "set_glyphs")),
+        },
         "get_dimensions" => |a| match view::<dyn LcdChip>(a) {
             Some(c) => c.get_dimensions().to_py(),
             None => Err(not_mirrored(a, "get_dimensions")),

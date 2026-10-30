@@ -16,7 +16,7 @@ pub const KELVIN_TO_CELSIUS: f64 = -273.15;
 
 pub struct PrinterSensorGeneric {
     pub name: String,
-    _sensor: Rc<dyn TempSensor>,
+    pub sensor: Rc<dyn TempSensor>,
     pub min_temp: f64,
     pub max_temp: f64,
     pub last_temp: Cell<f64>,
@@ -34,7 +34,7 @@ impl PrinterSensorGeneric {
         sensor.setup_minmax(min_temp, max_temp)?;
         let s = Rc::new(PrinterSensorGeneric {
             name,
-            _sensor: sensor.clone(),
+            sensor: sensor.clone(),
             min_temp,
             max_temp,
             last_temp: Cell::new(0.0),

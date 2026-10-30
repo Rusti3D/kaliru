@@ -63,7 +63,7 @@ class MCU_TMC_SPI_chain(_k.Object):
     def reg_write(self, reg, val, chain_pos, print_time=None):
         return _k.call(self, 5218, reg, val, chain_pos, print_time)
     def get_mcu(self):
-        return _k.call(self, 5219)
+        return self.spi.get_mcu()
     chain_len = _k.Attr(5220, 'chain_len')
     mutex = _k.Attr(5221, 'mutex')
     printer = _k.Attr(5222, 'printer')
@@ -82,7 +82,12 @@ class MCU_TMC_SPI(_k.Object):
     def get_register_raw(self, reg_name):
         return _k.call(self, 5228, reg_name)
     def decode_spi_status(spi_status):
-        return _k.call(spi_status, 5229)
+        return {
+            "standstill": spi_status >> 3 & 0x1,
+            "sg2": spi_status >> 2 & 0x1,
+            "driver_error": spi_status >> 1 & 0x1,
+            "reset_flag": spi_status & 0x1,
+        }
     def get_register(self, reg_name):
         return _k.call(self, 5230, reg_name)
     def set_register(self, reg_name, val, print_time=None):

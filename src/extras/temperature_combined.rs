@@ -40,6 +40,7 @@ impl Mode {
 
 pub struct PrinterSensorCombined {
     pub printer: Rc<Printer>,
+    pub name: String,
     pub sensor_names: Vec<String>,
     pub max_deviation: f64,
     pub sensors: RefCell<Vec<PObj>>,
@@ -62,6 +63,15 @@ fn status_of(sensor: &PObj, eventtime: f64) -> PyDict {
 }
 
 impl PrinterSensorCombined {
+    /// the combination_method (python's apply_mode function)
+    pub fn apply_mode_name(&self) -> &'static str {
+        match self.apply_mode {
+            Mode::Min => "min",
+            Mode::Max => "max",
+            Mode::Mean => "mean",
+        }
+    }
+
     pub fn new(config: &ConfigWrapper) -> KResult<Rc<Self>> {
         let printer = config.get_printer();
         let name = config.get_name().split_whitespace().last().unwrap_or("").to_string();
@@ -74,6 +84,7 @@ impl PrinterSensorCombined {
         let apply_mode = config.getchoice("combination_method", &algos, Dflt::Required)?;
         let s = Rc::new(PrinterSensorCombined {
             printer: printer.clone(),
+            name: name.clone(),
             sensor_names,
             max_deviation,
             sensors: RefCell::new(vec![]),

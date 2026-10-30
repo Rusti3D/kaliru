@@ -103,6 +103,21 @@ tester / shaper_calibrate commands (shaper, shaper_cmds), smart_effector, tools_
 Function level checks against python for code file-output runs cannot reach: shaper_calibrate
 (`tools/gen_shaper_cases.py`: psds, fits, csv bit-identical), angle calibration, sos filter design.
 
+**Example configs** (`tests/cases/configs/examples.test`, written by `tools/gen_config_cases.py`): every
+config/*.cfg that printers.test does not load (186), with the mcu dictionary its header names (LPC176x, SAME54,
+HC32 dictionaries copied from the firmware builds into `~/rk/ci_build/dict`), wrappers adding a virtual_sdcard path
+/ tmc sense_resistor where the example leaves them out, running move.gcode: 186/186 identical (2026-10-31). Not
+loaded: 15 sample fragments and BeagleBone PRU configs (no dictionary).
+
+**Status probe** (`tests/plugins/kaliru_test_status.py`, `tests/cases/plugins/status.test`): `get_status()` of
+every printer object (what Moonraker queries) on the api probe's 45 configs: identical but for idle_timeout's
+`printing_time` (wall clock).
+
+Fixed in the native sweep (2026-10-31): chelper errors log as Kalico's `logging.error(FFI_main.string(msg))` (the
+bytes repr) once klippy starts; the flush handlers, telemetry, mcu reconnect and serial identify log the exception
+with its traceback (`logging.exception`); a deep nested-macro chain raises RecursionError (an internal error, as in
+Kalico) instead of overflowing kaliru's fixed greenlet stack; `rpi_usb` mcu restarts (hub-ctrl).
+
 Not verified against Kalico: paths that need an mcu query answer (i2c/spi sensor reads, accelerometer and load cell
 data, eddy homing, tap analysis) - python hangs on queries in file-output mode. Ported from source.
 

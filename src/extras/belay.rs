@@ -23,14 +23,14 @@ const DIRECTION_UPDATE_INTERVAL: f64 = 0.1;
 const POSITION_TIME_DIFF: f64 = 0.3;
 
 #[derive(Clone, Copy, PartialEq)]
-enum BelayType {
+pub enum BelayType {
     TradRack,
     ExtruderStepper,
 }
 
 /// the set_multiplier callable
 #[derive(Clone)]
-enum SetMultiplier {
+pub enum SetMultiplier {
     /// trad_rack.set_fil_driver_multiplier
     TradRack(Rc<TradRack>),
     /// stepper.set_rotation_distance(base_rotation_dist / m)
@@ -46,7 +46,7 @@ const CMD_BELAY_DISABLE_HELP: &str = "Manually disable Belay";
 pub struct Belay {
     pub printer: Rc<Printer>,
     pub reactor: Rc<Reactor>,
-    kind: BelayType,
+    pub kind: BelayType,
     pub extruder_stepper_name: String,
     pub enable_initial: bool,
     pub multiplier_high: Cell<f64>,
@@ -56,7 +56,7 @@ pub struct Belay {
     pub enabled: Cell<bool>,
     pub last_state: Cell<bool>,
     pub last_direction: Cell<bool>,
-    set_multiplier: RefCell<Option<SetMultiplier>>,
+    pub set_multiplier: RefCell<Option<SetMultiplier>>,
     pub gcode: Rc<GCodeDispatch>,
     pub toolhead: RefCell<Option<Rc<ToolHead>>>,
     pub update_direction_timer: RefCell<Option<Timer>>,

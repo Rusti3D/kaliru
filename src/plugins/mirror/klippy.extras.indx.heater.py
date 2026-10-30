@@ -176,9 +176,11 @@ class HeaterControlIndx(_k.Object):
     def __init__(self, heater, indx_heater):
         _k.new(self, 2629, heater, indx_heater)
     def temperature_update(self, read_time, temp, target_temp):
-        return _k.call(self, 2630, read_time, temp, target_temp)
+        self.indx_heater.set_target_temp(target_temp)
+        self.heater.set_pwm(read_time, self.indx_heater.last_report[2])
     def check_busy(self, eventtime, smoothed_temp, target_temp):
-        return _k.call(self, 2631, eventtime, smoothed_temp, target_temp)
+        # TODO: Improve this
+        return smoothed_temp < target_temp - 1
     def get_profile(self):
         return _k.call(self, 2632)
     heater = _k.Attr(2633, 'heater')

@@ -20,6 +20,7 @@ const CMD_QUERY_BUTTON_HELP: &str = "Report on the state of a button";
 
 pub struct GCodeButton {
     pub name: String,
+    pub pin: String,
     pub last_state: Cell<i64>,
     pub press_template: RefCell<Option<Rc<Template>>>,
     pub release_template: RefCell<Option<Rc<Template>>>,
@@ -34,6 +35,7 @@ impl GCodeButton {
         let gcode = printer.lookup::<GCodeDispatch>("gcode")?;
         let b = Rc::new(GCodeButton {
             name: name.clone(),
+            pin: pin.clone(),
             last_state: Cell::new(0),
             press_template: RefCell::new(None),
             release_template: RefCell::new(None),

@@ -61,13 +61,13 @@ const SCALE: f64 = 0.00048828125 * FREEFALL_ACCEL;
 pub struct ICM20948 {
     pub printer: Rc<Printer>,
     cmd_helper: RefCell<Option<Rc<AccelCommandHelper>>>,
-    axes_map: AxisMap,
+    pub axes_map: AxisMap,
     pub data_rate: i64,
     pub i2c: Rc<McuI2c>,
     pub mcu: Rc<Mcu>,
     pub oid: i64,
     pub query_icm20948_cmd: RefCell<Option<CommandWrapper>>,
-    ffreader: FixedFreqReader,
+    pub ffreader: Rc<FixedFreqReader>,
     pub last_error_count: Cell<i64>,
     pub batch_bulk: RefCell<Option<Rc<BatchBulkHelper>>>,
     pub name: String,
@@ -95,7 +95,7 @@ impl ICM20948 {
         }));
         // Bulk sample message reading
         let chip_smooth = data_rate as f64 * BATCH_UPDATES * 2.0;
-        let ffreader = FixedFreqReader::new(&mcu, chip_smooth, ">hhh");
+        let ffreader = Rc::new(FixedFreqReader::new(&mcu, chip_smooth, ">hhh"));
         let name = config.get_name().split_whitespace().last().unwrap_or_default().to_string();
         let m = Rc::new(ICM20948 {
             printer: printer.clone(),

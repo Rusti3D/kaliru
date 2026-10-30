@@ -18,7 +18,7 @@ class PinPollingHelper(_k.Object):
     def query_pin(self, curtime):
         return _k.call(self, 1524, curtime)
     def query_pin_inv(self, curtime):
-        return _k.call(self, 1525, curtime)
+        return not self.query_pin(curtime)
     last_verify_state = _k.Attr(1526, 'last_verify_state')
     last_verify_time = _k.Attr(1527, 'last_verify_time')
     printer = _k.Attr(1528, 'printer')

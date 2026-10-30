@@ -225,8 +225,8 @@ impl SerialReader {
             let msg = format!("identify offset={} count={}", identify_data.len(), 40);
             let params = match self.send_with_response(&msg, "identify_response") {
                 Ok(p) => p,
-                Err(_) => {
-                    logging::exception(&format!("{}Wait for identify_response", self.warn_prefix));
+                Err(e) => {
+                    logging::exception_err(&format!("{}Wait for identify_response", self.warn_prefix), &e);
                     return None;
                 }
             };
@@ -377,7 +377,7 @@ impl SerialReader {
                         }
                     }
                 }
-                Err(_) => logging::exception(&format!("{}Error in canbus_uuid check", self.warn_prefix)),
+                Err(e) => logging::exception_err(&format!("{}Error in canbus_uuid check", self.warn_prefix), &e),
             }
             logging::info(&format!("{}Failed to match canbus_uuid - retrying..", self.warn_prefix));
             self.disconnect();

@@ -1,0 +1,267 @@
+# every Kalico example / board / printer config the stock printers.test
+# does not load (tools/gen_config_cases.py)
+GCODE /root/rk/kalico/test/klippy/move.gcode
+
+DICTIONARY at90usb1286.dict
+CONFIG /mnt/d/Rusti3D/kaliru/tests/cases/configs/wrap/generic-printrboard.cfg
+
+DICTIONARY atmega1280.dict
+CONFIG /mnt/d/Rusti3D/kaliru/tests/cases/configs/wrap/generic-mightyboard.cfg
+CONFIG /mnt/d/Rusti3D/kaliru/tests/cases/configs/wrap/generic-minitronics1.cfg
+
+DICTIONARY atmega1284p.dict
+CONFIG /mnt/d/Rusti3D/kaliru/tests/cases/configs/wrap/generic-melzi.cfg
+CONFIG /mnt/d/Rusti3D/kaliru/tests/cases/configs/wrap/printer-anet-a4-2018.cfg
+CONFIG /mnt/d/Rusti3D/kaliru/tests/cases/configs/wrap/printer-anet-a8-2017.cfg
+CONFIG /mnt/d/Rusti3D/kaliru/tests/cases/configs/wrap/printer-anet-a8-2019.cfg
+CONFIG /mnt/d/Rusti3D/kaliru/tests/cases/configs/wrap/printer-anet-e10-2018.cfg
+CONFIG /mnt/d/Rusti3D/kaliru/tests/cases/configs/wrap/printer-anet-e16-2019.cfg
+CONFIG /mnt/d/Rusti3D/kaliru/tests/cases/configs/wrap/printer-creality-cr10-2017.cfg
+CONFIG /mnt/d/Rusti3D/kaliru/tests/cases/configs/wrap/printer-creality-cr10mini-2017.cfg
+CONFIG /mnt/d/Rusti3D/kaliru/tests/cases/configs/wrap/printer-creality-ender2-2017.cfg
+CONFIG /mnt/d/Rusti3D/kaliru/tests/cases/configs/wrap/printer-creality-ender3-2018.cfg
+CONFIG /mnt/d/Rusti3D/kaliru/tests/cases/configs/wrap/printer-creality-ender5-2019.cfg
+CONFIG /mnt/d/Rusti3D/kaliru/tests/cases/configs/wrap/printer-tronxy-p802e-2020.cfg
+CONFIG /mnt/d/Rusti3D/kaliru/tests/cases/configs/wrap/printer-tronxy-p802m-2020.cfg
+CONFIG /mnt/d/Rusti3D/kaliru/tests/cases/configs/wrap/printer-tronxy-x5s-2018.cfg
+CONFIG /mnt/d/Rusti3D/kaliru/tests/cases/configs/wrap/printer-tronxy-x8-2018.cfg
+CONFIG /mnt/d/Rusti3D/kaliru/tests/cases/configs/wrap/printer-wanhao-duplicator-i3-v2.1-2017.cfg
+
+DICTIONARY atmega2560.dict
+CONFIG /mnt/d/Rusti3D/kaliru/tests/cases/configs/wrap/example-extras.cfg
+CONFIG /mnt/d/Rusti3D/kaliru/tests/cases/configs/wrap/example-polar.cfg
+CONFIG /mnt/d/Rusti3D/kaliru/tests/cases/configs/wrap/generic-einsy-rambo.cfg
+CONFIG /mnt/d/Rusti3D/kaliru/tests/cases/configs/wrap/generic-fysetc-f6.cfg
+CONFIG /mnt/d/Rusti3D/kaliru/tests/cases/configs/wrap/generic-gt2560.cfg
+CONFIG /mnt/d/Rusti3D/kaliru/tests/cases/configs/wrap/generic-mini-rambo.cfg
+CONFIG /mnt/d/Rusti3D/kaliru/tests/cases/configs/wrap/generic-rambo.cfg
+CONFIG /mnt/d/Rusti3D/kaliru/tests/cases/configs/wrap/generic-ramps.cfg
+CONFIG /mnt/d/Rusti3D/kaliru/tests/cases/configs/wrap/generic-rumba.cfg
+CONFIG /mnt/d/Rusti3D/kaliru/tests/cases/configs/wrap/generic-ultimaker-ultimainboard-v2.cfg
+CONFIG /mnt/d/Rusti3D/kaliru/tests/cases/configs/wrap/kit-zav3d-2019.cfg
+CONFIG /mnt/d/Rusti3D/kaliru/tests/cases/configs/wrap/printer-adimlab-2018.cfg
+CONFIG /mnt/d/Rusti3D/kaliru/tests/cases/configs/wrap/printer-anycubic-4max-2018.cfg
+CONFIG /mnt/d/Rusti3D/kaliru/tests/cases/configs/wrap/printer-anycubic-4maxpro-2.0-2021.cfg
+CONFIG /mnt/d/Rusti3D/kaliru/tests/cases/configs/wrap/printer-anycubic-i3-mega-2017.cfg
+CONFIG /mnt/d/Rusti3D/kaliru/tests/cases/configs/wrap/printer-anycubic-kossel-2016.cfg
+CONFIG /mnt/d/Rusti3D/kaliru/tests/cases/configs/wrap/printer-anycubic-kossel-plus-2017.cfg
+CONFIG /mnt/d/Rusti3D/kaliru/tests/cases/configs/wrap/printer-bq-hephestos-2014.cfg
+CONFIG /mnt/d/Rusti3D/kaliru/tests/cases/configs/wrap/printer-creality-cr10-v3-2020.cfg
+CONFIG /mnt/d/Rusti3D/kaliru/tests/cases/configs/wrap/printer-creality-cr10s-2017.cfg
+CONFIG /mnt/d/Rusti3D/kaliru/tests/cases/configs/wrap/printer-creality-cr10s-pro-v2-2020.cfg
+CONFIG /mnt/d/Rusti3D/kaliru/tests/cases/configs/wrap/printer-creality-cr20-2018.cfg
+CONFIG /mnt/d/Rusti3D/kaliru/tests/cases/configs/wrap/printer-creality-cr20-pro-2019.cfg
+CONFIG /mnt/d/Rusti3D/kaliru/tests/cases/configs/wrap/printer-creality-cr5pro-ht-2022.cfg
+CONFIG /mnt/d/Rusti3D/kaliru/tests/cases/configs/wrap/printer-creality-ender5plus-2019.cfg
+CONFIG /mnt/d/Rusti3D/kaliru/tests/cases/configs/wrap/printer-eryone-thinker-series-v2-2020.cfg
+CONFIG /mnt/d/Rusti3D/kaliru/tests/cases/configs/wrap/printer-flashforge-creator-pro-2018.cfg
+CONFIG /mnt/d/Rusti3D/kaliru/tests/cases/configs/wrap/printer-hiprecy-leo-2019.cfg
+CONFIG /mnt/d/Rusti3D/kaliru/tests/cases/configs/wrap/printer-longer-lk4-pro-2019.cfg
+CONFIG /mnt/d/Rusti3D/kaliru/tests/cases/configs/wrap/printer-lulzbot-mini1-2016.cfg
+CONFIG /mnt/d/Rusti3D/kaliru/tests/cases/configs/wrap/printer-lulzbot-mini2-2018.cfg
+CONFIG /mnt/d/Rusti3D/kaliru/tests/cases/configs/wrap/printer-lulzbot-taz6-2017.cfg
+CONFIG /mnt/d/Rusti3D/kaliru/tests/cases/configs/wrap/printer-lulzbot-taz6-dual-v3-2017.cfg
+CONFIG /mnt/d/Rusti3D/kaliru/tests/cases/configs/wrap/printer-makergear-m2-2012.cfg
+CONFIG /mnt/d/Rusti3D/kaliru/tests/cases/configs/wrap/printer-makergear-m2-2016.cfg
+CONFIG /mnt/d/Rusti3D/kaliru/tests/cases/configs/wrap/printer-micromake-d1-2016.cfg
+CONFIG /mnt/d/Rusti3D/kaliru/tests/cases/configs/wrap/printer-mtw-create-2015.cfg
+CONFIG /mnt/d/Rusti3D/kaliru/tests/cases/configs/wrap/printer-robo3d-r2-2017.cfg
+CONFIG /mnt/d/Rusti3D/kaliru/tests/cases/configs/wrap/printer-seemecnc-rostock-max-v2-2015.cfg
+CONFIG /mnt/d/Rusti3D/kaliru/tests/cases/configs/wrap/printer-sovol-sv01-2020.cfg
+CONFIG /mnt/d/Rusti3D/kaliru/tests/cases/configs/wrap/printer-sunlu-s8-2020.cfg
+CONFIG /mnt/d/Rusti3D/kaliru/tests/cases/configs/wrap/printer-tevo-flash-2018.cfg
+CONFIG /mnt/d/Rusti3D/kaliru/tests/cases/configs/wrap/printer-tevo-tarantula-pro-2020.cfg
+CONFIG /mnt/d/Rusti3D/kaliru/tests/cases/configs/wrap/printer-velleman-k8200-2013.cfg
+CONFIG /mnt/d/Rusti3D/kaliru/tests/cases/configs/wrap/printer-velleman-k8800-2017.cfg
+CONFIG /mnt/d/Rusti3D/kaliru/tests/cases/configs/wrap/printer-wanhao-duplicator-6-2016.cfg
+CONFIG /mnt/d/Rusti3D/kaliru/tests/cases/configs/wrap/printer-wanhao-duplicator-9-2018.cfg
+CONFIG /mnt/d/Rusti3D/kaliru/tests/cases/configs/wrap/printer-wanhao-duplicator-i3-mini-2017.cfg
+CONFIG /mnt/d/Rusti3D/kaliru/tests/cases/configs/wrap/printer-wanhao-duplicator-i3-plus-2017.cfg
+CONFIG /mnt/d/Rusti3D/kaliru/tests/cases/configs/wrap/printer-wanhao-duplicator-i3-plus-mark2-2019.cfg
+CONFIG /mnt/d/Rusti3D/kaliru/tests/cases/configs/wrap/sample-aliases.cfg
+
+DICTIONARY atmega2560.dict z=atmega2560.dict
+CONFIG /mnt/d/Rusti3D/kaliru/tests/cases/configs/wrap/kit-voron2-250mm.cfg
+
+DICTIONARY atmega644p.dict
+CONFIG /mnt/d/Rusti3D/kaliru/tests/cases/configs/wrap/generic-simulavr.cfg
+
+DICTIONARY hc32f460-serial-PA3PA2.dict
+CONFIG /mnt/d/Rusti3D/kaliru/tests/cases/configs/wrap/printer-anycubic-kobra-go-2022.cfg
+CONFIG /mnt/d/Rusti3D/kaliru/tests/cases/configs/wrap/printer-anycubic-kobra-plus-2022.cfg
+CONFIG /mnt/d/Rusti3D/kaliru/tests/cases/configs/wrap/printer-creality-ender2pro-hc32-2022.cfg
+
+DICTIONARY lpc1768.dict
+CONFIG /mnt/d/Rusti3D/kaliru/tests/cases/configs/wrap/generic-bigtreetech-skr-v1.1.cfg
+CONFIG /mnt/d/Rusti3D/kaliru/tests/cases/configs/wrap/generic-bigtreetech-skr-v1.3.cfg
+CONFIG /mnt/d/Rusti3D/kaliru/tests/cases/configs/wrap/generic-bigtreetech-skr-v1.4.cfg
+CONFIG /mnt/d/Rusti3D/kaliru/tests/cases/configs/wrap/generic-mks-sgenl.cfg
+CONFIG /mnt/d/Rusti3D/kaliru/tests/cases/configs/wrap/generic-re-arm.cfg
+
+DICTIONARY lpc1769.dict
+CONFIG /mnt/d/Rusti3D/kaliru/tests/cases/configs/wrap/generic-azteeg-x5-mini-v3.cfg
+CONFIG /mnt/d/Rusti3D/kaliru/tests/cases/configs/wrap/generic-bigtreetech-skr-e3-turbo.cfg
+CONFIG /mnt/d/Rusti3D/kaliru/tests/cases/configs/wrap/generic-smoothieboard.cfg
+CONFIG /mnt/d/Rusti3D/kaliru/tests/cases/configs/wrap/generic-th3d-ezboard-lite-v1.2.cfg
+
+DICTIONARY rp2040.dict
+CONFIG /mnt/d/Rusti3D/kaliru/tests/cases/configs/wrap/generic-bigtreetech-skr-pico-v1.0.cfg
+
+DICTIONARY sam3x8c.dict
+CONFIG /mnt/d/Rusti3D/kaliru/tests/cases/configs/wrap/generic-printrboard-g2.cfg
+
+DICTIONARY sam3x8e.dict
+CONFIG /mnt/d/Rusti3D/kaliru/tests/cases/configs/wrap/generic-alligator-r2.cfg
+CONFIG /mnt/d/Rusti3D/kaliru/tests/cases/configs/wrap/generic-alligator-r3.cfg
+CONFIG /mnt/d/Rusti3D/kaliru/tests/cases/configs/wrap/generic-archim2.cfg
+CONFIG /mnt/d/Rusti3D/kaliru/tests/cases/configs/wrap/generic-radds.cfg
+CONFIG /mnt/d/Rusti3D/kaliru/tests/cases/configs/wrap/generic-ruramps-v1.3.cfg
+
+DICTIONARY sam4e8e.dict
+CONFIG /mnt/d/Rusti3D/kaliru/tests/cases/configs/wrap/generic-duet2.cfg
+CONFIG /mnt/d/Rusti3D/kaliru/tests/cases/configs/wrap/printer-modix-big60-2020.cfg
+
+DICTIONARY same54p20.dict
+CONFIG /mnt/d/Rusti3D/kaliru/tests/cases/configs/wrap/generic-duet3-mini.cfg
+
+DICTIONARY same70q20b.dict
+CONFIG /mnt/d/Rusti3D/kaliru/tests/cases/configs/wrap/generic-duet3-6hc.cfg
+CONFIG /mnt/d/Rusti3D/kaliru/tests/cases/configs/wrap/generic-duet3-6xd.cfg
+
+DICTIONARY stm32F072.dict EBBCan=stm32F072.dict
+CONFIG /mnt/d/Rusti3D/kaliru/tests/cases/configs/wrap/sample-bigtreetech-ebb-canbus-v1.0.cfg
+
+DICTIONARY stm32F072.dict HermitCrab=stm32F072.dict
+CONFIG /mnt/d/Rusti3D/kaliru/tests/cases/configs/wrap/sample-bigtreetech-hermit-crab-canbus.cfg
+
+DICTIONARY stm32f070.dict
+CONFIG /mnt/d/Rusti3D/kaliru/tests/cases/configs/wrap/printer-monoprice-mini-delta-2017.cfg
+CONFIG /mnt/d/Rusti3D/kaliru/tests/cases/configs/wrap/printer-monoprice-select-mini-v2-2018.cfg
+
+DICTIONARY stm32f103-serial.dict
+CONFIG /mnt/d/Rusti3D/kaliru/tests/cases/configs/wrap/generic-fysetc-cheetah-v1.2.cfg
+CONFIG /mnt/d/Rusti3D/kaliru/tests/cases/configs/wrap/generic-mks-robin-e3.cfg
+CONFIG /mnt/d/Rusti3D/kaliru/tests/cases/configs/wrap/generic-mks-robin-nano-v1.cfg
+CONFIG /mnt/d/Rusti3D/kaliru/tests/cases/configs/wrap/generic-mks-robin-nano-v2.cfg
+CONFIG /mnt/d/Rusti3D/kaliru/tests/cases/configs/wrap/printer-elegoo-neptune2-2021.cfg
+CONFIG /mnt/d/Rusti3D/kaliru/tests/cases/configs/wrap/printer-eryone-er20-2021.cfg
+CONFIG /mnt/d/Rusti3D/kaliru/tests/cases/configs/wrap/printer-flsun-q5-2020.cfg
+CONFIG /mnt/d/Rusti3D/kaliru/tests/cases/configs/wrap/printer-flsun-qqs-2020.cfg
+CONFIG /mnt/d/Rusti3D/kaliru/tests/cases/configs/wrap/printer-fokoos-odin5-f3-2021.cfg
+CONFIG /mnt/d/Rusti3D/kaliru/tests/cases/configs/wrap/printer-geeetech-301-2019.cfg
+CONFIG /mnt/d/Rusti3D/kaliru/tests/cases/configs/wrap/printer-kingroon-kp3s-2020.cfg
+CONFIG /mnt/d/Rusti3D/kaliru/tests/cases/configs/wrap/printer-monoprice-select-mini-v1-2016.cfg
+CONFIG /mnt/d/Rusti3D/kaliru/tests/cases/configs/wrap/printer-tronxy-x5sa-pro-2020.cfg
+CONFIG /mnt/d/Rusti3D/kaliru/tests/cases/configs/wrap/printer-tronxy-x5sa-v6-2019.cfg
+CONFIG /mnt/d/Rusti3D/kaliru/tests/cases/configs/wrap/printer-tronxy-xy-2-Pro-2020.cfg
+CONFIG /mnt/d/Rusti3D/kaliru/tests/cases/configs/wrap/printer-twotrees-sapphire-plus-sp-5-v1-2020.cfg
+CONFIG /mnt/d/Rusti3D/kaliru/tests/cases/configs/wrap/printer-twotrees-sapphire-plus-sp-5-v1.1-2021.cfg
+CONFIG /mnt/d/Rusti3D/kaliru/tests/cases/configs/wrap/printer-twotrees-sapphire-pro-sp-3-2020.cfg
+
+DICTIONARY stm32f103.dict
+CONFIG /mnt/d/Rusti3D/kaliru/tests/cases/configs/wrap/generic-bigtreetech-skr-cr6-v1.0.cfg
+CONFIG /mnt/d/Rusti3D/kaliru/tests/cases/configs/wrap/generic-bigtreetech-skr-e3-dip.cfg
+CONFIG /mnt/d/Rusti3D/kaliru/tests/cases/configs/wrap/generic-bigtreetech-skr-mini-e3-v1.0.cfg
+CONFIG /mnt/d/Rusti3D/kaliru/tests/cases/configs/wrap/generic-bigtreetech-skr-mini-e3-v1.2.cfg
+CONFIG /mnt/d/Rusti3D/kaliru/tests/cases/configs/wrap/generic-bigtreetech-skr-mini-e3-v2.0.cfg
+CONFIG /mnt/d/Rusti3D/kaliru/tests/cases/configs/wrap/generic-bigtreetech-skr-mini-mz.cfg
+CONFIG /mnt/d/Rusti3D/kaliru/tests/cases/configs/wrap/generic-bigtreetech-skr-mini.cfg
+CONFIG /mnt/d/Rusti3D/kaliru/tests/cases/configs/wrap/generic-creality-v4.2.10.cfg
+CONFIG /mnt/d/Rusti3D/kaliru/tests/cases/configs/wrap/generic-creality-v4.2.7.cfg
+CONFIG /mnt/d/Rusti3D/kaliru/tests/cases/configs/wrap/generic-fysetc-cheetah-v1.1.cfg
+CONFIG /mnt/d/Rusti3D/kaliru/tests/cases/configs/wrap/printer-alfawise-u30-2018.cfg
+CONFIG /mnt/d/Rusti3D/kaliru/tests/cases/configs/wrap/printer-anycubic-vyper-2021.cfg
+CONFIG /mnt/d/Rusti3D/kaliru/tests/cases/configs/wrap/printer-creality-cr10-smart-pro-2022.cfg
+CONFIG /mnt/d/Rusti3D/kaliru/tests/cases/configs/wrap/printer-creality-cr30-2021.cfg
+CONFIG /mnt/d/Rusti3D/kaliru/tests/cases/configs/wrap/printer-creality-cr6se-2020.cfg
+CONFIG /mnt/d/Rusti3D/kaliru/tests/cases/configs/wrap/printer-creality-cr6se-2021.cfg
+CONFIG /mnt/d/Rusti3D/kaliru/tests/cases/configs/wrap/printer-creality-ender2pro-2021.cfg
+CONFIG /mnt/d/Rusti3D/kaliru/tests/cases/configs/wrap/printer-creality-ender3-s1-2021.cfg
+CONFIG /mnt/d/Rusti3D/kaliru/tests/cases/configs/wrap/printer-creality-ender3-s1plus-2022.cfg
+CONFIG /mnt/d/Rusti3D/kaliru/tests/cases/configs/wrap/printer-creality-ender3-v2-2020.cfg
+CONFIG /mnt/d/Rusti3D/kaliru/tests/cases/configs/wrap/printer-creality-ender3-v2-neo-2022.cfg
+CONFIG /mnt/d/Rusti3D/kaliru/tests/cases/configs/wrap/printer-creality-ender3max-2021.cfg
+CONFIG /mnt/d/Rusti3D/kaliru/tests/cases/configs/wrap/printer-creality-ender3pro-2020.cfg
+CONFIG /mnt/d/Rusti3D/kaliru/tests/cases/configs/wrap/printer-creality-ender5pro-2020.cfg
+CONFIG /mnt/d/Rusti3D/kaliru/tests/cases/configs/wrap/printer-creality-ender6-2020.cfg
+CONFIG /mnt/d/Rusti3D/kaliru/tests/cases/configs/wrap/printer-creality-sermoonD1-2021.cfg
+CONFIG /mnt/d/Rusti3D/kaliru/tests/cases/configs/wrap/printer-longer-lk4x-2022.cfg
+CONFIG /mnt/d/Rusti3D/kaliru/tests/cases/configs/wrap/printer-sovol-sv05-2022.cfg
+CONFIG /mnt/d/Rusti3D/kaliru/tests/cases/configs/wrap/printer-sovol-sv06-2022.cfg
+CONFIG /mnt/d/Rusti3D/kaliru/tests/cases/configs/wrap/printer-sunlu-t3-2022.cfg
+CONFIG /mnt/d/Rusti3D/kaliru/tests/cases/configs/wrap/printer-voxelab-aquila-2021.cfg
+
+DICTIONARY stm32f103.dict huvud=stm32f103.dict
+CONFIG /mnt/d/Rusti3D/kaliru/tests/cases/configs/wrap/sample-huvud-v0.61.cfg
+
+DICTIONARY stm32f401.dict
+CONFIG /mnt/d/Rusti3D/kaliru/tests/cases/configs/wrap/printer-creality-sermoonV1-2022.cfg
+
+DICTIONARY stm32f405.dict
+CONFIG /mnt/d/Rusti3D/kaliru/tests/cases/configs/wrap/generic-mellow-fly-gemini-v1.cfg
+CONFIG /mnt/d/Rusti3D/kaliru/tests/cases/configs/wrap/generic-mellow-fly-gemini-v2.cfg
+CONFIG /mnt/d/Rusti3D/kaliru/tests/cases/configs/wrap/generic-th3d-ezboard-lite-v2.0.cfg
+CONFIG /mnt/d/Rusti3D/kaliru/tests/cases/configs/wrap/generic-th3d-ezboard-v2.0.cfg
+
+DICTIONARY stm32f407.dict
+CONFIG /mnt/d/Rusti3D/kaliru/tests/cases/configs/wrap/generic-bigtreetech-e3-rrf-v1.1.cfg
+CONFIG /mnt/d/Rusti3D/kaliru/tests/cases/configs/wrap/generic-bigtreetech-gtr.cfg
+CONFIG /mnt/d/Rusti3D/kaliru/tests/cases/configs/wrap/generic-bigtreetech-skr-2.cfg
+CONFIG /mnt/d/Rusti3D/kaliru/tests/cases/configs/wrap/generic-bigtreetech-skr-pro.cfg
+CONFIG /mnt/d/Rusti3D/kaliru/tests/cases/configs/wrap/generic-flyboard.cfg
+CONFIG /mnt/d/Rusti3D/kaliru/tests/cases/configs/wrap/generic-mellow-fly-cdy-v3.cfg
+CONFIG /mnt/d/Rusti3D/kaliru/tests/cases/configs/wrap/generic-mellow-super-infinty-hv.cfg
+CONFIG /mnt/d/Rusti3D/kaliru/tests/cases/configs/wrap/generic-mks-monster8.cfg
+CONFIG /mnt/d/Rusti3D/kaliru/tests/cases/configs/wrap/generic-mks-robin-nano-v3.cfg
+CONFIG /mnt/d/Rusti3D/kaliru/tests/cases/configs/wrap/generic-prusa-buddy.cfg
+CONFIG /mnt/d/Rusti3D/kaliru/tests/cases/configs/wrap/printer-biqu-b1-se-plus-2022.cfg
+CONFIG /mnt/d/Rusti3D/kaliru/tests/cases/configs/wrap/printer-prusa-mini-plus-2020.cfg
+
+DICTIONARY stm32f429.dict
+CONFIG /mnt/d/Rusti3D/kaliru/tests/cases/configs/wrap/generic-bigtreetech-octopus-pro-v1.0.cfg
+
+DICTIONARY stm32f446.dict
+CONFIG /mnt/d/Rusti3D/kaliru/tests/cases/configs/wrap/generic-fysetc-s6-v2.cfg
+CONFIG /mnt/d/Rusti3D/kaliru/tests/cases/configs/wrap/generic-fysetc-s6.cfg
+CONFIG /mnt/d/Rusti3D/kaliru/tests/cases/configs/wrap/generic-fysetc-spider.cfg
+CONFIG /mnt/d/Rusti3D/kaliru/tests/cases/configs/wrap/generic-mks-rumba32-v1.0.cfg
+CONFIG /mnt/d/Rusti3D/kaliru/tests/cases/configs/wrap/printer-ratrig-v-minion-2021.cfg
+
+DICTIONARY stm32f765.dict
+CONFIG /mnt/d/Rusti3D/kaliru/tests/cases/configs/wrap/generic-remram.cfg
+
+DICTIONARY stm32g0b1.dict
+CONFIG /mnt/d/Rusti3D/kaliru/tests/cases/configs/wrap/generic-bigtreetech-manta-e3ez.cfg
+CONFIG /mnt/d/Rusti3D/kaliru/tests/cases/configs/wrap/generic-bigtreetech-manta-m4p.cfg
+CONFIG /mnt/d/Rusti3D/kaliru/tests/cases/configs/wrap/generic-bigtreetech-manta-m5p.cfg
+CONFIG /mnt/d/Rusti3D/kaliru/tests/cases/configs/wrap/generic-bigtreetech-manta-m8p-v1.0.cfg
+CONFIG /mnt/d/Rusti3D/kaliru/tests/cases/configs/wrap/generic-bigtreetech-manta-m8p-v1.1.cfg
+CONFIG /mnt/d/Rusti3D/kaliru/tests/cases/configs/wrap/generic-bigtreetech-skr-mini-e3-v3.0.cfg
+
+DICTIONARY stm32g0b1.dict EBBCan=stm32g0b1.dict
+CONFIG /mnt/d/Rusti3D/kaliru/tests/cases/configs/wrap/sample-bigtreetech-ebb-canbus-v1.1.cfg
+CONFIG /mnt/d/Rusti3D/kaliru/tests/cases/configs/wrap/sample-bigtreetech-ebb-canbus-v1.2.cfg
+CONFIG /mnt/d/Rusti3D/kaliru/tests/cases/configs/wrap/sample-bigtreetech-ebb-sb-canbus-v1.0.cfg
+
+DICTIONARY stm32h723.dict
+CONFIG /mnt/d/Rusti3D/kaliru/tests/cases/configs/wrap/generic-bigtreetech-octopus-max-ez.cfg
+CONFIG /mnt/d/Rusti3D/kaliru/tests/cases/configs/wrap/generic-bigtreetech-skr-3.cfg
+
+DICTIONARY stm32h743.dict
+CONFIG /mnt/d/Rusti3D/kaliru/tests/cases/configs/wrap/printer-biqu-bx-2021.cfg
+
+# skipped example.cfg: no known mcu in the header
+# skipped generic-cramps.cfg: no known mcu in the header
+# skipped generic-replicape.cfg: no known mcu in the header
+# skipped sample-bigtreetech-exp-mot.cfg: no known mcu in the header
+# skipped sample-duet3-1lc.cfg: no known mcu in the header
+# skipped sample-glyphs.cfg: no known mcu in the header
+# skipped sample-idex.cfg: no known mcu in the header
+# skipped sample-lcd.cfg: no known mcu in the header
+# skipped sample-macros.cfg: no known mcu in the header
+# skipped sample-mixing-extruder.cfg: no known mcu in the header
+# skipped sample-mmu2s-diy.cfg: no known mcu in the header
+# skipped sample-multi-extruder.cfg: no known mcu in the header
+# skipped sample-probe-as-z-endstop.cfg: no known mcu in the header
+# skipped sample-pwm-tool.cfg: no known mcu in the header
+# skipped sample-raspberry-pi.cfg: no known mcu in the header

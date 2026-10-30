@@ -3,7 +3,10 @@ import _k
 
 
 def read_dictionary(filename):
-    return _k.fcall(6951, filename)
+    dfile = open(filename, "rb")
+    dictionary = dfile.read()
+    dfile.close()
+    return dictionary
 
 def main():
     return _k.fcall(6952)

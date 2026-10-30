@@ -28,9 +28,13 @@ pub const REPORT_TIME: f64 = 0.300;
 pub const RANGE_CHECK_COUNT: i64 = 4;
 
 /// an adc value <-> temperature converter (thermistor, linear tables)
-pub trait AdcConvert {
+pub trait AdcConvert: std::any::Any {
     fn calc_temp(&self, adc: f64) -> KResult<f64>;
     fn calc_adc(&self, temp: f64) -> KResult<f64>;
+    /// the Rust type's path (python plugins find the Kalico class by it)
+    fn type_name(&self) -> &'static str {
+        std::any::type_name::<Self>()
+    }
 }
 
 /// python's ValueError("math domain error")
@@ -40,7 +44,7 @@ pub fn math_domain_error() -> KError {
 
 // Interface between ADC and heater temperature callbacks
 pub struct PrinterADCtoTemperature {
-    adc_convert: Rc<dyn AdcConvert>,
+    pub adc_convert: Rc<dyn AdcConvert>,
     pub mcu_adc: Rc<dyn AdcPin>,
     pub diag_helper: Rc<HelperTemperatureDiagnostics>,
     pub temperature_callback: RefCell<Option<TempCallback>>,
@@ -103,9 +107,9 @@ pub type CalcTempCb = Rc<dyn Fn(f64) -> KResult<f64>>;
 pub struct HelperTemperatureDiagnostics {
     pub name: String,
     pub mcu_adc: Rc<dyn AdcPin>,
-    calc_temp_cb: CalcTempCb,
+    pub calc_temp_cb: CalcTempCb,
     /// (min_temp, max_temp, min_adc, max_adc) once setup_diag_minmax ran
-    minmax: Cell<Option<(f64, f64, f64, f64)>>,
+    pub minmax: Cell<Option<(f64, f64, f64, f64)>>,
 }
 
 impl HelperTemperatureDiagnostics {
@@ -219,7 +223,7 @@ impl LinearInterpolate {
 
 // Linear style conversion chips calibrated from temperature measurements
 pub struct LinearVoltage {
-    li: LinearInterpolate,
+    pub li: Rc<LinearInterpolate>,
 }
 
 impl LinearVoltage {
@@ -237,7 +241,7 @@ impl LinearVoltage {
         }
         let li = LinearInterpolate::new(&samples)
             .map_err(|e| KError::config(format!("adc_temperature {} in heater {}", e, config.get_name())).with_context(KError::Py("ValueError".into(), e.to_string())))?;
-        Ok(LinearVoltage { li })
+        Ok(LinearVoltage { li: Rc::new(li) })
     }
 }
 
@@ -276,7 +280,7 @@ pub fn custom_name(config: &ConfigWrapper) -> String {
 pub struct LinearResistance {
     pub pullup: f64,
     pub inline_resistor: f64,
-    li: LinearInterpolate,
+    pub li: Rc<LinearInterpolate>,
 }
 
 impl LinearResistance {
@@ -286,7 +290,7 @@ impl LinearResistance {
         let rt: Vec<(f64, f64)> = samples.iter().map(|&(t, r)| (r, t)).collect();
         let li = LinearInterpolate::new(&rt)
             .map_err(|e| KError::config(format!("adc_temperature {} in heater {}", e, config.get_name())).with_context(KError::Py("ValueError".into(), e.to_string())))?;
-        Ok(LinearResistance { pullup, inline_resistor, li })
+        Ok(LinearResistance { pullup, inline_resistor, li: Rc::new(li) })
     }
 }
 
@@ -345,6 +349,38 @@ fn resistance_factory(samples: Vec<(f64, f64)>) -> crate::extras::heaters::Senso
     })
 }
 
+// A custom [adc_temperature] section: voltage pairs
+pub struct CustomLinearVoltage {
+    pub name: String,
+    pub params: Vec<(f64, f64)>,
+}
+
+impl CustomLinearVoltage {
+    pub fn new(config: &ConfigWrapper) -> KResult<Self> {
+        Ok(CustomLinearVoltage { name: custom_name(config), params: read_pairs(config, "voltage")? })
+    }
+
+    pub fn create(&self, config: &ConfigWrapper) -> KResult<Rc<PrinterADCtoTemperature>> {
+        PrinterADCtoTemperature::new(config, Rc::new(LinearVoltage::new(config, &self.params)?))
+    }
+}
+
+// A custom [adc_temperature] section: resistance pairs
+pub struct CustomLinearResistance {
+    pub name: String,
+    pub samples: Vec<(f64, f64)>,
+}
+
+impl CustomLinearResistance {
+    pub fn new(config: &ConfigWrapper) -> KResult<Self> {
+        Ok(CustomLinearResistance { name: custom_name(config), samples: read_pairs(config, "resistance")? })
+    }
+
+    pub fn create(&self, config: &ConfigWrapper) -> KResult<Rc<PrinterADCtoTemperature>> {
+        PrinterADCtoTemperature::new(config, Rc::new(LinearResistance::new(config, &self.samples)?))
+    }
+}
+
 pub fn load_config(config: &ConfigWrapper) -> KResult<PObj> {
     // Register default sensors
     let pheaters = load_heaters(config)?;
@@ -356,13 +392,12 @@ pub fn load_config(config: &ConfigWrapper) -> KResult<PObj> {
 }
 
 pub fn load_config_prefix(config: &ConfigWrapper) -> KResult<PObj> {
-    let name = custom_name(config);
-    let factory = if config.get_opt("resistance1")?.is_none() {
-        // CustomLinearVoltage
-        voltage_factory(read_pairs(config, "voltage")?)
+    let (name, factory) = if config.get_opt("resistance1")?.is_none() {
+        let c = CustomLinearVoltage::new(config)?;
+        (c.name, voltage_factory(c.params))
     } else {
-        // CustomLinearResistance
-        resistance_factory(read_pairs(config, "resistance")?)
+        let c = CustomLinearResistance::new(config)?;
+        (c.name, resistance_factory(c.samples))
     };
     let pheaters = load_heaters(config)?;
     pheaters.add_sensor_factory(&name, factory);

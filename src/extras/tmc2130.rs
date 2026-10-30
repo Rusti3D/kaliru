@@ -168,7 +168,7 @@ impl McuTmcSpiChain {
         Ok(((pr[1] as i64) << 24) | ((pr[2] as i64) << 16) | ((pr[3] as i64) << 8) | pr[4] as i64)
     }
 
-    fn reg_read(&self, reg: i64, chain_pos: i64) -> KResult<RawRead> {
+    pub fn reg_read(&self, reg: i64, chain_pos: i64) -> KResult<RawRead> {
         let cmd = self.build_cmd(&[reg as u8, 0x00, 0x00, 0x00, 0x00], chain_pos);
         self.spi.spi_send(&cmd, 0, 0)?;
         if self.printer.start_arg("debugoutput").is_some() {

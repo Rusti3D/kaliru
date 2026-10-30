@@ -22,7 +22,7 @@ pub struct McuCounter {
     pub poll_time: f64,
     pub poll_ticks: Cell<i64>,
     pub sample_time: f64,
-    callback: RefCell<Option<CounterCallback>>,
+    pub callback: RefCell<Option<CounterCallback>>,
     pub last_count: Cell<i64>,
 }
 

@@ -88,7 +88,7 @@ pub struct EnableTracking {
     me: std::rc::Weak<EnableTracking>,
     pub stepper: Rc<McuStepper>,
     pub enable: Rc<StepperEnablePin>,
-    callbacks: RefCell<Vec<StateCallback>>,
+    pub callbacks: RefCell<Vec<StateCallback>>,
     pub is_enabled: Cell<bool>,
 }
 

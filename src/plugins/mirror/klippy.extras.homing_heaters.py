@@ -9,7 +9,12 @@ class HomingHeaters(_k.Object):
     def handle_connect(self):
         return _k.call(self, 2416)
     def check_eligible(self, endstops):
-        return _k.call(self, 2417, endstops)
+        if self.flaky_steppers is None:
+            return True
+        steppers_being_homed = [
+            s.get_name() for es in endstops for s in es.get_steppers()
+        ]
+        return any(x in self.flaky_steppers for x in steppers_being_homed)
     def handle_homing_move_begin(self, hmove):
         return _k.call(self, 2418, hmove)
     def handle_homing_move_end(self, hmove):

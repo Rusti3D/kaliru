@@ -216,7 +216,8 @@ pub fn register(r: &mut Registry) {
         crate::kinematics::none::NoneKinematics,
         crate::kinematics::polar::PolarKinematics,
         crate::kinematics::rotary_delta::RotaryDeltaKinematics,
-        crate::kinematics::winch::WinchKinematics
+        crate::kinematics::winch::WinchKinematics,
+        crate::extras::trad_rack::TradRackKinematics
     );
 
     kin_class!(r, "klippy.kinematics.cartesian.CartKinematics");
@@ -252,6 +253,7 @@ pub fn register(r: &mut Registry) {
     kin_class!(r, "klippy.kinematics.polar.PolarKinematics");
     kin_class!(r, "klippy.kinematics.rotary_delta.RotaryDeltaKinematics");
     kin_class!(r, "klippy.kinematics.winch.WinchKinematics");
+    kin_class!(r, "klippy.extras.trad_rack.TradRackKinematics");
     cart_class!(r, "klippy.kinematics.cartesian.CartKinematics");
     cart_class!(r, "klippy.kinematics.corexy.CoreXYKinematics");
     cart_class!(r, "klippy.kinematics.corexz.CoreXZKinematics");
@@ -274,4 +276,97 @@ pub fn register(r: &mut Registry) {
     load_kinematics!(r, "polar");
     load_kinematics!(r, "rotary_delta");
     load_kinematics!(r, "winch");
+
+    // ---- delta / rotary delta calibration objects
+    fn calibration(o: &PyRef) -> KResult<Option<Rc<dyn crate::kinematics::delta::Calibration>>> {
+        Ok(kin(o)?.get_calibration())
+    }
+    fn calibration_to_py(c: Rc<dyn crate::kinematics::delta::Calibration>) -> KResult<PyRef> {
+        let name = c.type_name();
+        let any: Rc<dyn Any> = c;
+        objects::wrap_any(any, name)
+    }
+    method(r, "klippy.kinematics.delta.DeltaKinematics.get_calibration", |a| match calibration(a.slf.as_ref().expect("method"))? {
+        Some(c) => calibration_to_py(c),
+        None => Ok(py_none()),
+    });
+    method(r, "klippy.kinematics.rotary_delta.RotaryDeltaKinematics.get_calibration", |a| match calibration(a.slf.as_ref().expect("method"))? {
+        Some(c) => calibration_to_py(c),
+        None => Ok(py_none()),
+    });
+    // the towers' absolute endstop positions (the calibration's)
+    attr(r, "klippy.kinematics.delta.DeltaKinematics.abs_endstops", |o| {
+        let c = calibration(o)?.ok_or_else(|| KError::Py("AttributeError".into(), "abs_endstops".into()))?;
+        let any: Rc<dyn Any> = c;
+        match any.downcast::<crate::kinematics::delta::DeltaCalibration>() {
+            Ok(d) => d.abs_endstops.clone().to_py(),
+            Err(_) => Err(KError::Py("AttributeError".into(), "abs_endstops".into())),
+        }
+    }, None);
+
+    // ---- hybrid corexy / corexz: corexy_mode (bytes signs), inverted, dc_module
+    fn hybrid_inverted(o: &PyRef) -> KResult<bool> {
+        use crate::kinematics::cartesian::Kind;
+        match cart(o)?.kind {
+            Kind::HybridCoreXY { inverted } | Kind::HybridCoreXZ { inverted } => Ok(inverted),
+            _ => Err(KError::Py("AttributeError".into(), "inverted".into())),
+        }
+    }
+    fn corexy_mode(o: &PyRef) -> KResult<PyRef> {
+        let (a, b) = if hybrid_inverted(o)? { ("+", "-") } else { ("-", "+") };
+        let bytes = lookup("builtins", "bytes")?;
+        Ok(py_tuple(vec![bytes.call(&[&py_str(a), &py_str("ascii")])?, bytes.call(&[&py_str(b), &py_str("ascii")])?]))
+    }
+    attr(r, "klippy.kinematics.hybrid_corexy.HybridCoreXYKinematics.inverted", |o| Ok(py_bool(hybrid_inverted(o)?)), None);
+    attr(r, "klippy.kinematics.hybrid_corexz.HybridCoreXZKinematics.inverted", |o| Ok(py_bool(hybrid_inverted(o)?)), None);
+    attr(r, "klippy.kinematics.hybrid_corexy.HybridCoreXYKinematics.corexy_mode", corexy_mode, None);
+    attr(r, "klippy.kinematics.hybrid_corexz.HybridCoreXZKinematics.corexy_mode", corexy_mode, None);
+    attr(r, "klippy.kinematics.hybrid_corexy.HybridCoreXYKinematics.dc_module", |o| cart(o)?.dc_module.clone().to_py(), None);
+    attr(r, "klippy.kinematics.hybrid_corexz.HybridCoreXZKinematics.dc_module", |o| cart(o)?.dc_module.clone().to_py(), None);
+
+    // ---- idex_modes
+    {
+        use crate::kinematics::idex_modes::{mode_of, DualCarriages, DualCarriagesRail};
+        // {name: {"carriage_modes": [...], "axes_positions": [...]}}
+        attr(r, "klippy.kinematics.idex_modes.DualCarriages.saved_states", |o| {
+            let d = lookup("builtins", "dict")?.call(&[])?;
+            for (name, s) in objects::unwrap_as::<DualCarriages>(o)?.saved_states.borrow().iter() {
+                let e = lookup("builtins", "dict")?.call(&[])?;
+                e.call_method("__setitem__", &[&py_str("carriage_modes"), &s.carriage_modes.iter().map(|m| m.to_string()).collect::<Vec<_>>().to_py()?])?;
+                e.call_method("__setitem__", &[&py_str("axes_positions"), &s.axes_positions.clone().to_py()?])?;
+                d.call_method("__setitem__", &[&py_str(name), &e])?;
+            }
+            Ok(d)
+        }, None);
+        method(r, "klippy.kinematics.idex_modes.DualCarriages.activate_dc_mode", |a| {
+            a.this::<DualCarriages>()?.activate_dc_mode(a.arg(0).as_i64()? as usize, mode_of(&a.string(1)?))?;
+            Ok(py_none())
+        });
+        // activate(mode, position, old_position=None)
+        method(r, "klippy.kinematics.idex_modes.DualCarriagesRail.activate", |a| {
+            let position: Vec<f64> = FromPy::from_py(a.arg(1))?;
+            let old: Option<Vec<f64>> = if a.arg(2).is_none() { None } else { Some(FromPy::from_py(a.arg(2))?) };
+            a.this::<DualCarriagesRail>()?.activate(mode_of(&a.string(0)?), &position, old.as_deref());
+            Ok(py_none())
+        });
+    }
+
+    // ---- rotary delta calibration (kaliru's chelper math)
+    {
+        use crate::kinematics::delta::Calibration;
+        use crate::kinematics::rotary_delta::RotaryDeltaCalibration;
+        method(r, "klippy.kinematics.rotary_delta.RotaryDeltaCalibration.get_position_from_stable", |a| {
+            let sp: Vec<f64> = FromPy::from_py(a.arg(0))?;
+            a.this::<RotaryDeltaCalibration>()?.get_position_from_stable(&sp).map_err(crate::kinematics::delta::math_kerror)?.to_vec().to_py()
+        });
+        method(r, "klippy.kinematics.rotary_delta.RotaryDeltaCalibration.calc_stable_position", |a| {
+            let coord: Vec<f64> = FromPy::from_py(a.arg(0))?;
+            a.this::<RotaryDeltaCalibration>()?.calc_stable_position(&coord).map_err(crate::kinematics::delta::math_kerror)?.to_py()
+        });
+        // chelper's ffi_lib
+        attr(r, "klippy.kinematics.rotary_delta.RotaryDeltaCalibration.ffi_lib", |o| {
+            objects::unwrap_as::<RotaryDeltaCalibration>(o)?;
+            lookup("klippy.chelper", "get_ffi")?.call(&[])?.call_method("__getitem__", &[&py_int(1)])
+        }, None);
+    }
 }

@@ -35,9 +35,15 @@ class ReactorCompletion(_k.Object):
 class ReactorCallback(_k.Object):
     __kaliru_mirror__ = True
     def __init__(self, reactor, callback, waketime):
-        _k.new(self, 7043, reactor, callback, waketime)
+        self.reactor = reactor
+        self.timer = reactor.register_timer(self.invoke, waketime)
+        self.callback = callback
+        self.completion = ReactorCompletion(reactor)
     def invoke(self, eventtime):
-        return _k.call(self, 7044, eventtime)
+        self.reactor.unregister_timer(self.timer)
+        res = self.callback(eventtime)
+        self.completion.complete(res)
+        return self.reactor.NEVER
     callback = _k.Attr(7045, 'callback')
     completion = _k.Attr(7046, 'completion')
     reactor = _k.Attr(7047, 'reactor')

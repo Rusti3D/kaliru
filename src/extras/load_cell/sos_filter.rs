@@ -46,6 +46,8 @@ fn design_error(msg: String) -> KError {
 pub struct DigitalFilter {
     pub filter_sections: Vec<[f64; 6]>,
     pub initial_state: Vec<[f64; 2]>,
+    /// float(sps)
+    pub sample_frequency: f64,
 }
 
 impl DigitalFilter {
@@ -62,7 +64,7 @@ impl DigitalFilter {
         notches: &[f64],
         notch_quality: f64,
     ) -> KResult<Self> {
-        let mut f = DigitalFilter::default();
+        let mut f = DigitalFilter { sample_frequency: sps, ..Default::default() };
         let sample_frequency = sps;
         // an empty filter can be created without SciPi/numpy
         let truthy = |v: Option<f64>| v.is_some_and(|v| v != 0.0);

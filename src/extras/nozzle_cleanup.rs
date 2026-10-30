@@ -105,9 +105,9 @@ const CMD_NOZZLE_CLEANUP_HELP: &str = "Run nozzle cleanup";
 pub struct NozzleCleanup {
     pub printer: Rc<Printer>,
     pub probe: Rc<PrinterProbe>,
-    options: NozzleCleanupOptions,
-    _retry_policy: RetryPolicy,
-    nozzle_scrubber: GcodeNozzleScrubber,
+    pub options: Rc<NozzleCleanupOptions>,
+    pub retry_policy: Rc<RetryPolicy>,
+    pub nozzle_scrubber: Rc<GcodeNozzleScrubber>,
 }
 
 impl NozzleCleanup {
@@ -127,10 +127,10 @@ impl NozzleCleanup {
         )?;
         let probe = probe_list_get_list(&printer)?.get_config_probe(config, None)?;
         let probe = probe.as_ref().and_then(as_printer_probe).ok_or_else(|| KError::Other("'NoneType' object has no attribute 'speed'".into()))?;
-        let options = NozzleCleanupOptions::new(&probe, config)?;
-        let retry_policy = RetryPolicy::new(config)?;
-        let nozzle_scrubber = GcodeNozzleScrubber::new(config)?;
-        let n = Rc::new(NozzleCleanup { printer, probe, options, _retry_policy: retry_policy, nozzle_scrubber });
+        let options = Rc::new(NozzleCleanupOptions::new(&probe, config)?);
+        let retry_policy = Rc::new(RetryPolicy::new(config)?);
+        let nozzle_scrubber = Rc::new(GcodeNozzleScrubber::new(config)?);
+        let n = Rc::new(NozzleCleanup { printer, probe, options, retry_policy, nozzle_scrubber });
         *slot.borrow_mut() = Rc::downgrade(&n);
         Ok(n)
     }

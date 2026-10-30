@@ -24,11 +24,13 @@ const RPI_PROC_TEMP_FILE: &str = "/sys/class/thermal/thermal_zone0/temp";
 
 pub struct TemperatureHost {
     pub printer: Rc<Printer>,
+    pub name: String,
+    pub path: String,
     pub temp: Cell<f64>,
     pub min_temp: Cell<f64>,
     pub max_temp: Cell<f64>,
     pub sample_timer: RefCell<Option<Timer>>,
-    file_handle: RefCell<Option<std::fs::File>>,
+    pub file_handle: RefCell<Option<std::fs::File>>,
     pub callback: RefCell<Option<TempCallback>>,
 }
 
@@ -39,6 +41,8 @@ impl TemperatureHost {
         let path = config.get("sensor_path", RPI_PROC_TEMP_FILE)?;
         let s = Rc::new(TemperatureHost {
             printer: printer.clone(),
+            name: name.clone(),
+            path: path.clone(),
             temp: Cell::new(0.0),
             min_temp: Cell::new(0.0),
             max_temp: Cell::new(0.0),

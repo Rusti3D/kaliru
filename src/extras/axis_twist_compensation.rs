@@ -162,6 +162,9 @@ pub struct Calibrater {
     pub current_measured_z: Cell<f64>,
     pub current_axis: RefCell<String>,
     pub configname: String,
+    /// the probe's offsets (None until a calibration ran)
+    pub probe_x_offset: Cell<Option<f64>>,
+    pub probe_y_offset: Cell<Option<f64>>,
 }
 
 impl Calibrater {
@@ -187,6 +190,8 @@ impl Calibrater {
             current_measured_z: Cell::new(0.0),
             current_axis: RefCell::new(String::new()),
             configname: config.get_name().to_string(),
+            probe_x_offset: Cell::new(None),
+            probe_y_offset: Cell::new(None),
         });
         // register gcode handlers
         let w = c.me.clone();
@@ -212,6 +217,8 @@ impl Calibrater {
         let probe = probe.ok_or_else(|| KError::Other("'NoneType' object has no attribute 'get_lift_speed'".into()))?;
         self.lift_speed.set(probe.get_lift_speed(None)?);
         let (probe_x_offset, probe_y_offset, _) = probe.get_offsets();
+        self.probe_x_offset.set(Some(probe_x_offset));
+        self.probe_y_offset.set(Some(probe_y_offset));
         *self.probe.borrow_mut() = Some(probe);
 
         let sample_count = gcmd.get_int("SAMPLE_COUNT", Some(DEFAULT_SAMPLE_COUNT), Lim::new())?;

@@ -14,7 +14,7 @@ use std::cell::RefCell;
 use std::rc::{Rc, Weak};
 
 /// the pins a multi_pin drives
-enum McuPins {
+pub enum McuPins {
     None,
     Pwm(Vec<Rc<dyn PwmPin>>),
     Digital(Vec<Rc<dyn DigitalOutPin>>),
@@ -25,7 +25,7 @@ pub struct PrinterMultiPin {
     pub printer: Rc<Printer>,
     pub pin_type: RefCell<Option<String>>,
     pub pin_list: Vec<String>,
-    mcu_pins: RefCell<McuPins>,
+    pub mcu_pins: RefCell<McuPins>,
 }
 
 /// the "multi_pin" chip: setup_pin() goes to the "multi_pin <name>" object
@@ -62,7 +62,7 @@ impl PrinterMultiPin {
         }))
     }
 
-    fn setup_pin(&self, pin_type: &str, pin_params: &SharedPinParams) -> Result<Rc<dyn Any>, String> {
+    pub fn setup_pin(&self, pin_type: &str, pin_params: &SharedPinParams) -> Result<Rc<dyn Any>, String> {
         let pin_name = pin_params.borrow().pin.clone();
         if self.pin_type.borrow().is_some() {
             return Err(format!("Can't setup multi_pin {} twice", pin_name));

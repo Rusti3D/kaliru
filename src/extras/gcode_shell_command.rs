@@ -23,7 +23,7 @@ pub struct ShellCommand {
     pub command: Vec<String>,
     pub timeout: f64,
     pub verbose: bool,
-    proc_fd: Cell<Option<RawFd>>,
+    pub proc_fd: Cell<Option<RawFd>>,
     pub partial_output: RefCell<String>,
 }
 

@@ -18,7 +18,8 @@ class HeatedFan(_k.Object):
     def handle_ready(self):
         return _k.call(self, 2170)
     def handle_timeout_timer(self, eventtime):
-        return _k.call(self, 2171, eventtime)
+        self.fan.set_speed_from_command(self.set_speed)
+        return self.reactor.NEVER
     def callback(self, eventtime):
         return _k.call(self, 2172, eventtime)
     def get_status(self, eventtime):

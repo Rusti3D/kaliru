@@ -56,7 +56,7 @@ class KlippyPathFinder(importlib.machinery.PathFinder):
         return spec
 
 def install():
-    return _k.fcall(52)
+    KlippyPathFinder.install_hook()
 
 
 __getattr__ = _k.module_getattr(__name__)

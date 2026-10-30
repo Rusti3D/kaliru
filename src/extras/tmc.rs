@@ -515,6 +515,8 @@ pub struct TMCStallguardDump {
     pub mcu: Rc<Mcu>,
     pub fields: Rc<FieldHelper>,
     pub sg4_reg_name: Option<&'static str>,
+    pub stepper_name: String,
+    pub sg2_supp: bool,
     pub optimized_spi: Cell<bool>,
     pub samples: RefCell<Vec<(f64, i64, i64)>>,
     pub query_timer: RefCell<Option<Timer>>,
@@ -528,11 +530,16 @@ impl TMCStallguardDump {
         let stepper_name = config.get_name().split_whitespace().skip(1).collect::<Vec<_>>().join(" ");
         let fields = mcu_tmc.get_fields();
         let mut sg4_reg_name = None;
+        let mut sg2_supp = false;
         let mut active = true;
         // It is possible to support TMC2660, just disable it for now
         if fields.all_fields.get("DRV_STATUS").map(|f| f.is_empty()).unwrap_or(true) {
             active = false;
         } else {
+            // Collect driver capabilities
+            if fields.all_fields.get("DRV_STATUS").map(|f| f.contains_key("sg_result")).unwrap_or(false) {
+                sg2_supp = true;
+            }
             // New drivers have separate register for SG4 result
             if mcu_tmc.name_to_reg("SG_RESULT") != 0 {
                 sg4_reg_name = Some("SG_RESULT");
@@ -551,6 +558,8 @@ impl TMCStallguardDump {
             mcu: mcu_tmc.get_mcu(),
             fields,
             sg4_reg_name,
+            stepper_name: stepper_name.clone(),
+            sg2_supp,
             optimized_spi: Cell::new(false),
             samples: RefCell::new(vec![]),
             query_timer: RefCell::new(None),

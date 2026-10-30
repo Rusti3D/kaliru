@@ -9,7 +9,22 @@ class MenuKeys(_k.Object):
     def __init__(self, config, callback):
         _k.new(self, 1421, config, callback)
     def register_button(self, config, name, callback, push_only=True):
-        return _k.call(self, 1422, config, name, callback, push_only)
+        pin = config.get(name, None)
+        if pin is None:
+            return
+        buttons = self.printer.lookup_object("buttons")
+        if config.get("analog_range_" + name, None) is None:
+            if push_only:
+                buttons.register_button_push(pin, callback)
+            else:
+                buttons.register_buttons([pin], callback)
+            return
+        amin, amax = config.getfloatlist("analog_range_" + name, count=2)
+        pullup = config.getfloat("analog_pullup_resistor", 4700.0, above=0.0)
+        if push_only:
+            buttons.register_adc_button_push(pin, amin, amax, pullup, callback)
+        else:
+            buttons.register_adc_button(pin, amin, amax, pullup, callback)
     def encoder_cw_callback(self, eventtime):
         return _k.call(self, 1423, eventtime)
     def encoder_ccw_callback(self, eventtime):
@@ -25,7 +40,7 @@ class MenuKeys(_k.Object):
     def down_callback(self, eventtime):
         return _k.call(self, 1429, eventtime)
     def kill_callback(self, eventtime):
-        return _k.call(self, 1430, eventtime)
+        self.printer.invoke_shutdown("Shutdown due to kill button!")
     callback = _k.Attr(1431, 'callback')
     click_timer = _k.Attr(1432, 'click_timer')
     encoder_fast_rate = _k.Attr(1433, 'encoder_fast_rate')

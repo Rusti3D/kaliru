@@ -37,7 +37,7 @@ pub struct LEDHelper {
     pub need_transmit: Cell<bool>,
     pub led_state: RefCell<Vec<Color>>,
     pub template_eval: Rc<PrinterTemplateEvaluator>,
-    tcallbacks: RefCell<Vec<TemplateCallback>>,
+    pub tcallbacks: RefCell<Vec<TemplateCallback>>,
     check_transmit_cb: RefCell<Option<TemplateFlush>>,
 }
 

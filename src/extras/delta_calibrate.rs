@@ -24,8 +24,8 @@ use std::rc::{Rc, Weak};
 /// a stable position; python keeps some as lists and some as tuples
 #[derive(Clone)]
 pub struct Stable {
-    v: Vec<f64>,
-    is_tuple: bool,
+    pub v: Vec<f64>,
+    pub is_tuple: bool,
 }
 
 impl Stable {
@@ -60,7 +60,7 @@ pub const MEASURE_RIDGE_RADIUS: f64 = 5.0 - 0.5;
 // How much to prefer a distance measurement over a height measurement
 pub const MEASURE_WEIGHT: f64 = 0.5;
 
-type Distance = (f64, Stable, Stable);
+pub type Distance = (f64, Stable, Stable);
 
 // Convert distance measurements made on the calibration object to
 // 3-tuples of (actual_distance, stable_position1, stable_position2)
@@ -101,10 +101,10 @@ const CMD_DELTA_ANALYZE_HELP: &str = "Extended delta calibration tool";
 pub struct DeltaCalibrate {
     pub printer: Rc<Printer>,
     pub probe_helper: RefCell<Option<Rc<ProbePointsHelper>>>,
-    last_probe_positions: RefCell<Vec<(f64, Stable)>>,
-    manual_heights: RefCell<Vec<(f64, Stable)>>,
+    pub last_probe_positions: RefCell<Vec<(f64, Stable)>>,
+    pub manual_heights: RefCell<Vec<(f64, Stable)>>,
     pub delta_analyze_entry: RefCell<IndexMap<String, Vec<f64>>>,
-    last_distances: Vec<Distance>,
+    pub last_distances: Vec<Distance>,
     pub gcode: Rc<GCodeDispatch>,
 }
 
@@ -221,7 +221,7 @@ impl DeltaCalibrate {
         Ok(())
     }
 
-    fn probe_finalize(&self, offsets: (f64, f64, f64), positions: &[Vec<f64>]) -> KResult<FinalizeResult> {
+    pub fn probe_finalize(&self, offsets: (f64, f64, f64), positions: &[Vec<f64>]) -> KResult<FinalizeResult> {
         // Convert positions into (z_offset, stable_position) pairs
         let z_offset = offsets.2;
         let delta_params = kin_delta(&self.printer)?;

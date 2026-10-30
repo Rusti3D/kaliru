@@ -45,7 +45,8 @@ fn threads_factor(thread: i64) -> f64 {
 }
 
 pub struct ScrewsTiltAdjust {
-    screws: Vec<([f64; 2], String)>,
+    pub config: Rc<ConfigWrapper>,
+    pub screws: Vec<([f64; 2], String)>,
     pub results: RefCell<PyDict>,
     pub max_diff: Cell<Option<f64>>,
     pub max_diff_error: Cell<bool>,
@@ -78,6 +79,7 @@ impl ScrewsTiltAdjust {
         let gcode = printer.lookup::<GCodeDispatch>("gcode")?;
         let points: Vec<(f64, f64)> = screws.iter().map(|(c, _)| (c[0], c[1])).collect();
         let s = Rc::new(ScrewsTiltAdjust {
+            config: Rc::new(config.clone()),
             screws,
             results: RefCell::new(IndexMap::default()),
             max_diff: Cell::new(None),
@@ -132,7 +134,7 @@ impl ScrewsTiltAdjust {
         helper.start_probe(gcmd)
     }
 
-    fn probe_finalize(&self, _offsets: (f64, f64, f64), positions: &[Vec<f64>]) -> KResult<FinalizeResult> {
+    pub fn probe_finalize(&self, _offsets: (f64, f64, f64), positions: &[Vec<f64>]) -> KResult<FinalizeResult> {
         self.results.borrow_mut().clear();
         self.max_diff_error.set(false);
         let is_clockwise_thread = (self.thread & 1) == 0;

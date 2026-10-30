@@ -213,7 +213,7 @@ impl VibrationPulseTestGenerator {
 }
 
 pub struct SweepingVibrationsTestGenerator {
-    vibration_generator: VibrationPulseTestGenerator,
+    pub vibration_generator: Rc<VibrationPulseTestGenerator>,
     pub sweeping_accel: f64,
     pub sweeping_period: f64,
     pub test_sweeping_accel: Cell<f64>,
@@ -226,7 +226,7 @@ impl SweepingVibrationsTestGenerator {
         let sweeping_accel = config.getfloat("sweeping_accel", 400.0, Lim::new().above(0.0))?;
         let sweeping_period = config.getfloat("sweeping_period", 0.0, Lim::new().min(0.0))?;
         Ok(SweepingVibrationsTestGenerator {
-            vibration_generator,
+            vibration_generator: Rc::new(vibration_generator),
             sweeping_accel,
             sweeping_period,
             test_sweeping_accel: Cell::new(sweeping_accel),
@@ -361,8 +361,8 @@ const CMD_MEASURE_AXES_NOISE_HELP: &str = "Measures noise of all enabled acceler
 pub struct ResonanceTester {
     pub printer: Rc<Printer>,
     pub move_speed: f64,
-    generator: SweepingVibrationsTestGenerator,
-    executor: ResonanceTestExecutor,
+    pub generator: Rc<SweepingVibrationsTestGenerator>,
+    pub executor: Rc<ResonanceTestExecutor>,
     pub accel_chip_names: Vec<(String, String)>,
     pub accel_chips: RefCell<Vec<(String, PObj)>>,
     pub max_smoothing: Option<f64>,
@@ -378,8 +378,8 @@ impl ResonanceTester {
     pub fn new(config: &ConfigWrapper) -> KResult<Rc<Self>> {
         let printer = config.get_printer();
         let move_speed = config.getfloat("move_speed", 50.0, Lim::new().above(0.0))?;
-        let generator = SweepingVibrationsTestGenerator::new(config)?;
-        let executor = ResonanceTestExecutor { printer: printer.clone() };
+        let generator = Rc::new(SweepingVibrationsTestGenerator::new(config)?);
+        let executor = Rc::new(ResonanceTestExecutor { printer: printer.clone() });
 
         let accel_chips = config.get_opt("accel_chips")?;
         let accel_chip = config.get_opt("accel_chip")?;

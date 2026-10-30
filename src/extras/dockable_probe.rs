@@ -88,9 +88,9 @@ impl PinPollingHelper {
 
 /// a pin query: helper.query_pin, or helper.query_pin_inv
 #[derive(Clone)]
-struct PinQuery {
-    helper: Rc<PinPollingHelper>,
-    inverted: bool,
+pub struct PinQuery {
+    pub helper: Rc<PinPollingHelper>,
+    pub inverted: bool,
 }
 
 impl PinQuery {
@@ -102,8 +102,8 @@ impl PinQuery {
 // Helper class to verify probe attachment status
 pub struct ProbeState {
     pub printer: Rc<Printer>,
-    probe_sense_pin: PinQuery,
-    dock_sense_pin: Option<PinQuery>,
+    pub probe_sense_pin: PinQuery,
+    pub dock_sense_pin: Option<PinQuery>,
     pub last_verify_time: Cell<f64>,
     pub last_verify_state: Cell<i64>,
 }
@@ -895,7 +895,7 @@ impl DockableProbe {
         self.auto_detach_probe(Some(&return_pos))
     }
 
-    fn wait_for_trigger(&self) -> KResult<()> {
+    pub fn wait_for_trigger(&self) -> KResult<()> {
         let c = self.finish_home_complete.borrow().clone();
         match c {
             Some(c) => {

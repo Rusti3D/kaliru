@@ -298,7 +298,7 @@ impl EddyCalibration {
 
 pub struct EddyDistanceCollector {
     pub endstop_wrapper: Rc<EddyEndstopWrapper>,
-    samples: RefCell<Vec<ProbeDistanceResult>>,
+    pub samples: RefCell<Vec<ProbeDistanceResult>>,
     pub stop_after: Cell<Option<f64>>,
     stop_notify: Rc<ReactorCompletion<Vec<ProbeDistanceResult>>>,
 }
@@ -582,6 +582,8 @@ impl McuProbe for EddyEndstopWrapper {
 // Main "printer object"
 pub struct PrinterEddyProbe {
     pub sensor_helper: Rc<LDC1612>,
+    pub calibration: Rc<EddyCalibration>,
+    pub probe: Rc<EddyEndstopWrapper>,
 }
 
 impl PrinterEddyProbe {
@@ -592,8 +594,8 @@ impl PrinterEddyProbe {
         let sensor_helper = sensor_class(config, Some(calibration.clone()))?;
         // Probe interface
         let probe = EddyEndstopWrapper::new(config, sensor_helper.clone(), calibration.clone())?;
-        *calibration.pprobe.borrow_mut() = Some(PrinterProbe::new(config, probe)?);
-        Ok(Rc::new(PrinterEddyProbe { sensor_helper }))
+        *calibration.pprobe.borrow_mut() = Some(PrinterProbe::new(config, probe.clone())?);
+        Ok(Rc::new(PrinterEddyProbe { sensor_helper, calibration, probe }))
     }
 
     pub fn add_client(&self, cb: crate::extras::bulk_sensor::ClientCallback) -> KResult<()> {

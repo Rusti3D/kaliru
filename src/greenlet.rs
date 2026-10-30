@@ -110,6 +110,36 @@ impl Greenlet {
 }
 
 /// greenlet.getcurrent(): None for the main context
+/// Bytes left below the current stack pointer: on the running greenlet's
+/// stack, else on the main thread's (from the stack rlimit)
+pub fn stack_left() -> usize {
+    let probe = 0u8;
+    let sp = std::ptr::addr_of!(probe) as usize;
+    match getcurrent() {
+        Some(g) => sp.saturating_sub(g.stack.0),
+        None => MAIN_STACK_LO.with(|lo| sp.saturating_sub(lo.get())),
+    }
+}
+
+thread_local! {
+    /// the main thread's lowest usable stack address (record_main_stack)
+    static MAIN_STACK_LO: Cell<usize> = const { Cell::new(0) };
+}
+
+/// Note the main thread's stack bounds (call early in main)
+pub fn record_main_stack() {
+    let probe = 0u8;
+    let sp = std::ptr::addr_of!(probe) as usize;
+    let mut rl = libc::rlimit { rlim_cur: 0, rlim_max: 0 };
+    // SAFETY: rl is a live rlimit
+    let size = if unsafe { libc::getrlimit(libc::RLIMIT_STACK, &mut rl) } == 0 && rl.rlim_cur != libc::RLIM_INFINITY {
+        rl.rlim_cur as usize
+    } else {
+        8 << 20
+    };
+    MAIN_STACK_LO.with(|lo| lo.set(sp.saturating_sub(size)));
+}
+
 pub fn getcurrent() -> Option<G> {
     CURRENT.with(|c| c.borrow().clone())
 }

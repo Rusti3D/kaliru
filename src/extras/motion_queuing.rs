@@ -259,8 +259,8 @@ impl PrinterMotionQueuing {
     pub fn flush_handler(&self, eventtime: f64) -> f64 {
         match self.flush_handler_inner(eventtime) {
             Ok(waketime) => waketime,
-            Err(_) => {
-                logging::exception("Exception in flush_handler");
+            Err(e) => {
+                logging::exception_err("Exception in flush_handler", &e);
                 self.printer.invoke_shutdown("Exception in flush_handler", None);
                 NEVER
             }
@@ -338,8 +338,8 @@ impl PrinterMotionQueuing {
         let _ = eventtime;
         match res {
             Ok(w) => w,
-            Err(_) => {
-                logging::exception("Exception in flush_handler_debug");
+            Err(e) => {
+                logging::exception_err("Exception in flush_handler_debug", &e);
                 self.printer.invoke_shutdown("Exception in flush_handler_debug", None);
                 NEVER
             }

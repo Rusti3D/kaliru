@@ -29,7 +29,7 @@ pub struct ClockSync {
     pub serial: RefCell<Option<Rc<SerialReader>>>,
     pub get_clock_timer: RefCell<Option<Timer>>,
     pub get_clock_cmd: RefCell<Vec<u8>>,
-    cmd_queue: RefCell<Option<crate::chelper::serialqueue::CommandQueue>>,
+    pub cmd_queue: RefCell<Option<crate::chelper::serialqueue::CommandQueue>>,
     pub queries_pending: Cell<i64>,
     pub mcu_freq: Cell<f64>,
     pub last_clock: Cell<i64>,

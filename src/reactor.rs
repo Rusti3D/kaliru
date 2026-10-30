@@ -98,8 +98,8 @@ pub struct ReactorFileHandler {
     pub fd: RawFd,
     // Rc so a callback can run re-entrantly (a pause inside it lets
     // another greenlet dispatch the same fd, as python allows)
-    read_callback: Rc<dyn Fn(f64)>,
-    write_callback: Option<Rc<dyn Fn(f64)>>,
+    pub read_callback: Rc<dyn Fn(f64)>,
+    pub write_callback: Option<Rc<dyn Fn(f64)>>,
 }
 
 pub type FileHandler = Rc<ReactorFileHandler>;

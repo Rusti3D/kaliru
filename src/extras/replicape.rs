@@ -306,7 +306,7 @@ const REPLICAPE_STEP_CONFIG: [(&str, Option<i64>); 10] = [
 ];
 
 #[derive(Clone, Copy)]
-enum PinClass {
+pub enum PinClass {
     Pca9685,
     DacEnable,
 }
@@ -318,9 +318,9 @@ pub struct Replicape {
     pub mcu_pwm_start_value: Cell<bool>,
     pub mcu_pwm_shutdown_value: Cell<bool>,
     pub last_pwm_enable_time: Cell<f64>,
-    pins: IndexMap<String, (PinClass, i64)>,
-    stepper_dacs: IndexMap<i64, f64>,
-    enabled_channels: RefCell<IndexMap<i64, bool>>,
+    pub pins: IndexMap<String, (PinClass, i64)>,
+    pub stepper_dacs: IndexMap<i64, f64>,
+    pub enabled_channels: RefCell<IndexMap<i64, bool>>,
     pub sr_disabled: RefCell<Vec<u8>>,
     pub sr_enabled: RefCell<Vec<u8>>,
     pub sr_spi: Rc<McuSpi>,

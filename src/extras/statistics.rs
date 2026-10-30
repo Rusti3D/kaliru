@@ -19,7 +19,7 @@ pub struct PrinterSysStats {
     pub total_process_time: Cell<f64>,
     pub last_load_avg: Cell<f64>,
     pub last_mem_avail: Cell<i64>,
-    mem_file: RefCell<Option<std::fs::File>>,
+    pub mem_file: RefCell<Option<std::fs::File>>,
 }
 
 /// time.process_time()

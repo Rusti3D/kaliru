@@ -875,7 +875,12 @@ fn parse_args(argv: &[String]) -> (Options, Vec<String>) {
 
 pub fn main() {
     crate::util::fix_sigint();
+    crate::greenlet::record_main_stack();
     let argv: Vec<String> = std::env::args().skip(1).collect();
+    // the hub-ctrl tool (mcu restart_method rpi_usb runs it through sudo)
+    if argv.first().map(|a| a == "--hub-ctrl").unwrap_or(false) {
+        std::process::exit(crate::chelper::hub_ctrl::main("hub-ctrl", &argv[1..]));
+    }
     let (options, args) = parse_args(&argv);
     if options.import_test {
         // python imports every extras / kinematics module; all of kaliru is
@@ -943,6 +948,9 @@ pub fn main() {
     }
     logging::info("=======================");
     logging::info("Starting Klippy...");
+    // chelper errors go to logging.error(FFI_main.string(msg)): the bytes repr
+    // (python sets this up at the first chelper.get_ffi(), while loading)
+    crate::chelper::pyhelper::set_python_logging_callback(|msg| logging::error(&crate::pyfmt::py_bytes_repr(msg.as_bytes())));
     let git_info = crate::util::get_git_version();
     let git_vers = git_info.version.clone();
 

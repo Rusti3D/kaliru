@@ -276,7 +276,9 @@ class TradRackToolHead(toolhead.ToolHead):
     def __init__(self, config, buffer_pull_speed, is_extruder_synced):
         _k.new(self, 5623, config, buffer_pull_speed, is_extruder_synced)
     def set_position(self, newpos, homing_axes=()):
-        return _k.call(self, 5624, newpos, homing_axes)
+        for _ in range(4 - len(newpos)):
+            newpos.append(0.0)
+        super(TradRackToolHead, self).set_position(newpos, homing_axes)
     def get_sel_max_velocity(self):
         return _k.call(self, 5625)
     def get_fil_max_velocity(self):
@@ -316,15 +318,17 @@ class TradRackKinematics(_k.Object):
     def __init__(self, toolhead, config, is_extruder_synced):
         _k.new(self, 5656, toolhead, config, is_extruder_synced)
     def get_steppers(self):
-        return _k.call(self, 5657)
+        return [s for rail in self.rails for s in rail.get_steppers()]
     def calc_position(self, stepper_positions):
-        return _k.call(self, 5658, stepper_positions)
+        return [stepper_positions[rail.get_name()] for rail in self.rails]
     def set_position(self, newpos, homing_axes):
         return _k.call(self, 5659, newpos, homing_axes)
     def home_axis(self, homing_state, axis, rail):
         return _k.call(self, 5660, homing_state, axis, rail)
     def home(self, homing_state):
-        return _k.call(self, 5661, homing_state)
+        # Each axis is homed independently and in order
+        for axis in homing_state.get_axes():
+            self.home_axis(homing_state, axis, self.rails[axis])
     def _check_endstops(self, move):
         return _k.call(self, 5662, move)
     def check_move(self, move):

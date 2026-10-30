@@ -444,7 +444,7 @@ impl AngleCalibration {
 }
 
 /// the sensor_type helper classes
-trait AngleSensor {
+pub trait AngleSensor: std::any::Any {
     fn is_tcode_absolute(&self) -> bool {
         false
     }
@@ -460,6 +460,10 @@ trait AngleSensor {
     }
     fn update_clock(&self) -> KResult<()> {
         Ok(())
+    }
+    /// the Rust type's path (python plugins find the Kalico class by it)
+    fn type_name(&self) -> &'static str {
+        std::any::type_name::<Self>()
     }
 }
 
@@ -810,7 +814,7 @@ impl HelperMT6826S {
         Ok(h)
     }
 
-    fn status_map(code: i64) -> &'static str {
+    pub fn status_map(code: i64) -> &'static str {
         match code {
             0 => "No Calibration",
             1 => "Running Calibration",
@@ -956,9 +960,9 @@ pub struct Angle {
     pub spi: Rc<McuSpi>,
     pub mcu: Rc<Mcu>,
     pub oid: i64,
-    sensor_helper: Rc<dyn AngleSensor>,
+    pub sensor_helper: Rc<dyn AngleSensor>,
     pub query_spi_angle_cmd: RefCell<Option<CommandWrapper>>,
-    bulk_queue: BulkDataQueue,
+    pub bulk_queue: Rc<BulkDataQueue>,
     pub batch_bulk: RefCell<Option<Rc<BatchBulkHelper>>>,
     pub name: String,
 }
@@ -992,7 +996,7 @@ impl Angle {
         // Setup mcu sensor_spi_angle bulk query code
         mcu.add_config_cmd(&format!("config_spi_angle oid={} spi_oid={} spi_angle_type={}", oid, spi.get_oid(), sensor_type), false, false);
         mcu.add_config_cmd(&format!("query_spi_angle oid={} clock=0 rest_ticks=0 time_shift=0", oid), false, true);
-        let bulk_queue = BulkDataQueue::new(&mcu, "sensor_bulk_data", Some(oid));
+        let bulk_queue = Rc::new(BulkDataQueue::new(&mcu, "sensor_bulk_data", Some(oid)));
         let name = config
             .get_name()
             .split_whitespace()

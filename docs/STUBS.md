@@ -9,16 +9,19 @@ Nearly complete. All Kalico extras are `ported: true` (`src/extras/mod.rs`) and 
 
 | Where | What fails |
 |---|---|
-| `src/mcu.rs:1527` `restart_rpi_usb` | `restart_method: rpi_usb`; `chelper.run_hub_ctrl` (hub-ctrl.c) not ported |
 | `src/pins.rs:332-371` `setup_pin_as` etc. | a pin object kaliru does not know as that type: "not supported here by Kaliru yet" |
 | `src/kinematics/winch.rs:84-99` | homing, boundary checks, speed limits, homed checks (same `XXX` gaps as Kalico's winch.py) |
+
+`restart_method: rpi_usb` runs hub-ctrl (`src/chelper/hub_ctrl.rs`, a port of lib/hub-ctrl/hub-ctrl.c over Linux
+usbdevfs) as `sudo kaliru --hub-ctrl -h 0 -P 2 -p N`, as Kalico runs its compiled hub-ctrl; hubs are numbered in
+libusb's order (udev scan, sorted by sysfs path). Not tried on real hardware yet.
 
 ## Python plugin layer
 
 Every Kalico name has a Python stub in `src/plugins/mirror/`, but only names with a handler in
 `src/plugins/impls/` work. The rest raise `NotImplementedError: kaliru: X is not mirrored yet`.
 
-**Coverage: 5,941 of 7,489 IDs bound, 1,548 stubs (930 of them public names).**
+**Coverage: 6,753 of 7,489 IDs bound, 736 stubs (152 of them public names).**
 Done: extras.heaters, stepper (all but `_get_position_cmd`, `_stepqueue`), chelper `get_ffi` (an emulated cffi:
 prelude.py FFI / FFILib / CData, impls/chelper.rs), extras.motion_queuing (all but `setup_mcu_movequeue`,
 `steppersyncmgr`, `steppersyncmgr_gen_steps`), toolhead, kinematics.extruder, extras.homing, extras.force_move,
@@ -42,6 +45,22 @@ widths, error_mcu clarify callbacks, hall_filament_width_sensor fields, `Reactor
 `input_log`, the MPC / tuning / PID-autotune controls, output_pin `mcu_pin` / `shutdown_value`, LED state and pins,
 z_thermal_adjust limits, msgproto MessageFormat `encode` / `encode_by_name` / `parse` / `format_params`, adc_scaled,
 SecondarySync (kaliru's secondary ClockSync).
+Also: the temperature sensors (adc_temperature / thermistor custom sensors as Kalico's classes, i2c / spi / 1-wire
+chips, temperature_host / _mcu / _combined, the MPC wrappers), the digipots / dacs, accelerometers and bulk_sensor
+(FixedFreqReader, ClockSyncRegression, BatchBulkHelper callbacks), buttons and encoders, belay, endstop_phase,
+the z_tilt family and screws_tilt / bed_tilt / delta_calibrate `probe_finalize`, tmc internals (TMCErrorCheck,
+SPI chain reads, uart bitbang), display chips (framebuffers, io commands, `set_glyphs`), the menu (contexts, scripts,
+inputs, dialogs, keys), load_cell (chips, ApiClientHelper, sample collector, force clients), trad_rack (its selector
+toolhead is Kalico's TradRackToolHead: native.rs ALIASES serves the ToolHead names), palette2's omega state and
+`p2cmd_*`, indx's toolboard heater, delta / rotary delta calibration objects, hybrid corexy, idex, the four MCU
+helper objects (`MCU._conn_helper` / `_config_helper` / `_stats_helper`, one per mcu: kaliru's Mcu keeps their state),
+msgproto param types, reactor file handler callbacks, the api server sockets' clients, tools_calibrate, z_calibration.
+
+**Verbatim** (tools/mirror_verbatim.txt, 295 names): pure Kalico helpers and methods built only on bound names run as
+Kalico's own code in the mirror (shaper_defs, msgproto PT_* / Enumeration / lookup_params, menu helpers, angle chip
+helpers, gcode_arcs `planArc`, delta / rotary calibration maths, resonance generators, shaper_calibrate's numpy
+methods, indx calibration fits and compat config, load_cell getters, ...). `ReactorCallback` and indx's compat
+ConfigWrapper / ConfigContents / _ResponseHandle are python-only classes.
 
 **API probe** (`tests/plugins/kaliru_test_api.py`, `tests/cases/plugins/api.test`): reads every attribute and calls
 every argument-free `get_*` / `is_*` method of every printer object (names from the mirror, through the MRO) on 45
@@ -59,9 +78,23 @@ class of its kind (AHT1x/2x/3x, MAX6675/31855/31856/31865, ST7920/EmulatedST7920
 HX711/HX717, ADS131M02/04, the MPC wrappers, the menu item classes, the MCU helpers, z_tilt_ng's helpers);
 `objects::register_redirect` makes the "menu" object python's MenuManager.
 
-Left (930 public names over 152 modules) is mostly module internals: trad_rack's TradRackToolHead, palette2's
-protocol handlers, angle chip helpers, load_cell / tap_analysis internals, indx, display chip internals, the MCU
-helper classes (kaliru keeps their state in `Mcu`), serial / webhooks socket internals.
+Left (152 public names) is what kaliru has no counterpart for, or keeps in a shape python cannot share:
+- no equivalent: cffi / C helpers (`chelper.logging_callback`, `run_hub_ctrl`, motion_queuing's steppersync,
+  `RotaryDeltaCalibration.ffi_lib` aside), threads and locks (`BulkDataQueue.lock`, `ZThermalAdjuster.lock`,
+  `SerialReader.lock` / `background_thread`), raw sockets and pyserial objects (`ServerSocket.sock`,
+  `ClientConnection.sock`, palette2 `serial` and its `queue.Queue`s), python's module loader (`PrinterModule`,
+  `Printer.printer_modules`, `printer.import_test`, `parsedump.main`, `queuelogger.setup_bg_logging`)
+- held per call, not stored: a `gcmd` (axis_twist Calibrater, z_calibration CalibrationState, load_cell
+  ForceReporter), python generators (`trad_rack.tr_next_generator`), completions of non-python values
+  (`EddyDistanceCollector.stop_notify`)
+- kaliru's own shape (mutable state owned in place, no shared object): load_cell tap_analysis (TapAnalysis,
+  ForceGraph, TapAnalysisHelper, TapQualityClassifier), load_cell_probe HomingMove / ParamHelper, sos_filter
+  `change_filter`, indx ThermalModel and its log files, menu container `insert_item` / `add_parents`, display / menu
+  `load_config`, z_calibration EndstopWrapper / CalibrationState, trad_rack TradRackHoming / RunIfNoActivity /
+  `resume_stack`, output_pin `set_template` / `active_templates`, mcu RetryAsyncCommand / serialhdl
+  SerialRetryCommand, SerialReader internals, QueryStatusHelper subscriptions, MessageParser `process_identify` /
+  `fill_enumerations`
+- unreachable: uc1701's SPI4wire / I2C (python gets `DisplayBase.send` as a function).
 
 **Order of work** (by what the plugin corpus in `Originals_Base/addons` uses): led / neopixel / fan / output_pin -> gcode_move / gcode / webhooks / configfile / printer / reactor -> the rest.
 `tools/mirror_stubs.py` prints per-module counts; `--list` prints every unbound name.
@@ -74,24 +107,24 @@ impls take precedence (their names are skipped). Rerun after changing Rust signa
 --fresh` (`--report` lists what it skipped and why). The match is by name, arity and type only; a sample was
 checked against Kalico, not every binding.
 
-11 modules have no binding at all. Partly bound core modules (bound/total):
+Partly bound core modules (bound/total):
 
 | Module | Bound |
 |---|---|
-| klippy.printer | 37/56 |
+| klippy.printer | 38/56 |
 | klippy.configfile | 55/63 |
-| klippy.reactor | 75/98 |
-| klippy.gcode | 81/86 |
+| klippy.reactor | 84/98 |
+| klippy.gcode | 85/86 |
 | klippy.extras.gcode_macro | 79/80 |
 | klippy.extras.filament_switch_sensor | 44/50 |
-| klippy.webhooks | 66/95 |
-| klippy.pins | 20/21 |
+| klippy.webhooks | 74/95 |
+| klippy.pins | 21/21 |
 | klippy.extras.gcode_move | 42/45 |
-| klippy.extras.stepper_enable | 24/30 |
-| klippy.clocksync | 33/44 |
-| klippy.mcu | 188/314 |
-| klippy.serialhdl | 36/56 |
-| klippy.msgproto | 16/75 |
+| klippy.extras.stepper_enable | 28/30 |
+| klippy.clocksync | 43/44 |
+| klippy.mcu | 260/314 |
+| klippy.serialhdl | 37/56 |
+| klippy.msgproto | 69/75 |
 
 Not applicable (kaliru's own loader does these): `printer.PrinterModule.*`, `Printer.__init__` /
 `printer_modules`, `printer.import_test`, `printer.arg_dictionary`, `pins.add_printer_objects`.
@@ -144,8 +177,14 @@ Not applicable (kaliru's own loader does these): `printer.PrinterModule.*`, `Pri
 | `impls/heaters.rs` | `sensor_factories` holds every sensor type from the start (Kalico adds the i2c / spi ones as their modules load) |
 | `impls/extras_misc.rs` | `virtual_sdcard.current_file` is a python file of its own at kaliru's read position: reading it does not move kaliru's |
 | `impls/extras_misc.rs` | `PrinterLCD.show_data_group` is read-only |
-| `impls/*` | kaliru reuses types where Kalico has its own: `z_calibration.z_endstop` is the MCU_endstop, trad_rack's `tr_toolhead` a ToolHead |
+| `impls/*` | kaliru reuses types where Kalico has its own: `z_calibration.z_endstop` is the MCU_endstop |
 | `src/extras/output_pin.rs` | one `klippy:connect` handler for all g-code request queues (Kalico registers one per queue) |
 | `impls/extras_misc.rs` | a python clarify callback (`error_mcu.add_clarify`) that raises is logged and adds nothing |
 | `impls/extras_misc.rs` | `timer.callback(eventtime)` raises `RuntimeError` while the reactor is running that timer (kaliru's callbacks are not reentrant) |
 | `src/extras/quad_gantry_level.rs` and others | an int config default (`max_adjust`, `frequency`, `max_travel`, `temp_coeff`) is int in `configfile.settings` as in Kalico, but the object's attribute is a float |
+| `impls/display.rs` and others | Kalico's bytearrays / deques / callback lists read as snapshots: lcd framebuffers, `MovingAverageFilter.queue`, `ClientConnection.request_log`, the buttons' / bulk sensors' / load cell clients' callback lists, `BulkDataQueue.raw_samples` |
+| `impls/sensors.rs`, `impls/extras_more.rs` | `Temperature_HOST.file_handle` / `PrinterSysStats.mem_file` are python files over kaliru's descriptor (a new wrapper per access) |
+| `impls/extras_more.rs` | `util.get_git_version()` reports the Kalico commit kaliru tracks (util.rs) |
+| `impls/display.rs`, `impls/menu.rs` | `DisplayTemplate.render` / menu `get_context` / `run_script` contexts are values only (python callables in a context are not supported, as for `TemplateWrapperJinja.render`) |
+| `mirror_verbatim.txt` | shaper_calibrate's `CalibrationData` methods work on objects python builds; one kaliru made has list attributes, not numpy arrays |
+| `impls/extras_more.rs` | tsl1401cl `lastFilamentWidthReading` is `0.0` before the first reading (Kalico's is the int `0`) |

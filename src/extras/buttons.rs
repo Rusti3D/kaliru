@@ -46,7 +46,7 @@ pub struct McuButtons {
     pub reactor: Rc<Reactor>,
     pub mcu: Rc<Mcu>,
     pub pin_list: RefCell<Vec<(String, i64)>>,
-    callbacks: RefCell<Vec<(i64, i64, ButtonCallback)>>,
+    pub callbacks: RefCell<Vec<(i64, i64, ButtonCallback)>>,
     pub invert: Cell<i64>,
     pub last_button: Cell<i64>,
     pub ack_cmd: RefCell<Option<CommandWrapper>>,
@@ -188,14 +188,15 @@ pub const ADC_SAMPLE_COUNT: i64 = 6;
 
 pub struct McuAdcButtons {
     pub reactor: Rc<Reactor>,
-    buttons: RefCell<Vec<(f64, f64, ButtonCallback)>>,
+    pub buttons: RefCell<Vec<(f64, f64, ButtonCallback)>>,
     pub last_button: Cell<Option<usize>>,
     pub last_pressed: Cell<Option<usize>>,
     pub last_debouncetime: Cell<f64>,
     pub pullup: f64,
     pub min_value: Cell<f64>,
     pub max_value: Cell<f64>,
-    _mcu_adc: Rc<dyn crate::mcu::AdcPin>,
+    pub mcu_adc: Rc<dyn crate::mcu::AdcPin>,
+    pub pin: String,
 }
 
 impl McuAdcButtons {
@@ -211,7 +212,8 @@ impl McuAdcButtons {
             pullup,
             min_value: Cell::new(999999999999.9),
             max_value: Cell::new(0.0),
-            _mcu_adc: mcu_adc.clone(),
+            mcu_adc: mcu_adc.clone(),
+            pin: pin.to_string(),
         });
         let w = Rc::downgrade(&b);
         mcu_adc.setup_adc_callback(
@@ -347,8 +349,8 @@ mod half_step {
 
 pub struct RotaryEncoder {
     states: &'static [[usize; 4]],
-    cw_callback: PushCallback,
-    ccw_callback: PushCallback,
+    pub cw_callback: PushCallback,
+    pub ccw_callback: PushCallback,
     pub encoder_state: Cell<usize>,
 }
 
@@ -368,7 +370,7 @@ impl RotaryEncoder {
 
 pub struct DebounceButton {
     pub reactor: Rc<Reactor>,
-    button_action: ButtonCallback,
+    pub button_action: ButtonCallback,
     pub debounce_delay: f64,
     pub logical_state: Cell<Option<i64>>,
     pub physical_state: Cell<Option<i64>>,

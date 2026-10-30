@@ -227,7 +227,7 @@ pub struct ControlAutoTune {
     pub started: Cell<bool>,
     pub errored: Cell<bool>,
     pub data: RefCell<Vec<(f64, f64, f64, f64)>>,
-    control: ControlRef,
+    pub control: ControlRef,
     pub calibrate_secondary: bool,
 }
 

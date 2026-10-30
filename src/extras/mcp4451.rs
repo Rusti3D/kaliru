@@ -13,7 +13,7 @@ use std::rc::Rc;
 const WIPER_REGISTERS: [i64; 4] = [0x00, 0x01, 0x06, 0x07];
 
 pub struct Mcp4451 {
-    _i2c: Rc<McuI2c>,
+    pub i2c: Rc<McuI2c>,
 }
 
 fn set_register(i2c: &McuI2c, reg: i64, value: i64) -> KResult<()> {
@@ -36,7 +36,7 @@ pub fn load_config_prefix(config: &ConfigWrapper) -> KResult<PObj> {
             set_register(&i2c, *reg, (val * 255.0 / scale + 0.5) as i64)?;
         }
     }
-    Ok(Rc::new(Mcp4451 { _i2c: i2c }))
+    Ok(Rc::new(Mcp4451 { i2c }))
 }
 
 impl PrinterObject for Mcp4451 {

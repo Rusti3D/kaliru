@@ -11,11 +11,11 @@ use crate::printer::{PObj, PrinterObject};
 use std::rc::Rc;
 
 pub struct Dac084S085 {
-    spi: Rc<McuSpi>,
+    pub spi: Rc<McuSpi>,
 }
 
 impl Dac084S085 {
-    fn new(config: &ConfigWrapper) -> KResult<Rc<Self>> {
+    pub fn new(config: &ConfigWrapper) -> KResult<Rc<Self>> {
         let spi = mcu_spi_from_config(config, 1, "enable_pin", 10000000, None, false)?;
         let d = Dac084S085 { spi };
         let scale = config.getfloat("scale", 1.0, Lim::new().above(0.0))?;
@@ -28,7 +28,7 @@ impl Dac084S085 {
         Ok(Rc::new(d))
     }
 
-    fn set_register(&self, chan: i64, value: i64) -> KResult<()> {
+    pub fn set_register(&self, chan: i64, value: i64) -> KResult<()> {
         let b1 = (chan << 6) | (1 << 4) | ((value >> 4) & 0x0F);
         let b2 = (value << 4) & 0xF0;
         self.spi.spi_send(&[b1 as u8, b2 as u8], 0, 0)

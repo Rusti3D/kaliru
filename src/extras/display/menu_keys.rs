@@ -21,7 +21,7 @@ pub type KeyCallback = Rc<dyn Fn(&str, f64) -> KResult<()>>;
 pub struct MenuKeys {
     pub printer: Rc<Printer>,
     pub reactor: Rc<Reactor>,
-    callback: KeyCallback,
+    pub callback: KeyCallback,
     pub encoder_fast_rate: f64,
     pub last_encoder_cw_eventtime: Cell<f64>,
     pub last_encoder_ccw_eventtime: Cell<f64>,

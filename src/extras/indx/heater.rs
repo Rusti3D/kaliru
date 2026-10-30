@@ -152,9 +152,9 @@ impl IndxThermistorWrapper {
 }
 
 pub struct IndxBracketTempSensor {
-    mcu: Rc<Mcu>,
+    pub mcu: Rc<Mcu>,
     /// (set once the heater exists; python reads heater.cmd_queue at connect)
-    heater: RefCell<Weak<IndxToolboardHeater>>,
+    pub heater: RefCell<Weak<IndxToolboardHeater>>,
     pub cmd_set_ambient_temp: RefCell<Option<CommandWrapper>>,
     pub last_temperature: Cell<Option<f64>>,
     pub force_temp: Cell<Option<f64>>,
@@ -353,34 +353,34 @@ impl ThermalModel {
 }
 
 /// the last nozzle report: (time, charge, power, extruder_pos)
-type LastReport = (f64, i64, f64, f64);
+pub type LastReport = (f64, i64, f64, f64);
 
 /// the commands looked up at build_config
 #[derive(Default)]
-struct HeaterCmds {
-    debug_stream_raw_ir: Option<CommandWrapper>,
-    tune_coil: Option<CommandWrapper>,
-    query_coil_tune: Option<CommandQueryWrapper>,
-    set_control_params: Option<CommandWrapper>,
-    set_target: Option<CommandWrapper>,
+pub struct HeaterCmds {
+    pub debug_stream_raw_ir: Option<CommandWrapper>,
+    pub tune_coil: Option<CommandWrapper>,
+    pub query_coil_tune: Option<CommandQueryWrapper>,
+    pub set_control_params: Option<CommandWrapper>,
+    pub set_target: Option<CommandWrapper>,
 }
 
 pub struct IndxToolboardHeater {
     me: Weak<IndxToolboardHeater>,
-    printer: Rc<Printer>,
-    mcu: Rc<Mcu>,
-    toolboard_name: String,
+    pub printer: Rc<Printer>,
+    pub mcu: Rc<Mcu>,
+    pub toolboard_name: String,
     pub toolhead: RefCell<Option<Rc<ToolHead>>>,
     pub heater: RefCell<Option<Rc<Heater>>>,
     pub fan: Rc<IndxHeatsinkFan>,
     pub aux_temp_sensors: Vec<(&'static str, Rc<IndxThermistorWrapper>)>,
-    _bracket_temp_update: RefCell<Option<Rc<IndxBracketTempSensor>>>,
+    pub _bracket_temp_update: RefCell<Option<Rc<IndxBracketTempSensor>>>,
     /// keeps the vin_mon adc alive
-    _vin_adc: Rc<dyn AdcPin>,
+    pub _vin_adc: Rc<dyn AdcPin>,
     pub supply_voltage: Cell<f64>,
     thermal_model: RefCell<ThermalModel>,
     pub max_model_error: Cell<f64>,
-    pid: RefCell<[f64; 6]>,
+    pub pid: RefCell<[f64; 6]>,
     pub max_temp_nozzle: f64,
     pub max_temp_sensor: f64,
     pub ir_sensor_tuning: Option<(f64, f64, f64)>,
@@ -388,10 +388,10 @@ pub struct IndxToolboardHeater {
     pub part_cooling_fan: Option<Rc<Fan>>,
     temperature_callbacks: RefCell<Vec<NozzleCallback>>,
     pub cmd_queue: CommandQueue,
-    last_report: Cell<Option<LastReport>>,
+    pub last_report: Cell<Option<LastReport>>,
     pub power_scale: Cell<f64>,
     pub heaters: RefCell<Vec<Rc<Heater>>>,
-    cmds: RefCell<HeaterCmds>,
+    pub cmds: RefCell<HeaterCmds>,
     log_file: RefCell<Option<std::fs::File>>,
     raw_ir_log_file: RefCell<Option<std::fs::File>>,
     pub raw_ir_log_sensors: RefCell<Vec<String>>,

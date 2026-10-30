@@ -238,7 +238,7 @@ impl HallFilamentWidthSensor {
         Ok(())
     }
 
-    fn adc2_callback(&self, read_value: f64) {
+    pub fn adc2_callback(&self, read_value: f64) {
         // read sensor value
         self.last_reading2.set((read_value * 10000.0).round_ties_even() as i64);
         // calculate diameter
@@ -325,7 +325,7 @@ impl HallFilamentWidthSensor {
         Ok(())
     }
 
-    fn cmd_clear_filament_array(&self, gcmd: &GCodeCommand) -> KResult<()> {
+    pub fn cmd_clear_filament_array(&self, gcmd: &GCodeCommand) -> KResult<()> {
         self.filament_array.borrow_mut().clear();
         gcmd.respond_info("Filament width measurements cleared!", true);
         // Set extrude multiplier to 100%

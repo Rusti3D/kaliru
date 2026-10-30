@@ -230,7 +230,7 @@ const CMD_TESTZ_HELP: &str = "Move to new Z height";
 // Helper script to determine a Z height
 pub struct ManualProbeHelper {
     pub printer: Rc<Printer>,
-    finalize_callback: FinalizeCallback,
+    pub finalize_callback: FinalizeCallback,
     pub gcode: Rc<GCodeDispatch>,
     pub toolhead: Rc<ToolHead>,
     pub manual_probe: Rc<ManualProbe>,

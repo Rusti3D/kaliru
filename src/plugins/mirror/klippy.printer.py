@@ -121,7 +121,13 @@ def import_test():
     return _k.fcall(7027)
 
 def arg_dictionary(option, opt_str, value, parser):
-    return _k.fcall(7028, option, opt_str, value, parser)
+    key, fname = "dictionary", value
+    if "=" in value:
+        mcu_name, fname = value.split("=", 1)
+        key = "dictionary_" + mcu_name
+    if parser.values.dictionary is None:
+        parser.values.dictionary = {}
+    parser.values.dictionary[key] = fname
 
 def main():
     return _k.fcall(7029)
