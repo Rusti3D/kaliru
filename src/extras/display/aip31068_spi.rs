@@ -59,9 +59,9 @@ const DISPLAY_INIT_CMNDS: [i64; 5] = [
 ];
 
 pub struct Aip31068Spi {
-    printer: Rc<Printer>,
-    spi: Rc<McuSpi>,
-    mcu: Rc<Mcu>,
+    pub printer: Rc<Printer>,
+    pub spi: Rc<McuSpi>,
+    pub mcu: Rc<Mcu>,
     fb: TextFramebuffers,
 }
 
@@ -111,7 +111,7 @@ pub fn encode(data: &[i64], width: u32) -> KResult<Vec<u8>> {
 }
 
 impl Aip31068Spi {
-    fn send(&self, data: &[i64], minclock: u64) -> KResult<()> {
+    pub fn send(&self, data: &[i64], minclock: u64) -> KResult<()> {
         // different commands have different processing time
         // to avoid timing violation pad with some fast command, e.g. ENTRY_MODE
         // that has execution time of 39us (for comparison CLR is 1.53ms)

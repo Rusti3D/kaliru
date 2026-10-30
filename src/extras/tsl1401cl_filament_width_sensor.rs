@@ -23,24 +23,24 @@ const MEASUREMENT_INTERVAL_MM: f64 = 10.0;
 
 pub struct FilamentWidthSensor {
     me: Weak<FilamentWidthSensor>,
-    printer: Rc<Printer>,
-    reactor: Rc<Reactor>,
-    nominal_filament_dia: f64,
-    measurement_delay: f64,
-    max_diameter: f64,
-    min_diameter: f64,
-    is_active: Cell<bool>,
+    pub printer: Rc<Printer>,
+    pub reactor: Rc<Reactor>,
+    pub nominal_filament_dia: f64,
+    pub measurement_delay: f64,
+    pub max_diameter: f64,
+    pub min_diameter: f64,
+    pub is_active: Cell<bool>,
     // filament array [position, filamentWidth]
-    filament_array: RefCell<Vec<(f64, f64)>>,
+    pub filament_array: RefCell<Vec<(f64, f64)>>,
     last_filament_width_reading: Cell<f64>,
-    toolhead: RefCell<Option<Rc<ToolHead>>>,
+    pub toolhead: RefCell<Option<Rc<ToolHead>>>,
     _mcu_adc: Rc<dyn AdcPin>,
-    extrude_factor_update_timer: RefCell<Option<Timer>>,
-    gcode: Rc<GCodeDispatch>,
+    pub extrude_factor_update_timer: RefCell<Option<Timer>>,
+    pub gcode: Rc<GCodeDispatch>,
 }
 
 impl FilamentWidthSensor {
-    fn new(config: &ConfigWrapper) -> KResult<Rc<Self>> {
+    pub fn new(config: &ConfigWrapper) -> KResult<Rc<Self>> {
         let printer = config.get_printer();
         let reactor = printer.get_reactor();
         let pin = config.get("pin", Dflt::Required)?;
@@ -122,7 +122,7 @@ impl FilamentWidthSensor {
     }
 
     // Initialization
-    fn handle_ready(&self) -> KResult<()> {
+    pub fn handle_ready(&self) -> KResult<()> {
         // Load printer objects
         *self.toolhead.borrow_mut() = Some(self.printer.lookup::<ToolHead>("toolhead")?);
         // Start extrude factor update timer
@@ -132,7 +132,7 @@ impl FilamentWidthSensor {
         Ok(())
     }
 
-    fn update_filament_array(&self, last_epos: f64) {
+    pub fn update_filament_array(&self, last_epos: f64) {
         let reading = self.last_filament_width_reading.get();
         let mut fa = self.filament_array.borrow_mut();
         // Fill array
@@ -150,7 +150,7 @@ impl FilamentWidthSensor {
         }
     }
 
-    fn extrude_factor_update_event(&self, eventtime: f64) -> f64 {
+    pub fn extrude_factor_update_event(&self, eventtime: f64) -> f64 {
         if let Err(e) = self.update_extrude_factor() {
             logging::exception_err("filament width update", &e);
         }
@@ -192,7 +192,7 @@ impl FilamentWidthSensor {
         Ok(())
     }
 
-    fn cmd_m407(&self, gcmd: &GCodeCommand) -> KResult<()> {
+    pub fn cmd_m407(&self, gcmd: &GCodeCommand) -> KResult<()> {
         let reading = self.last_filament_width_reading.get();
         let response = if reading > 0.0 { format!("Filament dia (measured mm): {}", py_float_repr(reading)) } else { "Filament NOT present".to_string() };
         gcmd.respond_info(&response, true);
@@ -206,7 +206,7 @@ impl FilamentWidthSensor {
         self.gcode.run_script_from_command("M221 S100")
     }
 
-    fn cmd_m405(&self, gcmd: &GCodeCommand) -> KResult<()> {
+    pub fn cmd_m405(&self, gcmd: &GCodeCommand) -> KResult<()> {
         let mut response = "Filament width sensor Turned On";
         if self.is_active.get() {
             response = "Filament width sensor is already On";
@@ -221,7 +221,7 @@ impl FilamentWidthSensor {
         Ok(())
     }
 
-    fn cmd_m406(&self, gcmd: &GCodeCommand) -> KResult<()> {
+    pub fn cmd_m406(&self, gcmd: &GCodeCommand) -> KResult<()> {
         let mut response = "Filament width sensor Turned Off";
         if !self.is_active.get() {
             response = "Filament width sensor is already Off";

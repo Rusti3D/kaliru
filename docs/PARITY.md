@@ -48,7 +48,7 @@ Run everything: `tools/check_all.sh` (~10 min).
 
 ## Stock test cases (`test/klippy/*.test`, 88 runs)
 
-`tools/suite_cmp.sh`: 87/88 identical (2026-10-24). printers differs by wall-clock timer timing only (NOTES.md
+`tools/suite_cmp.sh`: 87/88 identical (2026-10-30). printers differs by wall-clock timer timing only (NOTES.md
 "Parity harness").
 
 ## Python macros (`src/extras/gcode_python.rs`, `src/pysyntax.rs`, `vendor/rustpython-*`)
@@ -94,7 +94,7 @@ Not ported: ar100 (or1k), pru (no Rust target). Kalico's `src/extras` (user firm
 
 ## Custom cases (`tests/cases/*.test`, `tools/case_cmp.sh`)
 
-57 runs, all identical, for modules and error paths the stock suite misses: accelerometers (accels), angle, chained
+64 runs, all identical (2026-10-30), for modules and error paths the stock suite misses: accelerometers (accels), angle, chained
 exception tracebacks (chains, parse_errors), canbus_ids, digipots, eddy current probes, fan, heater_bed, load cell
 probes (lcp, lcp_bad; filter designs in `tests/cases/scipy/` against a scipy venv, `REF_KLIPPY`), misc extras,
 nozzle_cleanup, palette2, python macros (pymacro*), pwm_clock, replicape, i2c/spi temperature sensors (sensors, sensor_status), resonance

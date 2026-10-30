@@ -86,24 +86,24 @@ fn response_bytes(params: &Params, n: usize) -> KResult<Vec<u8>> {
 }
 
 pub struct HTU21D {
-    printer: Rc<Printer>,
-    i2c: Rc<McuI2c>,
-    hold_master_mode: bool,
-    resolution: String,
-    report_time: i64,
+    pub printer: Rc<Printer>,
+    pub i2c: Rc<McuI2c>,
+    pub hold_master_mode: bool,
+    pub resolution: String,
+    pub report_time: i64,
     device_id: String,
-    temp: Cell<f64>,
-    min_temp: Cell<f64>,
-    max_temp: Cell<f64>,
+    pub temp: Cell<f64>,
+    pub min_temp: Cell<f64>,
+    pub max_temp: Cell<f64>,
     /// python's humidity: a float, or the int 0 / 100 when clamped
-    humidity: Cell<f64>,
+    pub humidity: Cell<f64>,
     humidity_int: Cell<bool>,
-    sample_timer: RefCell<Option<Timer>>,
-    callback: RefCell<Option<TempCallback>>,
+    pub sample_timer: RefCell<Option<Timer>>,
+    pub callback: RefCell<Option<TempCallback>>,
 }
 
 impl HTU21D {
-    fn new(config: &ConfigWrapper) -> KResult<Rc<Self>> {
+    pub fn new(config: &ConfigWrapper) -> KResult<Rc<Self>> {
         let printer = config.get_printer();
         let name = config.get_name().split_whitespace().last().unwrap_or_default().to_string();
         let i2c = mcu_i2c_from_config(config, Some(HTU21D_I2C_ADDR), 100000)?;
@@ -147,7 +147,7 @@ impl HTU21D {
         Ok(s)
     }
 
-    fn handle_connect(&self) -> KResult<()> {
+    pub fn handle_connect(&self) -> KResult<()> {
         self.init_htu21d()?;
         if let Some(t) = self.sample_timer.borrow().as_ref() {
             self.printer.get_reactor().update_timer(t, NOW);
@@ -168,7 +168,7 @@ impl HTU21D {
         Ok(dev.1[idx])
     }
 
-    fn init_htu21d(&self) -> KResult<()> {
+    pub fn init_htu21d(&self) -> KResult<()> {
         // Device Soft Reset
         self.i2c.i2c_write(&[CMD_RESET], 0, 0)?;
         // Wait 15ms after reset
@@ -271,7 +271,7 @@ impl HTU21D {
         Ok(())
     }
 
-    fn sample_htu21d(&self, _eventtime: f64) -> f64 {
+    pub fn sample_htu21d(&self, _eventtime: f64) -> f64 {
         if let Err(e) = self.read_sensor() {
             logging::exception_err("htu21d: Error reading data", &e);
             self.temp.set(0.0);
@@ -321,11 +321,12 @@ impl TempSensor for HTU21D {
         self.max_temp.set(max_temp);
         Ok(())
     }
-    fn setup_callback(&self, cb: TempCallback) {
+    fn setup_callback(&self, cb: TempCallback) -> KResult<()> {
         *self.callback.borrow_mut() = Some(cb);
+        Ok(())
     }
-    fn get_report_time_delta(&self) -> f64 {
-        self.report_time as f64
+    fn get_report_time_delta(&self) -> KResult<f64> {
+        Ok(self.report_time as f64)
     }
 }
 

@@ -37,32 +37,32 @@ pub type ActiveCallback = Rc<dyn Fn(f64) -> KResult<()>>;
 
 // Interface to low-level mcu and chelper code
 pub struct McuStepper {
-    me: Weak<McuStepper>,
-    printer: Rc<Printer>,
-    name: String,
-    rotation_dist: Cell<f64>,
-    steps_per_rotation: f64,
-    step_pulse_duration: Cell<Option<f64>>,
-    units_in_radians: bool,
-    step_dist: Cell<f64>,
-    mcu: Rc<Mcu>,
-    oid: i64,
-    step_pin: String,
-    invert_step: i64,
-    dir_pin: String,
-    invert_dir: Cell<bool>,
-    orig_invert_dir: bool,
-    step_both_edge: Cell<bool>,
-    req_step_both_edge: Cell<bool>,
-    mcu_position_offset: Cell<f64>,
-    reset_cmd_tag: Cell<u32>,
-    get_position_cmd: RefCell<Option<CommandQueryWrapper>>,
-    active_callbacks: RefCell<Vec<ActiveCallback>>,
-    check_active_cb: RefCell<Option<FlushCallback>>,
-    syncemitter: SyncEmitterRef,
-    stepper_kinematics: RefCell<Option<SkRef>>,
-    trapq: RefCell<Option<TrapQRef>>,
-    tmc_current_helper: RefCell<Option<Rc<dyn TmcCurrentHelper>>>,
+    pub me: Weak<McuStepper>,
+    pub printer: Rc<Printer>,
+    pub name: String,
+    pub rotation_dist: Cell<f64>,
+    pub steps_per_rotation: f64,
+    pub step_pulse_duration: Cell<Option<f64>>,
+    pub units_in_radians: bool,
+    pub step_dist: Cell<f64>,
+    pub mcu: Rc<Mcu>,
+    pub oid: i64,
+    pub step_pin: String,
+    pub invert_step: i64,
+    pub dir_pin: String,
+    pub invert_dir: Cell<bool>,
+    pub orig_invert_dir: bool,
+    pub step_both_edge: Cell<bool>,
+    pub req_step_both_edge: Cell<bool>,
+    pub mcu_position_offset: Cell<f64>,
+    pub reset_cmd_tag: Cell<u32>,
+    pub get_position_cmd: RefCell<Option<CommandQueryWrapper>>,
+    pub active_callbacks: RefCell<Vec<ActiveCallback>>,
+    pub check_active_cb: RefCell<Option<FlushCallback>>,
+    pub syncemitter: SyncEmitterRef,
+    pub stepper_kinematics: RefCell<Option<SkRef>>,
+    pub trapq: RefCell<Option<TrapQRef>>,
+    pub tmc_current_helper: RefCell<Option<Rc<dyn TmcCurrentHelper>>>,
 }
 
 impl McuStepper {
@@ -183,7 +183,7 @@ impl McuStepper {
         self.set_stepper_kinematics(Some(sk));
     }
 
-    fn build_config(&self) -> KResult<()> {
+    pub fn build_config(&self) -> KResult<()> {
         if self.step_pulse_duration.get().is_none() {
             self.step_pulse_duration.set(Some(0.000002));
         }
@@ -317,7 +317,7 @@ impl McuStepper {
         (mcu_pos - 0.5) as i64
     }
 
-    fn set_mcu_position(&self, mcu_pos: i64) {
+    pub fn set_mcu_position(&self, mcu_pos: i64) {
         let mcu_pos_dist = mcu_pos as f64 * self.step_dist.get();
         self.mcu_position_offset.set(mcu_pos_dist - self.get_commanded_position());
     }
@@ -377,7 +377,7 @@ impl McuStepper {
         self.query_mcu_position()
     }
 
-    fn query_mcu_position(&self) -> KResult<()> {
+    pub fn query_mcu_position(&self) -> KResult<()> {
         if self.mcu.is_fileoutput() || self.mcu.non_critical_disconnected.get() {
             return Ok(());
         }
@@ -429,7 +429,7 @@ impl McuStepper {
         Ok(())
     }
 
-    fn check_active(&self, _must_flush_time: f64, max_step_gen_time: f64) -> KResult<()> {
+    pub fn check_active(&self, _must_flush_time: f64, max_step_gen_time: f64) -> KResult<()> {
         let ret = itersolve::check_active_time(&self.sk().borrow(), max_step_gen_time);
         if ret == 0. {
             // Stepper motor still not active
@@ -500,6 +500,10 @@ crate::impl_downcast!(dyn TmcCurrentHelper);
 pub trait TmcCurrentHelper: std::any::Any {
     /// set_current_for_homing(print_time, pre_homing) -> dwell time
     fn set_current_for_homing(&self, print_time: f64, pre_homing: bool) -> KResult<f64>;
+    /// the Rust type's path (python plugins find the Kalico class by it)
+    fn type_name(&self) -> &'static str {
+        std::any::type_name::<Self>()
+    }
 }
 
 /// stepper.PrinterRail.get_homing_info()'s namedtuple
@@ -518,7 +522,7 @@ pub struct HomingInfo {
 
 /// a stepper rail as homing.py / toolhead.py use it (PrinterRail and the
 /// dual carriage rails)
-pub trait Rail {
+pub trait Rail: std::any::Any {
     fn get_name(&self, short: bool) -> String;
     /// (position_min, position_max)
     fn get_range(&self) -> (f64, f64);
@@ -526,6 +530,10 @@ pub trait Rail {
     fn get_endstops(&self) -> Vec<(crate::mcu::EndstopRef, String)>;
     fn get_homing_info(&self) -> HomingInfo;
     fn get_tmc_current_helpers(&self) -> Vec<Option<Rc<dyn TmcCurrentHelper>>>;
+    /// the Rust type's path (python plugins find the Kalico class by it)
+    fn type_name(&self) -> &'static str {
+        std::any::type_name::<Self>()
+    }
 }
 
 pub type RailRef = Rc<dyn Rail>;
@@ -569,23 +577,23 @@ pub fn printer_stepper(config: &ConfigWrapper, units_in_radians: bool) -> KResul
 // A motor control "rail" with one (or more) steppers and one (or more)
 // endstops.
 pub struct PrinterRail {
-    stepper_units_in_radians: bool,
-    steppers: RefCell<Vec<Rc<McuStepper>>>,
-    endstops: RefCell<Vec<(EndstopRef, String)>>,
+    pub stepper_units_in_radians: bool,
+    pub steppers: RefCell<Vec<Rc<McuStepper>>>,
+    pub endstops: RefCell<Vec<(EndstopRef, String)>>,
     /// endstop_map: pin name -> (endstop, invert, pullup)
-    endstop_map: RefCell<IndexMap<String, (EndstopRef, i64, i64)>>,
-    tmc_current_helpers: RefCell<Option<Vec<Option<Rc<dyn TmcCurrentHelper>>>>>,
+    pub endstop_map: RefCell<IndexMap<String, (EndstopRef, i64, i64)>>,
+    pub tmc_current_helpers: RefCell<Option<Vec<Option<Rc<dyn TmcCurrentHelper>>>>>,
     pub position_endstop: Cell<f64>,
     pub position_min: Cell<f64>,
     pub position_max: Cell<f64>,
-    use_sensorless_homing: Cell<bool>,
-    homing_speed: Cell<f64>,
-    second_homing_speed: Cell<f64>,
-    homing_retract_speed: Cell<f64>,
-    homing_retract_dist: Cell<f64>,
-    homing_positive_dir: Cell<bool>,
-    min_home_dist: Cell<f64>,
-    homing_accel: Cell<Option<f64>>,
+    pub use_sensorless_homing: Cell<bool>,
+    pub homing_speed: Cell<f64>,
+    pub second_homing_speed: Cell<f64>,
+    pub homing_retract_speed: Cell<f64>,
+    pub homing_retract_dist: Cell<f64>,
+    pub homing_positive_dir: Cell<bool>,
+    pub min_home_dist: Cell<f64>,
+    pub homing_accel: Cell<Option<f64>>,
 }
 
 impl PrinterRail {

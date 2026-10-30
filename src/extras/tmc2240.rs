@@ -43,7 +43,7 @@ const KIFS: [f64; 4] = [11750.0, 24000.0, 36000.0, 36000.0];
 pub struct TMC2240CurrentHelper {
     base: BaseTMCCurrentHelper,
     rref: f64,
-    cs: Option<i64>,
+    pub cs: Option<i64>,
 }
 
 fn ifs_rms(rref: f64, current_range: i64) -> f64 {
@@ -70,7 +70,7 @@ impl TMC2240CurrentHelper {
         ifs_rms(self.rref, self.base.fields.get_field("current_range"))
     }
 
-    fn calc_current_range(&self, current: f64) -> i64 {
+    pub fn calc_current_range(&self, current: f64) -> i64 {
         for current_range in 0..4 {
             if current <= ifs_rms(self.rref, current_range) {
                 return current_range;
@@ -79,7 +79,7 @@ impl TMC2240CurrentHelper {
         3
     }
 
-    fn calc_globalscaler(&self, current: f64) -> i64 {
+    pub fn calc_globalscaler(&self, current: f64) -> i64 {
         let ifs_rms = self.get_ifs_rms();
         let cs = self.cs.unwrap_or(31);
         let globalscaler = ((current * 256.0 * 32.0) / (ifs_rms * (cs + 1) as f64)).floor() as i64;
@@ -103,14 +103,14 @@ impl TMC2240CurrentHelper {
         globalscaler
     }
 
-    fn calc_current_bits(&self, current: f64, globalscaler: i64) -> i64 {
+    pub fn calc_current_bits(&self, current: f64, globalscaler: i64) -> i64 {
         let ifs_rms = self.get_ifs_rms();
         let globalscaler = if globalscaler == 0 { 256 } else { globalscaler };
         let cs = ((current * 256.0 * 32.0) / (globalscaler as f64 * ifs_rms) - 1.0 + 0.5).trunc() as i64;
         0.max(31.min(cs))
     }
 
-    fn calc_current(&self, run_current: f64, hold_current: f64) -> KResult<(i64, i64, i64)> {
+    pub fn calc_current(&self, run_current: f64, hold_current: f64) -> KResult<(i64, i64, i64)> {
         let gscaler = self.calc_globalscaler(run_current);
         let irun = match self.cs {
             None => self.calc_current_bits(run_current, gscaler),
@@ -123,7 +123,7 @@ impl TMC2240CurrentHelper {
         Ok((gscaler, irun, ihold))
     }
 
-    fn calc_current_from_field(&self, field_name: &str) -> f64 {
+    pub fn calc_current_from_field(&self, field_name: &str) -> f64 {
         let ifs_rms = self.get_ifs_rms();
         let f = &self.base.fields;
         let mut globalscaler = f.get_field("globalscaler");
@@ -232,5 +232,5 @@ pub fn load_config_prefix(config: &ConfigWrapper) -> KResult<PObj> {
     set("sg4_angle_offset", 1)?;
     //   DRV_CONF
     set("slope_control", 0)?;
-    Ok(Rc::new(TmcDriver { fields, mcu_tmc, cmdhelper }))
+    Ok(Rc::new(TmcDriver { fields, mcu_tmc, cmdhelper, class: "TMC2240" }))
 }

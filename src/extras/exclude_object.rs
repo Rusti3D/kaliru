@@ -32,39 +32,41 @@ fn py_max(a: f64, b: f64) -> f64 {
 }
 
 #[derive(Default)]
-struct State {
-    next_transform: Option<MoveTransformRef>,
-    last_position_extruded: Vec<f64>,
-    last_position_excluded: Vec<f64>,
-    objects: Vec<PyDict>,
-    excluded_objects: Vec<String>,
-    current_object: Option<String>,
-    in_excluded_region: bool,
-    extrusion_offsets: IndexMap<String, Vec<f64>>,
-    max_position_extruded: f64,
-    max_position_excluded: f64,
-    extruder_adj: f64,
-    initial_extrusion_moves: i64,
-    last_position: Vec<f64>,
+pub struct State {
+    pub next_transform: Option<MoveTransformRef>,
+    pub last_position_extruded: Vec<f64>,
+    pub last_position_excluded: Vec<f64>,
+    pub objects: Vec<PyDict>,
+    pub excluded_objects: Vec<String>,
+    pub current_object: Option<String>,
+    pub in_excluded_region: bool,
+    pub extrusion_offsets: IndexMap<String, Vec<f64>>,
+    pub max_position_extruded: f64,
+    pub max_position_excluded: f64,
+    pub extruder_adj: f64,
+    pub initial_extrusion_moves: i64,
+    pub last_position: Vec<f64>,
+    /// move(): python's last_speed (unset before the first move)
+    pub last_speed: Option<f64>,
 }
 
 pub struct ExcludeObject {
     me: Weak<ExcludeObject>,
-    printer: Rc<Printer>,
-    gcode: Rc<GCodeDispatch>,
-    gcode_move: Rc<GCodeMove>,
+    pub printer: Rc<Printer>,
+    pub gcode: Rc<GCodeDispatch>,
+    pub gcode_move: Rc<GCodeMove>,
     /// False when enable_exclude_object is off: python then never sets the
     /// state attributes (get_status raises AttributeError)
     enabled: bool,
-    toolhead: RefCell<Option<Rc<ToolHead>>>,
-    st: RefCell<State>,
-    was_excluded_at_start: Cell<bool>,
+    pub toolhead: RefCell<Option<Rc<ToolHead>>>,
+    pub st: RefCell<State>,
+    pub was_excluded_at_start: Cell<bool>,
 }
 
 type CmdFn = fn(&ExcludeObject, &GCodeCommand) -> KResult<()>;
 
 impl ExcludeObject {
-    fn new(config: &ConfigWrapper) -> KResult<Rc<Self>> {
+    pub fn new(config: &ConfigWrapper) -> KResult<Rc<Self>> {
         let printer = config.get_printer();
         let gcode = printer.lookup::<GCodeDispatch>("gcode")?;
         let gcode_move = printer
@@ -112,7 +114,7 @@ impl ExcludeObject {
         Ok(eo)
     }
 
-    fn register_transform(&self) -> KResult<()> {
+    pub fn register_transform(&self) -> KResult<()> {
         if self.st.borrow().next_transform.is_none() {
             let tuning_tower = self.printer.lookup::<TuningTower>("tuning_tower")?;
             if tuning_tower.is_active() {
@@ -142,7 +144,7 @@ impl ExcludeObject {
         Ok(())
     }
 
-    fn unregister_transform(&self) -> KResult<()> {
+    pub fn unregister_transform(&self) -> KResult<()> {
         let next_transform = self.st.borrow().next_transform.clone();
         if let Some(next_transform) = next_transform {
             let tuning_tower = self.printer.lookup::<TuningTower>("tuning_tower")?;
@@ -160,7 +162,7 @@ impl ExcludeObject {
         Ok(())
     }
 
-    fn reset_state(&self) {
+    pub fn reset_state(&self) {
         let mut st = self.st.borrow_mut();
         st.objects.clear();
         st.excluded_objects.clear();
@@ -168,7 +170,7 @@ impl ExcludeObject {
         st.in_excluded_region = false;
     }
 
-    fn reset_file(&self) -> KResult<()> {
+    pub fn reset_file(&self) -> KResult<()> {
         self.reset_state();
         self.unregister_transform()
     }
@@ -192,7 +194,7 @@ impl ExcludeObject {
         st.extrusion_offsets.insert(ename.to_string(), offset);
     }
 
-    fn normal_move(&self, newpos: &[f64], speed: f64) -> KResult<()> {
+    pub fn normal_move(&self, newpos: &[f64], speed: f64) -> KResult<()> {
         let ename = self.extruder_name();
         let (tx_pos, next_transform) = {
             let mut st = self.st.borrow_mut();
@@ -267,7 +269,7 @@ impl ExcludeObject {
         self.ignore_move(newpos);
     }
 
-    fn move_from_excluded_region(&self, newpos: &[f64], speed: f64) -> KResult<()> {
+    pub fn move_from_excluded_region(&self, newpos: &[f64], speed: f64) -> KResult<()> {
         {
             let mut st = self.st.borrow_mut();
             st.in_excluded_region = false;
@@ -291,7 +293,7 @@ impl ExcludeObject {
         in_excluded && st.initial_extrusion_moves == 0
     }
 
-    fn cmd_exclude_object_start(&self, gcmd: &GCodeCommand) -> KResult<()> {
+    pub fn cmd_exclude_object_start(&self, gcmd: &GCodeCommand) -> KResult<()> {
         let name = gcmd.get("NAME")?.to_uppercase();
         let known = self.st.borrow().objects.iter().any(|obj| obj.get("name").map(|n| n.str()) == Some(name.clone()));
         if !known {
@@ -304,7 +306,7 @@ impl ExcludeObject {
         Ok(())
     }
 
-    fn cmd_exclude_object_end(&self, gcmd: &GCodeCommand) -> KResult<()> {
+    pub fn cmd_exclude_object_end(&self, gcmd: &GCodeCommand) -> KResult<()> {
         let (current, has_transform) = {
             let st = self.st.borrow();
             (st.current_object.clone(), st.next_transform.is_some())
@@ -329,7 +331,7 @@ impl ExcludeObject {
         Ok(())
     }
 
-    fn cmd_exclude_object(&self, gcmd: &GCodeCommand) -> KResult<()> {
+    pub fn cmd_exclude_object(&self, gcmd: &GCodeCommand) -> KResult<()> {
         let reset = gcmd.get_opt("RESET").filter(|s| !s.is_empty());
         let current = gcmd.get_opt("CURRENT").filter(|s| !s.is_empty());
         let name = gcmd.get_or("NAME", "").to_uppercase();
@@ -356,7 +358,7 @@ impl ExcludeObject {
         Ok(())
     }
 
-    fn cmd_exclude_object_define(&self, gcmd: &GCodeCommand) -> KResult<()> {
+    pub fn cmd_exclude_object_define(&self, gcmd: &GCodeCommand) -> KResult<()> {
         let reset = gcmd.get_opt("RESET").filter(|s| !s.is_empty());
         let name = gcmd.get_or("NAME", "").to_uppercase();
 
@@ -399,7 +401,7 @@ impl ExcludeObject {
         });
     }
 
-    fn exclude_object(&self, name: &str) -> KResult<()> {
+    pub fn exclude_object(&self, name: &str) -> KResult<()> {
         self.register_transform()?;
         self.gcode.respond_info(&format!("Excluding object {}", name.to_uppercase()), true);
         let mut st = self.st.borrow_mut();
@@ -410,7 +412,7 @@ impl ExcludeObject {
         Ok(())
     }
 
-    fn unexclude_object(&self, name: &str) {
+    pub fn unexclude_object(&self, name: &str) {
         self.gcode.respond_info(&format!("Unexcluding object {}", name.to_uppercase()), true);
         let mut st = self.st.borrow_mut();
         if let Some(pos) = st.excluded_objects.iter().position(|o| o == name) {
@@ -419,7 +421,7 @@ impl ExcludeObject {
         }
     }
 
-    fn list_objects(&self, gcmd: &GCodeCommand) {
+    pub fn list_objects(&self, gcmd: &GCodeCommand) {
         let st = self.st.borrow();
         let object_list = if gcmd.get_opt("JSON").is_some() {
             PyVal::List(st.objects.iter().cloned().map(PyVal::Dict).collect()).json()
@@ -429,7 +431,7 @@ impl ExcludeObject {
         gcmd.respond_info(&format!("Known objects: {}", object_list), true);
     }
 
-    fn list_excluded_objects(&self, gcmd: &GCodeCommand) {
+    pub fn list_excluded_objects(&self, gcmd: &GCodeCommand) {
         let object_list = self.st.borrow().excluded_objects.join(" ");
         gcmd.respond_info(&format!("Excluded objects: {}", object_list), true);
     }
@@ -456,6 +458,7 @@ impl MoveTransform for ExcludeObject {
 
     fn move_to(&self, newpos: &[f64], speed: f64) -> KResult<()> {
         let move_in_excluded_region = self.test_in_excluded_region();
+        self.st.borrow_mut().last_speed = Some(speed);
         let in_excluded_region = self.st.borrow().in_excluded_region;
 
         if move_in_excluded_region {

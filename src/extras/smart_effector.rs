@@ -24,17 +24,17 @@ use std::rc::{Rc, Weak};
 
 const BITS_PER_SECOND: f64 = 1000.0;
 
-struct ControlPinHelper {
-    mcu: Rc<Mcu>,
-    pin: String,
-    start_value: i64,
-    invert: i64,
-    oid: Cell<Option<i64>>,
-    set_cmd: RefCell<Option<CommandWrapper>>,
+pub struct ControlPinHelper {
+    pub mcu: Rc<Mcu>,
+    pub pin: String,
+    pub start_value: i64,
+    pub invert: i64,
+    pub oid: Cell<Option<i64>>,
+    pub set_cmd: RefCell<Option<CommandWrapper>>,
 }
 
 impl ControlPinHelper {
-    fn build_config(&self) -> KResult<()> {
+    pub fn build_config(&self) -> KResult<()> {
         self.mcu.request_move_queue_slot();
         let oid = self.mcu.create_oid();
         self.oid.set(Some(oid));
@@ -48,7 +48,7 @@ impl ControlPinHelper {
         Ok(())
     }
 
-    fn write_bits(&self, start_time: f64, bit_stream: &[i64]) -> KResult<f64> {
+    pub fn write_bits(&self, start_time: f64, bit_stream: &[i64]) -> KResult<f64> {
         let set_cmd = self.set_cmd.borrow();
         let set_cmd = set_cmd.as_ref().ok_or_else(|| KError::Other("'NoneType' object has no attribute 'send'".into()))?;
         let oid = self.oid.get().unwrap_or(0);
@@ -81,17 +81,17 @@ const CMD_RESET_SMART_EFFECTOR_HELP: &str = "Reset SmartEffector settings (sensi
 
 pub struct SmartEffectorEndstopWrapper {
     me: Weak<SmartEffectorEndstopWrapper>,
-    printer: Rc<Printer>,
-    gcode: Rc<GCodeDispatch>,
-    probe_accel: Cell<f64>,
-    recovery_time: Cell<f64>,
-    old_max_accel: Cell<Option<f64>>,
-    probe_wrapper: Rc<ProbeEndstopWrapper>,
-    control_pin: Option<Rc<ControlPinHelper>>,
+    pub printer: Rc<Printer>,
+    pub gcode: Rc<GCodeDispatch>,
+    pub probe_accel: Cell<f64>,
+    pub recovery_time: Cell<f64>,
+    pub old_max_accel: Cell<Option<f64>>,
+    pub probe_wrapper: Rc<ProbeEndstopWrapper>,
+    pub control_pin: Option<Rc<ControlPinHelper>>,
 }
 
 impl SmartEffectorEndstopWrapper {
-    fn new(config: &ConfigWrapper) -> KResult<Rc<Self>> {
+    pub fn new(config: &ConfigWrapper) -> KResult<Rc<Self>> {
         let printer = config.get_printer();
         let gcode = printer.lookup::<GCodeDispatch>("gcode")?;
         let probe_accel = config.getfloat("probe_accel", 0.0, Lim::new().min(0.0))?;
@@ -151,7 +151,7 @@ impl SmartEffectorEndstopWrapper {
         Ok(s)
     }
 
-    fn send_command(&self, buf: &[i64]) -> KResult<()> {
+    pub fn send_command(&self, buf: &[i64]) -> KResult<()> {
         // Each byte is sent to the SmartEffector as
         // [0 0 1 0 b7 b6 b5 b4 !b4 b3 b2 b1 b0 !b0]
         let mut bit_stream = vec![];
@@ -176,7 +176,7 @@ impl SmartEffectorEndstopWrapper {
         toolhead.wait_moves()
     }
 
-    fn cmd_set_smart_effector(&self, gcmd: &GCodeCommand) -> KResult<()> {
+    pub fn cmd_set_smart_effector(&self, gcmd: &GCodeCommand) -> KResult<()> {
         let sensitivity = gcmd.get_int_opt("SENSITIVITY", Lim::new().min(0.0).max(255.0))?;
         let mut respond_info = vec![];
         if let Some(sensitivity) = sensitivity {
@@ -204,7 +204,7 @@ impl SmartEffectorEndstopWrapper {
         Ok(())
     }
 
-    fn cmd_reset_smart_effector(&self, gcmd: &GCodeCommand) -> KResult<()> {
+    pub fn cmd_reset_smart_effector(&self, gcmd: &GCodeCommand) -> KResult<()> {
         self.send_command(&[131, 131])?;
         gcmd.respond_info("SmartEffector sensitivity was reset", true);
         Ok(())

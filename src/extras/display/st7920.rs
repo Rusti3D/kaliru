@@ -39,7 +39,7 @@ fn char_glyph(name: &str) -> Option<&'static [u8; 16]> {
 }
 
 /// how a DisplayBase sends: ST7920 (mcu commands) or EmulatedST7920 (spi)
-enum Io {
+pub enum Io {
     Native { mcu: Rc<Mcu>, oid: i64, pins: [String; 3], cmds: RefCell<Option<(CommandWrapper, CommandWrapper)>> },
     Emulated { spi: Rc<McuSpi>, en_helper: EnableHelper, en_set: Cell<bool> },
 }
@@ -48,14 +48,14 @@ enum Io {
 type Framebuffer = (Vec<u8>, Vec<u8>, i64);
 
 pub struct DisplayBase {
-    io: Io,
-    mcu: Rc<Mcu>,
-    is_extended: Cell<bool>,
+    pub io: Io,
+    pub mcu: Rc<Mcu>,
+    pub is_extended: Cell<bool>,
     /// all_framebuffers: text (0x80), glyph (0x40), then the 32 graphics
     /// framebuffers (0..31)
     fbs: RefCell<Vec<Framebuffer>>,
-    cached_glyphs: RefCell<IndexMap<String, (String, Vec<u8>)>>,
-    icons: RefCell<IndexMap<String, (Vec<i64>, Vec<i64>)>>,
+    pub cached_glyphs: RefCell<IndexMap<String, (String, Vec<u8>)>>,
+    pub icons: RefCell<IndexMap<String, (Vec<i64>, Vec<i64>)>>,
 }
 
 const TEXT_FB: usize = 0;
@@ -85,7 +85,7 @@ impl DisplayBase {
         }
     }
 
-    fn send(&self, cmds: &[u8], is_data: bool, is_extended: bool) -> KResult<()> {
+    pub fn send(&self, cmds: &[u8], is_data: bool, is_extended: bool) -> KResult<()> {
         match &self.io {
             Io::Native { oid, cmds: lookups, .. } => {
                 let lookups = lookups.borrow();
@@ -133,7 +133,7 @@ impl DisplayBase {
         }
     }
 
-    fn cache_glyph(&self, glyph_name: &str, base_glyph_name: &str, glyph_id: usize) {
+    pub fn cache_glyph(&self, glyph_name: &str, base_glyph_name: &str, glyph_id: usize) {
         let icons = self.icons.borrow();
         let (Some(icon), Some(base_icon)) = (icons.get(glyph_name), icons.get(base_glyph_name)) else { return };
         let mut fbs = self.fbs.borrow_mut();
@@ -341,7 +341,7 @@ fn build_config(d: &DisplayBase) -> KResult<()> {
 // Helper code for toggling the en pin on startup
 pub struct EnableHelper {
     printer: Rc<Printer>,
-    en_pin: Rc<McuBusDigitalOut>,
+    pub en_pin: Rc<McuBusDigitalOut>,
 }
 
 impl EnableHelper {

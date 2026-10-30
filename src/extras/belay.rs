@@ -44,26 +44,26 @@ const CMD_BELAY_ENABLE_HELP: &str = "Manually enable Belay";
 const CMD_BELAY_DISABLE_HELP: &str = "Manually disable Belay";
 
 pub struct Belay {
-    printer: Rc<Printer>,
-    reactor: Rc<Reactor>,
+    pub printer: Rc<Printer>,
+    pub reactor: Rc<Reactor>,
     kind: BelayType,
-    extruder_stepper_name: String,
-    enable_initial: bool,
-    multiplier_high: Cell<f64>,
-    multiplier_low: Cell<f64>,
-    debug_level: i64,
-    name: String,
-    enabled: Cell<bool>,
-    last_state: Cell<bool>,
-    last_direction: Cell<bool>,
+    pub extruder_stepper_name: String,
+    pub enable_initial: bool,
+    pub multiplier_high: Cell<f64>,
+    pub multiplier_low: Cell<f64>,
+    pub debug_level: i64,
+    pub name: String,
+    pub enabled: Cell<bool>,
+    pub last_state: Cell<bool>,
+    pub last_direction: Cell<bool>,
     set_multiplier: RefCell<Option<SetMultiplier>>,
-    gcode: Rc<GCodeDispatch>,
-    toolhead: RefCell<Option<Rc<ToolHead>>>,
-    update_direction_timer: RefCell<Option<Timer>>,
+    pub gcode: Rc<GCodeDispatch>,
+    pub toolhead: RefCell<Option<Rc<ToolHead>>>,
+    pub update_direction_timer: RefCell<Option<Timer>>,
 }
 
 impl Belay {
-    fn new(config: &ConfigWrapper) -> KResult<Rc<Self>> {
+    pub fn new(config: &ConfigWrapper) -> KResult<Rc<Self>> {
         let printer = config.get_printer();
         let reactor = printer.get_reactor();
 
@@ -171,7 +171,7 @@ impl Belay {
         Ok(b)
     }
 
-    fn handle_connect(&self) -> KResult<()> {
+    pub fn handle_connect(&self) -> KResult<()> {
         *self.toolhead.borrow_mut() = Some(self.printer.lookup::<ToolHead>("toolhead")?);
 
         // finish type-specific setup
@@ -185,7 +185,7 @@ impl Belay {
         }
     }
 
-    fn set_extruder_stepper(&self, extruder_stepper_name: &str) -> KResult<()> {
+    pub fn set_extruder_stepper(&self, extruder_stepper_name: &str) -> KResult<()> {
         let printer_extruder_stepper = self.printer.lookup::<PrinterExtruderStepper>(&format!("extruder_stepper {}", extruder_stepper_name))?;
         let stepper = printer_extruder_stepper.extruder_stepper.stepper.clone();
         let base_rotation_dist = stepper.get_rotation_distance().0;
@@ -213,7 +213,7 @@ impl Belay {
         }
     }
 
-    fn handle_ready(&self) -> KResult<()> {
+    pub fn handle_ready(&self) -> KResult<()> {
         if self.enable_initial {
             self.handle_enable()?;
         }
@@ -224,7 +224,7 @@ impl Belay {
         self.update_direction_timer.borrow().clone().expect("belay timer")
     }
 
-    fn handle_enable(&self) -> KResult<()> {
+    pub fn handle_enable(&self) -> KResult<()> {
         if self.enabled.get() || !self.type_condition() {
             return Ok(());
         }
@@ -233,7 +233,7 @@ impl Belay {
         self.update_multiplier(true)
     }
 
-    fn handle_disable(&self) -> KResult<()> {
+    pub fn handle_disable(&self) -> KResult<()> {
         if !self.enabled.get() || !self.type_condition() {
             return Ok(());
         }
@@ -243,7 +243,7 @@ impl Belay {
         Ok(())
     }
 
-    fn sensor_callback(&self, _eventtime: f64, state: bool) -> KResult<()> {
+    pub fn sensor_callback(&self, _eventtime: f64, state: bool) -> KResult<()> {
         self.last_state.set(state);
         if self.enabled.get() {
             self.update_multiplier(true)?;
@@ -251,7 +251,7 @@ impl Belay {
         Ok(())
     }
 
-    fn update_multiplier(&self, print_msg: bool) -> KResult<()> {
+    pub fn update_multiplier(&self, print_msg: bool) -> KResult<()> {
         let multiplier = if self.last_state.get() == self.last_direction.get() {
             // compressed/forward or expanded/backward
             self.multiplier_high.get()
@@ -266,7 +266,7 @@ impl Belay {
         Ok(())
     }
 
-    fn reset_multiplier(&self) -> KResult<()> {
+    pub fn reset_multiplier(&self) -> KResult<()> {
         self.call_set_multiplier(1.0)?;
         if self.debug_level >= 1 {
             self.gcode.respond_info("Reset secondary extruder multiplier", true);
@@ -274,7 +274,7 @@ impl Belay {
         Ok(())
     }
 
-    fn update_direction(&self, eventtime: f64) -> f64 {
+    pub fn update_direction(&self, eventtime: f64) -> f64 {
         if let Err(e) = self.try_update_direction(eventtime) {
             crate::logging::exception_err("belay update_direction", &e);
         }
@@ -299,31 +299,31 @@ impl Belay {
         Ok(())
     }
 
-    fn cmd_query_belay(&self, _gcmd: &GCodeCommand) -> KResult<()> {
+    pub fn cmd_query_belay(&self, _gcmd: &GCodeCommand) -> KResult<()> {
         let state_info = if self.last_state.get() { "compressed" } else { "expanded" };
         self.gcode.respond_info(&format!("belay {}: {}", self.name, state_info), true);
         Ok(())
     }
 
-    fn cmd_belay_set_multiplier(&self, gcmd: &GCodeCommand) -> KResult<()> {
+    pub fn cmd_belay_set_multiplier(&self, gcmd: &GCodeCommand) -> KResult<()> {
         self.multiplier_high.set(gcmd.get_float("HIGH", Some(self.multiplier_high.get()), Lim::new().min(1.0))?);
         self.multiplier_low.set(gcmd.get_float("LOW", Some(self.multiplier_low.get()), Lim::new().min(0.0).max(1.0))?);
         Ok(())
     }
 
-    fn cmd_belay_set_stepper(&self, gcmd: &GCodeCommand) -> KResult<()> {
+    pub fn cmd_belay_set_stepper(&self, gcmd: &GCodeCommand) -> KResult<()> {
         self.handle_disable()?;
         self.set_extruder_stepper(&gcmd.get("STEPPER")?)?;
         self.handle_enable()
     }
 
-    fn cmd_belay_enable(&self, gcmd: &GCodeCommand) -> KResult<()> {
+    pub fn cmd_belay_enable(&self, gcmd: &GCodeCommand) -> KResult<()> {
         self.handle_enable()?;
         gcmd.respond_info("Belay manually enabled", true);
         Ok(())
     }
 
-    fn cmd_belay_disable(&self, gcmd: &GCodeCommand) -> KResult<()> {
+    pub fn cmd_belay_disable(&self, gcmd: &GCodeCommand) -> KResult<()> {
         self.handle_disable()?;
         gcmd.respond_info("Belay manually disabled", true);
         Ok(())

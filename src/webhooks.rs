@@ -41,12 +41,12 @@ fn error_dict(message: &str) -> PyVal {
 pub type Endpoint = Rc<dyn Fn(&WebRequest) -> KResult<()>>;
 
 pub struct WebRequest {
-    client_conn: Option<Rc<ClientConnection>>,
+    pub client_conn: Option<Rc<ClientConnection>>,
     pub id: PyVal,
     pub method: String,
     pub params: PyDict,
-    response: RefCell<Option<PyVal>>,
-    is_error: Cell<bool>,
+    pub response: RefCell<Option<PyVal>>,
+    pub is_error: Cell<bool>,
 }
 
 /// expected python types for WebRequest.get(..., types=...)
@@ -148,14 +148,14 @@ impl WebRequest {
 }
 
 pub struct ServerSocket {
-    printer: Rc<Printer>,
+    pub printer: Rc<Printer>,
     sock: Cell<RawFd>,
     fd_handle: RefCell<Option<FileHandler>>,
     clients: RefCell<IndexMap<usize, Rc<ClientConnection>>>,
 }
 
 impl ServerSocket {
-    fn new(webhooks: &Rc<WebHooks>, printer: &Rc<Printer>) -> KResult<Rc<Self>> {
+    pub fn new(webhooks: &Rc<WebHooks>, printer: &Rc<Printer>) -> KResult<Rc<Self>> {
         let ss = Rc::new(ServerSocket { printer: printer.clone(), sock: Cell::new(-1), fd_handle: RefCell::new(None), clients: RefCell::new(IndexMap::default()) });
         let server_address = printer.start_arg("apiserver_file").map(|v| v.str());
         let is_fileinput = printer.start_arg("debuginput").is_some();
@@ -218,7 +218,7 @@ impl ServerSocket {
         Ok(ss)
     }
 
-    fn handle_accept(self: &Rc<Self>, webhooks: &Rc<WebHooks>) {
+    pub fn handle_accept(self: &Rc<Self>, webhooks: &Rc<WebHooks>) {
         // SAFETY: null address pointers are allowed (the peer address is not wanted)
         let fd = unsafe { libc::accept4(self.sock.get(), std::ptr::null_mut(), std::ptr::null_mut(), libc::SOCK_CLOEXEC) };
         if fd < 0 {
@@ -229,7 +229,7 @@ impl ServerSocket {
         self.clients.borrow_mut().insert(client.uid, client);
     }
 
-    fn handle_disconnect(&self) {
+    pub fn handle_disconnect(&self) {
         let clients: Vec<_> = self.clients.borrow().values().cloned().collect();
         for client in clients {
             client.close();
@@ -244,7 +244,7 @@ impl ServerSocket {
         }
     }
 
-    fn remove_socket_file(&self, file_path: &str) -> KResult<()> {
+    pub fn remove_socket_file(&self, file_path: &str) -> KResult<()> {
         if let Err(e) = std::fs::remove_file(file_path) {
             if std::path::Path::new(file_path).exists() {
                 logging::exception(&format!("webhooks: Unable to delete socket file '{}'", file_path));
@@ -254,7 +254,7 @@ impl ServerSocket {
         Ok(())
     }
 
-    fn pop_client(&self, client_id: usize) {
+    pub fn pop_client(&self, client_id: usize) {
         self.clients.borrow_mut().shift_remove(&client_id);
     }
 
@@ -322,18 +322,18 @@ fn apply_permission_options_to_socket(socket_path: &str, printer: &Printer) -> K
 }
 
 pub struct ClientConnection {
-    printer: Rc<Printer>,
+    pub printer: Rc<Printer>,
     webhooks: std::rc::Weak<WebHooks>,
     server: std::rc::Weak<ServerSocket>,
     pub uid: usize,
     sock: RawFd,
     fd_handle: RefCell<Option<FileHandler>>,
-    partial_data: RefCell<Vec<u8>>,
-    send_buffer: RefCell<Vec<u8>>,
+    pub partial_data: RefCell<Vec<u8>>,
+    pub send_buffer: RefCell<Vec<u8>>,
     /// the reply being serialized (kept between replies)
     json_scratch: RefCell<String>,
-    is_blocking: Cell<bool>,
-    blocking_count: Cell<i64>,
+    pub is_blocking: Cell<bool>,
+    pub blocking_count: Cell<i64>,
     request_log: RefCell<VecDeque<(f64, Vec<u8>)>>,
 }
 
@@ -361,7 +361,7 @@ impl ClientConnection {
         c
     }
 
-    fn dump_request_log(&self) {
+    pub fn dump_request_log(&self) {
         let log = self.request_log.borrow();
         let mut out = vec![format!("Dumping {} requests for client {}", log.len(), self.uid)];
         for (eventtime, request) in log.iter() {
@@ -400,7 +400,7 @@ impl ClientConnection {
         self.fd_handle.borrow().is_none()
     }
 
-    fn process_received(self: &Rc<Self>, eventtime: f64) {
+    pub fn process_received(self: &Rc<Self>, eventtime: f64) {
         let mut buf = [0u8; 4096];
         // SAFETY: buf is a live buffer of buf.len() bytes
         let n = unsafe { libc::recv(self.sock, buf.as_mut_ptr() as *mut libc::c_void, buf.len(), 0) };
@@ -527,11 +527,11 @@ impl ClientConnection {
 type MuxValues = IndexMap<Option<String>, Endpoint>;
 
 pub struct WebHooks {
-    printer: Rc<Printer>,
+    pub printer: Rc<Printer>,
     endpoints: RefCell<IndexMap<String, Endpoint>>,
     remote_methods: RefCell<IndexMap<String, IndexMap<usize, (Rc<ClientConnection>, PyVal)>>>,
     mux_endpoints: RefCell<IndexMap<String, (String, MuxValues)>>,
-    sconn: RefCell<Option<Rc<ServerSocket>>>,
+    pub sconn: RefCell<Option<Rc<ServerSocket>>>,
 }
 
 impl PrinterObject for WebHooks {
@@ -564,7 +564,7 @@ impl PrinterObject for WebHooks {
 }
 
 impl WebHooks {
-    fn new(printer: &Rc<Printer>) -> KResult<Rc<Self>> {
+    pub fn new(printer: &Rc<Printer>) -> KResult<Rc<Self>> {
         let wh = Rc::new(WebHooks {
             printer: printer.clone(),
             endpoints: RefCell::new(IndexMap::default()),
@@ -631,7 +631,7 @@ impl WebHooks {
         Ok(())
     }
 
-    fn handle_mux(&self, web_request: &WebRequest) -> KResult<()> {
+    pub fn handle_mux(&self, web_request: &WebRequest) -> KResult<()> {
         let func = {
             let mux = self.mux_endpoints.borrow();
             let (key, values) = mux.get(web_request.get_method()).unwrap();
@@ -653,7 +653,7 @@ impl WebHooks {
         func(web_request)
     }
 
-    fn handle_info_request(&self, web_request: &WebRequest) -> KResult<()> {
+    pub fn handle_info_request(&self, web_request: &WebRequest) -> KResult<()> {
         let client_info = web_request.get_dict("client_info", Some(PyVal::None))?;
         if client_info != PyVal::None {
             if let Some(c) = web_request.get_client_connection() {
@@ -689,7 +689,7 @@ impl WebHooks {
         web_request.send(PyVal::Dict(response))
     }
 
-    fn handle_rpc_registration(&self, web_request: &WebRequest) -> KResult<()> {
+    pub fn handle_rpc_registration(&self, web_request: &WebRequest) -> KResult<()> {
         let template = web_request.get_dict("response_template", None)?;
         let method = web_request.get_str("remote_method", None)?.str();
         let Some(new_conn) = web_request.get_client_connection() else { return Ok(()) };
@@ -757,14 +757,14 @@ pub fn is_gcode_helper(origin: &crate::gcode::CallbackOrigin) -> bool {
     origin.1 == std::any::type_name::<GCodeHelper>()
 }
 
-struct GCodeHelper {
-    gcode: Rc<GCodeDispatch>,
-    is_output_registered: Cell<bool>,
+pub struct GCodeHelper {
+    pub gcode: Rc<GCodeDispatch>,
+    pub is_output_registered: Cell<bool>,
     clients: RefCell<IndexMap<usize, (Rc<ClientConnection>, PyVal)>>,
 }
 
 impl GCodeHelper {
-    fn new(printer: &Rc<Printer>) -> KResult<Rc<Self>> {
+    pub fn new(printer: &Rc<Printer>) -> KResult<Rc<Self>> {
         let gh = Rc::new(GCodeHelper {
             gcode: printer.lookup::<GCodeDispatch>("gcode")?,
             is_output_registered: Cell::new(false),
@@ -791,7 +791,7 @@ impl GCodeHelper {
         Ok(gh)
     }
 
-    fn output_callback(&self, msg: &str) {
+    pub fn output_callback(&self, msg: &str) {
         let clients: Vec<_> = self.clients.borrow().iter().map(|(k, v)| (*k, v.clone())).collect();
         for (uid, (cconn, template)) in clients {
             if cconn.is_closed() {
@@ -809,7 +809,7 @@ impl GCodeHelper {
         }
     }
 
-    fn handle_subscribe_output(self: &Rc<Self>, web_request: &WebRequest) -> KResult<()> {
+    pub fn handle_subscribe_output(self: &Rc<Self>, web_request: &WebRequest) -> KResult<()> {
         let template = web_request.get_dict("response_template", Some(PyVal::dict()))?;
         if let Some(cconn) = web_request.get_client_connection() {
             self.clients.borrow_mut().insert(cconn.uid, (cconn, template));
@@ -922,16 +922,16 @@ impl Status {
     }
 }
 
-struct QueryStatusHelper {
-    printer: Rc<Printer>,
+pub struct QueryStatusHelper {
+    pub printer: Rc<Printer>,
     clients: RefCell<IndexMap<usize, (Rc<ClientConnection>, Subscription, PyVal)>>,
     pending_queries: RefCell<Vec<(Option<Rc<ClientConnection>>, Subscription, SendFunc, PyVal)>>,
-    query_timer: RefCell<Option<Timer>>,
+    pub query_timer: RefCell<Option<Timer>>,
     last_query: RefCell<IndexMap<PyKey, Status>>,
 }
 
 impl QueryStatusHelper {
-    fn new(printer: &Rc<Printer>) -> KResult<Rc<Self>> {
+    pub fn new(printer: &Rc<Printer>) -> KResult<Rc<Self>> {
         let q = Rc::new(QueryStatusHelper {
             printer: printer.clone(),
             clients: RefCell::new(IndexMap::default()),
@@ -964,7 +964,7 @@ impl QueryStatusHelper {
         Ok(q)
     }
 
-    fn do_query(self: &Rc<Self>, eventtime: f64) -> f64 {
+    pub fn do_query(self: &Rc<Self>, eventtime: f64) -> f64 {
         let last_query = std::mem::take(&mut *self.last_query.borrow_mut());
         let mut query: IndexMap<PyKey, Status> = IndexMap::default();
         let mut msglist = std::mem::take(&mut *self.pending_queries.borrow_mut());
@@ -1058,7 +1058,7 @@ impl QueryStatusHelper {
         eventtime + SUBSCRIPTION_REFRESH_TIME
     }
 
-    fn handle_query(self: &Rc<Self>, web_request: &WebRequest, is_subscribe: bool) -> KResult<()> {
+    pub fn handle_query(self: &Rc<Self>, web_request: &WebRequest, is_subscribe: bool) -> KResult<()> {
         let PyVal::Dict(objects) = web_request.get_dict("objects", None)? else { unreachable!() };
         // Validate subscription format
         for v in objects.values() {

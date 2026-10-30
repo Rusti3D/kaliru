@@ -108,11 +108,11 @@ impl TextFramebuffers {
 }
 
 pub struct HD44780 {
-    printer: Rc<Printer>,
-    hd44780_protocol_init: bool,
-    pins: Vec<String>,
-    mcu: Rc<Mcu>,
-    oid: i64,
+    pub printer: Rc<Printer>,
+    pub hd44780_protocol_init: bool,
+    pub pins: Vec<String>,
+    pub mcu: Rc<Mcu>,
+    pub oid: i64,
     cmds: RefCell<Option<(CommandWrapper, CommandWrapper)>>,
     fb: TextFramebuffers,
 }
@@ -158,7 +158,7 @@ pub fn new_hd44780(config: &ConfigWrapper) -> KResult<Rc<dyn LcdChip>> {
 }
 
 impl HD44780 {
-    fn build_config(&self) -> KResult<()> {
+    pub fn build_config(&self) -> KResult<()> {
         let p = &self.pins;
         self.mcu.add_config_cmd(
             &format!(

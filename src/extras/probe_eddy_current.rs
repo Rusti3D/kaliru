@@ -44,18 +44,18 @@ const CMD_EDDY_CALIBRATE_HELP: &str = "Calibrate eddy current probe";
 // Tool for calibrating the sensor Z detection and applying that calibration
 pub struct EddyCalibration {
     me: Weak<EddyCalibration>,
-    printer: Rc<Printer>,
-    name: String,
-    pprobe: RefCell<Option<Rc<PrinterProbe>>>,
+    pub printer: Rc<Printer>,
+    pub name: String,
+    pub pprobe: RefCell<Option<Rc<PrinterProbe>>>,
     // Current calibration data
-    cal_freqs: RefCell<Vec<f64>>,
-    cal_zpos: RefCell<Vec<f64>>,
+    pub cal_freqs: RefCell<Vec<f64>>,
+    pub cal_zpos: RefCell<Vec<f64>>,
     // Probe calibrate state
-    probe_speed: Cell<f64>,
+    pub probe_speed: Cell<f64>,
 }
 
 impl EddyCalibration {
-    fn new(config: &ConfigWrapper) -> KResult<Rc<Self>> {
+    pub fn new(config: &ConfigWrapper) -> KResult<Rc<Self>> {
         let printer = config.get_printer();
         let c = Rc::new_cyclic(|me| EddyCalibration {
             me: me.clone(),
@@ -99,7 +99,7 @@ impl EddyCalibration {
         self.cal_freqs.borrow().len() > 2
     }
 
-    fn load_calibration(&self, cal: &[Vec<f64>]) {
+    pub fn load_calibration(&self, cal: &[Vec<f64>]) {
         let mut cal: Vec<(f64, f64)> = cal.iter().map(|c| (c[1], c[0])).collect();
         cal.sort_by(|a, b| a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal));
         *self.cal_freqs.borrow_mut() = cal.iter().map(|c| c.0).collect();
@@ -148,7 +148,7 @@ impl EddyCalibration {
     }
 
     /// the {kin z: [freqs]} measurements, in insertion order
-    fn do_calibration_moves(&self, move_speed: f64) -> KResult<Vec<(f64, Vec<f64>)>> {
+    pub fn do_calibration_moves(&self, move_speed: f64) -> KResult<Vec<(f64, Vec<f64>)>> {
         let toolhead = self.printer.lookup::<ToolHead>("toolhead")?;
         let kin = toolhead.get_kinematics();
         let all = |p: &[f64]| p.iter().map(|v| Some(*v)).collect::<Vec<_>>();
@@ -231,7 +231,7 @@ impl EddyCalibration {
         (positions, (total_variance / total_count as f64).sqrt(), total_count)
     }
 
-    fn post_manual_probe(&self, kin_pos: Option<Vec<f64>>) -> KResult<()> {
+    pub fn post_manual_probe(&self, kin_pos: Option<Vec<f64>>) -> KResult<()> {
         let Some(kin_pos) = kin_pos else {
             // Manual Probe was aborted
             return Ok(());
@@ -288,7 +288,7 @@ impl EddyCalibration {
         Ok(())
     }
 
-    fn cmd_eddy_calibrate(&self, gcmd: &GCodeCommand) -> KResult<()> {
+    pub fn cmd_eddy_calibrate(&self, gcmd: &GCodeCommand) -> KResult<()> {
         self.probe_speed.set(gcmd.get_float("PROBE_SPEED", Some(5.0), Lim::new().above(0.0))?);
         // Start manual probe
         let me = self.me.upgrade().expect("eddy calibration");
@@ -296,15 +296,15 @@ impl EddyCalibration {
     }
 }
 
-struct EddyDistanceCollector {
-    endstop_wrapper: Rc<EddyEndstopWrapper>,
+pub struct EddyDistanceCollector {
+    pub endstop_wrapper: Rc<EddyEndstopWrapper>,
     samples: RefCell<Vec<ProbeDistanceResult>>,
-    stop_after: Cell<Option<f64>>,
+    pub stop_after: Cell<Option<f64>>,
     stop_notify: Rc<ReactorCompletion<Vec<ProbeDistanceResult>>>,
 }
 
 impl EddyDistanceCollector {
-    fn new(endstop_wrapper: Rc<EddyEndstopWrapper>) -> KResult<Rc<Self>> {
+    pub fn new(endstop_wrapper: Rc<EddyEndstopWrapper>) -> KResult<Rc<Self>> {
         let stop_notify = endstop_wrapper.printer.get_reactor().completion();
         let c = Rc::new(EddyDistanceCollector {
             endstop_wrapper: endstop_wrapper.clone(),
@@ -317,7 +317,7 @@ impl EddyDistanceCollector {
         Ok(c)
     }
 
-    fn collect_samples(&self, msg: &PyVal) -> bool {
+    pub fn collect_samples(&self, msg: &PyVal) -> bool {
         for sample in msg_data(msg) {
             let time = sample.0;
 
@@ -353,23 +353,23 @@ impl ProbeDistanceCollector for EddyDistanceCollector {
 // Helper for implementing PROBE style commands
 pub struct EddyEndstopWrapper {
     me: Weak<EddyEndstopWrapper>,
-    printer: Rc<Printer>,
-    sensor_helper: Rc<LDC1612>,
-    mcu: Rc<Mcu>,
-    calibration: Rc<EddyCalibration>,
-    z_offset: f64,
+    pub printer: Rc<Printer>,
+    pub sensor_helper: Rc<LDC1612>,
+    pub mcu: Rc<Mcu>,
+    pub calibration: Rc<EddyCalibration>,
+    pub z_offset: f64,
     dispatch: TriggerDispatch,
-    samples: RefCell<Vec<PyVal>>,
-    is_sampling: Cell<bool>,
-    start_from_home: Cell<bool>,
-    need_stop: Cell<bool>,
-    trigger_time: Cell<f64>,
+    pub samples: RefCell<Vec<PyVal>>,
+    pub is_sampling: Cell<bool>,
+    pub start_from_home: Cell<bool>,
+    pub need_stop: Cell<bool>,
+    pub trigger_time: Cell<f64>,
 }
 
 impl EddyEndstopWrapper {
     const REASON_SENSOR_ERROR: i64 = McuTrsync::REASON_COMMS_TIMEOUT + 1;
 
-    fn new(config: &ConfigWrapper, sensor_helper: Rc<LDC1612>, calibration: Rc<EddyCalibration>) -> KResult<Rc<Self>> {
+    pub fn new(config: &ConfigWrapper, sensor_helper: Rc<LDC1612>, calibration: Rc<EddyCalibration>) -> KResult<Rc<Self>> {
         let printer = config.get_printer();
         let mcu = sensor_helper.get_mcu();
         let z_offset = config.getfloat("z_offset", Dflt::Required, Lim::new().min(0.0))?;
@@ -393,7 +393,7 @@ impl EddyEndstopWrapper {
         Ok(w)
     }
 
-    fn handle_mcu_identify(&self) -> KResult<()> {
+    pub fn handle_mcu_identify(&self) -> KResult<()> {
         let kin = self.printer.lookup::<ToolHead>("toolhead")?.get_kinematics();
         for stepper in kin.get_steppers() {
             if stepper.is_active_axis('z') {
@@ -404,7 +404,7 @@ impl EddyEndstopWrapper {
     }
 
     // Measurement gathering
-    fn start_measurements(&self, is_home: bool) -> KResult<()> {
+    pub fn start_measurements(&self, is_home: bool) -> KResult<()> {
         self.need_stop.set(false);
         if self.is_sampling.get() {
             return Ok(());
@@ -418,14 +418,14 @@ impl EddyEndstopWrapper {
         }))
     }
 
-    fn stop_measurements(&self, is_home: bool) {
+    pub fn stop_measurements(&self, is_home: bool) {
         if !self.is_sampling.get() || (is_home && !self.start_from_home.get()) {
             return;
         }
         self.need_stop.set(true);
     }
 
-    fn add_measurement(&self, msg: &PyVal) -> bool {
+    pub fn add_measurement(&self, msg: &PyVal) -> bool {
         if self.need_stop.get() {
             self.samples.borrow_mut().clear();
             self.is_sampling.set(false);
@@ -581,11 +581,11 @@ impl McuProbe for EddyEndstopWrapper {
 
 // Main "printer object"
 pub struct PrinterEddyProbe {
-    sensor_helper: Rc<LDC1612>,
+    pub sensor_helper: Rc<LDC1612>,
 }
 
 impl PrinterEddyProbe {
-    fn new(config: &ConfigWrapper) -> KResult<Rc<Self>> {
+    pub fn new(config: &ConfigWrapper) -> KResult<Rc<Self>> {
         let calibration = EddyCalibration::new(config)?;
         // Sensor type
         let sensor_class = lookup_sensor_class::<EddySensorFactory>(config, "eddy_current_sensors")?;

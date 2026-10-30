@@ -17,12 +17,12 @@ const CMD_SDCARD_LOOP_END_HELP: &str = "Ends a looped section in the SD file.";
 const CMD_SDCARD_LOOP_DESIST_HELP: &str = "Stops iterating the current loop stack.";
 
 pub struct SDCardLoop {
-    sdcard: Rc<VirtualSD>,
-    loop_stack: RefCell<Vec<(i64, u64)>>,
+    pub sdcard: Rc<VirtualSD>,
+    pub loop_stack: RefCell<Vec<(i64, u64)>>,
 }
 
 impl SDCardLoop {
-    fn new(config: &ConfigWrapper) -> KResult<Rc<Self>> {
+    pub fn new(config: &ConfigWrapper) -> KResult<Rc<Self>> {
         let printer = config.get_printer();
         let sdcard = printer.load_as::<VirtualSD>(config, "virtual_sdcard")?;
         let gcode = printer.lookup::<GCodeDispatch>("gcode")?;
@@ -48,7 +48,7 @@ impl SDCardLoop {
         Ok(s)
     }
 
-    fn cmd_sdcard_loop_begin(&self, gcmd: &GCodeCommand) -> KResult<()> {
+    pub fn cmd_sdcard_loop_begin(&self, gcmd: &GCodeCommand) -> KResult<()> {
         let count = gcmd.get_int("COUNT", None, Lim::new().min(0))?;
         if !self.loop_begin(count) {
             return Err(gcmd.error("Only permitted in SD file."));
@@ -56,21 +56,21 @@ impl SDCardLoop {
         Ok(())
     }
 
-    fn cmd_sdcard_loop_end(&self, gcmd: &GCodeCommand) -> KResult<()> {
+    pub fn cmd_sdcard_loop_end(&self, gcmd: &GCodeCommand) -> KResult<()> {
         if !self.loop_end() {
             return Err(gcmd.error("Only permitted in SD file."));
         }
         Ok(())
     }
 
-    fn cmd_sdcard_loop_desist(&self, gcmd: &GCodeCommand) -> KResult<()> {
+    pub fn cmd_sdcard_loop_desist(&self, gcmd: &GCodeCommand) -> KResult<()> {
         if !self.loop_desist() {
             return Err(gcmd.error("Only permitted outside of a SD file."));
         }
         Ok(())
     }
 
-    fn loop_begin(&self, count: i64) -> bool {
+    pub fn loop_begin(&self, count: i64) -> bool {
         if !self.sdcard.is_cmd_from_sd() {
             // Can only run inside of an SD file
             return false;
@@ -79,7 +79,7 @@ impl SDCardLoop {
         true
     }
 
-    fn loop_end(&self) -> bool {
+    pub fn loop_end(&self) -> bool {
         if !self.sdcard.is_cmd_from_sd() {
             // Can only run inside of an SD file
             return false;
@@ -105,7 +105,7 @@ impl SDCardLoop {
         true
     }
 
-    fn loop_desist(&self) -> bool {
+    pub fn loop_desist(&self) -> bool {
         if self.sdcard.is_cmd_from_sd() {
             // Can only run outside of an SD file
             return false;

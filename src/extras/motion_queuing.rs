@@ -37,33 +37,33 @@ pub const DRIP_TIME: f64 = 0.100;
 pub type FlushCallback = Rc<dyn Fn(f64, f64) -> KResult<()>>;
 
 pub struct PrinterMotionQueuing {
-    printer: Rc<Printer>,
-    reactor: Rc<Reactor>,
+    pub printer: Rc<Printer>,
+    pub reactor: Rc<Reactor>,
     // C trapq tracking
-    trapqs: RefCell<Vec<TrapQRef>>,
+    pub trapqs: RefCell<Vec<TrapQRef>>,
     // C steppersync tracking
-    steppersyncmgr: RefCell<StepperSyncMgr>,
-    syncemitters: RefCell<Vec<SyncEmitterRef>>,
-    steppersyncs: RefCell<Vec<(Rc<Mcu>, StepperSyncRef)>>,
+    pub steppersyncmgr: RefCell<StepperSyncMgr>,
+    pub syncemitters: RefCell<Vec<SyncEmitterRef>>,
+    pub steppersyncs: RefCell<Vec<(Rc<Mcu>, StepperSyncRef)>>,
     // History expiration
-    clear_history_time: Cell<f64>,
+    pub clear_history_time: Cell<f64>,
     // Flush notification callbacks
-    flush_callbacks: RefCell<Vec<FlushCallback>>,
+    pub flush_callbacks: RefCell<Vec<FlushCallback>>,
     // Kinematic step generation scan window time tracking
-    kin_flush_delay: Cell<f64>,
+    pub kin_flush_delay: Cell<f64>,
     // MCU tracking
     pub all_mcus: Vec<Rc<Mcu>>,
     pub mcu: Rc<Mcu>,
-    can_pause: Cell<bool>,
+    pub can_pause: Cell<bool>,
     // Flush tracking
-    flush_timer: RefCell<Option<Timer>>,
-    do_kick_flush_timer: Cell<bool>,
-    last_flush_time: Cell<f64>,
-    last_step_gen_time: Cell<f64>,
-    need_flush_time: Cell<f64>,
-    need_step_gen_time: Cell<f64>,
+    pub flush_timer: RefCell<Option<Timer>>,
+    pub do_kick_flush_timer: Cell<bool>,
+    pub last_flush_time: Cell<f64>,
+    pub last_step_gen_time: Cell<f64>,
+    pub need_flush_time: Cell<f64>,
+    pub need_step_gen_time: Cell<f64>,
     // "Drip" timing (for homing and probing moves)
-    drip_start_times: RefCell<Vec<f64>>,
+    pub drip_start_times: RefCell<Vec<f64>>,
 }
 
 impl PrinterMotionQueuing {
@@ -128,7 +128,7 @@ impl PrinterMotionQueuing {
     }
 
     // C steppersync tracking
-    fn lookup_steppersync(&self, mcu: &Rc<Mcu>) -> StepperSyncRef {
+    pub fn lookup_steppersync(&self, mcu: &Rc<Mcu>) -> StepperSyncRef {
         for (ss_mcu, ss) in self.steppersyncs.borrow().iter() {
             if Rc::ptr_eq(ss_mcu, mcu) {
                 return ss.clone();
@@ -198,7 +198,7 @@ impl PrinterMotionQueuing {
     }
 
     // Flush tracking
-    fn advance_flush_time(&self, want_flush_time: f64, want_step_gen_time: f64) -> KResult<()> {
+    pub fn advance_flush_time(&self, want_flush_time: f64, want_step_gen_time: f64) -> KResult<()> {
         let flush_time =
             py_max3(want_flush_time, self.last_flush_time.get(), want_step_gen_time - STEPCOMPRESS_FLUSH_TIME);
         let step_gen_time = py_max3(want_step_gen_time, self.last_step_gen_time.get(), flush_time);
@@ -230,7 +230,7 @@ impl PrinterMotionQueuing {
         Ok(())
     }
 
-    fn await_flush_time(&self, want_flush_time: f64) -> KResult<()> {
+    pub fn await_flush_time(&self, want_flush_time: f64) -> KResult<()> {
         loop {
             if self.last_flush_time.get() >= want_flush_time || !self.can_pause.get() {
                 return Ok(());
@@ -256,7 +256,7 @@ impl PrinterMotionQueuing {
         kin_time + self.kin_flush_delay.get()
     }
 
-    fn flush_handler(&self, eventtime: f64) -> f64 {
+    pub fn flush_handler(&self, eventtime: f64) -> f64 {
         match self.flush_handler_inner(eventtime) {
             Ok(waketime) => waketime,
             Err(_) => {
@@ -314,7 +314,7 @@ impl PrinterMotionQueuing {
         Ok(eventtime + waketime - est_print_time)
     }
 
-    fn flush_handler_debug(&self, eventtime: f64) -> f64 {
+    pub fn flush_handler_debug(&self, eventtime: f64) -> f64 {
         // Use custom flushing code when in batch output mode
         let res = (|| -> KResult<f64> {
             let faux_time = self.need_flush_time.get() - 1.5;
@@ -361,7 +361,7 @@ impl PrinterMotionQueuing {
     }
 
     // "Drip" timing (for homing and probing moves)
-    pub fn drip_update_time(&self, start_time: f64, end_time: f64, drip_completion: &Rc<ReactorCompletion<bool>>) -> KResult<()> {
+    pub fn drip_update_time(&self, start_time: f64, end_time: f64, drip_completion: &dyn DripCompletion) -> KResult<()> {
         self.drip_start_times.borrow_mut().push(start_time);
         self.await_flush_time(start_time)?;
         // Disable background flushing from timer
@@ -373,7 +373,7 @@ impl PrinterMotionQueuing {
         // Flush in segments until drip_completion signal
         let mut flush_time = start_time;
         while flush_time < end_time {
-            if drip_completion.test() {
+            if drip_completion.test()? {
                 break;
             }
             let curtime = self.reactor.monotonic();
@@ -381,7 +381,7 @@ impl PrinterMotionQueuing {
             let wait_time = flush_time - est_print_time - DRIP_TIME;
             if wait_time > 0.0 && self.can_pause.get() {
                 // Pause before sending more steps
-                drip_completion.wait(curtime + wait_time, None)?;
+                drip_completion.wait(curtime + wait_time)?;
                 continue;
             }
             flush_time = py_min(flush_time + DRIP_SEGMENT_TIME, end_time);
@@ -403,6 +403,23 @@ impl PrinterMotionQueuing {
     pub fn check_drip_timing(&self) -> Option<f64> {
         let dst = self.drip_start_times.borrow();
         dst.iter().copied().reduce(py_min)
+    }
+}
+
+/// The completion drip_update_time() polls: kaliru's own, or a python
+/// plugin's object with test() / wait()
+pub trait DripCompletion {
+    fn test(&self) -> KResult<bool>;
+    fn wait(&self, waketime: f64) -> KResult<()>;
+}
+
+impl<T: Clone> DripCompletion for ReactorCompletion<T> {
+    fn test(&self) -> KResult<bool> {
+        Ok(ReactorCompletion::test(self))
+    }
+    fn wait(&self, waketime: f64) -> KResult<()> {
+        ReactorCompletion::wait(self, waketime, None)?;
+        Ok(())
     }
 }
 

@@ -19,14 +19,14 @@ use crate::IndexMap;
 use std::rc::Rc;
 
 pub struct WinchKinematics {
-    steppers: Vec<Rc<McuStepper>>,
-    anchors: Vec<[f64; 3]>,
-    axes_min: [f64; 4],
-    axes_max: [f64; 4],
+    pub steppers: Vec<Rc<McuStepper>>,
+    pub anchors: Vec<[f64; 3]>,
+    pub axes_min: [f64; 4],
+    pub axes_max: [f64; 4],
 }
 
 impl WinchKinematics {
-    fn new(toolhead: &Rc<ToolHead>, config: &ConfigWrapper) -> KResult<Self> {
+    pub fn new(toolhead: &Rc<ToolHead>, config: &ConfigWrapper) -> KResult<Self> {
         // Setup steppers at each anchor
         let mut steppers = vec![];
         let mut anchors = vec![];

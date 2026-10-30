@@ -63,20 +63,20 @@ pub trait TapClassifier {
 // Capture and preserve a Trapezoidal Move as a python type
 #[derive(Clone)]
 pub struct TrapezoidalMove {
-    print_time: f64,
-    move_t: f64,
-    start_v: f64,
-    accel: f64,
-    start_x: f64,
-    start_y: f64,
-    start_z: f64,
-    x_r: f64,
-    y_r: f64,
-    z_r: f64,
+    pub print_time: f64,
+    pub move_t: f64,
+    pub start_v: f64,
+    pub accel: f64,
+    pub start_x: f64,
+    pub start_y: f64,
+    pub start_z: f64,
+    pub x_r: f64,
+    pub y_r: f64,
+    pub z_r: f64,
 }
 
 impl TrapezoidalMove {
-    fn new(m: &PullMove, time_offset: f64) -> Self {
+    pub fn new(m: &PullMove, time_offset: f64) -> Self {
         TrapezoidalMove {
             print_time: m.print_time - time_offset,
             move_t: m.move_t,
@@ -91,7 +91,7 @@ impl TrapezoidalMove {
         }
     }
 
-    fn to_dict(&self) -> PyVal {
+    pub fn to_dict(&self) -> PyVal {
         let mut d = IndexMap::default();
         for (k, v) in [
             ("print_time", self.print_time),
@@ -208,18 +208,18 @@ fn cumsum(v: impl Iterator<Item = f64>) -> Vec<f64> {
 
 // helper class for working with a time/force graph
 // work with subsections to find elbows and best fit lines
-struct ForceGraph {
-    time: Vec<f64>,
-    force: Vec<f64>,
-    cum_x: Vec<f64>,
-    cum_y: Vec<f64>,
-    cum_xx: Vec<f64>,
-    cum_xy: Vec<f64>,
-    cum_yy: Vec<f64>,
+pub struct ForceGraph {
+    pub time: Vec<f64>,
+    pub force: Vec<f64>,
+    pub cum_x: Vec<f64>,
+    pub cum_y: Vec<f64>,
+    pub cum_xx: Vec<f64>,
+    pub cum_xy: Vec<f64>,
+    pub cum_yy: Vec<f64>,
 }
 
 impl ForceGraph {
-    fn new(time: Vec<f64>, force: Vec<f64>) -> Self {
+    pub fn new(time: Vec<f64>, force: Vec<f64>) -> Self {
         // linear implementation:
         let cum_x = cumsum(time.iter().copied());
         let cum_y = cumsum(force.iter().copied());
@@ -265,7 +265,7 @@ impl ForceGraph {
 
     // search exhaustively for the 2 lines that best fit the data
     // return the elbow index
-    fn find_elbow(&self, start_idx: i64, end_idx: i64) -> KResult<i64> {
+    pub fn find_elbow(&self, start_idx: i64, end_idx: i64) -> KResult<i64> {
         let mut best_error = f64::INFINITY;
         let mut best_fit_index = -1;
         for i in (1 + start_idx)..(end_idx - 1) {
@@ -282,7 +282,7 @@ impl ForceGraph {
     }
 
     // finds the index nearest to a time
-    fn index_near(&self, instant: f64) -> i64 {
+    pub fn index_near(&self, instant: f64) -> i64 {
         // np.searchsorted (side="left")
         let idx = self.time.partition_point(|t| *t < instant) as i64;
         idx.min(self.time.len() as i64 - 1)
@@ -306,7 +306,7 @@ impl ForceGraph {
     }
 
     // given a line and a range, calculate the standard deviation of the noise
-    fn noise_std(&self, start_idx: i64, end_idx: i64, line: &ForceLine) -> f64 {
+    pub fn noise_std(&self, start_idx: i64, end_idx: i64, line: &ForceLine) -> f64 {
         let r = py_slice(start_idx, end_idx, self.force.len());
         let noise: Vec<f64> = r.map(|i| self.force[i] - line.find_force(self.time[i])).collect();
         np_std(&noise)
@@ -315,7 +315,7 @@ impl ForceGraph {
     // true if the reference force won't be confused for noise in the graph chunk
     // reference force must be more than 3 standard deviations away from the line
     // at the reference index
-    fn is_clear_signal(&self, start_idx: i64, end_idx: i64, line: &ForceLine, reference_idx: i64, force_idx: i64) -> KResult<bool> {
+    pub fn is_clear_signal(&self, start_idx: i64, end_idx: i64, line: &ForceLine, reference_idx: i64, force_idx: i64) -> KResult<bool> {
         let noise = self.noise_std(start_idx, end_idx, line);
         let noise_3_std = noise * 3.0;
         let base_force = line.find_force(self.time[py_idx(reference_idx, self.time.len())?]);
@@ -324,7 +324,7 @@ impl ForceGraph {
 
     // return the first index that exceeds the median force between
     // start and end index
-    fn split_by_force(&self, start_idx: i64, end_idx: i64) -> KResult<Option<i64>> {
+    pub fn split_by_force(&self, start_idx: i64, end_idx: i64) -> KResult<Option<i64>> {
         let start_f = self.force[py_idx(start_idx, self.force.len())?];
         let end_f = self.force[py_idx(end_idx, self.force.len())?];
         let median_f = (start_f + end_f) / 2.0;
@@ -426,26 +426,26 @@ const PULLBACK_CRUISE: i64 = -2;
 const PULLBACK_END: i64 = -1;
 
 pub struct TapAnalysis {
-    is_valid: bool,
-    tap_pos: Option<(f64, f64, f64)>,
+    pub is_valid: bool,
+    pub tap_pos: Option<(f64, f64, f64)>,
     tap_points: Vec<ForcePoint>,
     tap_lines: Vec<ForceLine>,
-    tap_angles: Vec<f64>,
-    elapsed: f64,
-    collection_time: f64,
+    pub tap_angles: Vec<f64>,
+    pub elapsed: f64,
+    pub collection_time: f64,
     error: Option<TapValidationError>,
-    home_end_time: Option<f64>,
-    pullback_start_time: Option<f64>,
-    pullback_end_time: Option<f64>,
-    pullback_cruise_time: Option<f64>,
-    pullback_duration: Option<f64>,
-    homing_start_index: i64,
-    pullback_end_index: i64,
-    time_offset: f64,
-    time: Vec<f64>,
-    force: Vec<f64>,
+    pub home_end_time: Option<f64>,
+    pub pullback_start_time: Option<f64>,
+    pub pullback_end_time: Option<f64>,
+    pub pullback_cruise_time: Option<f64>,
+    pub pullback_duration: Option<f64>,
+    pub homing_start_index: i64,
+    pub pullback_end_index: i64,
+    pub time_offset: f64,
+    pub time: Vec<f64>,
+    pub force: Vec<f64>,
     force_graph: ForceGraph,
-    trigger_force: i64,
+    pub trigger_force: i64,
     moves: Vec<TrapezoidalMove>,
 }
 
@@ -493,7 +493,7 @@ impl TapAnalysis {
 
     // get an XYZ position from the toolhead position history
     // positions before/after the captured history are assumed to be stationary
-    fn get_toolhead_position(&self, print_time: f64) -> KResult<(f64, f64, f64)> {
+    pub fn get_toolhead_position(&self, print_time: f64) -> KResult<(f64, f64, f64)> {
         for (i, m) in self.moves.iter().enumerate() {
             let start_time = m.print_time;
             // time before first move, assume printer was stationary
@@ -513,7 +513,7 @@ impl TapAnalysis {
         Ok(Self::move_pos(m, dist))
     }
 
-    fn log_trapq(&self) {
+    pub fn log_trapq(&self) {
         logging::info("TapAnalysis - Trapezoidal Movement Queue contents:");
         for (i, m) in self.moves.iter().enumerate() {
             logging::info(&format!("Move {}: {}", i, m.to_dict().repr()));
@@ -672,7 +672,7 @@ impl TapAnalysis {
     }
 
     // convert to dictionary for JSON encoder
-    fn to_dict(&self) -> PyVal {
+    pub fn to_dict(&self) -> PyVal {
         let floats = |v: &[f64]| PyVal::List(v.iter().map(|f| PyVal::Float(*f)).collect());
         let opt = |v: Option<f64>| v.map(PyVal::Float).unwrap_or(PyVal::None);
         let mut d = crate::pydict! {
@@ -701,7 +701,7 @@ impl TapAnalysis {
 // Orchestrate TapAnalysis and TapClassifier. Handle timing, error capture,
 // event broadcast, clients & logging
 pub struct TapAnalysisHelper {
-    printer: Rc<Printer>,
+    pub printer: Rc<Printer>,
     tap_classifier: Rc<dyn TapClassifier>,
     clients: Rc<ApiClientHelper<PyVal>>,
 }

@@ -42,9 +42,9 @@ enum Source {
 }
 
 pub struct IndxHeaterTemperatureSensor {
-    toolboard: Rc<IndxToolboard>,
+    pub toolboard: Rc<IndxToolboard>,
     source: Source,
-    temperature_callback: RefCell<Option<TempCallback>>,
+    pub temperature_callback: RefCell<Option<TempCallback>>,
 }
 
 impl IndxHeaterTemperatureSensor {
@@ -78,15 +78,16 @@ impl TempSensor for IndxHeaterTemperatureSensor {
     fn setup_minmax(&self, _min_temp: f64, _max_temp: f64) -> KResult<()> {
         Ok(())
     }
-    fn setup_callback(&self, cb: TempCallback) {
+    fn setup_callback(&self, cb: TempCallback) -> KResult<()> {
         *self.temperature_callback.borrow_mut() = Some(cb);
+        Ok(())
     }
-    fn get_report_time_delta(&self) -> f64 {
-        TEMP_REPORT_TIME
+    fn get_report_time_delta(&self) -> KResult<f64> {
+        Ok(TEMP_REPORT_TIME)
     }
 }
 
-fn ldc_coil_sensor(toolboard: &Rc<IndxToolboard>, config: &ConfigWrapper) -> KResult<Rc<dyn TempSensor>> {
+pub fn ldc_coil_sensor(toolboard: &Rc<IndxToolboard>, config: &ConfigWrapper) -> KResult<Rc<dyn TempSensor>> {
     let config_thermistor = compat_config(
         config,
         config.get_name(),
@@ -107,21 +108,22 @@ fn ldc_coil_sensor(toolboard: &Rc<IndxToolboard>, config: &ConfigWrapper) -> KRe
 }
 
 pub struct IndxTempSensorWrapper {
-    toolboard: Rc<IndxToolboard>,
-    sensor: &'static str,
+    pub toolboard: Rc<IndxToolboard>,
+    pub sensor: &'static str,
 }
 
 impl TempSensor for IndxTempSensorWrapper {
     fn setup_minmax(&self, _min_temp: f64, _max_temp: f64) -> KResult<()> {
         Ok(())
     }
-    fn setup_callback(&self, cb: TempCallback) {
+    fn setup_callback(&self, cb: TempCallback) -> KResult<()> {
         self.toolboard.heater().aux_temp_sensor(self.sensor).add_callback(cb);
+        Ok(())
     }
     // ponytail: python's IndxTempSensorWrapper has no get_report_time_delta
     // (a heater using it fails with AttributeError); temperature_sensor
     // sections never ask for it
-    fn get_report_time_delta(&self) -> f64 {
-        TEMP_REPORT_TIME
+    fn get_report_time_delta(&self) -> KResult<f64> {
+        Ok(TEMP_REPORT_TIME)
     }
 }

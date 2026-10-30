@@ -141,7 +141,7 @@ fn bme_chip(id: i64) -> Option<&'static str> {
 const BME_CHIP_ID_REG: u8 = 0xD0;
 const BMP3_CHIP_ID_REG: u8 = 0x00;
 
-fn get_twos_complement(val: i64, bit_size: u32) -> i64 {
+pub fn get_twos_complement(val: i64, bit_size: u32) -> i64 {
     let mut val = val;
     if val & (1 << (bit_size - 1)) != 0 {
         val -= 1 << bit_size;
@@ -149,23 +149,23 @@ fn get_twos_complement(val: i64, bit_size: u32) -> i64 {
     val
 }
 
-fn get_unsigned_short(bits: &[u8]) -> i64 {
+pub fn get_unsigned_short(bits: &[u8]) -> i64 {
     (bits[1] as i64) << 8 | bits[0] as i64
 }
 
-fn get_signed_short(bits: &[u8]) -> i64 {
+pub fn get_signed_short(bits: &[u8]) -> i64 {
     get_twos_complement(get_unsigned_short(bits), 16)
 }
 
-fn get_signed_byte(bits: u8) -> i64 {
+pub fn get_signed_byte(bits: u8) -> i64 {
     get_twos_complement(bits as i64, 8)
 }
 
-fn get_unsigned_short_msb(bits: &[u8]) -> i64 {
+pub fn get_unsigned_short_msb(bits: &[u8]) -> i64 {
     (bits[0] as i64) << 8 | bits[1] as i64
 }
 
-fn get_signed_short_msb(bits: &[u8]) -> i64 {
+pub fn get_signed_short_msb(bits: &[u8]) -> i64 {
     get_twos_complement(get_unsigned_short_msb(bits), 16)
 }
 
@@ -293,34 +293,34 @@ enum Sampler {
 
 pub struct BME280 {
     me: Weak<BME280>,
-    printer: Rc<Printer>,
-    name: String,
-    i2c: Rc<McuI2c>,
-    mcu: Rc<Mcu>,
-    iir_filter: i64,
-    os_temp: i64,
-    os_hum: i64,
-    os_pres: i64,
-    gas_heat_temp: i64,
-    gas_heat_duration: i64,
-    temp: Cell<f64>,
-    pressure: Cell<f64>,
-    humidity: Cell<f64>,
-    gas: Cell<f64>,
-    t_fine: Cell<f64>,
-    min_temp: Cell<f64>,
-    max_temp: Cell<f64>,
-    max_sample_time: Cell<Option<f64>>,
+    pub printer: Rc<Printer>,
+    pub name: String,
+    pub i2c: Rc<McuI2c>,
+    pub mcu: Rc<Mcu>,
+    pub iir_filter: i64,
+    pub os_temp: i64,
+    pub os_hum: i64,
+    pub os_pres: i64,
+    pub gas_heat_temp: i64,
+    pub gas_heat_duration: i64,
+    pub temp: Cell<f64>,
+    pub pressure: Cell<f64>,
+    pub humidity: Cell<f64>,
+    pub gas: Cell<f64>,
+    pub t_fine: Cell<f64>,
+    pub min_temp: Cell<f64>,
+    pub max_temp: Cell<f64>,
+    pub max_sample_time: Cell<Option<f64>>,
     dig: RefCell<Dig>,
-    sample_timer: RefCell<Option<Timer>>,
-    chip_type: RefCell<&'static str>,
+    pub sample_timer: RefCell<Option<Timer>>,
+    pub chip_type: RefCell<&'static str>,
     chip_registers: Cell<&'static [(&'static str, u8)]>,
-    last_gas_time: Cell<f64>,
-    callback: RefCell<Option<TempCallback>>,
+    pub last_gas_time: Cell<f64>,
+    pub callback: RefCell<Option<TempCallback>>,
 }
 
 impl BME280 {
-    fn new(config: &ConfigWrapper) -> KResult<Rc<Self>> {
+    pub fn new(config: &ConfigWrapper) -> KResult<Rc<Self>> {
         let printer = config.get_printer();
         let name = config.get_name().split_whitespace().last().unwrap_or_default().to_string();
         let i2c = mcu_i2c_from_config(config, Some(BME280_CHIP_ADDR), 100000)?;
@@ -379,7 +379,7 @@ impl BME280 {
         Ok(s)
     }
 
-    fn handle_connect(&self) -> KResult<()> {
+    pub fn handle_connect(&self) -> KResult<()> {
         self.init_bmxx80()?;
         if let Some(t) = self.sample_timer.borrow().as_ref() {
             self.printer.get_reactor().update_timer(t, NOW);
@@ -418,7 +418,7 @@ impl BME280 {
         *self.sample_timer.borrow_mut() = Some(t);
     }
 
-    fn init_bmxx80(&self) -> KResult<()> {
+    pub fn init_bmxx80(&self) -> KResult<()> {
         let mut chip_id = self.read_id()?;
         if chip_id == 0 {
             chip_id = self.read_bmp3_id()?;
@@ -559,7 +559,7 @@ impl BME280 {
         Ok(measured_time + REPORT_TIME)
     }
 
-    fn sample_bme280(&self, _eventtime: f64) -> f64 {
+    pub fn sample_bme280(&self, _eventtime: f64) -> f64 {
         // In normal mode data shadowing is performed
         // So reading can be done while measurements are in process
         let chip_type = *self.chip_type.borrow();
@@ -594,7 +594,7 @@ impl BME280 {
         })
     }
 
-    fn sample_bmp388(&self, _eventtime: f64) -> KResult<f64> {
+    pub fn sample_bmp388(&self, _eventtime: f64) -> KResult<f64> {
         let status = *self.read_register("STATUS", 1)?.first().ok_or_else(short_read)? as i64;
         if status & 0b100000 != 0 {
             self.temp.set(self.sample_bmp388_temp()?);
@@ -628,7 +628,7 @@ impl BME280 {
         Ok(((msb << 16) + (lsb << 8) + xlsb) as f64)
     }
 
-    fn sample_bmp388_temp(&self) -> KResult<f64> {
+    pub fn sample_bmp388_temp(&self) -> KResult<f64> {
         let adc_t = self.read3("TEMP_XLSB", "TEMP_LSB", "TEMP_MSB")?;
 
         let partial_data1 = adc_t - self.d("T1");
@@ -649,7 +649,7 @@ impl BME280 {
         Ok(t_fine)
     }
 
-    fn sample_bmp388_press(&self) -> KResult<f64> {
+    pub fn sample_bmp388_press(&self) -> KResult<f64> {
         let adc_p = self.read3("PRESS_XLSB", "PRESS_LSB", "PRESS_MSB")?;
         let t_fine = self.t_fine.get();
         let d = |k: &str| self.d(k);
@@ -685,7 +685,7 @@ impl BME280 {
         Ok(comp_press)
     }
 
-    fn sample_bme680(&self, _eventtime: f64) -> KResult<f64> {
+    pub fn sample_bme680(&self, _eventtime: f64) -> KResult<f64> {
         let reactor = self.printer.get_reactor();
         let mut run_gas = false;
         // Check VOC once a while
@@ -771,7 +771,7 @@ impl BME280 {
         self.report(false, "BME680")
     }
 
-    fn sample_bmp180(&self, _eventtime: f64) -> f64 {
+    pub fn sample_bmp180(&self, _eventtime: f64) -> f64 {
         let res = (|| -> KResult<f64> {
             let reg = |k: &str| self.chip_registers.get().iter().find(|(n, _)| *n == k).map(|(_, r)| *r as i64).unwrap_or(0);
             let meas = reg("CRV_TEMP");
@@ -829,7 +829,7 @@ impl BME280 {
         })
     }
 
-    fn compensate_temp(&self, raw_temp: f64) -> f64 {
+    pub fn compensate_temp(&self, raw_temp: f64) -> f64 {
         let d = |k: &str| self.d(k);
         let var1 = (raw_temp / 16384.0 - (d("T1") / 1024.0)) * d("T2");
         let var2 = ((raw_temp / 131072.0) - (d("T1") / 8192.0)) * ((raw_temp / 131072.0) - (d("T1") / 8192.0)) * d("T3");
@@ -837,7 +837,7 @@ impl BME280 {
         self.t_fine.get() / 5120.0
     }
 
-    fn compensate_pressure_bme280(&self, raw_pressure: f64) -> f64 {
+    pub fn compensate_pressure_bme280(&self, raw_pressure: f64) -> f64 {
         let d = |k: &str| self.d(k);
         let t_fine = self.t_fine.get();
         let mut var1 = t_fine / 2.0 - 64000.0;
@@ -857,7 +857,7 @@ impl BME280 {
         }
     }
 
-    fn compensate_pressure_bme680(&self, raw_pressure: f64) -> f64 {
+    pub fn compensate_pressure_bme680(&self, raw_pressure: f64) -> f64 {
         let d = |k: &str| self.d(k);
         let t_fine = self.t_fine.get();
         let mut var1 = t_fine / 2.0 - 64000.0;
@@ -878,7 +878,7 @@ impl BME280 {
         }
     }
 
-    fn compensate_humidity_bme280(&self, raw_humidity: f64) -> f64 {
+    pub fn compensate_humidity_bme280(&self, raw_humidity: f64) -> f64 {
         let d = |k: &str| self.d(k);
         let t_fine = self.t_fine.get();
         let mut humidity = t_fine - 76800.0;
@@ -889,7 +889,7 @@ impl BME280 {
         py_min(100.0, py_max(0.0, humidity))
     }
 
-    fn compensate_humidity_bme680(&self, raw_humidity: f64) -> f64 {
+    pub fn compensate_humidity_bme680(&self, raw_humidity: f64) -> f64 {
         let d = |k: &str| self.d(k);
         let temp_comp = self.temp.get();
 
@@ -901,7 +901,7 @@ impl BME280 {
         py_min(100.0, py_max(0.0, humidity))
     }
 
-    fn compensate_gas(&self, gas_raw: f64, gas_range: usize) -> KResult<f64> {
+    pub fn compensate_gas(&self, gas_raw: f64, gas_range: usize) -> KResult<f64> {
         let gas_switching_error = *self.read_register("RANGE_SWITCHING_ERROR", 1)?.first().ok_or_else(short_read)? as f64;
         let (k0, k1) = BME680_GAS_CONSTANTS[gas_range];
         let var1 = (1340.0 + 5.0 * gas_switching_error) * k0;
@@ -909,7 +909,7 @@ impl BME280 {
         Ok(gas)
     }
 
-    fn calc_gas_heater_resistance(&self, target_temp: f64) -> KResult<i64> {
+    pub fn calc_gas_heater_resistance(&self, target_temp: f64) -> KResult<i64> {
         let amb_temp = self.temp.get();
         let heater_data = self.read_register("RES_HEAT_VAL", 3)?;
         if heater_data.len() < 3 {
@@ -941,7 +941,7 @@ impl BME280 {
         }
     }
 
-    fn compensate_temp_bmp180(&self, raw_temp: f64) -> f64 {
+    pub fn compensate_temp_bmp180(&self, raw_temp: f64) -> f64 {
         let d = |k: &str| self.d(k);
         let x1 = (raw_temp - d("AC6")) * d("AC5") / 32768.0;
         let x2 = d("MC") * 2048.0 / (x1 + d("MD"));
@@ -950,7 +950,7 @@ impl BME280 {
         (b5 + 8.0) / 16.0 / 10.0
     }
 
-    fn compensate_pressure_bmp180(&self, raw_pressure: f64) -> KResult<f64> {
+    pub fn compensate_pressure_bmp180(&self, raw_pressure: f64) -> KResult<f64> {
         let d = |k: &str| self.d(k);
         let b5 = self.t_fine.get();
         let b6 = b5 - 4000.0;
@@ -975,7 +975,7 @@ impl BME280 {
         Ok(p)
     }
 
-    fn read_id(&self) -> KResult<i64> {
+    pub fn read_id(&self) -> KResult<i64> {
         // read chip id register
         let params = self.i2c.i2c_read(&[BME_CHIP_ID_REG], 1, true)?;
         match params.get("response") {
@@ -984,7 +984,7 @@ impl BME280 {
         }
     }
 
-    fn read_bmp3_id(&self) -> KResult<i64> {
+    pub fn read_bmp3_id(&self) -> KResult<i64> {
         // read chip id register
         let params = self.i2c.i2c_read(&[BMP3_CHIP_ID_REG], 1, true)?;
         match params.get("response") {
@@ -997,7 +997,7 @@ impl BME280 {
         self.chip_registers.get().iter().find(|(n, _)| *n == reg_name).map(|(_, r)| *r).ok_or_else(|| KError::Py("KeyError".into(), crate::pyfmt::py_str_repr(reg_name)))
     }
 
-    fn read_register(&self, reg_name: &str, read_len: i64) -> KResult<Vec<u8>> {
+    pub fn read_register(&self, reg_name: &str, read_len: i64) -> KResult<Vec<u8>> {
         // read a single register
         let regs = [self.register(reg_name)?];
         let params = self.i2c.i2c_read(&regs, read_len, true)?;
@@ -1007,7 +1007,7 @@ impl BME280 {
         }
     }
 
-    fn write_register(&self, reg_name: &str, data: &[i64]) -> KResult<()> {
+    pub fn write_register(&self, reg_name: &str, data: &[i64]) -> KResult<()> {
         let reg = self.register(reg_name)? as i64;
         let mut out = vec![];
         for v in std::iter::once(&reg).chain(data) {
@@ -1027,11 +1027,12 @@ impl TempSensor for BME280 {
         self.max_temp.set(max_temp);
         Ok(())
     }
-    fn setup_callback(&self, cb: TempCallback) {
+    fn setup_callback(&self, cb: TempCallback) -> KResult<()> {
         *self.callback.borrow_mut() = Some(cb);
+        Ok(())
     }
-    fn get_report_time_delta(&self) -> f64 {
-        REPORT_TIME
+    fn get_report_time_delta(&self) -> KResult<f64> {
+        Ok(REPORT_TIME)
     }
 }
 

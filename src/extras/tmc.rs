@@ -48,10 +48,10 @@ pub type FieldFormatter = fn(&str, i64) -> Option<String>;
 
 pub struct FieldHelper {
     pub all_fields: IndexMap<String, IndexMap<String, i64>>,
-    signed_fields: Vec<String>,
-    field_formatters: FieldFormatter,
+    pub signed_fields: Vec<String>,
+    pub field_formatters: FieldFormatter,
     pub registers: RefCell<IndexMap<String, i64>>,
-    field_to_register: IndexMap<String, String>,
+    pub field_to_register: IndexMap<String, String>,
 }
 
 /// a generated table as the all_fields dict
@@ -84,11 +84,11 @@ impl FieldHelper {
         self.field_to_register.get(field_name).cloned()
     }
 
-    fn reg_of(&self, field_name: &str) -> KResult<String> {
+    pub fn reg_of(&self, field_name: &str) -> KResult<String> {
         self.lookup_register(field_name).ok_or_else(|| KError::Other(crate::pyfmt::py_str_repr(field_name)))
     }
 
-    fn mask_of(&self, reg_name: &str, field_name: &str) -> KResult<i64> {
+    pub fn mask_of(&self, reg_name: &str, field_name: &str) -> KResult<i64> {
         self.all_fields
             .get(reg_name)
             .and_then(|f| f.get(field_name))
@@ -206,7 +206,7 @@ pub struct RawRead {
 }
 
 /// what tmc.py uses of the MCU_TMC_uart / MCU_TMC_SPI objects
-pub trait TmcMcu {
+pub trait TmcMcu: std::any::Any {
     fn get_fields(&self) -> Rc<FieldHelper>;
     fn get_register_raw(&self, reg_name: &str) -> KResult<RawRead>;
     fn get_register(&self, reg_name: &str) -> KResult<i64> {
@@ -217,6 +217,10 @@ pub trait TmcMcu {
     fn get_mcu(&self) -> Rc<Mcu>;
     /// self.name_to_reg.get(reg_name, 0)
     fn name_to_reg(&self, reg_name: &str) -> i64;
+    /// the Rust type's path (python plugins find the Kalico class by it)
+    fn type_name(&self) -> &'static str {
+        std::any::type_name::<Self>()
+    }
 }
 
 pub type TmcMcuRef = Rc<dyn TmcMcu>;
@@ -227,30 +231,30 @@ pub type TmcMcuRef = Rc<dyn TmcMcu>;
 
 /// reg_info: [last_value, reg_name, mask, err_mask, cs_actual_mask]
 #[derive(Clone)]
-struct RegInfo {
-    last_value: i64,
-    reg_name: String,
-    mask: i64,
-    err_mask: i64,
-    cs_actual_mask: i64,
+pub struct RegInfo {
+    pub last_value: i64,
+    pub reg_name: String,
+    pub mask: i64,
+    pub err_mask: i64,
+    pub cs_actual_mask: i64,
 }
 
 pub struct TMCErrorCheck {
-    printer: Rc<Printer>,
-    stepper_name: String,
-    mcu_tmc: TmcMcuRef,
-    fields: Rc<FieldHelper>,
-    check_timer: RefCell<Option<Timer>>,
-    last_drv_status: Cell<Option<i64>>,
-    last_drv_fields: RefCell<Option<IndexMap<String, i64>>>,
-    mcu_offline: Cell<bool>,
-    gstat_reg_info: RefCell<Option<RegInfo>>,
-    clear_gstat: bool,
-    irun_field: &'static str,
-    drv_status_reg_info: RefCell<RegInfo>,
-    adc_temp: Cell<Option<i64>>,
-    adc_temp_reg: Option<String>,
-    temp_from_adc: Option<fn(i64) -> f64>,
+    pub printer: Rc<Printer>,
+    pub stepper_name: String,
+    pub mcu_tmc: TmcMcuRef,
+    pub fields: Rc<FieldHelper>,
+    pub check_timer: RefCell<Option<Timer>>,
+    pub last_drv_status: Cell<Option<i64>>,
+    pub last_drv_fields: RefCell<Option<IndexMap<String, i64>>>,
+    pub mcu_offline: Cell<bool>,
+    pub gstat_reg_info: RefCell<Option<RegInfo>>,
+    pub clear_gstat: bool,
+    pub irun_field: &'static str,
+    pub drv_status_reg_info: RefCell<RegInfo>,
+    pub adc_temp: Cell<Option<i64>>,
+    pub adc_temp_reg: Option<String>,
+    pub temp_from_adc: Option<fn(i64) -> f64>,
 }
 
 impl TMCErrorCheck {
@@ -338,7 +342,7 @@ impl TMCErrorCheck {
         Ok(e)
     }
 
-    fn query_register(&self, info: &RefCell<RegInfo>, mut try_clear: bool) -> KResult<i64> {
+    pub fn query_register(&self, info: &RefCell<RegInfo>, mut try_clear: bool) -> KResult<i64> {
         let RegInfo { mut last_value, reg_name, mask, err_mask, cs_actual_mask } = info.borrow().clone();
         let mut cleared_flags = 0;
         let mut count = 0;
@@ -390,7 +394,7 @@ impl TMCErrorCheck {
         Ok(cleared_flags)
     }
 
-    fn query_temperature(&self) {
+    pub fn query_temperature(&self) {
         let reg = self.adc_temp_reg.clone().unwrap_or_default();
         match self.mcu_tmc.get_register(&reg) {
             Ok(v) => self.adc_temp.set(Some(v)),
@@ -399,7 +403,7 @@ impl TMCErrorCheck {
         }
     }
 
-    fn do_periodic_check(&self, eventtime: f64) -> f64 {
+    pub fn do_periodic_check(&self, eventtime: f64) -> f64 {
         let mcu = self.mcu_tmc.get_mcu();
         if self.mcu_offline.get() || mcu.non_critical_disconnected.get() {
             return eventtime + 1.0;
@@ -505,17 +509,17 @@ impl TMCErrorCheck {
 // ----------------------------------------------------------------------
 
 pub struct TMCStallguardDump {
-    me: Weak<TMCStallguardDump>,
-    printer: Rc<Printer>,
-    mcu_tmc: TmcMcuRef,
-    mcu: Rc<Mcu>,
-    fields: Rc<FieldHelper>,
-    sg4_reg_name: Option<&'static str>,
-    optimized_spi: Cell<bool>,
-    samples: RefCell<Vec<(f64, i64, i64)>>,
-    query_timer: RefCell<Option<Timer>>,
-    error: RefCell<Option<KError>>,
-    batch_bulk: RefCell<Option<Rc<BatchBulkHelper>>>,
+    pub me: Weak<TMCStallguardDump>,
+    pub printer: Rc<Printer>,
+    pub mcu_tmc: TmcMcuRef,
+    pub mcu: Rc<Mcu>,
+    pub fields: Rc<FieldHelper>,
+    pub sg4_reg_name: Option<&'static str>,
+    pub optimized_spi: Cell<bool>,
+    pub samples: RefCell<Vec<(f64, i64, i64)>>,
+    pub query_timer: RefCell<Option<Timer>>,
+    pub error: RefCell<Option<KError>>,
+    pub batch_bulk: RefCell<Option<Rc<BatchBulkHelper>>>,
 }
 
 impl TMCStallguardDump {
@@ -586,7 +590,7 @@ impl TMCStallguardDump {
         Ok(d)
     }
 
-    fn start(&self) -> KResult<()> {
+    pub fn start(&self) -> KResult<()> {
         *self.error.borrow_mut() = None;
         let status = self.mcu_tmc.get_register_raw("DRV_STATUS")?;
         if status.spi_status.map(|s| s != 0).unwrap_or(false) {
@@ -605,14 +609,14 @@ impl TMCStallguardDump {
         Ok(())
     }
 
-    fn stop(&self) {
+    pub fn stop(&self) {
         if let Some(t) = self.query_timer.borrow_mut().take() {
             self.printer.get_reactor().unregister_timer(&t);
         }
         self.samples.borrow_mut().clear();
     }
 
-    fn query_tmc(&self, eventtime: f64) -> f64 {
+    pub fn query_tmc(&self, eventtime: f64) -> f64 {
         let mut sg_result = -1;
         let mut cs_actual = -1;
         let mut recv_time = eventtime;
@@ -655,7 +659,7 @@ impl TMCStallguardDump {
         eventtime + 0.005
     }
 
-    fn dump(&self, _eventtime: f64) -> KResult<PyVal> {
+    pub fn dump(&self, _eventtime: f64) -> KResult<PyVal> {
         if let Some(e) = self.error.borrow().clone() {
             return Err(e);
         }
@@ -785,7 +789,7 @@ impl BaseTMCCurrentHelper {
 }
 
 /// a driver current helper (BaseTMCCurrentHelper subclasses)
-pub trait TmcCurrent {
+pub trait TmcCurrent: std::any::Any {
     fn base(&self) -> &BaseTMCCurrentHelper;
     fn get_current(&self) -> CurrentInfo;
     fn apply_current(&self, _print_time: Option<f64>) -> KResult<()> {
@@ -813,6 +817,10 @@ pub trait TmcCurrent {
         }
         Ok(0.0)
     }
+    /// the Rust type's path (python plugins find the Kalico class by it)
+    fn type_name(&self) -> &'static str {
+        std::any::type_name::<Self>()
+    }
 }
 
 pub type TmcCurrentRef = Rc<dyn TmcCurrent>;
@@ -839,23 +847,23 @@ const CMD_DUMP_TMC_HELP: &str = "Read and display TMC stepper driver registers";
 pub type ReadTranslate = Rc<dyn Fn(&str, i64) -> (String, i64)>;
 
 pub struct TMCCommandHelper {
-    me: Weak<TMCCommandHelper>,
-    printer: Rc<Printer>,
-    stepper_name: String,
-    name: String,
-    mcu_tmc: TmcMcuRef,
-    current_helper: TmcCurrentRef,
-    init_callback: Option<Rc<dyn Fn() -> KResult<()>>>,
-    fields: Rc<FieldHelper>,
-    stepper: RefCell<Option<Rc<McuStepper>>>,
-    mcu_phase_offset: Cell<Option<i64>>,
-    toff: Cell<Option<i64>>,
-    stepper_enable: Rc<PrinterStepperEnable>,
-    enable_mutex: Rc<ReactorMutex>,
-    read_registers: RefCell<Vec<String>>,
-    read_translate: RefCell<Option<ReadTranslate>>,
-    echeck_helper: Rc<TMCErrorCheck>,
-    record_helper: Rc<TMCStallguardDump>,
+    pub me: Weak<TMCCommandHelper>,
+    pub printer: Rc<Printer>,
+    pub stepper_name: String,
+    pub name: String,
+    pub mcu_tmc: TmcMcuRef,
+    pub current_helper: TmcCurrentRef,
+    pub init_callback: Option<Rc<dyn Fn() -> KResult<()>>>,
+    pub fields: Rc<FieldHelper>,
+    pub stepper: RefCell<Option<Rc<McuStepper>>>,
+    pub mcu_phase_offset: Cell<Option<i64>>,
+    pub toff: Cell<Option<i64>>,
+    pub stepper_enable: Rc<PrinterStepperEnable>,
+    pub enable_mutex: Rc<ReactorMutex>,
+    pub read_registers: RefCell<Vec<String>>,
+    pub read_translate: RefCell<Option<ReadTranslate>>,
+    pub echeck_helper: Rc<TMCErrorCheck>,
+    pub record_helper: Rc<TMCStallguardDump>,
 }
 
 impl TMCCommandHelper {
@@ -926,7 +934,7 @@ impl TMCCommandHelper {
         Ok(ch)
     }
 
-    fn init_registers(&self, print_time: Option<f64>) -> KResult<()> {
+    pub fn init_registers(&self, print_time: Option<f64>) -> KResult<()> {
         if let Some(cb) = &self.init_callback {
             cb()?;
         }
@@ -939,17 +947,17 @@ impl TMCCommandHelper {
         Ok(())
     }
 
-    fn last_move_time(&self) -> KResult<f64> {
+    pub fn last_move_time(&self) -> KResult<f64> {
         self.printer.lookup::<ToolHead>("toolhead")?.get_last_move_time()
     }
 
-    fn cmd_init_tmc(&self, _gcmd: &GCodeCommand) -> KResult<()> {
+    pub fn cmd_init_tmc(&self, _gcmd: &GCodeCommand) -> KResult<()> {
         logging::info(&format!("INIT_TMC {}", self.name));
         let print_time = self.last_move_time()?;
         self.init_registers(Some(print_time))
     }
 
-    fn cmd_set_tmc_field(&self, gcmd: &GCodeCommand) -> KResult<()> {
+    pub fn cmd_set_tmc_field(&self, gcmd: &GCodeCommand) -> KResult<()> {
         let field_name = gcmd.get("FIELD")?.to_lowercase();
         let Some(reg_name) = self.fields.lookup_register(&field_name) else {
             return Err(gcmd.error(format!("Unknown field name '{}'", field_name)));
@@ -974,7 +982,7 @@ impl TMCCommandHelper {
         self.mcu_tmc.set_register(&reg_name, reg_val, Some(print_time))
     }
 
-    fn cmd_set_tmc_current(&self, gcmd: &GCodeCommand) -> KResult<()> {
+    pub fn cmd_set_tmc_current(&self, gcmd: &GCodeCommand) -> KResult<()> {
         let ch = &self.current_helper;
         let (mut prev_cur, mut prev_hold_cur, req_hold_cur, max_cur, mut prev_home_cur) = ch.get_current();
         let run_current = gcmd.get_float_opt("CURRENT", Lim::new().min(0.0).max(max_cur))?;
@@ -1011,7 +1019,7 @@ impl TMCCommandHelper {
     }
 
     // Stepper phase tracking
-    fn get_phases(&self) -> i64 {
+    pub fn get_phases(&self) -> i64 {
         (256i64.checked_shr(self.fields.get_field("mres") as u32).unwrap_or(0)) * 4
     }
 
@@ -1023,7 +1031,7 @@ impl TMCCommandHelper {
         (self.mcu_phase_offset.get(), self.get_phases())
     }
 
-    fn query_phase(&self) -> KResult<i64> {
+    pub fn query_phase(&self) -> KResult<i64> {
         let mut field_name = "mscnt";
         if self.fields.lookup_register(field_name).is_none() {
             // TMC2660 uses MSTEP
@@ -1034,7 +1042,7 @@ impl TMCCommandHelper {
         Ok(self.fields.get_field_of(field_name, reg))
     }
 
-    fn handle_sync_mcu_pos(&self, stepper: &Rc<McuStepper>) -> KResult<()> {
+    pub fn handle_sync_mcu_pos(&self, stepper: &Rc<McuStepper>) -> KResult<()> {
         if stepper.get_name(false) != self.stepper_name {
             return Ok(());
         }
@@ -1067,7 +1075,7 @@ impl TMCCommandHelper {
     }
 
     // Stepper enable/disable tracking
-    fn do_enable(&self, _print_time: f64) -> KResult<()> {
+    pub fn do_enable(&self, _print_time: f64) -> KResult<()> {
         if let Some(toff) = self.toff.get() {
             // Shared enable via comms handling
             self.fields.set_field("toff", toff)?;
@@ -1097,7 +1105,7 @@ impl TMCCommandHelper {
         r
     }
 
-    fn do_disable(&self, print_time: f64) -> KResult<()> {
+    pub fn do_disable(&self, print_time: f64) -> KResult<()> {
         if self.toff.get().is_some() {
             let val = self.fields.set_field("toff", 0)?;
             let reg_name = self.fields.lookup_register("toff").unwrap_or_default();
@@ -1107,7 +1115,7 @@ impl TMCCommandHelper {
         Ok(())
     }
 
-    fn handle_stepper_enable(&self, print_time: f64, is_enable: bool) -> KResult<()> {
+    pub fn handle_stepper_enable(&self, print_time: f64, is_enable: bool) -> KResult<()> {
         let me = self.me.upgrade().expect("tmc command helper");
         self.printer.get_reactor().register_callback(
             move |_| {
@@ -1128,7 +1136,7 @@ impl TMCCommandHelper {
     }
 
     // Initial startup handling
-    fn handle_mcu_identify(&self) -> KResult<()> {
+    pub fn handle_mcu_identify(&self) -> KResult<()> {
         // Lookup stepper object
         let force_move = self.printer.lookup::<ForceMove>("force_move")?;
         let stepper = force_move.lookup_stepper(&self.stepper_name)?;
@@ -1139,7 +1147,7 @@ impl TMCCommandHelper {
         Ok(())
     }
 
-    fn handle_connect(&self) -> KResult<()> {
+    pub fn handle_connect(&self) -> KResult<()> {
         // Check if using step on both edges optimization
         let stepper = self.stepper.borrow().clone().ok_or_else(|| KError::Other("'NoneType' object has no attribute 'get_pulse_duration'".into()))?;
         let (_pulse_duration, step_both_edge) = stepper.get_pulse_duration();
@@ -1201,7 +1209,7 @@ impl TMCCommandHelper {
         gcode.register_mux_command("DUMP_TMC", "STEPPER", Some(&self.name), Rc::new(move |g| c.cmd_dump_tmc(g)), Some(CMD_DUMP_TMC_HELP))
     }
 
-    fn read_and_format(&self, reg_name: &str) -> KResult<String> {
+    pub fn read_and_format(&self, reg_name: &str) -> KResult<String> {
         let mut val = self.mcu_tmc.get_register(reg_name)?;
         let mut reg_name = reg_name.to_string();
         if let Some(t) = self.read_translate.borrow().clone() {
@@ -1212,7 +1220,7 @@ impl TMCCommandHelper {
         Ok(self.fields.pretty_format(&reg_name, val))
     }
 
-    fn cmd_dump_tmc(&self, gcmd: &GCodeCommand) -> KResult<()> {
+    pub fn cmd_dump_tmc(&self, gcmd: &GCodeCommand) -> KResult<()> {
         logging::info(&format!("DUMP_TMC {}", self.name));
         let read_registers = self.read_registers.borrow().clone();
         if let Some(reg_name) = gcmd.get_opt("REGISTER") {
@@ -1257,15 +1265,15 @@ impl TMCCommandHelper {
 
 // Helper class for "sensorless homing"
 pub struct TMCVirtualPinHelper {
-    me: Weak<TMCVirtualPinHelper>,
-    printer: Rc<Printer>,
-    mcu_tmc: TmcMcuRef,
-    fields: Rc<FieldHelper>,
-    diag_pin: Option<String>,
-    diag_pin_field: Option<&'static str>,
-    mcu_endstop: RefCell<Option<EndstopRef>>,
-    dirty_regs: RefCell<IndexMap<String, i64>>,
-    prev_state: RefCell<IndexMap<String, i64>>,
+    pub me: Weak<TMCVirtualPinHelper>,
+    pub printer: Rc<Printer>,
+    pub mcu_tmc: TmcMcuRef,
+    pub fields: Rc<FieldHelper>,
+    pub diag_pin: Option<String>,
+    pub diag_pin_field: Option<&'static str>,
+    pub mcu_endstop: RefCell<Option<EndstopRef>>,
+    pub dirty_regs: RefCell<IndexMap<String, i64>>,
+    pub prev_state: RefCell<IndexMap<String, i64>>,
 }
 
 impl TMCVirtualPinHelper {
@@ -1303,7 +1311,7 @@ impl TMCVirtualPinHelper {
         Ok(h)
     }
 
-    fn set_field(&self, field_name: &str, value: i64) -> KResult<()> {
+    pub fn set_field(&self, field_name: &str, value: i64) -> KResult<()> {
         self.prev_state.borrow_mut().insert(field_name.to_string(), self.fields.get_field(field_name));
         let reg_name = self.fields.lookup_register(field_name).unwrap_or_default();
         let v = self.fields.set_field(field_name, value)?;
@@ -1311,7 +1319,7 @@ impl TMCVirtualPinHelper {
         Ok(())
     }
 
-    fn send_fields(&self) -> KResult<()> {
+    pub fn send_fields(&self) -> KResult<()> {
         let dirty: Vec<(String, i64)> = self.dirty_regs.borrow().iter().map(|(k, v)| (k.clone(), *v)).collect();
         for (reg, val) in dirty {
             self.mcu_tmc.set_register(&reg, val, None)?;
@@ -1320,13 +1328,13 @@ impl TMCVirtualPinHelper {
         Ok(())
     }
 
-    fn uses_endstop(&self, hmove: &Rc<HomingMove>) -> bool {
+    pub fn uses_endstop(&self, hmove: &Rc<HomingMove>) -> bool {
         let me = self.mcu_endstop.borrow().clone();
         let Some(me) = me else { return false };
         hmove.get_mcu_endstops().iter().any(|e| std::ptr::eq(Rc::as_ptr(e) as *const (), Rc::as_ptr(&me) as *const ()))
     }
 
-    fn handle_homing_move_begin(&self, hmove: &Rc<HomingMove>) -> KResult<()> {
+    pub fn handle_homing_move_begin(&self, hmove: &Rc<HomingMove>) -> KResult<()> {
         if !self.uses_endstop(hmove) {
             return Ok(());
         }
@@ -1361,7 +1369,7 @@ impl TMCVirtualPinHelper {
         self.send_fields()
     }
 
-    fn handle_homing_move_end(&self, hmove: &Rc<HomingMove>) -> KResult<()> {
+    pub fn handle_homing_move_end(&self, hmove: &Rc<HomingMove>) -> KResult<()> {
         if !self.uses_endstop(hmove) {
             return Ok(());
         }
@@ -1534,6 +1542,8 @@ pub struct TmcDriver {
     pub fields: Rc<FieldHelper>,
     pub mcu_tmc: TmcMcuRef,
     pub cmdhelper: Rc<TMCCommandHelper>,
+    /// the Kalico class of the driver ("TMC2209", ...)
+    pub class: &'static str,
 }
 
 impl TmcDriver {

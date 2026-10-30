@@ -17,10 +17,15 @@ use crate::IndexMap;
 use std::cell::{Cell, RefCell};
 use std::rc::Rc;
 
+crate::impl_downcast!(dyn MoveTransform);
 /// a g-code move transform (toolhead, bed_mesh, skew_correction, ...)
-pub trait MoveTransform {
+pub trait MoveTransform: std::any::Any {
     fn move_to(&self, newpos: &[f64], speed: f64) -> KResult<()>;
     fn get_position(&self) -> Vec<f64>;
+    /// the Rust type's path (python plugins find the Kalico class by it)
+    fn type_name(&self) -> &'static str {
+        std::any::type_name::<Self>()
+    }
 }
 
 pub type MoveTransformRef = Rc<dyn MoveTransform>;
@@ -35,33 +40,33 @@ impl MoveTransform for ToolHead {
 }
 
 #[derive(Clone)]
-struct SavedState {
-    absolute_coord: bool,
-    absolute_extrude: bool,
-    base_position: Vec<f64>,
-    last_position: Vec<f64>,
-    homing_position: Vec<f64>,
-    speed: f64,
-    speed_factor: f64,
-    extrude_factor: f64,
+pub struct SavedState {
+    pub absolute_coord: bool,
+    pub absolute_extrude: bool,
+    pub base_position: Vec<f64>,
+    pub last_position: Vec<f64>,
+    pub homing_position: Vec<f64>,
+    pub speed: f64,
+    pub speed_factor: f64,
+    pub extrude_factor: f64,
 }
 
 pub struct GCodeMove {
-    printer: Rc<Printer>,
-    is_printer_ready: Cell<bool>,
+    pub printer: Rc<Printer>,
+    pub is_printer_ready: Cell<bool>,
     // G-Code coordinate manipulation
     pub absolute_coord: Cell<bool>,
     pub absolute_extrude: Cell<bool>,
     pub base_position: RefCell<Vec<f64>>,
     pub last_position: RefCell<Vec<f64>>,
     pub homing_position: RefCell<Vec<f64>>,
-    axis_map: RefCell<IndexMap<String, usize>>,
+    pub axis_map: RefCell<IndexMap<String, usize>>,
     pub speed: Cell<f64>,
     pub speed_factor: Cell<f64>,
     pub extrude_factor: Cell<f64>,
     // G-Code state
-    saved_states: RefCell<IndexMap<String, SavedState>>,
-    move_transform: RefCell<Option<MoveTransformRef>>,
+    pub saved_states: RefCell<IndexMap<String, SavedState>>,
+    pub move_transform: RefCell<Option<MoveTransformRef>>,
     /// move_with_transform / position_with_transform (None: no transform
     /// yet - position_with_transform returns [0.0, 0.0, 0.0, 0.0])
     with_transform: RefCell<Option<MoveTransformRef>>,
@@ -99,7 +104,7 @@ impl GCodeMove {
         self.homing_position.borrow().clone()
     }
 
-    fn new(config: &ConfigWrapper) -> KResult<Rc<Self>> {
+    pub fn new(config: &ConfigWrapper) -> KResult<Rc<Self>> {
         let printer = config.get_printer();
         let gm = Rc::new(GCodeMove {
             printer: printer.clone(),
@@ -168,7 +173,7 @@ impl GCodeMove {
         Ok(gm)
     }
 
-    fn handle_ready(&self) -> KResult<()> {
+    pub fn handle_ready(&self) -> KResult<()> {
         self.is_printer_ready.set(true);
         if self.move_transform.borrow().is_none() {
             let toolhead: MoveTransformRef = self.printer.lookup::<ToolHead>("toolhead")?;
@@ -191,7 +196,7 @@ impl GCodeMove {
         ));
     }
 
-    fn handle_activate_extruder(&self) -> KResult<()> {
+    pub fn handle_activate_extruder(&self) -> KResult<()> {
         self.reset_last_position()?;
         self.extrude_factor.set(1.0);
         let e = self.last_position.borrow()[3];
@@ -242,7 +247,7 @@ impl GCodeMove {
         }
     }
 
-    fn get_gcode_position(&self) -> Vec<f64> {
+    pub fn get_gcode_position(&self) -> Vec<f64> {
         let lp = self.last_position.borrow();
         let bp = self.base_position.borrow();
         let mut p: Vec<f64> = lp.iter().zip(bp.iter()).map(|(l, b)| l - b).collect();
@@ -251,11 +256,11 @@ impl GCodeMove {
         p
     }
 
-    fn get_gcode_speed(&self) -> f64 {
+    pub fn get_gcode_speed(&self) -> f64 {
         self.speed.get() / self.speed_factor.get()
     }
 
-    fn get_gcode_speed_override(&self) -> f64 {
+    pub fn get_gcode_speed_override(&self) -> f64 {
         self.speed_factor.get() * 60.0
     }
 
@@ -274,7 +279,7 @@ impl GCodeMove {
         Ok(())
     }
 
-    fn update_extra_axes(&self) -> KResult<()> {
+    pub fn update_extra_axes(&self) -> KResult<()> {
         let toolhead = self.printer.lookup::<ToolHead>("toolhead")?;
         let mut axis_map = default_axis_map();
         let extra_axes = toolhead.get_extra_axes();
@@ -334,41 +339,41 @@ impl GCodeMove {
     }
 
     // G-Code coordinate manipulation
-    fn cmd_g20(&self, gcmd: &GCodeCommand) -> KResult<()> {
+    pub fn cmd_g20(&self, gcmd: &GCodeCommand) -> KResult<()> {
         // Set units to inches
         Err(gcmd.error("Machine does not support G20 (inches) command"))
     }
 
-    fn cmd_g21(&self, _gcmd: &GCodeCommand) -> KResult<()> {
+    pub fn cmd_g21(&self, _gcmd: &GCodeCommand) -> KResult<()> {
         // Set units to millimeters
         Ok(())
     }
 
-    fn cmd_m82(&self, _gcmd: &GCodeCommand) -> KResult<()> {
+    pub fn cmd_m82(&self, _gcmd: &GCodeCommand) -> KResult<()> {
         // Use absolute distances for extrusion
         self.absolute_extrude.set(true);
         Ok(())
     }
 
-    fn cmd_m83(&self, _gcmd: &GCodeCommand) -> KResult<()> {
+    pub fn cmd_m83(&self, _gcmd: &GCodeCommand) -> KResult<()> {
         // Use relative distances for extrusion
         self.absolute_extrude.set(false);
         Ok(())
     }
 
-    fn cmd_g90(&self, _gcmd: &GCodeCommand) -> KResult<()> {
+    pub fn cmd_g90(&self, _gcmd: &GCodeCommand) -> KResult<()> {
         // Use absolute coordinates
         self.absolute_coord.set(true);
         Ok(())
     }
 
-    fn cmd_g91(&self, _gcmd: &GCodeCommand) -> KResult<()> {
+    pub fn cmd_g91(&self, _gcmd: &GCodeCommand) -> KResult<()> {
         // Use relative coordinates
         self.absolute_coord.set(false);
         Ok(())
     }
 
-    fn cmd_g92(&self, gcmd: &GCodeCommand) -> KResult<()> {
+    pub fn cmd_g92(&self, gcmd: &GCodeCommand) -> KResult<()> {
         // Set position
         let mut offsets = vec![];
         for a in ["X", "Y", "Z", "E"] {
@@ -390,14 +395,14 @@ impl GCodeMove {
         Ok(())
     }
 
-    fn cmd_m114(&self, gcmd: &GCodeCommand) -> KResult<()> {
+    pub fn cmd_m114(&self, gcmd: &GCodeCommand) -> KResult<()> {
         // Get Current Position
         let p = self.get_gcode_position();
         gcmd.respond_raw(&format!("X:{:.3} Y:{:.3} Z:{:.3} E:{:.3}", p[0], p[1], p[2], p[3]));
         Ok(())
     }
 
-    fn cmd_m220(&self, gcmd: &GCodeCommand) -> KResult<()> {
+    pub fn cmd_m220(&self, gcmd: &GCodeCommand) -> KResult<()> {
         // Set speed factor override percentage
         let value = gcmd.get_float("S", Some(100.0), Lim::new().above(0.0))? / (60.0 * 100.0);
         self.speed.set(self.get_gcode_speed() * value);
@@ -405,7 +410,7 @@ impl GCodeMove {
         Ok(())
     }
 
-    fn cmd_m221(&self, gcmd: &GCodeCommand) -> KResult<()> {
+    pub fn cmd_m221(&self, gcmd: &GCodeCommand) -> KResult<()> {
         // Set extrude factor override percentage
         let new_extrude_factor = gcmd.get_float("S", Some(100.0), Lim::new().above(0.0))? / 100.0;
         let last_e_pos = self.last_position.borrow()[3];
@@ -442,7 +447,7 @@ impl GCodeMove {
         Ok(())
     }
 
-    fn cmd_save_gcode_state(&self, gcmd: &GCodeCommand) -> KResult<()> {
+    pub fn cmd_save_gcode_state(&self, gcmd: &GCodeCommand) -> KResult<()> {
         let state_name = gcmd.get_or("NAME", "default");
         let state = SavedState {
             absolute_coord: self.absolute_coord.get(),
@@ -458,7 +463,7 @@ impl GCodeMove {
         Ok(())
     }
 
-    fn cmd_restore_gcode_state(&self, gcmd: &GCodeCommand) -> KResult<()> {
+    pub fn cmd_restore_gcode_state(&self, gcmd: &GCodeCommand) -> KResult<()> {
         let state_name = gcmd.get_or("NAME", "default");
         let state = self.saved_states.borrow().get(&state_name).cloned();
         let Some(state) = state else {
@@ -485,7 +490,7 @@ impl GCodeMove {
         Ok(())
     }
 
-    fn cmd_get_position(&self, gcmd: &GCodeCommand) -> KResult<()> {
+    pub fn cmd_get_position(&self, gcmd: &GCodeCommand) -> KResult<()> {
         let Ok(toolhead) = self.printer.lookup::<ToolHead>("toolhead") else {
             return Err(gcmd.error("Printer not ready"));
         };

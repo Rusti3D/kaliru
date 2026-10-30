@@ -17,14 +17,14 @@ const PIN_MIN_TIME: f64 = 0.100;
 
 pub struct HeatedFan {
     me: Weak<HeatedFan>,
-    printer: Rc<Printer>,
-    heater: Rc<Heater>,
-    heater_temp: Cell<f64>,
+    pub printer: Rc<Printer>,
+    pub heater: Rc<Heater>,
+    pub heater_temp: Cell<f64>,
     pub fan: Rc<Fan>,
-    min_speed: f64,
-    idle_timeout: f64,
-    set_speed: Cell<f64>,
-    timeout_timer: RefCell<Option<Timer>>,
+    pub min_speed: f64,
+    pub idle_timeout: f64,
+    pub set_speed: Cell<f64>,
+    pub timeout_timer: RefCell<Option<Timer>>,
 }
 
 impl HeatedFan {
@@ -92,12 +92,12 @@ impl HeatedFan {
         Ok(obj)
     }
 
-    fn cmd_set_heated_fan_target(&self, gcmd: &GCodeCommand) -> KResult<()> {
+    pub fn cmd_set_heated_fan_target(&self, gcmd: &GCodeCommand) -> KResult<()> {
         self.heater_temp.set(gcmd.get_float("TARGET", Some(0.0), Lim::new())?);
         Ok(())
     }
 
-    fn cmd_m106(&self, gcmd: &GCodeCommand) -> KResult<()> {
+    pub fn cmd_m106(&self, gcmd: &GCodeCommand) -> KResult<()> {
         self.set_speed.set(gcmd.get_float("S", Some(255.0), Lim::new().min(0.0))? / 255.0);
         if self.set_speed.get() == 0.0 {
             return self.cmd_m107(gcmd);
@@ -114,13 +114,13 @@ impl HeatedFan {
         Ok(())
     }
 
-    fn cmd_m107(&self, _gcmd: &GCodeCommand) -> KResult<()> {
+    pub fn cmd_m107(&self, _gcmd: &GCodeCommand) -> KResult<()> {
         self.set_speed.set(0.0);
         self.heater.set_temp(0.0)?;
         self.start_timeout_timer()
     }
 
-    fn start_timeout_timer(&self) -> KResult<()> {
+    pub fn start_timeout_timer(&self) -> KResult<()> {
         self.fan.set_speed_from_command(self.min_speed)?;
         let reactor = self.printer.get_reactor();
         let w = self.me.clone();
@@ -139,7 +139,7 @@ impl HeatedFan {
         Ok(())
     }
 
-    fn handle_ready(&self) {
+    pub fn handle_ready(&self) {
         let reactor = self.printer.get_reactor();
         let w = self.me.clone();
         reactor.register_timer(
@@ -151,7 +151,7 @@ impl HeatedFan {
         );
     }
 
-    fn callback(&self, eventtime: f64) -> f64 {
+    pub fn callback(&self, eventtime: f64) -> f64 {
         let (_, target_temp) = self.heater.get_temp(eventtime);
         // if the heater has a target and the fan is off, turn it on to min fan speed
         if target_temp != 0.0 && self.set_speed.get() == 0.0 {

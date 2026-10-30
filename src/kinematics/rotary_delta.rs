@@ -28,22 +28,22 @@ fn min_of(v: &[f64]) -> f64 {
 }
 
 pub struct RotaryDeltaKinematics {
-    rails: Vec<Rc<PrinterRail>>,
-    max_z_velocity: Cell<f64>,
-    calibration: Rc<RotaryDeltaCalibration>,
-    need_home: Cell<bool>,
-    limit_xy2: Cell<f64>,
-    home_position: [f64; 3],
-    max_z: f64,
-    min_z: f64,
-    max_xy2: f64,
-    limit_z: f64,
-    axes_min: PyVal,
-    axes_max: PyVal,
+    pub rails: Vec<Rc<PrinterRail>>,
+    pub max_z_velocity: Cell<f64>,
+    pub calibration: Rc<RotaryDeltaCalibration>,
+    pub need_home: Cell<bool>,
+    pub limit_xy2: Cell<f64>,
+    pub home_position: [f64; 3],
+    pub max_z: f64,
+    pub min_z: f64,
+    pub max_xy2: f64,
+    pub limit_z: f64,
+    pub axes_min: PyVal,
+    pub axes_max: PyVal,
 }
 
 impl RotaryDeltaKinematics {
-    fn new(toolhead: &Rc<ToolHead>, config: &ConfigWrapper) -> KResult<Self> {
+    pub fn new(toolhead: &Rc<ToolHead>, config: &ConfigWrapper) -> KResult<Self> {
         // Setup tower rails
         let stepper_configs: Vec<ConfigWrapper> = ["a", "b", "c"].iter().map(|a| config.getsection(&format!("stepper_{}", a))).collect();
         let rail_a = PrinterRail::new(&stepper_configs[0], false, None, true)?;
@@ -228,20 +228,20 @@ impl Kinematics for RotaryDeltaKinematics {
 
 // Rotary delta parameter calibration for DELTA_CALIBRATE tool
 pub struct RotaryDeltaCalibration {
-    shoulder_radius: f64,
-    shoulder_height: f64,
-    angles: Vec<f64>,
-    upper_arms: Vec<f64>,
-    lower_arms: Vec<f64>,
-    endstops: Vec<f64>,
-    stepdists: Vec<f64>,
-    sks: Vec<SkRef>,
-    abs_endstops: Vec<f64>,
+    pub shoulder_radius: f64,
+    pub shoulder_height: f64,
+    pub angles: Vec<f64>,
+    pub upper_arms: Vec<f64>,
+    pub lower_arms: Vec<f64>,
+    pub endstops: Vec<f64>,
+    pub stepdists: Vec<f64>,
+    pub sks: Vec<SkRef>,
+    pub abs_endstops: Vec<f64>,
 }
 
 impl RotaryDeltaCalibration {
     #[allow(clippy::too_many_arguments)]
-    fn new(
+    pub fn new(
         shoulder_radius: f64,
         shoulder_height: f64,
         angles: Vec<f64>,
@@ -261,7 +261,7 @@ impl RotaryDeltaCalibration {
         RotaryDeltaCalibration { shoulder_radius, shoulder_height, angles, upper_arms, lower_arms, endstops, stepdists, sks, abs_endstops }
     }
 
-    fn elbow_coord(&self, elbow_id: usize, spos: f64) -> [f64; 3] {
+    pub fn elbow_coord(&self, elbow_id: usize, spos: f64) -> [f64; 3] {
         // Calculate elbow position in coordinate system at shoulder joint
         let sj_elbow_x = self.upper_arms[elbow_id] * spos.cos();
         let sj_elbow_y = self.upper_arms[elbow_id] * spos.sin();

@@ -83,6 +83,7 @@ fn main() {
                 match pins.get_pin_resolver(chip) {
                     Err(e) => format!("ERR {}", e),
                     Ok(r) => {
+                        let mut r = r.borrow_mut();
                         let res = match op {
                             "alias" => {
                                 let (a, p) = args.split_once(' ').unwrap_or((args, ""));

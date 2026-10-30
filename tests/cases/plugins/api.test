@@ -1,0 +1,27 @@
+# every attribute and argument-free get_/is_ method of every printer object
+# (tests/plugins/kaliru_test_api.py), on stock Kalico test configs
+DICTIONARY atmega2560.dict
+
+G4 P10
+TEST_API
+
+CONFIG api_exclude_object.cfg
+CONFIG api_firmware_retraction.cfg
+CONFIG api_input_shaper.cfg
+CONFIG api_manual_stepper.cfg
+CONFIG api_filament_sensors.cfg
+CONFIG api_temperature.cfg
+CONFIG api_menu.cfg
+CONFIG api_mixing_extruder.cfg
+CONFIG api_bltouch.cfg
+CONFIG api_z_tilt_ng.cfg
+CONFIG api_limited_cartesian.cfg
+CONFIG api_dual_carriage.cfg
+CONFIG api_pwm.cfg
+CONFIG api_macros.cfg
+CONFIG api_mpc.cfg
+CONFIG api_led.cfg
+CONFIG api_dockable_probe.cfg
+CONFIG api_z_calibration.cfg
+CONFIG api_trad_rack.cfg
+CONFIG api_load_cell.cfg

@@ -42,5 +42,5 @@ pub fn load_config_prefix(config: &ConfigWrapper) -> KResult<PObj> {
     tmc2208::set_uart_config_fields(&fields, config, true)?;
     // SGTHRS
     fields.set_config_field(config, "sgthrs", 0)?;
-    Ok(Rc::new(TmcDriver { fields, mcu_tmc, cmdhelper }))
+    Ok(Rc::new(TmcDriver { fields, mcu_tmc, cmdhelper, class: "TMC2209" }))
 }

@@ -30,19 +30,19 @@ fn min_of(v: &[f64]) -> f64 {
 }
 
 pub struct DeltesianKinematics {
-    rails: Vec<Rc<PrinterRail>>,
-    arm_x: [f64; 2],
-    arm2: [f64; 2],
-    limits: [(f64, f64); 3],
-    abs_endstop: [f64; 2],
-    home_z: f64,
-    slow_x2: Option<f64>,
-    very_slow_x2: Option<f64>,
-    max_z_velocity: Cell<f64>,
-    max_z_accel: Cell<f64>,
-    axes_min: PyVal,
-    axes_max: PyVal,
-    homed_axis: RefCell<[bool; 3]>,
+    pub rails: Vec<Rc<PrinterRail>>,
+    pub arm_x: [f64; 2],
+    pub arm2: [f64; 2],
+    pub limits: [(f64, f64); 3],
+    pub abs_endstop: [f64; 2],
+    pub home_z: f64,
+    pub slow_x2: Option<f64>,
+    pub very_slow_x2: Option<f64>,
+    pub max_z_velocity: Cell<f64>,
+    pub max_z_accel: Cell<f64>,
+    pub axes_min: PyVal,
+    pub axes_max: PyVal,
+    pub homed_axis: RefCell<[bool; 3]>,
 }
 
 /// a python number: an int where python computed one
@@ -55,7 +55,7 @@ fn num(v: f64, is_int: bool) -> PyVal {
 }
 
 impl DeltesianKinematics {
-    fn new(toolhead: &Rc<ToolHead>, config: &ConfigWrapper) -> KResult<Self> {
+    pub fn new(toolhead: &Rc<ToolHead>, config: &ConfigWrapper) -> KResult<Self> {
         let stepper_configs: Vec<ConfigWrapper> =
             ["left", "right", "y"].iter().map(|s| config.getsection(&format!("stepper_{}", s))).collect();
         let rail0 = PrinterRail::new(&stepper_configs[0], false, None, false)?;
@@ -150,7 +150,7 @@ impl DeltesianKinematics {
         Ok(kin)
     }
 
-    fn actuator_to_cartesian(&self, sp: &[f64]) -> [f64; 2] {
+    pub fn actuator_to_cartesian(&self, sp: &[f64]) -> [f64; 2] {
         let (arm_x, arm2) = (self.arm_x, self.arm2);
         let (dx, dz) = (py_sum(arm_x.iter().copied()), sp[1] - sp[0]);
         let pivots = (dx.powf(2.0) + dz.powf(2.0)).sqrt();
@@ -163,7 +163,7 @@ impl DeltesianKinematics {
         [x, z]
     }
 
-    fn pillars_z_max(&self, x: f64) -> f64 {
+    pub fn pillars_z_max(&self, x: f64) -> f64 {
         let (arm_x, arm2) = (self.arm_x, self.arm2);
         let dz = [(arm2[0] - (arm_x[0] + x).powf(2.0)).sqrt(), (arm2[1] - (arm_x[1] - x).powf(2.0)).sqrt()];
         py_min(self.abs_endstop[0] - dz[0], self.abs_endstop[1] - dz[1])

@@ -18,24 +18,24 @@ for the parameters that control this check.
 ";
 
 pub struct HeaterCheck {
-    printer: Rc<Printer>,
-    heater_name: String,
-    heater: RefCell<Option<Rc<Heater>>>,
-    hysteresis: f64,
-    max_error: f64,
-    heating_gain: f64,
-    check_gain_time: f64,
-    approaching_target: Cell<bool>,
-    starting_approach: Cell<bool>,
-    last_target: Cell<f64>,
-    goal_temp: Cell<f64>,
-    error: Cell<f64>,
-    goal_systime: Cell<f64>,
-    check_timer: RefCell<Option<Timer>>,
+    pub printer: Rc<Printer>,
+    pub heater_name: String,
+    pub heater: RefCell<Option<Rc<Heater>>>,
+    pub hysteresis: f64,
+    pub max_error: f64,
+    pub heating_gain: f64,
+    pub check_gain_time: f64,
+    pub approaching_target: Cell<bool>,
+    pub starting_approach: Cell<bool>,
+    pub last_target: Cell<f64>,
+    pub goal_temp: Cell<f64>,
+    pub error: Cell<f64>,
+    pub goal_systime: Cell<f64>,
+    pub check_timer: RefCell<Option<Timer>>,
 }
 
 impl HeaterCheck {
-    fn new(config: &ConfigWrapper) -> KResult<Rc<Self>> {
+    pub fn new(config: &ConfigWrapper) -> KResult<Rc<Self>> {
         let printer = config.get_printer();
         let heater_name = config.get_name().split_whitespace().nth(1).unwrap_or("").to_string();
         let hysteresis = config.getfloat("hysteresis", 5.0, Lim::new().min(0.0))?;
@@ -69,7 +69,7 @@ impl HeaterCheck {
         Ok(hc)
     }
 
-    fn handle_connect(self: &Rc<Self>) -> KResult<()> {
+    pub fn handle_connect(self: &Rc<Self>) -> KResult<()> {
         if self.printer.start_arg("debugoutput").is_some() {
             // Disable verify_heater if outputting to a debug file
             return Ok(());
@@ -90,13 +90,13 @@ impl HeaterCheck {
         Ok(())
     }
 
-    fn handle_shutdown(&self) {
+    pub fn handle_shutdown(&self) {
         if let Some(t) = self.check_timer.borrow().as_ref() {
             self.printer.get_reactor().update_timer(t, NEVER);
         }
     }
 
-    fn check_event(&self, eventtime: f64) -> f64 {
+    pub fn check_event(&self, eventtime: f64) -> f64 {
         let heater = self.heater.borrow().clone().expect("heater");
         let (temp, target) = heater.get_temp(eventtime);
         if temp >= target - self.hysteresis || target <= 0.0 {
@@ -145,7 +145,7 @@ impl HeaterCheck {
         eventtime + 1.0
     }
 
-    fn heater_fault(&self) -> f64 {
+    pub fn heater_fault(&self) -> f64 {
         let msg = format!("Heater {} not heating at expected rate", self.heater_name);
         logging::error(&msg);
         self.printer.invoke_shutdown(&format!("{}{}", msg, HINT_THERMAL), None);

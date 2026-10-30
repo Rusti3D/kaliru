@@ -41,16 +41,16 @@ fn no_attribute(ea: &ExtraAxisRef, attr: &str) -> KError {
 }
 
 pub struct ExtruderStepper {
-    printer: Rc<Printer>,
+    pub printer: Rc<Printer>,
     pub name: String,
-    pressure_advance: Cell<f64>,
-    pressure_advance_smooth_time: Cell<f64>,
-    config_pa: f64,
-    config_smooth_time: f64,
-    per_move_pressure_advance: bool,
+    pub pressure_advance: Cell<f64>,
+    pub pressure_advance_smooth_time: Cell<f64>,
+    pub config_pa: f64,
+    pub config_smooth_time: f64,
+    pub per_move_pressure_advance: bool,
     pub stepper: Rc<McuStepper>,
-    sk_extruder: SkRef,
-    motion_queue: RefCell<Option<String>>,
+    pub sk_extruder: SkRef,
+    pub motion_queue: RefCell<Option<String>>,
 }
 
 impl ExtruderStepper {
@@ -163,7 +163,7 @@ impl ExtruderStepper {
         self.stepper.get_rotation_distance().1
     }
 
-    fn set_pressure_advance(&self, pressure_advance: f64, smooth_time: f64) -> KResult<()> {
+    pub fn set_pressure_advance(&self, pressure_advance: f64, smooth_time: f64) -> KResult<()> {
         let mut old_smooth_time = self.pressure_advance_smooth_time.get();
         if self.pressure_advance.get() == 0.0 {
             old_smooth_time = 0.0;
@@ -192,7 +192,7 @@ impl ExtruderStepper {
         Ok(())
     }
 
-    fn cmd_default_set_pressure_advance(&self, gcmd: &GCodeCommand) -> KResult<()> {
+    pub fn cmd_default_set_pressure_advance(&self, gcmd: &GCodeCommand) -> KResult<()> {
         let extruder = self.printer.lookup::<ToolHead>("toolhead")?.get_extruder();
         let pe = as_printer_extruder(&extruder).ok_or_else(|| no_attribute(&extruder, "extruder_stepper"))?;
         let Some(es) = pe.extruder_stepper.clone() else {
@@ -206,7 +206,7 @@ impl ExtruderStepper {
         es.cmd_set_pressure_advance(gcmd)
     }
 
-    fn cmd_set_pressure_advance(&self, gcmd: &GCodeCommand) -> KResult<()> {
+    pub fn cmd_set_pressure_advance(&self, gcmd: &GCodeCommand) -> KResult<()> {
         let pressure_advance = gcmd.get_float("ADVANCE", Some(self.pressure_advance.get()), Lim::new().min(0.0))?;
         let smooth_time = gcmd.get_float(
             "SMOOTH_TIME",
@@ -223,7 +223,7 @@ impl ExtruderStepper {
         Ok(())
     }
 
-    fn cmd_set_e_rotation_distance(&self, gcmd: &GCodeCommand) -> KResult<()> {
+    pub fn cmd_set_e_rotation_distance(&self, gcmd: &GCodeCommand) -> KResult<()> {
         let mut rotation_dist = match gcmd.get_float_opt("DISTANCE", Lim::new())? {
             Some(mut rotation_dist) => {
                 if rotation_dist == 0.0 {
@@ -251,7 +251,7 @@ impl ExtruderStepper {
         Ok(())
     }
 
-    fn cmd_sync_extruder_motion(&self, gcmd: &GCodeCommand) -> KResult<()> {
+    pub fn cmd_sync_extruder_motion(&self, gcmd: &GCodeCommand) -> KResult<()> {
         let ename = gcmd.get("MOTION_QUEUE")?;
         self.sync_to_extruder(&ename)?;
         gcmd.respond_info(&format!("Extruder '{}' now syncing with '{}'", self.name, ename), true);
@@ -261,20 +261,20 @@ impl ExtruderStepper {
 
 // Tracking for hotend heater, extrusion motion queue, and extruder stepper
 pub struct PrinterExtruder {
-    me: Weak<PrinterExtruder>,
-    printer: Rc<Printer>,
-    pub(crate) name: String,
+    pub me: Weak<PrinterExtruder>,
+    pub printer: Rc<Printer>,
+    pub name: String,
     pub last_position: Cell<f64>,
-    pub(crate) heater: Rc<Heater>,
-    pub(crate) nozzle_diameter: Cell<f64>,
-    pub(crate) filament_area: f64,
-    pub(crate) config_max_cross_section: Option<f64>,
-    pub(crate) max_extrude_ratio: Cell<f64>,
+    pub heater: Rc<Heater>,
+    pub nozzle_diameter: Cell<f64>,
+    pub filament_area: f64,
+    pub config_max_cross_section: Option<f64>,
+    pub max_extrude_ratio: Cell<f64>,
     pub max_e_velocity: f64,
     pub max_e_accel: f64,
     pub max_e_dist: f64,
-    pub(crate) instant_corner_v: f64,
-    trapq: TrapQRef,
+    pub instant_corner_v: f64,
+    pub trapq: TrapQRef,
     pub extruder_stepper: Option<Rc<ExtruderStepper>>,
 }
 
@@ -410,7 +410,7 @@ impl PrinterExtruder {
         }
     }
 
-    fn cmd_m104(&self, gcmd: &GCodeCommand, wait: bool) -> KResult<()> {
+    pub fn cmd_m104(&self, gcmd: &GCodeCommand, wait: bool) -> KResult<()> {
         // Set Extruder Temperature
         let temp = gcmd.get_float("S", Some(0.0), Lim::new())?;
         let index = gcmd.get_int_opt("T", Lim::new().min(0))?;
@@ -430,7 +430,7 @@ impl PrinterExtruder {
         pheaters.set_temperature(&heater, temp, wait)
     }
 
-    fn cmd_m302(&self, gcmd: &GCodeCommand) -> KResult<()> {
+    pub fn cmd_m302(&self, gcmd: &GCodeCommand) -> KResult<()> {
         let index = gcmd.get_int_opt("T", Lim::new().min(0))?;
         let heater = match index {
             Some(index) => match self.lookup_index(index) {
@@ -446,7 +446,7 @@ impl PrinterExtruder {
         heater.set_cold_extrude(cold_extrude, min_extrude_temp)
     }
 
-    fn cmd_activate_extruder(&self, gcmd: &GCodeCommand) -> KResult<()> {
+    pub fn cmd_activate_extruder(&self, gcmd: &GCodeCommand) -> KResult<()> {
         let toolhead = self.printer.lookup::<ToolHead>("toolhead")?;
         let active = toolhead.get_extruder();
         let is_self = as_printer_extruder(&active).map(|p| std::ptr::eq(p, self)).unwrap_or(false);
@@ -460,13 +460,13 @@ impl PrinterExtruder {
         crate::events::ExtruderActivateExtruder::emit(&self.printer)
     }
 
-    fn cmd_default_set_nozzle_diameter(&self, gcmd: &GCodeCommand) -> KResult<()> {
+    pub fn cmd_default_set_nozzle_diameter(&self, gcmd: &GCodeCommand) -> KResult<()> {
         let extruder = self.printer.lookup::<ToolHead>("toolhead")?.get_extruder();
         let pe = as_printer_extruder(&extruder).ok_or_else(|| no_attribute(&extruder, "cmd_SET_NOZZLE_DIAMETER"))?;
         pe.cmd_set_nozzle_diameter(gcmd)
     }
 
-    fn cmd_set_nozzle_diameter(&self, gcmd: &GCodeCommand) -> KResult<()> {
+    pub fn cmd_set_nozzle_diameter(&self, gcmd: &GCodeCommand) -> KResult<()> {
         let diameter = gcmd.get_float("DIAMETER", None, Lim::new().above(0.0))?;
         let cross_section = gcmd.get_float_opt("MAX_EXTRUDE_CROSS_SECTION", Lim::new().above(0.0))?;
         let toolhead = self.printer.lookup::<ToolHead>("toolhead")?;
@@ -528,12 +528,12 @@ impl ExtraAxis for PrinterExtruder {
         }
     }
 
-    fn calc_junction(&self, prev_move: &Move, mv: &Move, ea_index: usize) -> f64 {
+    fn calc_junction(&self, prev_move: &Move, mv: &Move, ea_index: usize) -> KResult<f64> {
         let diff_r = mv.axes_r[ea_index] - prev_move.axes_r[ea_index];
         if diff_r != 0.0 {
-            return (self.instant_corner_v / diff_r.abs()).powf(2.0);
+            return Ok((self.instant_corner_v / diff_r.abs()).powf(2.0));
         }
-        mv.max_cruise_v2
+        Ok(mv.max_cruise_v2)
     }
 
     fn process_move(&self, print_time: f64, mv: &Move, ea_index: usize) -> KResult<()> {
@@ -614,7 +614,7 @@ pub fn extruder_trapq(obj: &PObj) -> KResult<TrapQRef> {
 
 // Dummy extruder class used when a printer has no extruder at all
 pub struct DummyExtruder {
-    _printer: Rc<Printer>,
+    pub _printer: Rc<Printer>,
 }
 
 impl DummyExtruder {
@@ -632,8 +632,8 @@ impl ExtraAxis for DummyExtruder {
         0.0
     }
 
-    fn calc_junction(&self, _prev_move: &Move, mv: &Move, _ea_index: usize) -> f64 {
-        mv.max_cruise_v2
+    fn calc_junction(&self, _prev_move: &Move, mv: &Move, _ea_index: usize) -> KResult<f64> {
+        Ok(mv.max_cruise_v2)
     }
 
     fn process_move(&self, _print_time: f64, _mv: &Move, _ea_index: usize) -> KResult<()> {

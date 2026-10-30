@@ -70,7 +70,7 @@ pub struct IndxFactories;
 impl PrinterObject for IndxFactories {
 }
 
-fn register_factories(config: &ConfigWrapper) -> KResult<()> {
+pub fn register_factories(config: &ConfigWrapper) -> KResult<()> {
     let printer = config.get_printer();
     if printer.lookup_object_opt("indx_factories").is_some() {
         return Ok(());

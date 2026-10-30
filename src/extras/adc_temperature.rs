@@ -42,8 +42,8 @@ pub fn math_domain_error() -> KError {
 pub struct PrinterADCtoTemperature {
     adc_convert: Rc<dyn AdcConvert>,
     pub mcu_adc: Rc<dyn AdcPin>,
-    diag_helper: Rc<HelperTemperatureDiagnostics>,
-    temperature_callback: RefCell<Option<TempCallback>>,
+    pub diag_helper: Rc<HelperTemperatureDiagnostics>,
+    pub temperature_callback: RefCell<Option<TempCallback>>,
 }
 
 impl PrinterADCtoTemperature {
@@ -64,7 +64,7 @@ impl PrinterADCtoTemperature {
         Ok(s)
     }
 
-    fn adc_callback(&self, read_time: f64, read_value: f64) -> KResult<()> {
+    pub fn adc_callback(&self, read_time: f64, read_value: f64) -> KResult<()> {
         let temp = self.adc_convert.calc_temp(read_value)?;
         let cb = self.temperature_callback.borrow().clone();
         match cb {
@@ -75,12 +75,13 @@ impl PrinterADCtoTemperature {
 }
 
 impl TempSensor for PrinterADCtoTemperature {
-    fn setup_callback(&self, cb: TempCallback) {
+    fn setup_callback(&self, cb: TempCallback) -> KResult<()> {
         *self.temperature_callback.borrow_mut() = Some(cb);
+        Ok(())
     }
 
-    fn get_report_time_delta(&self) -> f64 {
-        REPORT_TIME
+    fn get_report_time_delta(&self) -> KResult<f64> {
+        Ok(REPORT_TIME)
     }
 
     fn setup_minmax(&self, min_temp: f64, max_temp: f64) -> KResult<()> {
@@ -100,8 +101,8 @@ pub type CalcTempCb = Rc<dyn Fn(f64) -> KResult<f64>>;
 
 // Tool to register with query_adc and report extra info on ADC range errors
 pub struct HelperTemperatureDiagnostics {
-    name: String,
-    mcu_adc: Rc<dyn AdcPin>,
+    pub name: String,
+    pub mcu_adc: Rc<dyn AdcPin>,
     calc_temp_cb: CalcTempCb,
     /// (min_temp, max_temp, min_adc, max_adc) once setup_diag_minmax ran
     minmax: Cell<Option<(f64, f64, f64, f64)>>,
@@ -128,7 +129,7 @@ impl HelperTemperatureDiagnostics {
         self.minmax.set(Some((min_temp, max_temp, min_adc, max_adc)));
     }
 
-    fn clarify_adc_range(&self, _msg: &str, _details: &PyVal) -> Option<String> {
+    pub fn clarify_adc_range(&self, _msg: &str, _details: &PyVal) -> Option<String> {
         let (min_temp, max_temp, min_adc, max_adc) = self.minmax.get()?;
         let (last_value, last_read_time) = self.mcu_adc.get_last_value();
         if last_read_time == 0.0 {
@@ -154,8 +155,8 @@ impl HelperTemperatureDiagnostics {
 
 // Helper code to perform linear interpolation
 pub struct LinearInterpolate {
-    keys: Vec<f64>,
-    slopes: Vec<(f64, f64)>,
+    pub keys: Vec<f64>,
+    pub slopes: Vec<(f64, f64)>,
 }
 
 impl LinearInterpolate {
@@ -273,8 +274,8 @@ pub fn custom_name(config: &ConfigWrapper) -> String {
 
 // Linear resistance calibrated from temperature measurements
 pub struct LinearResistance {
-    pullup: f64,
-    inline_resistor: f64,
+    pub pullup: f64,
+    pub inline_resistor: f64,
     li: LinearInterpolate,
 }
 

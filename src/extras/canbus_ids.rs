@@ -13,7 +13,7 @@ use std::rc::Rc;
 const NODEID_FIRST: i64 = 4;
 
 pub struct PrinterCANBus {
-    ids: RefCell<IndexMap<String, i64>>,
+    pub ids: RefCell<IndexMap<String, i64>>,
 }
 
 impl PrinterCANBus {

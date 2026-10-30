@@ -65,7 +65,7 @@ fn ifs_rms_for(rref: f64, cr: i64, crs: i64) -> f64 {
 
 pub struct TMC5262CurrentHelper {
     base: BaseTMCCurrentHelper,
-    rref: f64,
+    pub rref: f64,
 }
 
 impl TMC5262CurrentHelper {
@@ -82,12 +82,12 @@ impl TMC5262CurrentHelper {
         Ok(h)
     }
 
-    fn ifs_rms(&self) -> f64 {
+    pub fn ifs_rms(&self) -> f64 {
         let f = &self.base.fields;
         ifs_rms_for(self.rref, f.get_field("current_range"), f.get_field("current_range_scale"))
     }
 
-    fn calc_ranges(&self, current: f64) -> (i64, i64) {
+    pub fn calc_ranges(&self, current: f64) -> (i64, i64) {
         for cr in 0..4 {
             if current <= ifs_rms_for(self.rref, cr, 3) {
                 if cr == 0 {
@@ -103,7 +103,7 @@ impl TMC5262CurrentHelper {
         (3, 3)
     }
 
-    fn calc_current(&self, run_current: f64, hold_current: f64) -> (i64, i64) {
+    pub fn calc_current(&self, run_current: f64, hold_current: f64) -> (i64, i64) {
         if run_current <= 0.0 {
             return (0, 0);
         }
@@ -113,7 +113,7 @@ impl TMC5262CurrentHelper {
         (irun, 0.max(irun.min(ihold)))
     }
 
-    fn calc_current_from_field(&self, field_name: &str) -> f64 {
+    pub fn calc_current_from_field(&self, field_name: &str) -> f64 {
         self.ifs_rms() * self.base.fields.get_field(field_name) as f64 / 250.0
     }
 }
@@ -262,5 +262,5 @@ pub fn load_config_prefix(config: &ConfigWrapper) -> KResult<PObj> {
         let value = regs.shift_remove(register).ok_or_else(|| KError::Other(format!("'{}'", register)))?;
         regs.insert(register.to_string(), value);
     }
-    Ok(Rc::new(TmcDriver { fields, mcu_tmc, cmdhelper }))
+    Ok(Rc::new(TmcDriver { fields, mcu_tmc, cmdhelper, class: "TMC5262" }))
 }

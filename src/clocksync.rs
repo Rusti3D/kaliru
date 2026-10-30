@@ -25,25 +25,25 @@ pub struct Secondary {
 }
 
 pub struct ClockSync {
-    reactor: Rc<Reactor>,
-    serial: RefCell<Option<Rc<SerialReader>>>,
-    get_clock_timer: RefCell<Option<Timer>>,
-    get_clock_cmd: RefCell<Vec<u8>>,
+    pub reactor: Rc<Reactor>,
+    pub serial: RefCell<Option<Rc<SerialReader>>>,
+    pub get_clock_timer: RefCell<Option<Timer>>,
+    pub get_clock_cmd: RefCell<Vec<u8>>,
     cmd_queue: RefCell<Option<crate::chelper::serialqueue::CommandQueue>>,
-    queries_pending: Cell<i64>,
+    pub queries_pending: Cell<i64>,
     pub mcu_freq: Cell<f64>,
-    last_clock: Cell<i64>,
+    pub last_clock: Cell<i64>,
     pub clock_est: Cell<(f64, f64, f64)>,
     // Minimum round-trip-time tracking
-    min_half_rtt: Cell<f64>,
-    min_rtt_time: Cell<f64>,
+    pub min_half_rtt: Cell<f64>,
+    pub min_rtt_time: Cell<f64>,
     // Linear regression of mcu clock and system sent_time
-    time_avg: Cell<f64>,
-    time_variance: Cell<f64>,
-    clock_avg: Cell<f64>,
-    clock_covariance: Cell<f64>,
-    prediction_variance: Cell<f64>,
-    last_prediction_time: Cell<f64>,
+    pub time_avg: Cell<f64>,
+    pub time_variance: Cell<f64>,
+    pub clock_avg: Cell<f64>,
+    pub clock_covariance: Cell<f64>,
+    pub prediction_variance: Cell<f64>,
+    pub last_prediction_time: Cell<f64>,
     pub secondary: Option<Secondary>,
 }
 
@@ -163,7 +163,7 @@ impl ClockSync {
     }
 
     // MCU clock querying (_handle_clock is invoked from background thread)
-    fn get_clock_event(&self, eventtime: f64) -> f64 {
+    pub fn get_clock_event(&self, eventtime: f64) -> f64 {
         if let (Some(serial), Some(q)) = (self.serial.borrow().as_ref(), self.cmd_queue.borrow().as_ref()) {
             let _ = serial.raw_send(&self.get_clock_cmd.borrow(), 0, 0, q);
         }
@@ -173,7 +173,7 @@ impl ClockSync {
         eventtime + 0.9839
     }
 
-    fn handle_clock(&self, params: &Params) {
+    pub fn handle_clock(&self, params: &Params) {
         self.queries_pending.set(0);
         // Extend clock to 64bit
         let last_clock = self.last_clock.get();

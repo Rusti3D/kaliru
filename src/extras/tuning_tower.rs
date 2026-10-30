@@ -20,23 +20,23 @@ const CMD_TUNING_TOWER_HELP: &str = "Tool to adjust a parameter at each Z height
 
 pub struct TuningTower {
     me: Weak<TuningTower>,
-    normal_transform: RefCell<Option<MoveTransformRef>>,
-    last_position: RefCell<Vec<f64>>,
-    last_z: Cell<f64>,
-    start: Cell<f64>,
-    factor: Cell<f64>,
-    band: Cell<f64>,
-    step_delta: Cell<f64>,
-    step_height: Cell<f64>,
-    skip: Cell<f64>,
-    last_command_value: Cell<Option<f64>>,
-    command_fmt: RefCell<String>,
-    gcode_move: Rc<GCodeMove>,
-    gcode: Rc<GCodeDispatch>,
+    pub normal_transform: RefCell<Option<MoveTransformRef>>,
+    pub last_position: RefCell<Vec<f64>>,
+    pub last_z: Cell<f64>,
+    pub start: Cell<f64>,
+    pub factor: Cell<f64>,
+    pub band: Cell<f64>,
+    pub step_delta: Cell<f64>,
+    pub step_height: Cell<f64>,
+    pub skip: Cell<f64>,
+    pub last_command_value: Cell<Option<f64>>,
+    pub command_fmt: RefCell<String>,
+    pub gcode_move: Rc<GCodeMove>,
+    pub gcode: Rc<GCodeDispatch>,
 }
 
 impl TuningTower {
-    fn new(config: &ConfigWrapper) -> KResult<Rc<Self>> {
+    pub fn new(config: &ConfigWrapper) -> KResult<Rc<Self>> {
         let printer = config.get_printer();
         let gcode_move = printer
             .load_object(config, "gcode_move", true)?
@@ -65,7 +65,7 @@ impl TuningTower {
         Ok(tt)
     }
 
-    fn cmd_tuning_tower(&self, gcmd: &GCodeCommand) -> KResult<()> {
+    pub fn cmd_tuning_tower(&self, gcmd: &GCodeCommand) -> KResult<()> {
         if self.normal_transform.borrow().is_some() {
             self.end_test()?;
         }
@@ -113,7 +113,7 @@ impl TuningTower {
         Ok(())
     }
 
-    fn calc_value(&self, mut z: f64) -> f64 {
+    pub fn calc_value(&self, mut z: f64) -> f64 {
         if self.skip.get() != 0.0 {
             let v = z - self.skip.get();
             z = if v > 0.0 { v } else { 0.0 };
@@ -127,7 +127,7 @@ impl TuningTower {
         self.start.get() + z * self.factor.get()
     }
 
-    fn end_test(&self) -> KResult<()> {
+    pub fn end_test(&self) -> KResult<()> {
         self.gcode.respond_info("Ending tuning test mode", true);
         let nt = self.normal_transform.borrow_mut().take();
         if let Some(nt) = nt {

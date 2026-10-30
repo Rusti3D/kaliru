@@ -19,18 +19,18 @@ use std::cell::Cell;
 use std::rc::Rc;
 
 pub struct PolarKinematics {
-    rails: [Rc<PrinterRail>; 2],
-    steppers: Vec<Rc<McuStepper>>,
-    max_z_velocity: Cell<f64>,
-    max_z_accel: Cell<f64>,
-    limit_z: Cell<(f64, f64)>,
-    limit_xy2: Cell<f64>,
-    axes_min: [f64; 4],
-    axes_max: [f64; 4],
+    pub rails: [Rc<PrinterRail>; 2],
+    pub steppers: Vec<Rc<McuStepper>>,
+    pub max_z_velocity: Cell<f64>,
+    pub max_z_accel: Cell<f64>,
+    pub limit_z: Cell<(f64, f64)>,
+    pub limit_xy2: Cell<f64>,
+    pub axes_min: [f64; 4],
+    pub axes_max: [f64; 4],
 }
 
 impl PolarKinematics {
-    fn new(toolhead: &Rc<ToolHead>, config: &ConfigWrapper) -> KResult<Self> {
+    pub fn new(toolhead: &Rc<ToolHead>, config: &ConfigWrapper) -> KResult<Self> {
         // Setup axis steppers
         let stepper_bed = printer_stepper(&config.getsection("stepper_bed"), true)?;
         let rail_arm = PrinterRail::new(&config.getsection("stepper_arm"), true, None, false)?;
@@ -62,7 +62,7 @@ impl PolarKinematics {
         })
     }
 
-    fn home_axis(&self, homing_state: &Rc<Homing>, axis: usize, rail: &Rc<PrinterRail>) -> KResult<()> {
+    pub fn home_axis(&self, homing_state: &Rc<Homing>, axis: usize, rail: &Rc<PrinterRail>) -> KResult<()> {
         // Determine movement
         let (position_min, position_max) = rail.get_range();
         let hi = rail.get_homing_info();

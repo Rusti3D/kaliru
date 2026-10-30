@@ -27,9 +27,9 @@ pub fn kerror_exc(e: KError) -> Exc {
 
 // Wrapper for access to printer object get_status() methods
 pub struct GetStatusWrapperJinja {
-    printer: Rc<Printer>,
-    eventtime: Cell<Option<f64>>,
-    cache: RefCell<IndexMap<String, Value>>,
+    pub printer: Rc<Printer>,
+    pub eventtime: Cell<Option<f64>>,
+    pub cache: RefCell<IndexMap<String, Value>>,
 }
 
 impl GetStatusWrapperJinja {
@@ -164,14 +164,14 @@ fn splitlines(s: &str) -> Vec<String> {
 
 // Wrapper around a Jinja2 template
 pub struct TemplateWrapperJinja {
-    printer: Rc<Printer>,
-    name: String,
-    gcode: Rc<GCodeDispatch>,
+    pub printer: Rc<Printer>,
+    pub name: String,
+    pub gcode: Rc<GCodeDispatch>,
     template: jinja::Template,
 }
 
 impl TemplateWrapperJinja {
-    fn new(printer: &Rc<Printer>, env: &Environment, name: &str, script: &str) -> KResult<Self> {
+    pub fn new(printer: &Rc<Printer>, env: &Environment, name: &str, script: &str) -> KResult<Self> {
         let gcode = printer.lookup::<GCodeDispatch>("gcode")?;
         let template = match env.from_string(script) {
             Ok(t) => t,
@@ -226,13 +226,13 @@ enum Function {
 
 /// gcode_macro.Template: a jinja or a python script
 pub struct Template {
-    printer: Rc<Printer>,
-    name: String,
+    pub printer: Rc<Printer>,
+    pub name: String,
     function: RefCell<Function>,
 }
 
 impl Template {
-    fn new(printer: &Rc<Printer>, env: &Environment, name: &str, script: &str, script_type: &str) -> KResult<Rc<Self>> {
+    pub fn new(printer: &Rc<Printer>, env: &Environment, name: &str, script: &str, script_type: &str) -> KResult<Rc<Self>> {
         let function = Self::make(printer, env, name, script_type, script)?;
         Ok(Rc::new(Template { printer: printer.clone(), name: name.to_string(), function: RefCell::new(function) }))
     }
@@ -321,7 +321,11 @@ pub struct PrinterGCodeMacro {
 }
 
 impl PrinterGCodeMacro {
-    fn new(config: &ConfigWrapper) -> KResult<Rc<Self>> {
+    pub fn env(&self) -> &Environment {
+        &self.env
+    }
+
+    pub fn new(config: &ConfigWrapper) -> KResult<Rc<Self>> {
         let printer = config.get_printer();
         let gm = Rc::new(PrinterGCodeMacro { printer: printer.clone(), env: Environment::new("{%", "%}", "{", "}") });
         let gcode = printer.lookup::<GCodeDispatch>("gcode")?;
@@ -340,7 +344,7 @@ impl PrinterGCodeMacro {
         Template::new(&self.printer, &self.env, &name, &script, script_type)
     }
 
-    fn cmd_reload_gcode_macros(&self, _gcmd: &GCodeCommand) -> KResult<()> {
+    pub fn cmd_reload_gcode_macros(&self, _gcmd: &GCodeCommand) -> KResult<()> {
         let config_file = self.printer.start_arg("config_file").map(|v| v.str()).unwrap_or_default();
         let mut pconfig = crate::configfile::PrinterConfig::new(&config_file);
         let new_config = pconfig.read_main_config()?;
@@ -380,12 +384,12 @@ pub fn load_gcode_macro(config: &ConfigWrapper) -> KResult<Rc<PrinterGCodeMacro>
 const CMD_SET_GCODE_VARIABLE_HELP: &str = "Set the value of a G-Code macro variable";
 
 pub struct GCodeMacro {
-    alias: String,
-    template: Rc<Template>,
-    gcode: Rc<GCodeDispatch>,
-    rename_existing: Option<String>,
-    cmd_desc: String,
-    in_script: Cell<bool>,
+    pub alias: String,
+    pub template: Rc<Template>,
+    pub gcode: Rc<GCodeDispatch>,
+    pub rename_existing: Option<String>,
+    pub cmd_desc: String,
+    pub in_script: Cell<bool>,
     pub variables: RefCell<IndexMap<String, Value>>,
     /// get_status(): python returns self.variables itself, the same dict
     /// until SET_GCODE_VARIABLE replaces it; built once per change
@@ -393,7 +397,7 @@ pub struct GCodeMacro {
 }
 
 impl GCodeMacro {
-    fn new(config: &ConfigWrapper) -> KResult<Rc<Self>> {
+    pub fn new(config: &ConfigWrapper) -> KResult<Rc<Self>> {
         if config.get_name().split_whitespace().count() > 2 {
             return Err(KError::config(format!("Name of section '{}' contains illegal whitespace", config.get_name())));
         }
@@ -453,7 +457,7 @@ impl GCodeMacro {
         Ok(m)
     }
 
-    fn handle_connect(self: &Rc<Self>) -> KResult<()> {
+    pub fn handle_connect(self: &Rc<Self>) -> KResult<()> {
         let prev_cmd = self.gcode.register_command(&self.alias, None, false, None)?;
         let Some(prev_cmd) = prev_cmd else {
             return Err(KError::config(format!("Existing command '{}' not found in gcode_macro rename", self.alias)));
@@ -466,7 +470,7 @@ impl GCodeMacro {
         Ok(())
     }
 
-    fn cmd_set_gcode_variable(&self, gcmd: &GCodeCommand) -> KResult<()> {
+    pub fn cmd_set_gcode_variable(&self, gcmd: &GCodeCommand) -> KResult<()> {
         let variable = gcmd.get("VARIABLE")?;
         let value = gcmd.get("VALUE")?;
         if !self.variables.borrow().contains_key(&variable) {
@@ -487,7 +491,7 @@ impl GCodeMacro {
         self.status.borrow_mut().take();
     }
 
-    fn cmd(&self, gcmd: &GCodeCommand) -> KResult<()> {
+    pub fn cmd(&self, gcmd: &GCodeCommand) -> KResult<()> {
         if self.in_script.get() {
             return Err(gcmd.error(format!("Macro {} called recursively", self.alias)));
         }

@@ -5,6 +5,7 @@
 // until kaliru needs it (config_from_py).
 use super::*;
 use crate::configfile::{AccessTracking, ConfigWrapper};
+use crate::printer::ConfigFileObject;
 use crate::configparser::RawConfigParser;
 use crate::plugins::convert::{FromPy, ToPy};
 use crate::plugins::native::Args;
@@ -25,6 +26,150 @@ pub fn register(r: &mut Registry) {
     r.attr("klippy.configfile.ConfigWrapper.access_tracking", |o| cw(o)?.access_tracking.clone().to_py(), None);
     r.attr("klippy.configfile.ConfigWrapper.section", |o| Ok(py_str(cw(o)?.get_name())), None);
 
+    // ------------------------------------------------------- PrinterConfig
+    // (on the "configfile" object; its printer is the running one)
+    fn pc(o: &PyRef) -> KResult<Rc<ConfigFileObject>> {
+        objects::unwrap_as::<ConfigFileObject>(o)
+    }
+    fn the_printer() -> KResult<Rc<Printer>> {
+        super::printer().ok_or_else(|| KError::Other("no printer".into()))
+    }
+    fn wrap_cfg(c: ConfigWrapper) -> KResult<PyRef> {
+        objects::wrap(Rc::new(c.with_printer(&the_printer()?)))
+    }
+    // PrinterConfig(printer): SAVE_CONFIG is kaliru's already
+    r.ctor("klippy.configfile.PrinterConfig.__init__", |a| {
+        let printer: Rc<Printer> = FromPy::from_py(a.arg(0))?;
+        let config_file = printer.start_arg("config_file").map(|v| v.str()).unwrap_or_default();
+        let c: Rc<dyn Any> = Rc::new(ConfigFileObject { pconfig: RefCell::new(crate::configfile::PrinterConfig::new(&config_file)) });
+        Ok(c)
+    });
+    r.method("klippy.configfile.PrinterConfig.get_printer", |_a| the_printer()?.to_py());
+    r.attr("klippy.configfile.PrinterConfig.printer", |_o| the_printer()?.to_py(), None);
+    r.method("klippy.configfile.PrinterConfig._read_config_file", |a| {
+        Ok(py_str(&a.this::<ConfigFileObject>()?.pconfig.borrow().read_config_file(&a.string(0)?)?))
+    });
+    r.method("klippy.configfile.PrinterConfig._find_autosave_data", |a| {
+        a.this::<ConfigFileObject>()?.pconfig.borrow().find_autosave_data(&a.string(0)?).to_py()
+    });
+    r.method("klippy.configfile.PrinterConfig._strip_duplicates", |a| {
+        let config = config_from_py(a.arg(1))?;
+        Ok(py_str(&a.this::<ConfigFileObject>()?.pconfig.borrow().strip_duplicates(&a.string(0)?, &config)))
+    });
+    r.method("klippy.configfile.PrinterConfig._build_config_wrapper", |a| {
+        let c = a.this::<ConfigFileObject>()?.pconfig.borrow().build_config_wrapper(&a.string(0)?, &a.string(1)?)?;
+        wrap_cfg(c)
+    });
+    r.method("klippy.configfile.PrinterConfig._build_config_string", |a| {
+        let config = config_from_py(a.arg(0))?;
+        Ok(py_str(&a.this::<ConfigFileObject>()?.pconfig.borrow().build_config_string(&config)))
+    });
+    r.method("klippy.configfile.PrinterConfig.read_config", |a| {
+        let c = a.this::<ConfigFileObject>()?.pconfig.borrow().read_config(&a.string(0)?)?;
+        wrap_cfg(c)
+    });
+    r.method("klippy.configfile.PrinterConfig.read_main_config", |a| {
+        let c = a.this::<ConfigFileObject>()?.pconfig.borrow_mut().read_main_config()?;
+        wrap_cfg(c)
+    });
+    r.method("klippy.configfile.PrinterConfig.check_unused_options", |a| {
+        let config = config_from_py(a.arg(0))?;
+        let names = the_printer()?.object_names();
+        a.this::<ConfigFileObject>()?.pconfig.borrow_mut().check_unused_options(&config, a.bool(1)?, &names)?;
+        Ok(py_none())
+    });
+    r.method("klippy.configfile.PrinterConfig.log_config", |a| {
+        let config = config_from_py(a.arg(0))?;
+        let text = a.this::<ConfigFileObject>()?.pconfig.borrow().log_config(&config);
+        the_printer()?.set_rollover_info("config", Some(&text), true);
+        Ok(py_none())
+    });
+    r.method("klippy.configfile.PrinterConfig.runtime_warning", |a| {
+        a.this::<ConfigFileObject>()?.pconfig.borrow_mut().runtime_warning(&a.string(0)?);
+        Ok(py_none())
+    });
+    // deprecate(section, option, value=None, msg=None): kaliru keeps msg a str
+    r.method("klippy.configfile.PrinterConfig.deprecate", |a| {
+        let (value, msg) = (a.opt_string(2)?, a.opt_string(3)?.unwrap_or_default());
+        a.this::<ConfigFileObject>()?.pconfig.borrow().deprecate(&a.string(0)?, &a.string(1)?, value.as_deref(), &msg);
+        Ok(py_none())
+    });
+    r.method("klippy.configfile.PrinterConfig.warn", |a| {
+        let (section, option, value) = (a.opt_string(2)?, a.opt_string(3)?, a.opt_string(4)?);
+        a.this::<ConfigFileObject>()?.pconfig.borrow_mut().warn(
+            &a.string(0)?,
+            &a.string(1)?,
+            section.as_deref(),
+            option.as_deref(),
+            value.as_deref(),
+        );
+        Ok(py_none())
+    });
+    r.method("klippy.configfile.PrinterConfig._build_status", |a| {
+        let config = config_from_py(a.arg(0))?;
+        a.this::<ConfigFileObject>()?.pconfig.borrow_mut().build_status(&config)?;
+        Ok(py_none())
+    });
+    // set(section, option, value): python str(value)
+    r.method("klippy.configfile.PrinterConfig.set", |a| {
+        let svalue = lookup("builtins", "str")?.call(&[a.arg(2)])?.as_string()?;
+        a.this::<ConfigFileObject>()?.pconfig.borrow_mut().set(&a.string(0)?, &a.string(1)?, &svalue)?;
+        Ok(py_none())
+    });
+    r.method("klippy.configfile.PrinterConfig.remove_section", |a| {
+        a.this::<ConfigFileObject>()?.pconfig.borrow_mut().remove_section(&a.string(0)?);
+        Ok(py_none())
+    });
+    r.method("klippy.configfile.PrinterConfig.cmd_SAVE_CONFIG", |a| {
+        let gcmd = super::gcode::gcmd_from_py(a.arg(0))?;
+        a.this::<ConfigFileObject>()?.cmd_save_config(&*the_printer()?, &gcmd)?;
+        Ok(py_none())
+    });
+    r.attr("klippy.configfile.PrinterConfig.autosave", |o| match pc(o)?.pconfig.borrow().autosave.clone() {
+        Some(c) => wrap_cfg(c),
+        None => Ok(py_none()),
+    }, None);
+    // {(section, option, value): msg}
+    r.attr("klippy.configfile.PrinterConfig.deprecated", |o| {
+        let deprecated = pc(o)?.pconfig.borrow().deprecated.borrow().clone();
+        let d = lookup("builtins", "dict")?.call(&[])?;
+        for ((section, option, value), msg) in deprecated {
+            let key = py_tuple(vec![py_str(&section), py_str(&option), value.as_deref().map_or_else(py_none, py_str)]);
+            d.call_method("__setitem__", &[&key, &py_str(&msg)])?;
+        }
+        Ok(d)
+    }, None);
+    // the environment Kalico builds (kaliru renders includes itself)
+    r.attr("klippy.configfile.PrinterConfig.jinja_env", |o| {
+        thread_local!(static ENV: RefCell<Option<PyRef>> = const { RefCell::new(None) });
+        pc(o)?;
+        if let Some(e) = ENV.with(|e| e.borrow().clone()) {
+            return Ok(e);
+        }
+        let env = lookup("_k", "config_jinja_env")?.call(&[])?;
+        ENV.with(|e| *e.borrow_mut() = Some(env.clone()));
+        Ok(env)
+    }, None);
+    macro_rules! pc_val {
+        ($r:ident, $($field:ident),*) => {$(
+            $r.attr(concat!("klippy.configfile.PrinterConfig.", stringify!($field)), |o| {
+                Ok(from_pyval(&pc(o)?.pconfig.borrow().$field))
+            }, Some(|o, v| {
+                pc(o)?.pconfig.borrow_mut().$field = PyVal::shared(to_pyval(v)?);
+                Ok(())
+            }));
+        )*};
+    }
+    pc_val!(r, status_raw_config, status_save_pending, status_settings, status_warnings);
+    r.attr("klippy.configfile.PrinterConfig.runtime_warnings", |o| pc(o)?.pconfig.borrow().runtime_warnings.clone().to_py(), None);
+    r.attr("klippy.configfile.PrinterConfig.deprecate_warnings", |o| pc(o)?.pconfig.borrow().deprecate_warnings.clone().to_py(), None);
+    r.attr("klippy.configfile.PrinterConfig.unused_sections", |o| pc(o)?.pconfig.borrow().unused_sections.clone().to_py(), None);
+    r.attr("klippy.configfile.PrinterConfig.unused_options", |o| pc(o)?.pconfig.borrow().unused_options.clone().to_py(), None);
+    r.attr("klippy.configfile.PrinterConfig.save_config_pending", |o| Ok(py_bool(pc(o)?.pconfig.borrow().save_config_pending)), Some(|o, v| {
+        pc(o)?.pconfig.borrow_mut().save_config_pending = v.is_true()?;
+        Ok(())
+    }));
+
     // FileConfig primitives (python names its errors itself, prelude.py)
     fn fc(a: &Args) -> KResult<Rc<Parser>> {
         objects::unwrap_as::<Parser>(a.arg(0))
@@ -39,6 +184,13 @@ pub fn register(r: &mut Registry) {
     });
     r.ext("fc_remove_section", |a| Ok(py_bool(fc(a)?.borrow_mut().remove_section(&a.string(1)?))));
     r.ext("fc_options", |a| fc(a)?.borrow().options(&a.string(1)?)?.to_py());
+    r.ext("fc_defaults", |a| {
+        let d = lookup("builtins", "dict")?.call(&[])?;
+        for (k, v) in fc(a)?.borrow().defaults() {
+            d.call_method("__setitem__", &[&py_str(k), &py_str(v)])?;
+        }
+        Ok(d)
+    });
     r.ext("fc_has_option", |a| Ok(py_bool(fc(a)?.borrow().has_option(&a.string(1)?, &a.string(2)?))));
     r.ext("fc_get", |a| {
         let v = fc(a)?.borrow().get_raw(&a.string(1)?, &a.string(2)?, a.bool(3)?)?;

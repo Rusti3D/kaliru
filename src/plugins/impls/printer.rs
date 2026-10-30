@@ -5,7 +5,121 @@ use crate::plugins::native::Args;
 use crate::plugins::objects;
 use crate::method;
 
+/// printer.components (identity-stable: one view per printer)
+pub struct ComponentsRef(pub Rc<Printer>);
+
+thread_local! {
+    static COMPONENTS: std::cell::RefCell<std::collections::HashMap<usize, Rc<ComponentsRef>>> = Default::default();
+}
+
+/// The collection behind a python SubsystemComponentCollection: the
+/// printer's, or one a plugin built
+fn with_components<R>(o: &PyRef, f: impl FnOnce(&crate::printer::SubsystemComponentCollection) -> R) -> KResult<R> {
+    if let Ok(c) = objects::unwrap_as::<ComponentsRef>(o) {
+        return Ok(f(&c.0.components));
+    }
+    Ok(f(&*objects::unwrap_as::<crate::printer::SubsystemComponentCollection>(o)?))
+}
+
+/// A component as python sees it: a plugin's object as registered; a
+/// kaliru one (a factory) as the class Kalico registers under that name
+fn component_to_py(subsystem: &str, name: &str, c: &Rc<dyn Any>) -> KResult<PyRef> {
+    if let Some(p) = c.downcast_ref::<PyRef>() {
+        return Ok(p.clone());
+    }
+    let class = match (subsystem, name) {
+        ("eddy_current_sensors", "ldc1612") => lookup("klippy.extras.ldc1612", "LDC1612"),
+        ("load_cell_probe_tap_classifiers", "empty") => lookup("klippy.extras.load_cell.tap_analysis", "TapClassifierModule"),
+        ("load_cell_probe_tap_classifiers", "tap_quality") => {
+            lookup("klippy.extras.load_cell.tap_quality_classifier", "TapQualityClassifier")
+        }
+        ("load_cell_sensors", _) | ("load_cell_probe_sensors", _) => {
+            let tables = [
+                ("klippy.extras.load_cell.hx71x", "HX71X_SENSOR_TYPES"),
+                ("klippy.extras.load_cell.ads1220", "ADS1220_SENSOR_TYPE"),
+                ("klippy.extras.load_cell.ads131m0x", "ADS131M0X_SENSOR_TYPES"),
+                ("klippy.extras.load_cell.cs1237", "CS1237_SENSOR_TYPE"),
+            ];
+            let mut found = None;
+            for (m, d) in tables {
+                let v = lookup(m, d)?.call_method("get", &[&py_str(name)])?;
+                if !v.is_none() {
+                    found = Some(v);
+                    break;
+                }
+            }
+            found.ok_or_else(|| KError::Py("KeyError".into(), py_str(name).repr().unwrap_or_default()))
+        }
+        _ => Err(KError::Py("NotImplementedError".into(), format!("kaliru: component {}:{} as a python object", subsystem, name))),
+    };
+    class
+}
+
+fn components_dict(subsystem: &str, comps: &crate::IndexMap<String, Rc<dyn Any>>) -> KResult<PyRef> {
+    let d = lookup("builtins", "dict")?.call(&[])?;
+    for (name, c) in comps {
+        d.call_method("__setitem__", &[&py_str(name), &component_to_py(subsystem, name, c)?])?;
+    }
+    Ok(d)
+}
+
 pub fn register(r: &mut Registry) {
+    objects::register_class::<ComponentsRef>("klippy.printer", "SubsystemComponentCollection");
+    r.method("klippy.printer.Printer.lookup_components", |a| {
+        let sub = a.string(0)?;
+        components_dict(&sub, &a.this::<Printer>()?.lookup_components(&sub))
+    });
+    r.attr("klippy.printer.Printer.components", |o| {
+        let p = objects::unwrap_as::<Printer>(o)?;
+        let key = Rc::as_ptr(&p) as usize;
+        let c = COMPONENTS.with(|m| m.borrow_mut().entry(key).or_insert_with(|| Rc::new(ComponentsRef(p.clone()))).clone());
+        objects::wrap(c)
+    }, None);
+    // SubsystemComponentCollection(config_error): a plugin's own collection
+    r.ctor("klippy.printer.SubsystemComponentCollection.__init__", |_a| {
+        let c: Rc<dyn Any> = Rc::new(crate::printer::SubsystemComponentCollection::default());
+        Ok(c)
+    });
+    r.method("klippy.printer.SubsystemComponentCollection.get_components", |a| {
+        let sub = a.string(0)?;
+        let comps = with_components(a.slf.as_ref().expect("method"), |c| c.get_components(&sub))?;
+        components_dict(&sub, &comps)
+    });
+    // register_component(subsystem_name, component_name, component): the python object itself
+    r.method("klippy.printer.SubsystemComponentCollection.register_component", |a| {
+        let (sub, name) = (a.string(0)?, a.string(1)?);
+        let comp: Rc<dyn Any> = Rc::new(a.arg(2).clone());
+        with_components(a.slf.as_ref().expect("method"), |c| c.register_component(&sub, &name, comp))??;
+        Ok(py_none())
+    });
+    r.attr("klippy.printer.SubsystemComponentCollection._config_error", |_o| lookup("klippy.configfile", "error"), None);
+    r.attr("klippy.printer.SubsystemComponentCollection._subsystems", |o| {
+        let subs = with_components(o, |c| c.subsystems.borrow().clone())?;
+        let d = lookup("builtins", "dict")?.call(&[])?;
+        for (sub, comps) in &subs {
+            d.call_method("__setitem__", &[&py_str(sub), &components_dict(sub, comps)?])?;
+        }
+        Ok(d)
+    }, None);
+    // event_handlers: {event: [callback, ...]} (python callables of kaliru's handlers)
+    r.attr("klippy.printer.Printer.event_handlers", |o| {
+        let handlers = objects::unwrap_as::<Printer>(o)?.event_handlers.borrow().clone();
+        let d = lookup("builtins", "dict")?.call(&[])?;
+        for (event, cbs) in handlers {
+            let items = cbs
+                .into_iter()
+                .map(|cb| {
+                    crate::plugins::callable::py_function(Rc::new(move |args: &[PyRef]| {
+                        let refs: Vec<&dyn Any> = args.iter().map(|x| x as &dyn Any).collect();
+                        cb(&refs)?;
+                        Ok(py_none())
+                    }))
+                })
+                .collect::<KResult<Vec<_>>>()?;
+            d.call_method("__setitem__", &[&py_str(&event), &py_list(items)])?;
+        }
+        Ok(d)
+    }, None);
     method!(r, "klippy.printer.Printer", Printer, get_reactor(p) => p.get_reactor());
     method!(r, "klippy.printer.Printer", Printer, get_start_args(p) => start_args(&p));
     method!(r, "klippy.printer.Printer", Printer, get_state_message(p) => p.get_state_message());

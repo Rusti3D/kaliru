@@ -21,17 +21,17 @@ pub enum Kind {
 }
 
 pub struct MpcTempWrapper {
-    kind: Kind,
-    printer: Rc<Printer>,
-    name: String,
-    heater: RefCell<Option<Rc<Heater>>>,
-    heater_name: String,
-    temperature_callback: RefCell<Option<TempCallback>>,
-    temp: Cell<f64>,
-    min_temp: Cell<f64>,
-    max_temp: Cell<f64>,
-    ignore: bool,
-    echo_limits_to_console: bool,
+    pub kind: Kind,
+    pub printer: Rc<Printer>,
+    pub name: String,
+    pub heater: RefCell<Option<Rc<Heater>>>,
+    pub heater_name: String,
+    pub temperature_callback: RefCell<Option<TempCallback>>,
+    pub temp: Cell<f64>,
+    pub min_temp: Cell<f64>,
+    pub max_temp: Cell<f64>,
+    pub ignore: bool,
+    pub echo_limits_to_console: bool,
 }
 
 impl MpcTempWrapper {
@@ -58,7 +58,7 @@ impl MpcTempWrapper {
         Ok(w)
     }
 
-    fn handle_ready(self: &Rc<Self>) -> KResult<()> {
+    pub fn handle_ready(self: &Rc<Self>) -> KResult<()> {
         let pheaters = self.printer.lookup::<PrinterHeaters>("heaters")?;
         let heater = pheaters.lookup_heater(&self.heater_name)?;
         heater.add_mpc_sensor(self.clone());
@@ -125,14 +125,18 @@ impl TempSensor for MpcTempWrapper {
         Ok(())
     }
 
-    fn setup_callback(&self, cb: TempCallback) {
+    fn setup_callback(&self, cb: TempCallback) -> KResult<()> {
         *self.temperature_callback.borrow_mut() = Some(cb);
+        Ok(())
     }
 
     /// self.heater.sensor.get_report_time_delta() (python raises before
     /// klippy:ready; 0.0 here)
-    fn get_report_time_delta(&self) -> f64 {
-        self.heater.borrow().as_ref().map(|h| h.sensor().get_report_time_delta()).unwrap_or(0.0)
+    fn get_report_time_delta(&self) -> KResult<f64> {
+        match self.heater.borrow().as_ref() {
+            Some(h) => h.sensor().get_report_time_delta(),
+            None => Ok(0.0),
+        }
     }
 
 }

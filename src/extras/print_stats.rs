@@ -16,25 +16,25 @@ use std::rc::Rc;
 const CMD_SET_PRINT_STATS_INFO_HELP: &str = "Pass slicer info like layer act and total to klipper";
 
 pub struct PrintStats {
-    printer: Rc<Printer>,
-    gcode_move: Rc<GCodeMove>,
-    reactor: Rc<Reactor>,
-    filename: RefCell<String>,
-    error_message: RefCell<String>,
+    pub printer: Rc<Printer>,
+    pub gcode_move: Rc<GCodeMove>,
+    pub reactor: Rc<Reactor>,
+    pub filename: RefCell<String>,
+    pub error_message: RefCell<String>,
     pub state: RefCell<String>,
-    prev_pause_duration: Cell<f64>,
-    last_epos: Cell<f64>,
-    filament_used: Cell<f64>,
-    total_duration: Cell<f64>,
-    print_start_time: Cell<Option<f64>>,
-    last_pause_time: Cell<Option<f64>>,
-    init_duration: Cell<f64>,
-    info_total_layer: Cell<Option<i64>>,
-    info_current_layer: Cell<Option<i64>>,
+    pub prev_pause_duration: Cell<f64>,
+    pub last_epos: Cell<f64>,
+    pub filament_used: Cell<f64>,
+    pub total_duration: Cell<f64>,
+    pub print_start_time: Cell<Option<f64>>,
+    pub last_pause_time: Cell<Option<f64>>,
+    pub init_duration: Cell<f64>,
+    pub info_total_layer: Cell<Option<i64>>,
+    pub info_current_layer: Cell<Option<i64>>,
 }
 
 impl PrintStats {
-    fn new(config: &ConfigWrapper) -> KResult<Rc<Self>> {
+    pub fn new(config: &ConfigWrapper) -> KResult<Rc<Self>> {
         let printer = config.get_printer();
         let gcode_move = printer
             .load_object(config, "gcode_move", true)?
@@ -75,7 +75,7 @@ impl PrintStats {
         Ok(ps)
     }
 
-    fn update_filament_usage(&self, _eventtime: f64) {
+    pub fn update_filament_usage(&self, _eventtime: f64) {
         let cur_epos = self.gcode_move.status_position_e();
         self.filament_used
             .set(self.filament_used.get() + (cur_epos - self.last_epos.get()) / self.gcode_move.status_extrude_factor());
@@ -137,7 +137,7 @@ impl PrintStats {
         crate::events::PrintStatsCancelledPrinting::emit(&self.printer)
     }
 
-    fn note_finish(&self, state: &str, error_message: &str) {
+    pub fn note_finish(&self, state: &str, error_message: &str) {
         let Some(print_start_time) = self.print_start_time.get() else { return };
         *self.state.borrow_mut() = state.into();
         *self.error_message.borrow_mut() = error_message.into();
@@ -150,7 +150,7 @@ impl PrintStats {
         self.print_start_time.set(None);
     }
 
-    fn cmd_set_print_stats_info(&self, gcmd: &GCodeCommand) -> KResult<()> {
+    pub fn cmd_set_print_stats_info(&self, gcmd: &GCodeCommand) -> KResult<()> {
         let get_opt_default = |name: &str, default: Option<i64>| -> KResult<Option<i64>> {
             match default {
                 Some(d) => Ok(Some(gcmd.get_int(name, Some(d), Lim::new().min(0))?)),

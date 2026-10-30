@@ -51,8 +51,9 @@ pub fn resolve_bus_name(mcu: &Mcu, param: &str, bus: Option<&str>) -> KResult<St
     // Check for reserved bus pins
     let constants = mcu.get_constants();
     let reserve_pins = constants.get(&format!("BUS_PINS_{}", bus)).and_then(|v| v.as_str().map(|s| s.to_string()));
-    let mut pins = ppins.0.borrow_mut();
+    let pins = ppins.0.borrow_mut();
     let pin_resolver = pins.get_pin_resolver(&mcu_name).map_err(pins_err)?;
+    let mut pin_resolver = pin_resolver.borrow_mut();
     if let Some(reserve_pins) = reserve_pins {
         for pin in reserve_pins.split(',') {
             pin_resolver.reserve_pin(pin, &bus).map_err(pins_err)?;
@@ -67,15 +68,15 @@ pub fn resolve_bus_name(mcu: &Mcu, param: &str, bus: Option<&str>) -> KResult<St
 
 // Helper code for working with devices connected to an MCU via an SPI bus
 pub struct McuSpi {
-    mcu: Rc<Mcu>,
-    bus: Option<String>,
-    speed: i64,
-    oid: i64,
-    config_fmt: RefCell<String>,
-    config_fmt_ticks: Option<String>,
-    cmd_queue: CommandQueue,
-    spi_send_cmd: RefCell<Option<CommandWrapper>>,
-    spi_transfer_cmd: RefCell<Option<CommandQueryWrapper>>,
+    pub mcu: Rc<Mcu>,
+    pub bus: Option<String>,
+    pub speed: i64,
+    pub oid: i64,
+    pub config_fmt: RefCell<String>,
+    pub config_fmt_ticks: Option<String>,
+    pub cmd_queue: CommandQueue,
+    pub spi_send_cmd: RefCell<Option<CommandWrapper>>,
+    pub spi_transfer_cmd: RefCell<Option<CommandQueryWrapper>>,
 }
 
 impl McuSpi {
@@ -140,7 +141,7 @@ impl McuSpi {
         self.cmd_queue.clone()
     }
 
-    fn build_config(&self) -> KResult<()> {
+    pub fn build_config(&self) -> KResult<()> {
         if self.config_fmt.borrow().contains('%') {
             let bus = resolve_bus_name(&self.mcu, "spi_bus", self.bus.as_deref())?;
             let f = self.config_fmt.borrow().replace("%s", &bus);
@@ -258,18 +259,18 @@ pub fn mcu_spi_from_config(
 
 // Helper code for working with devices connected to an MCU via an I2C bus
 pub struct McuI2c {
-    mcu: Rc<Mcu>,
-    bus: Option<String>,
-    i2c_address: i64,
-    oid: i64,
-    speed: i64,
-    config_fmt: RefCell<String>,
-    config_fmt_ticks: Option<String>,
-    cmd_queue: CommandQueue,
-    i2c_write_cmd: RefCell<Option<CommandWrapper>>,
-    i2c_read_cmd: RefCell<Option<CommandQueryWrapper>>,
+    pub mcu: Rc<Mcu>,
+    pub bus: Option<String>,
+    pub i2c_address: i64,
+    pub oid: i64,
+    pub speed: i64,
+    pub config_fmt: RefCell<String>,
+    pub config_fmt_ticks: Option<String>,
+    pub cmd_queue: CommandQueue,
+    pub i2c_write_cmd: RefCell<Option<CommandWrapper>>,
+    pub i2c_read_cmd: RefCell<Option<CommandQueryWrapper>>,
     // backward support i2c_write inside the init section
-    to_write: RefCell<Vec<Vec<u8>>>,
+    pub to_write: RefCell<Vec<Vec<u8>>>,
 }
 
 impl McuI2c {
@@ -328,7 +329,7 @@ impl McuI2c {
         self.cmd_queue.clone()
     }
 
-    fn build_config(&self) -> KResult<()> {
+    pub fn build_config(&self) -> KResult<()> {
         if self.config_fmt.borrow().contains('%') {
             let bus = resolve_bus_name(&self.mcu, "i2c_bus", self.bus.as_deref())?;
             let f = self.config_fmt.borrow().replace("%s", &bus);
@@ -413,10 +414,10 @@ pub fn mcu_i2c_from_config(config: &ConfigWrapper, default_addr: Option<i64>, de
 
 // Helper code for a gpio that updates on a cmd_queue
 pub struct McuBusDigitalOut {
-    mcu: Rc<Mcu>,
-    oid: i64,
-    cmd_queue: CommandQueue,
-    update_pin_cmd: RefCell<Option<CommandWrapper>>,
+    pub mcu: Rc<Mcu>,
+    pub oid: i64,
+    pub cmd_queue: CommandQueue,
+    pub update_pin_cmd: RefCell<Option<CommandWrapper>>,
 }
 
 impl McuBusDigitalOut {

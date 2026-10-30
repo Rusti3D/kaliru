@@ -39,12 +39,12 @@ fn header(fields: &[&str]) -> PyVal {
 // Extract stepper queue_step messages
 pub struct DumpStepper {
     pub mcu_stepper: Rc<McuStepper>,
-    last_batch_clock: Cell<u64>,
-    batch_bulk: RefCell<Option<Rc<BatchBulkHelper>>>,
+    pub last_batch_clock: Cell<u64>,
+    pub batch_bulk: RefCell<Option<Rc<BatchBulkHelper>>>,
 }
 
 impl DumpStepper {
-    fn new(printer: &Rc<Printer>, mcu_stepper: &Rc<McuStepper>) -> KResult<Rc<Self>> {
+    pub fn new(printer: &Rc<Printer>, mcu_stepper: &Rc<McuStepper>) -> KResult<Rc<Self>> {
         let ds = Rc::new(DumpStepper { mcu_stepper: mcu_stepper.clone(), last_batch_clock: Cell::new(0), batch_bulk: RefCell::new(None) });
         let w = Rc::downgrade(&ds);
         let batch_bulk = BatchBulkHelper::new(
@@ -99,7 +99,7 @@ impl DumpStepper {
         logging::info(&out.join("\n"));
     }
 
-    fn process_batch(&self, _eventtime: f64) -> PyVal {
+    pub fn process_batch(&self, _eventtime: f64) -> PyVal {
         let mut data = self.get_step_queue(self.last_batch_clock.get(), 1 << 63);
         if data.is_empty() {
             return PyVal::dict();
@@ -143,16 +143,16 @@ type BatchMsg = (f64, f64, f64, f64, [f64; 3], [f64; 3]);
 
 // Extract trapezoidal motion queue (trapq)
 pub struct DumpTrapQ {
-    name: String,
-    trapq: TrapQRef,
-    last_batch_msg: Cell<(f64, f64)>,
+    pub name: String,
+    pub trapq: TrapQRef,
+    pub last_batch_msg: Cell<(f64, f64)>,
     last_batch_entry: RefCell<Option<BatchMsg>>,
-    motion_queuing: Rc<PrinterMotionQueuing>,
-    batch_bulk: RefCell<Option<Rc<BatchBulkHelper>>>,
+    pub motion_queuing: Rc<PrinterMotionQueuing>,
+    pub batch_bulk: RefCell<Option<Rc<BatchBulkHelper>>>,
 }
 
 impl DumpTrapQ {
-    fn new(printer: &Rc<Printer>, name: &str, trapq: TrapQRef) -> KResult<Rc<Self>> {
+    pub fn new(printer: &Rc<Printer>, name: &str, trapq: TrapQRef) -> KResult<Rc<Self>> {
         let dt = Rc::new(DumpTrapQ {
             name: name.to_string(),
             trapq,
@@ -224,7 +224,7 @@ impl DumpTrapQ {
         Some((pos, velocity))
     }
 
-    fn process_batch(&self, _eventtime: f64) -> PyVal {
+    pub fn process_batch(&self, _eventtime: f64) -> PyVal {
         let (lt, ld) = self.last_batch_msg.get();
         let qtime = lt + py_min(ld, 0.100);
         let data = self.extract_trapq(qtime, NEVER_TIME);
@@ -269,13 +269,13 @@ impl DumpTrapQ {
 pub const STATUS_REFRESH_TIME: f64 = 0.250;
 
 pub struct PrinterMotionReport {
-    printer: Rc<Printer>,
-    steppers: RefCell<IndexMap<String, Rc<DumpStepper>>>,
-    dtrapqs: RefCell<IndexMap<String, Rc<DumpTrapQ>>>,
-    next_status_time: Cell<f64>,
+    pub printer: Rc<Printer>,
+    pub steppers: RefCell<IndexMap<String, Rc<DumpStepper>>>,
+    pub dtrapqs: RefCell<IndexMap<String, Rc<DumpTrapQ>>>,
+    pub next_status_time: Cell<f64>,
     /// handed out shared, as python returns the same dict until the next
     /// refresh copies it
-    last_status: RefCell<Rc<PyVal>>,
+    pub last_status: RefCell<Rc<PyVal>>,
 }
 
 /// the dict in a last_status
@@ -292,7 +292,7 @@ impl PrinterMotionReport {
         self.dtrapqs.borrow().get(name).cloned()
     }
 
-    fn new(config: &ConfigWrapper) -> KResult<Rc<Self>> {
+    pub fn new(config: &ConfigWrapper) -> KResult<Rc<Self>> {
         let printer = config.get_printer();
         // get_status information
         let last_status = crate::pydict! {
@@ -326,7 +326,7 @@ impl PrinterMotionReport {
         Ok(())
     }
 
-    fn connect(&self) -> KResult<()> {
+    pub fn connect(&self) -> KResult<()> {
         // Lookup toolhead trapq
         let toolhead = self.printer.lookup::<ToolHead>("toolhead")?;
         let trapq = toolhead.get_trapq();
@@ -354,7 +354,7 @@ impl PrinterMotionReport {
     }
 
     // Shutdown handling
-    fn handle_analyze_shutdown(&self, msg: &str, details: &PyVal) {
+    pub fn handle_analyze_shutdown(&self, msg: &str, details: &PyVal) {
         if msg != "MCU shutdown" {
             return;
         }

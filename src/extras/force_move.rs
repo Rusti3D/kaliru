@@ -50,15 +50,15 @@ const CMD_FORCE_MOVE_HELP: &str = "Manually move a stepper; invalidates kinemati
 const CMD_SET_KINEMATIC_POSITION_HELP: &str = "Force a low-level kinematic position";
 
 pub struct ForceMove {
-    printer: Rc<Printer>,
-    steppers: RefCell<IndexMap<String, Rc<McuStepper>>>,
-    motion_queuing: Rc<PrinterMotionQueuing>,
-    trapq: TrapQRef,
-    stepper_kinematics: SkRef,
+    pub printer: Rc<Printer>,
+    pub steppers: RefCell<IndexMap<String, Rc<McuStepper>>>,
+    pub motion_queuing: Rc<PrinterMotionQueuing>,
+    pub trapq: TrapQRef,
+    pub stepper_kinematics: SkRef,
 }
 
 impl ForceMove {
-    fn new(config: &ConfigWrapper) -> KResult<Rc<Self>> {
+    pub fn new(config: &ConfigWrapper) -> KResult<Rc<Self>> {
         let printer = config.get_printer();
         // Setup iterative solver
         let motion_queuing = printer
@@ -100,12 +100,12 @@ impl ForceMove {
         self.printer.lookup::<PrinterStepperEnable>("stepper_enable")
     }
 
-    fn force_enable(&self, stepper: &McuStepper) -> KResult<bool> {
+    pub fn force_enable(&self, stepper: &McuStepper) -> KResult<bool> {
         let stepper_name = stepper.get_name(false);
         self.stepper_enable()?.set_motors_enable(&[stepper_name], true)
     }
 
-    fn restore_enable(&self, stepper: &McuStepper, did_enable: bool) -> KResult<()> {
+    pub fn restore_enable(&self, stepper: &McuStepper, did_enable: bool) -> KResult<()> {
         if !did_enable {
             return Ok(());
         }
@@ -135,12 +135,12 @@ impl ForceMove {
         Ok(())
     }
 
-    fn lookup_gcmd_stepper(&self, gcmd: &GCodeCommand) -> KResult<Rc<McuStepper>> {
+    pub fn lookup_gcmd_stepper(&self, gcmd: &GCodeCommand) -> KResult<Rc<McuStepper>> {
         let name = gcmd.get("STEPPER")?;
         self.steppers.borrow().get(&name).cloned().ok_or_else(|| gcmd.error(format!("Unknown stepper {}", name)))
     }
 
-    fn cmd_stepper_buzz(&self, gcmd: &GCodeCommand) -> KResult<()> {
+    pub fn cmd_stepper_buzz(&self, gcmd: &GCodeCommand) -> KResult<()> {
         let stepper = self.lookup_gcmd_stepper(gcmd)?;
         logging::info(&format!("Stepper buzz {}", stepper.get_name(false)));
         let did_enable = self.force_enable(&stepper)?;
@@ -159,7 +159,7 @@ impl ForceMove {
         self.restore_enable(&stepper, did_enable)
     }
 
-    fn cmd_force_move(&self, gcmd: &GCodeCommand) -> KResult<()> {
+    pub fn cmd_force_move(&self, gcmd: &GCodeCommand) -> KResult<()> {
         let stepper = self.lookup_gcmd_stepper(gcmd)?;
         let distance = gcmd.get_float("DISTANCE", None, Lim::new())?;
         let speed = gcmd.get_float("VELOCITY", None, Lim::new().above(0.0))?;
@@ -175,7 +175,7 @@ impl ForceMove {
         self.manual_move(&stepper, distance, speed, accel)
     }
 
-    fn cmd_set_kinematic_position(&self, gcmd: &GCodeCommand) -> KResult<()> {
+    pub fn cmd_set_kinematic_position(&self, gcmd: &GCodeCommand) -> KResult<()> {
         let toolhead = self.printer.lookup::<ToolHead>("toolhead")?;
         toolhead.get_last_move_time()?;
         let curpos = toolhead.get_position();

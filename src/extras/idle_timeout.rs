@@ -29,13 +29,13 @@ pub const READY_TIMEOUT: f64 = 0.500;
 const CMD_SET_IDLE_TIMEOUT_HELP: &str = "Set the idle timeout in seconds";
 
 pub struct IdleTimeout {
-    printer: Rc<Printer>,
-    reactor: Rc<Reactor>,
-    gcode: Rc<GCodeDispatch>,
-    toolhead: RefCell<Option<Rc<ToolHead>>>,
-    timeout_timer: RefCell<Option<Timer>>,
+    pub printer: Rc<Printer>,
+    pub reactor: Rc<Reactor>,
+    pub gcode: Rc<GCodeDispatch>,
+    pub toolhead: RefCell<Option<Rc<ToolHead>>>,
+    pub timeout_timer: RefCell<Option<Timer>>,
     pub idle_timeout: Cell<f64>,
-    idle_gcode: Rc<Template>,
+    pub idle_gcode: Rc<Template>,
     pub(crate) state: RefCell<&'static str>,
     pub(crate) last_print_start_systime: Cell<f64>,
 }
@@ -57,7 +57,7 @@ fn py_max(a: f64, b: f64) -> f64 {
 }
 
 impl IdleTimeout {
-    fn new(config: &ConfigWrapper) -> KResult<Rc<Self>> {
+    pub fn new(config: &ConfigWrapper) -> KResult<Rc<Self>> {
         let printer = config.get_printer();
         let reactor = printer.get_reactor();
         let gcode = printer.lookup::<GCodeDispatch>("gcode")?;
@@ -96,7 +96,7 @@ impl IdleTimeout {
         Ok(it)
     }
 
-    fn handle_ready(self: &Rc<Self>) -> KResult<()> {
+    pub fn handle_ready(self: &Rc<Self>) -> KResult<()> {
         *self.toolhead.borrow_mut() = Some(self.printer.lookup::<ToolHead>("toolhead")?);
         let w = Rc::downgrade(self);
         let timer = self.reactor.register_timer(
@@ -119,7 +119,7 @@ impl IdleTimeout {
         self.toolhead.borrow().clone().expect("toolhead")
     }
 
-    fn transition_idle_state(&self, eventtime: f64) -> f64 {
+    pub fn transition_idle_state(&self, eventtime: f64) -> f64 {
         *self.state.borrow_mut() = "Printing";
         let res = self.idle_gcode.render(None).and_then(|script| self.gcode.run_script(&script));
         if res.is_err() {
@@ -141,7 +141,7 @@ impl IdleTimeout {
         NEVER
     }
 
-    fn check_idle_timeout(&self, eventtime: f64) -> f64 {
+    pub fn check_idle_timeout(&self, eventtime: f64) -> f64 {
         // timeout is disabled
         if !(self.idle_timeout.get() > 0.0) {
             return eventtime + 60.0;
@@ -165,7 +165,7 @@ impl IdleTimeout {
         self.transition_idle_state(eventtime)
     }
 
-    fn timeout_handler(&self, eventtime: f64) -> f64 {
+    pub fn timeout_handler(&self, eventtime: f64) -> f64 {
         if self.printer.is_shutdown() {
             return NEVER;
         }
@@ -196,7 +196,7 @@ impl IdleTimeout {
         eventtime + self.idle_timeout.get()
     }
 
-    fn handle_sync_print_time(&self, curtime: f64, print_time: f64, est_print_time: f64) {
+    pub fn handle_sync_print_time(&self, curtime: f64, print_time: f64, est_print_time: f64) {
         if *self.state.borrow() == "Printing" {
             return;
         }
@@ -213,7 +213,7 @@ impl IdleTimeout {
         }
     }
 
-    fn cmd_set_idle_timeout(&self, gcmd: &GCodeCommand) -> KResult<()> {
+    pub fn cmd_set_idle_timeout(&self, gcmd: &GCodeCommand) -> KResult<()> {
         let timeout = gcmd.get_float("TIMEOUT", Some(self.idle_timeout.get()), Lim::new().above(0.0))?;
         self.idle_timeout.set(timeout);
         gcmd.respond_info(&format!("idle_timeout: Timeout set to {:.2} s", timeout), true);

@@ -82,3 +82,21 @@ klippy.extras.gcode_macro.GetStatusWrapperJinja.__getitem__
 klippy.extras.gcode_macro.GetStatusWrapperJinja.__contains__
 klippy.extras.gcode_macro.GetStatusWrapperJinja.__iter__
 klippy.extras.gcode_macro.PrinterGCodeMacro.create_template_context
+
+# webhooks: WebRequestError is an exception (gcode.CommandError subclass)
+klippy.webhooks.WebRequestError.__init__
+klippy.webhooks.WebRequestError.to_dict
+
+# msgproto: MessageParser getters over its attributes
+klippy.msgproto.MessageParser._error
+klippy.msgproto.MessageParser.encode_msgblock
+klippy.msgproto.MessageParser.lookup_msgid
+klippy.msgproto.MessageParser.get_raw_data_dictionary
+klippy.msgproto.MessageParser.get_app_info
+klippy.msgproto.MessageParser.get_version_info
+klippy.msgproto.MessageParser.get_enumerations
+klippy.msgproto.MessageParser.get_constants
+klippy.msgproto.MessageParser.get_kconfig
+klippy.msgproto.MessageParser.get_constant
+klippy.msgproto.MessageParser.get_constant_float
+klippy.msgproto.MessageParser.get_constant_int

@@ -37,13 +37,13 @@ pub enum Kind {
 
 pub struct CartKinematics {
     pub kind: Kind,
-    rails: Vec<Rc<PrinterRail>>,
-    dc_module: Option<Rc<DualCarriages>>,
-    axes_min: [f64; 4],
-    axes_max: [f64; 4],
+    pub rails: Vec<Rc<PrinterRail>>,
+    pub dc_module: Option<Rc<DualCarriages>>,
+    pub axes_min: [f64; 4],
+    pub axes_max: [f64; 4],
     pub max_z_velocity: Cell<f64>,
     pub max_z_accel: Cell<f64>,
-    limits: RefCell<[(f64, f64); 3]>,
+    pub limits: RefCell<[(f64, f64); 3]>,
     pub limited: Option<Limited>,
     pub toolhead: Weak<ToolHead>,
 }

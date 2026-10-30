@@ -16,17 +16,18 @@ use std::cell::{Cell, RefCell};
 use std::rc::Rc;
 
 pub struct Fan {
-    last_fan_value: Cell<f64>,
-    last_req_value: Cell<f64>,
-    last_pwm_value: Cell<f64>,
-    kick_start_time: f64,
-    min_power: f64,
+    pub last_fan_value: Cell<f64>,
+    pub last_req_value: Cell<f64>,
+    pub last_pwm_value: Cell<f64>,
+    pub kick_start_time: f64,
+    pub min_power: f64,
     pub max_power: f64,
-    initial_speed: Option<f64>,
-    mcu_fan: Rc<dyn PwmPin>,
-    enable_pin: Option<Rc<dyn DigitalOutPin>>,
-    gcrq: RefCell<Option<Rc<GCodeRequestQueue>>>,
-    tachometer: FanTachometer,
+    pub initial_speed: Option<f64>,
+    pub mcu_fan: Rc<dyn PwmPin>,
+    pub enable_pin: Option<Rc<dyn DigitalOutPin>>,
+    pub gcrq: RefCell<Option<Rc<GCodeRequestQueue>>>,
+    pub off_below: Option<f64>,
+    pub tachometer: Rc<FanTachometer>,
 }
 
 impl Fan {
@@ -95,7 +96,8 @@ impl Fan {
             mcu_fan: mcu_fan.clone(),
             enable_pin,
             gcrq: RefCell::new(None),
-            tachometer: FanTachometer::new(config)?,
+            off_below,
+            tachometer: Rc::new(FanTachometer::new(config)?),
         });
         // Create gcode request queue
         let w = Rc::downgrade(&fan);
@@ -173,7 +175,7 @@ impl Fan {
         self.gcrq().queue_gcode_request(value)
     }
 
-    fn handle_ready(&self) -> KResult<()> {
+    pub fn handle_ready(&self) -> KResult<()> {
         if let Some(s) = self.initial_speed.filter(|s| *s != 0.0) {
             self.set_speed_from_command(s)?;
         }
@@ -207,7 +209,7 @@ impl PrinterObject for Fan {
 }
 
 pub struct FanTachometer {
-    freq_counter: Option<(Rc<FrequencyCounter>, i64)>,
+    pub freq_counter: Option<(Rc<FrequencyCounter>, i64)>,
 }
 
 impl FanTachometer {
@@ -237,7 +239,7 @@ pub struct PrinterFan {
 }
 
 impl PrinterFan {
-    fn new(config: &ConfigWrapper) -> KResult<Rc<Self>> {
+    pub fn new(config: &ConfigWrapper) -> KResult<Rc<Self>> {
         let pf = Rc::new(PrinterFan { fan: Fan::new(config, 0.0)? });
         // Register commands
         let gcode = config.get_printer().lookup::<GCodeDispatch>("gcode")?;
@@ -248,7 +250,7 @@ impl PrinterFan {
         Ok(pf)
     }
 
-    fn cmd_m106(&self, gcmd: &GCodeCommand) -> KResult<()> {
+    pub fn cmd_m106(&self, gcmd: &GCodeCommand) -> KResult<()> {
         // Set fan speed
         let value = gcmd.get_float("S", Some(255.0), Lim::new().min(0.0))? / 255.0;
         self.fan.set_speed_from_command(value)

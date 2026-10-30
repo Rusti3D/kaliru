@@ -58,16 +58,16 @@ struct Bounds {
 
 // Access a parameter from config or GCode command via a consistent interface
 // stores name and constraints to keep things DRY
-struct ParamHelper {
-    config_section: String,
-    name: String,
+pub struct ParamHelper {
+    pub config_section: String,
+    pub name: String,
     type_name: ParamType,
-    value: PyVal,
-    minval: Option<PyVal>,
-    maxval: Option<PyVal>,
-    above: Option<PyVal>,
-    below: Option<PyVal>,
-    max_len: Option<usize>,
+    pub value: PyVal,
+    pub minval: Option<PyVal>,
+    pub maxval: Option<PyVal>,
+    pub above: Option<PyVal>,
+    pub below: Option<PyVal>,
+    pub max_len: Option<usize>,
 }
 
 impl ParamHelper {
@@ -258,14 +258,14 @@ fn floats(v: &PyVal) -> Vec<f64> {
 // container for filter parameters
 // allows different filter configurations to be compared
 #[derive(Clone, PartialEq, Default)]
-struct ContinuousTareFilter {
-    sps: Option<i64>,
-    drift: Option<f64>,
-    drift_delay: Option<i64>,
-    buzz: Option<f64>,
-    buzz_delay: Option<i64>,
-    notches: Option<Vec<f64>>,
-    notch_quality: Option<f64>,
+pub struct ContinuousTareFilter {
+    pub sps: Option<i64>,
+    pub drift: Option<f64>,
+    pub drift_delay: Option<i64>,
+    pub buzz: Option<f64>,
+    pub buzz_delay: Option<i64>,
+    pub notches: Option<Vec<f64>>,
+    pub notch_quality: Option<f64>,
 }
 
 impl ContinuousTareFilter {
@@ -285,8 +285,8 @@ impl ContinuousTareFilter {
 }
 
 // Combine ContinuousTareFilter and SosFilter into an easy-to-use class
-struct ContinuousTareFilterHelper {
-    sps: i64,
+pub struct ContinuousTareFilterHelper {
+    pub sps: i64,
     drift_param: ParamHelper,
     drift_delay_param: ParamHelper,
     buzz_param: ParamHelper,
@@ -294,7 +294,7 @@ struct ContinuousTareFilterHelper {
     notches_param: ParamHelper,
     notch_quality_param: ParamHelper,
     active_design: ContinuousTareFilter,
-    sos_filter: Rc<SosFilter>,
+    pub sos_filter: Rc<SosFilter>,
 }
 
 impl ContinuousTareFilterHelper {
@@ -362,7 +362,7 @@ impl ContinuousTareFilterHelper {
         Self::build(self.sps, p, gcmd)
     }
 
-    fn update_from_command(&self, gcmd: Option<&GCodeCommand>) -> KResult<()> {
+    pub fn update_from_command(&self, gcmd: Option<&GCodeCommand>) -> KResult<()> {
         let gcmd_filter = self.build_filter(gcmd)?;
         // if filters are identical, no change required
         if self.active_design == gcmd_filter {
@@ -374,9 +374,9 @@ impl ContinuousTareFilterHelper {
     }
 }
 
-struct LoadCellProbeConfigHelper {
-    load_cell: Rc<LoadCell>,
-    rest_time: f64,
+pub struct LoadCellProbeConfigHelper {
+    pub load_cell: Rc<LoadCell>,
+    pub rest_time: f64,
     tare_time_param: ParamHelper,
     trigger_force_param: ParamHelper,
     force_safety_limit_param: ParamHelper,
@@ -387,7 +387,7 @@ struct LoadCellProbeConfigHelper {
 }
 
 impl LoadCellProbeConfigHelper {
-    fn new(config: &ConfigWrapper, load_cell: &Rc<LoadCell>) -> KResult<Self> {
+    pub fn new(config: &ConfigWrapper, load_cell: &Rc<LoadCell>) -> KResult<Self> {
         let sensor = load_cell.sensor.clone();
         let rest_time = 1.0 / sensor.get_samples_per_second() as f64;
         // Collect 5 x 50hz power cycles of data to average across power noise
@@ -414,37 +414,37 @@ impl LoadCellProbeConfigHelper {
         })
     }
 
-    fn get_tare_samples(&self, gcmd: Option<&GCodeCommand>) -> KResult<i64> {
+    pub fn get_tare_samples(&self, gcmd: Option<&GCodeCommand>) -> KResult<i64> {
         let tare_time = self.tare_time_param.get_f64(gcmd)?.unwrap_or(0.0);
         let sps = self.load_cell.sensor.get_samples_per_second();
         Ok(2.max((tare_time * sps as f64).ceil() as i64))
     }
 
-    fn get_trigger_force_grams(&self, gcmd: Option<&GCodeCommand>) -> KResult<i64> {
+    pub fn get_trigger_force_grams(&self, gcmd: Option<&GCodeCommand>) -> KResult<i64> {
         self.trigger_force_param.get_i64(gcmd)
     }
 
-    fn get_safety_limit_grams(&self, gcmd: Option<&GCodeCommand>) -> KResult<i64> {
+    pub fn get_safety_limit_grams(&self, gcmd: Option<&GCodeCommand>) -> KResult<i64> {
         self.force_safety_limit_param.get_i64(gcmd)
     }
 
-    fn get_drift_safety_limit(&self, gcmd: Option<&GCodeCommand>) -> KResult<i64> {
+    pub fn get_drift_safety_limit(&self, gcmd: Option<&GCodeCommand>) -> KResult<i64> {
         self.drift_safety_limit.get_i64(gcmd)
     }
 
-    fn get_pullback_speed(&self, gcmd: Option<&GCodeCommand>) -> KResult<f64> {
+    pub fn get_pullback_speed(&self, gcmd: Option<&GCodeCommand>) -> KResult<f64> {
         Ok(self.pullback_speed_param.get_f64(gcmd)?.unwrap_or(0.0))
     }
 
-    fn get_pullback_distance(&self, gcmd: Option<&GCodeCommand>) -> KResult<f64> {
+    pub fn get_pullback_distance(&self, gcmd: Option<&GCodeCommand>) -> KResult<f64> {
         Ok(self.pullback_distance_param.get_f64(gcmd)?.unwrap_or(0.0))
     }
 
-    fn is_pullback_move_disabled(&self, gcmd: Option<&GCodeCommand>) -> KResult<bool> {
+    pub fn is_pullback_move_disabled(&self, gcmd: Option<&GCodeCommand>) -> KResult<bool> {
         Ok(self.disable_pullback_move.get(gcmd, Bounds::default())?.truthy())
     }
 
-    fn get_rest_time(&self) -> f64 {
+    pub fn get_rest_time(&self) -> f64 {
         self.rest_time
     }
 
@@ -454,7 +454,7 @@ impl LoadCellProbeConfigHelper {
             .ok_or_else(|| KError::Py("TypeError".into(), "unsupported operand type(s) for *: 'NoneType' and 'int'".into()))
     }
 
-    fn get_reference_safety_range(&self, gcmd: Option<&GCodeCommand>) -> KResult<(i64, i64)> {
+    pub fn get_reference_safety_range(&self, gcmd: Option<&GCodeCommand>) -> KResult<(i64, i64)> {
         let counts_per_gram = self.counts_per_gram()?;
         // calculate the safety band
         let zero = self.load_cell.get_reference_tare_counts().ok_or_else(|| KError::Py("TypeError".into(), "unsupported operand type(s) for -: 'NoneType' and 'int'".into()))?;
@@ -470,7 +470,7 @@ impl LoadCellProbeConfigHelper {
     }
 
     // check if tare_counts is within the force_safety_limit
-    fn assert_force_safety_limit(&self, gcmd: Option<&GCodeCommand>) -> KResult<()> {
+    pub fn assert_force_safety_limit(&self, gcmd: Option<&GCodeCommand>) -> KResult<()> {
         let limit = self.get_safety_limit_grams(gcmd)?;
         // zero limit disables this check
         if limit == 0 {
@@ -488,7 +488,7 @@ impl LoadCellProbeConfigHelper {
         Ok(())
     }
 
-    fn get_probe_drift_range(&self, tare_counts: i64, gcmd: Option<&GCodeCommand>) -> KResult<(i64, i64)> {
+    pub fn get_probe_drift_range(&self, tare_counts: i64, gcmd: Option<&GCodeCommand>) -> KResult<(i64, i64)> {
         let counts_per_gram = self.counts_per_gram()?;
         let mut drift_min: i64 = -(1 << 31);
         let mut drift_max: i64 = (1 << 31) - 1;
@@ -506,7 +506,7 @@ impl LoadCellProbeConfigHelper {
     }
 
     // calculate 1/counts_per_gram in Q2 fixed point
-    fn get_grams_per_count(&self) -> KResult<i64> {
+    pub fn get_grams_per_count(&self) -> KResult<i64> {
         let counts_per_gram = self.counts_per_gram()?;
         // The counts_per_gram could be so large that it becomes 0.0 when
         // converted to Q2 format. This would mean the ADC range only measures a
@@ -520,17 +520,17 @@ impl LoadCellProbeConfigHelper {
 
 // McuLoadCellProbe is the interface to `load_cell_probe` on the MCU
 // This also manages the SosFilter so all commands use one command queue
-struct McuLoadCellProbe {
-    load_cell: Rc<LoadCell>,
-    sos_filter: Rc<SosFilter>,
-    config_helper: Rc<LoadCellProbeConfigHelper>,
-    mcu: Rc<Mcu>,
-    dispatch: Rc<TriggerDispatch>,
-    cmd_queue: CommandQueue,
-    oid: i64,
-    home_cmd: RefCell<Option<CommandWrapper>>,
-    query_cmd: RefCell<Option<CommandQueryWrapper>>,
-    set_range_cmd: RefCell<Option<CommandWrapper>>,
+pub struct McuLoadCellProbe {
+    pub load_cell: Rc<LoadCell>,
+    pub sos_filter: Rc<SosFilter>,
+    pub config_helper: Rc<LoadCellProbeConfigHelper>,
+    pub mcu: Rc<Mcu>,
+    pub dispatch: Rc<TriggerDispatch>,
+    pub cmd_queue: CommandQueue,
+    pub oid: i64,
+    pub home_cmd: RefCell<Option<CommandWrapper>>,
+    pub query_cmd: RefCell<Option<CommandQueryWrapper>>,
+    pub set_range_cmd: RefCell<Option<CommandWrapper>>,
 }
 
 impl McuLoadCellProbe {
@@ -539,7 +539,7 @@ impl McuLoadCellProbe {
     const ERROR_OVERFLOW: i64 = McuTrsync::REASON_COMMS_TIMEOUT + 2;
     const ERROR_WATCHDOG: i64 = McuTrsync::REASON_COMMS_TIMEOUT + 3;
 
-    fn new(
+    pub fn new(
         config: &ConfigWrapper,
         load_cell: &Rc<LoadCell>,
         sos_filter: Rc<SosFilter>,
@@ -573,13 +573,13 @@ impl McuLoadCellProbe {
         Ok(p)
     }
 
-    fn config_commands(&self) -> KResult<()> {
+    pub fn config_commands(&self) -> KResult<()> {
         self.sos_filter.create_filter()?;
         self.mcu.add_config_cmd(&format!("config_load_cell_probe oid={} sos_filter_oid={}", self.oid, self.sos_filter.get_oid()), false, false);
         Ok(())
     }
 
-    fn build_config(&self) -> KResult<()> {
+    pub fn build_config(&self) -> KResult<()> {
         *self.query_cmd.borrow_mut() = Some(self.mcu.lookup_query_command(
             "load_cell_probe_query_state oid=%c",
             "load_cell_probe_state oid=%c is_homing_trigger=%c trigger_ticks=%u",
@@ -602,7 +602,7 @@ impl McuLoadCellProbe {
         KError::Py("AttributeError".into(), "'NoneType' object has no attribute 'send'".into())
     }
 
-    fn set_endstop_range(&self, gcmd: Option<&GCodeCommand>) -> KResult<()> {
+    pub fn set_endstop_range(&self, gcmd: Option<&GCodeCommand>) -> KResult<()> {
         // update the load cell so it reflects the new tare value
         let tare_counts = self.load_cell.get_tare_counts().unwrap_or(0);
         let (safety_min, safety_max) = self.config_helper.get_probe_drift_range(tare_counts, gcmd)?;
@@ -614,7 +614,7 @@ impl McuLoadCellProbe {
         self.sos_filter.reset_filter()
     }
 
-    fn home_start(&self, print_time: f64) -> KResult<()> {
+    pub fn home_start(&self, print_time: f64) -> KResult<()> {
         let clock = self.mcu.print_time_to_clock(print_time);
         let rest_time = self.config_helper.get_rest_time();
         let rest_ticks = self.mcu.seconds_to_clock(rest_time);
@@ -623,7 +623,7 @@ impl McuLoadCellProbe {
         c.as_ref().ok_or_else(Self::not_built)?.send(&args.map(Val::Int), 0, clock as u64)
     }
 
-    fn clear_home(&self) -> KResult<f64> {
+    pub fn clear_home(&self) -> KResult<f64> {
         let params = {
             let q = self.query_cmd.borrow();
             q.as_ref().ok_or_else(Self::not_built)?.send(&[Val::Int(self.oid)], 0, 0, true)?
@@ -644,15 +644,15 @@ impl McuLoadCellProbe {
 }
 
 // Execute probing moves using the McuLoadCellProbe
-struct LoadCellPrimitives {
-    printer: Rc<Printer>,
-    mcu_load_cell_probe: Rc<McuLoadCellProbe>,
+pub struct LoadCellPrimitives {
+    pub printer: Rc<Printer>,
+    pub mcu_load_cell_probe: Rc<McuLoadCellProbe>,
     continuous_tare_filter_helper: ContinuousTareFilterHelper,
-    config_helper: Rc<LoadCellProbeConfigHelper>,
-    load_cell: Rc<LoadCell>,
-    dispatch: Rc<TriggerDispatch>,
+    pub config_helper: Rc<LoadCellProbeConfigHelper>,
+    pub load_cell: Rc<LoadCell>,
+    pub dispatch: Rc<TriggerDispatch>,
     // internal state tracking
-    last_trigger_time: Cell<f64>,
+    pub last_trigger_time: Cell<f64>,
 }
 
 impl LoadCellPrimitives {
@@ -666,11 +666,11 @@ impl LoadCellPrimitives {
         }
     }
 
-    fn get_mcu(&self) -> Rc<Mcu> {
+    pub fn get_mcu(&self) -> Rc<Mcu> {
         self.mcu_load_cell_probe.mcu.clone()
     }
 
-    fn start_collector(&self) -> KResult<Rc<LoadCellSampleCollector>> {
+    pub fn start_collector(&self) -> KResult<Rc<LoadCellSampleCollector>> {
         let toolhead = self.printer.lookup::<ToolHead>("toolhead")?;
         // homing uses the toolhead last move time which gets special handling
         // to significantly buffer print_time if the move queue has drained
@@ -682,7 +682,7 @@ impl LoadCellPrimitives {
 
     // pauses for the last move to complete and then
     // sets the endstop tare value and range
-    fn tare(&self, gcmd: Option<&GCodeCommand>) -> KResult<()> {
+    pub fn tare(&self, gcmd: Option<&GCodeCommand>) -> KResult<()> {
         let num_samples = self.config_helper.get_tare_samples(gcmd)?;
         let tare_counts_per_channel = self.load_cell.avg_counts(Some(num_samples))?;
         self.load_cell.tare(&tare_counts_per_channel)?;
@@ -692,7 +692,7 @@ impl LoadCellPrimitives {
         self.mcu_load_cell_probe.set_endstop_range(gcmd)
     }
 
-    fn home_start(&self, print_time: f64) -> KResult<Rc<ReactorCompletion<bool>>> {
+    pub fn home_start(&self, print_time: f64) -> KResult<Rc<ReactorCompletion<bool>>> {
         // do not permit homing if the load cell is not calibrated
         if !self.load_cell.is_calibrated() {
             return Err(KError::command("Load Cell not calibrated"));
@@ -703,7 +703,7 @@ impl LoadCellPrimitives {
         Ok(trigger_completion)
     }
 
-    fn home_wait(&self, home_end_time: f64) -> KResult<f64> {
+    pub fn home_wait(&self, home_end_time: f64) -> KResult<f64> {
         self.dispatch.wait_end(home_end_time)?;
         // trigger has happened, now to find out why...
         let res = self.dispatch.stop()?;
@@ -721,7 +721,7 @@ impl LoadCellPrimitives {
 
     // Probe towards z_min until the load_cell_probe on the MCU triggers
     // returns the running collector instance along with the halt position
-    fn probing_move(&self, mcu_probe: EndstopRef, pos: &[f64], speed: f64, gcmd: &GCodeCommand) -> KResult<(Vec<f64>, Rc<LoadCellSampleCollector>)> {
+    pub fn probing_move(&self, mcu_probe: EndstopRef, pos: &[f64], speed: f64, gcmd: &GCodeCommand) -> KResult<(Vec<f64>, Rc<LoadCellSampleCollector>)> {
         // tare the sensor just before probing
         self.tare(Some(gcmd))?;
         // start collector after tare samples are consumed
@@ -740,7 +740,7 @@ impl LoadCellPrimitives {
     }
 
     // Wait for the MCU to trigger with no movement
-    fn probing_test(&self, gcmd: &GCodeCommand, timeout: f64) -> KResult<f64> {
+    pub fn probing_test(&self, gcmd: &GCodeCommand, timeout: f64) -> KResult<f64> {
         self.tare(Some(gcmd))?;
         let toolhead = self.printer.lookup::<ToolHead>("toolhead")?;
         let print_time = toolhead.get_last_move_time()?;
@@ -759,8 +759,8 @@ impl LoadCellPrimitives {
 }
 
 // Handle homing the z axis with the load cell probe
-struct HomingMove {
-    printer: Rc<Printer>,
+pub struct HomingMove {
+    pub printer: Rc<Printer>,
     primitives: Rc<LoadCellPrimitives>,
 }
 
@@ -776,19 +776,19 @@ impl HomingMove {
 }
 
 // Perform a single complete tap, broadcast results to the socket
-struct TappingMove {
+pub struct TappingMove {
     me: Weak<TappingMove>,
-    printer: Rc<Printer>,
+    pub printer: Rc<Printer>,
     primitives: Rc<LoadCellPrimitives>,
     tap_analysis_helper: TapAnalysisHelper,
-    config_helper: Rc<LoadCellProbeConfigHelper>,
+    pub config_helper: Rc<LoadCellProbeConfigHelper>,
     // track results of the last tap
-    is_last_result_valid: Cell<bool>,
+    pub is_last_result_valid: Cell<bool>,
 }
 
 impl TappingMove {
     // Perform the pullback move and returns the time when the move will end
-    fn pullback_move(&self, gcmd: &GCodeCommand) -> KResult<f64> {
+    pub fn pullback_move(&self, gcmd: &GCodeCommand) -> KResult<f64> {
         let toolhead = self.printer.lookup::<ToolHead>("toolhead")?;
         let mut pullback_pos = toolhead.get_position();
         pullback_pos[2] += self.config_helper.get_pullback_distance(Some(gcmd))?;
@@ -799,7 +799,7 @@ impl TappingMove {
     }
 
     // perform a complete tapping cycle
-    fn probing_move(&self, pos: &[f64], speed: f64, gcmd: &GCodeCommand) -> KResult<(Vec<f64>, Option<bool>)> {
+    pub fn probing_move(&self, pos: &[f64], speed: f64, gcmd: &GCodeCommand) -> KResult<(Vec<f64>, Option<bool>)> {
         self.is_last_result_valid.set(false);
         // do the probing/homing move
         let me: EndstopRef = self.me.upgrade().expect("tapping move");
@@ -886,16 +886,16 @@ fn cmd_load_cell_test_tap(printer: &Printer, primitives: &LoadCellPrimitives, gc
 }
 
 // Probe `activate_gcode` and `deactivate_gcode` support
-struct ProbeActivationHelper {
-    printer: Rc<Printer>,
-    activate_gcode: Rc<Template>,
-    deactivate_gcode: Rc<Template>,
-    is_multi: Cell<bool>,
-    is_active: Cell<bool>,
+pub struct ProbeActivationHelper {
+    pub printer: Rc<Printer>,
+    pub activate_gcode: Rc<Template>,
+    pub deactivate_gcode: Rc<Template>,
+    pub is_multi: Cell<bool>,
+    pub is_active: Cell<bool>,
 }
 
 impl ProbeActivationHelper {
-    fn new(config: &ConfigWrapper) -> KResult<Self> {
+    pub fn new(config: &ConfigWrapper) -> KResult<Self> {
         let gcode_macro = load_gcode_macro(config)?;
         Ok(ProbeActivationHelper {
             printer: config.get_printer(),
@@ -916,7 +916,7 @@ impl ProbeActivationHelper {
         Ok(())
     }
 
-    fn activate_probe(&self) -> KResult<()> {
+    pub fn activate_probe(&self) -> KResult<()> {
         if self.is_active.get() {
             return Ok(());
         }
@@ -924,7 +924,7 @@ impl ProbeActivationHelper {
         self.run(&self.activate_gcode, "activate_gcode")
     }
 
-    fn deactivate_probe(&self) -> KResult<()> {
+    pub fn deactivate_probe(&self) -> KResult<()> {
         if !self.is_active.get() {
             return Ok(());
         }
@@ -933,16 +933,16 @@ impl ProbeActivationHelper {
     }
 }
 
-struct LoadCellEndstopWrapper {
-    printer: Rc<Printer>,
-    z_offset: f64,
+pub struct LoadCellEndstopWrapper {
+    pub printer: Rc<Printer>,
+    pub z_offset: f64,
     homing_move: HomingMove,
-    tapping_move: Rc<TappingMove>,
+    pub tapping_move: Rc<TappingMove>,
     probe_activation_helper: ProbeActivationHelper,
 }
 
 impl LoadCellEndstopWrapper {
-    fn handle_mcu_identify(&self) -> KResult<()> {
+    pub fn handle_mcu_identify(&self) -> KResult<()> {
         let kin = self.printer.lookup::<ToolHead>("toolhead")?.get_kinematics();
         for stepper in kin.get_steppers() {
             if stepper.is_active_axis('z') {
@@ -1003,7 +1003,7 @@ impl McuProbe for LoadCellEndstopWrapper {
 }
 
 pub struct LoadCellPrinterProbe {
-    tapping_move: Rc<TappingMove>,
+    pub tapping_move: Rc<TappingMove>,
 }
 
 impl LoadCellPrinterProbe {

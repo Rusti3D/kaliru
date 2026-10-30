@@ -22,8 +22,8 @@ pub const DISABLE_STALL_TIME: f64 = 0.100;
 
 // Tracking of shared stepper enable pins
 pub struct StepperEnablePin {
-    mcu_enable: Option<Rc<dyn DigitalOutPin>>,
-    enable_count: Cell<i64>,
+    pub mcu_enable: Option<Rc<dyn DigitalOutPin>>,
+    pub enable_count: Cell<i64>,
     pub is_dedicated: Cell<bool>,
 }
 
@@ -86,14 +86,14 @@ pub type StateCallback = Rc<dyn Fn(f64, bool) -> KResult<()>>;
 // Enable line tracking for each stepper motor
 pub struct EnableTracking {
     me: std::rc::Weak<EnableTracking>,
-    stepper: Rc<McuStepper>,
-    enable: Rc<StepperEnablePin>,
+    pub stepper: Rc<McuStepper>,
+    pub enable: Rc<StepperEnablePin>,
     callbacks: RefCell<Vec<StateCallback>>,
-    is_enabled: Cell<bool>,
+    pub is_enabled: Cell<bool>,
 }
 
 impl EnableTracking {
-    fn new(stepper: &Rc<McuStepper>, enable: Rc<StepperEnablePin>) -> KResult<Rc<Self>> {
+    pub fn new(stepper: &Rc<McuStepper>, enable: Rc<StepperEnablePin>) -> KResult<Rc<Self>> {
         let et = Rc::new_cyclic(|me| EnableTracking {
             me: me.clone(),
             stepper: stepper.clone(),
@@ -161,12 +161,12 @@ const CMD_SET_STEPPER_ENABLE_HELP: &str = "Enable/disable individual stepper by 
 
 // Global stepper enable line tracking
 pub struct PrinterStepperEnable {
-    printer: Rc<Printer>,
+    pub printer: Rc<Printer>,
     pub(crate) enable_lines: RefCell<IndexMap<String, Rc<EnableTracking>>>,
 }
 
 impl PrinterStepperEnable {
-    fn new(config: &ConfigWrapper) -> KResult<Rc<Self>> {
+    pub fn new(config: &ConfigWrapper) -> KResult<Rc<Self>> {
         let printer = config.get_printer();
         let se = Rc::new(PrinterStepperEnable { printer: printer.clone(), enable_lines: RefCell::new(IndexMap::default()) });
         let s = se.clone();
@@ -244,7 +244,7 @@ impl PrinterStepperEnable {
         crate::events::StepperEnableMotorOff::emit(&self.printer)
     }
 
-    fn cmd_set_stepper_enable(&self, gcmd: &GCodeCommand) -> KResult<()> {
+    pub fn cmd_set_stepper_enable(&self, gcmd: &GCodeCommand) -> KResult<()> {
         let stepper_name = gcmd.get_opt("STEPPER");
         let known = stepper_name.as_ref().map(|n| self.enable_lines.borrow().contains_key(n)).unwrap_or(false);
         let Some(stepper_name) = stepper_name.filter(|_| known) else {

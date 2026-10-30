@@ -51,11 +51,11 @@ pub struct CalibrationData {
     pub psd_x: Vec<f64>,
     pub psd_y: Vec<f64>,
     pub psd_z: Vec<f64>,
-    data_sets: i64,
+    pub data_sets: i64,
 }
 
 impl CalibrationData {
-    fn new(freq_bins: Vec<f64>, psd_sum: Vec<f64>, psd_x: Vec<f64>, psd_y: Vec<f64>, psd_z: Vec<f64>) -> Self {
+    pub fn new(freq_bins: Vec<f64>, psd_sum: Vec<f64>, psd_x: Vec<f64>, psd_y: Vec<f64>, psd_z: Vec<f64>) -> Self {
         CalibrationData { freq_bins, psd_sum, psd_x, psd_y, psd_z, data_sets: 1 }
     }
 
@@ -380,7 +380,7 @@ pub fn fit_shaper(
 
 /// ShaperCalibrate(printer)
 pub struct ShaperCalibrate {
-    printer: Rc<Printer>,
+    pub printer: Rc<Printer>,
 }
 
 impl ShaperCalibrate {

@@ -23,13 +23,13 @@ const CMD_Z_ENDSTOP_CALIBRATE_HELP: &str = "Calibrate a Z endstop";
 const CMD_Z_OFFSET_APPLY_ENDSTOP_HELP: &str = "Adjust the z endstop_position";
 
 pub struct ManualProbe {
-    printer: Rc<Printer>,
-    gcode: Rc<GCodeDispatch>,
-    gcode_move: Rc<GCodeMove>,
-    z_position_endstop: Option<f64>,
-    a_position_endstop: Option<f64>,
-    b_position_endstop: Option<f64>,
-    c_position_endstop: Option<f64>,
+    pub printer: Rc<Printer>,
+    pub gcode: Rc<GCodeDispatch>,
+    pub gcode_move: Rc<GCodeMove>,
+    pub z_position_endstop: Option<f64>,
+    pub a_position_endstop: Option<f64>,
+    pub b_position_endstop: Option<f64>,
+    pub c_position_endstop: Option<f64>,
     pub status: RefCell<PyDict>,
 }
 
@@ -38,7 +38,7 @@ fn opt_f(v: Option<f64>) -> PyVal {
 }
 
 impl ManualProbe {
-    fn new(config: &ConfigWrapper) -> KResult<Rc<Self>> {
+    pub fn new(config: &ConfigWrapper) -> KResult<Rc<Self>> {
         let printer = config.get_printer();
         // Register commands
         let gcode = printer.lookup::<GCodeDispatch>("gcode")?;
@@ -97,7 +97,7 @@ impl ManualProbe {
         Ok(mp)
     }
 
-    fn manual_probe_finalize(&self, kin_pos: Option<Vec<f64>>) -> KResult<()> {
+    pub fn manual_probe_finalize(&self, kin_pos: Option<Vec<f64>>) -> KResult<()> {
         if let Some(kin_pos) = kin_pos {
             self.gcode.respond_info(&format!("Z position is {:.3}", kin_pos[2]), true);
         }
@@ -118,12 +118,12 @@ impl ManualProbe {
         self.printer.lookup::<ManualProbe>("manual_probe")
     }
 
-    fn cmd_manual_probe(&self, gcmd: &GCodeCommand) -> KResult<()> {
+    pub fn cmd_manual_probe(&self, gcmd: &GCodeCommand) -> KResult<()> {
         let me = self.me()?;
         ManualProbeHelper::start(&self.printer, gcmd, Rc::new(move |kin_pos| me.manual_probe_finalize(kin_pos)))
     }
 
-    fn z_endstop_finalize(&self, kin_pos: Option<Vec<f64>>) -> KResult<()> {
+    pub fn z_endstop_finalize(&self, kin_pos: Option<Vec<f64>>) -> KResult<()> {
         let Some(kin_pos) = kin_pos else { return Ok(()) };
         let z_pos = self.z_position_endstop.unwrap_or(0.) - kin_pos[2];
         self.gcode.respond_info(
@@ -142,7 +142,7 @@ impl ManualProbe {
         Ok(())
     }
 
-    fn cmd_z_endstop_calibrate(&self, gcmd: &GCodeCommand) -> KResult<()> {
+    pub fn cmd_z_endstop_calibrate(&self, gcmd: &GCodeCommand) -> KResult<()> {
         let me = self.me()?;
         ManualProbeHelper::start(&self.printer, gcmd, Rc::new(move |kin_pos| me.z_endstop_finalize(kin_pos)))
     }
@@ -154,7 +154,7 @@ impl ManualProbe {
         }
     }
 
-    fn cmd_z_offset_apply_endstop(&self, _gcmd: &GCodeCommand) -> KResult<()> {
+    pub fn cmd_z_offset_apply_endstop(&self, _gcmd: &GCodeCommand) -> KResult<()> {
         let offset = self.homing_origin_z();
         if offset == 0.0 {
             self.gcode.respond_info("Nothing to do: Z Offset is 0", true);
@@ -172,7 +172,7 @@ impl ManualProbe {
         Ok(())
     }
 
-    fn cmd_z_offset_apply_delta_endstops(&self, _gcmd: &GCodeCommand) -> KResult<()> {
+    pub fn cmd_z_offset_apply_delta_endstops(&self, _gcmd: &GCodeCommand) -> KResult<()> {
         let offset = self.homing_origin_z();
         if offset == 0.0 {
             self.gcode.respond_info("Nothing to do: Z Offset is 0", true);
@@ -229,16 +229,16 @@ const CMD_TESTZ_HELP: &str = "Move to new Z height";
 
 // Helper script to determine a Z height
 pub struct ManualProbeHelper {
-    printer: Rc<Printer>,
+    pub printer: Rc<Printer>,
     finalize_callback: FinalizeCallback,
-    gcode: Rc<GCodeDispatch>,
-    toolhead: Rc<ToolHead>,
-    manual_probe: Rc<ManualProbe>,
-    speed: f64,
-    past_positions: RefCell<Vec<f64>>,
-    last_toolhead_pos: RefCell<Option<Vec<f64>>>,
-    last_kinematics_pos: RefCell<Option<Vec<f64>>>,
-    start_position: RefCell<Vec<f64>>,
+    pub gcode: Rc<GCodeDispatch>,
+    pub toolhead: Rc<ToolHead>,
+    pub manual_probe: Rc<ManualProbe>,
+    pub speed: f64,
+    pub past_positions: RefCell<Vec<f64>>,
+    pub last_toolhead_pos: RefCell<Option<Vec<f64>>>,
+    pub last_kinematics_pos: RefCell<Option<Vec<f64>>>,
+    pub start_position: RefCell<Vec<f64>>,
 }
 
 /// bisect.bisect_left
@@ -288,7 +288,7 @@ impl ManualProbeHelper {
         h.report_z_status(false, None)
     }
 
-    fn get_kinematics_pos(&self) -> KResult<Vec<f64>> {
+    pub fn get_kinematics_pos(&self) -> KResult<Vec<f64>> {
         let toolhead_pos = self.toolhead.get_position();
         if self.last_toolhead_pos.borrow().as_ref() == Some(&toolhead_pos) {
             return Ok(self.last_kinematics_pos.borrow().clone().unwrap_or_default());
@@ -303,7 +303,7 @@ impl ManualProbeHelper {
         Ok(kin_pos)
     }
 
-    fn move_z(&self, z_pos: f64) -> KResult<()> {
+    pub fn move_z(&self, z_pos: f64) -> KResult<()> {
         let curpos = self.toolhead.get_position();
         let res = (|| {
             let z_bob_pos = z_pos + Z_BOB_MINIMUM;
@@ -321,7 +321,7 @@ impl ManualProbeHelper {
         Ok(())
     }
 
-    fn report_z_status(&self, warn_no_change: bool, prev_pos: Option<f64>) -> KResult<()> {
+    pub fn report_z_status(&self, warn_no_change: bool, prev_pos: Option<f64>) -> KResult<()> {
         // Get position
         let kin_pos = self.get_kinematics_pos()?;
         let z_pos = kin_pos[2];
@@ -359,7 +359,7 @@ impl ManualProbeHelper {
         Ok(())
     }
 
-    fn cmd_accept(&self, gcmd: &GCodeCommand) -> KResult<()> {
+    pub fn cmd_accept(&self, gcmd: &GCodeCommand) -> KResult<()> {
         let pos = self.toolhead.get_position();
         let start_pos = self.start_position.borrow().clone();
         if pos[..2] != start_pos[..2] || pos[2] >= start_pos[2] {
@@ -369,7 +369,7 @@ impl ManualProbeHelper {
         self.finalize(true)
     }
 
-    fn cmd_testz(&self, gcmd: &GCodeCommand) -> KResult<()> {
+    pub fn cmd_testz(&self, gcmd: &GCodeCommand) -> KResult<()> {
         // Store current position for later reference
         let kin_pos = self.get_kinematics_pos()?;
         let z_pos = kin_pos[2];
@@ -420,7 +420,7 @@ impl ManualProbeHelper {
         self.report_z_status(next_z_pos != z_pos, Some(z_pos))
     }
 
-    fn finalize(&self, success: bool) -> KResult<()> {
+    pub fn finalize(&self, success: bool) -> KResult<()> {
         self.manual_probe.reset_status();
         for cmd in ["ACCEPT", "NEXT", "ABORT", "TESTZ"] {
             self.gcode.register_command(cmd, None, false, None)?;

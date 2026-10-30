@@ -24,14 +24,19 @@ pub const CHECK_RUNOUT_TIMEOUT: f64 = 0.250;
 const CMD_QUERY_FILAMENT_SENSOR_HELP: &str = "Query the status of the Filament Sensor";
 const CMD_SET_FILAMENT_SENSOR_HELP: &str = "Sets the filament sensor on/off";
 
+crate::impl_downcast!(dyn DefinedSensor);
 /// what RunoutHelper uses of its sensor (python's defined_sensor)
-pub trait DefinedSensor {
+pub trait DefinedSensor: std::any::Any {
     fn get_extruder_pos(&self, eventtime: Option<f64>) -> KResult<f64>;
     fn sensor_get_status(&self, eventtime: f64) -> PyDict;
     fn get_info(&self, gcmd: &GCodeCommand) -> KResult<bool>;
     fn reset_needed(&self, enable: Option<i64>, always_fire_events: Option<i64>) -> bool;
     fn set_filament_sensor(&self, gcmd: &GCodeCommand) -> KResult<bool>;
     fn reset(&self) -> KResult<()>;
+    /// the Rust type's path (python plugins find the Kalico class by it)
+    fn type_name(&self) -> &'static str {
+        std::any::type_name::<Self>()
+    }
 }
 
 
@@ -56,14 +61,14 @@ pub struct RunoutHelper {
     me: Weak<RunoutHelper>,
     pub name: String,
     defined_sensor: RefCell<Option<Weak<dyn DefinedSensor>>>,
-    printer: Rc<Printer>,
-    reactor: Rc<Reactor>,
-    gcode: Rc<GCodeDispatch>,
+    pub printer: Rc<Printer>,
+    pub reactor: Rc<Reactor>,
+    pub gcode: Rc<GCodeDispatch>,
     pub runout_pause: Cell<bool>,
     pub runout_gcode: RefCell<Option<GcodeSlot>>,
     pub immediate_runout_gcode: RefCell<Option<Rc<Template>>>,
     pub insert_gcode: RefCell<Option<GcodeSlot>>,
-    pause_delay: f64,
+    pub pause_delay: f64,
     pub event_delay: Cell<f64>,
     pub runout_distance: Cell<f64>,
     pub min_event_systime: Cell<f64>,
@@ -71,9 +76,9 @@ pub struct RunoutHelper {
     pub sensor_enabled: Cell<bool>,
     pub smart: Cell<bool>,
     pub always_fire_events: Cell<bool>,
-    runout_position: Cell<f64>,
+    pub runout_position: Cell<f64>,
     pub runout_elapsed: Cell<f64>,
-    runout_distance_timer: RefCell<Option<Timer>>,
+    pub runout_distance_timer: RefCell<Option<Timer>>,
     /// note_filament_present replaced by a native plugin
     pub note_hook: RefCell<Option<NoteHook>>,
     /// _runout_event_handler replaced by a native plugin
@@ -159,6 +164,11 @@ impl RunoutHelper {
         *self.defined_sensor.borrow_mut() = Some(s);
     }
 
+    /// self.defined_sensor
+    pub fn defined_sensor(&self) -> Option<Rc<dyn DefinedSensor>> {
+        self.defined_sensor.borrow().as_ref().and_then(|w| w.upgrade())
+    }
+
     fn sensor(&self) -> KResult<Rc<dyn DefinedSensor>> {
         self.defined_sensor.borrow().as_ref().and_then(|w| w.upgrade()).ok_or_else(|| KError::Other("filament sensor gone".into()))
     }
@@ -167,7 +177,7 @@ impl RunoutHelper {
         self.me.upgrade().expect("runout helper")
     }
 
-    fn runout_event_handler(&self, eventtime: f64) -> KResult<()> {
+    pub fn runout_event_handler(&self, eventtime: f64) -> KResult<()> {
         let hook = self.runout_handler_hook.borrow().clone();
         if let Some(h) = hook {
             return h(eventtime);
@@ -202,7 +212,7 @@ impl RunoutHelper {
         }
     }
 
-    fn execute_runout(&self, eventtime: f64) -> KResult<()> {
+    pub fn execute_runout(&self, eventtime: f64) -> KResult<()> {
         let mut pause_prefix = "";
         if self.runout_pause.get() {
             let pause_resume = self.printer.lookup::<PauseResume>("pause_resume")?;
@@ -228,7 +238,7 @@ impl RunoutHelper {
         }
     }
 
-    fn pause_after_distance(&self, eventtime: f64) -> f64 {
+    pub fn pause_after_distance(&self, eventtime: f64) -> f64 {
         let pos = match self.sensor().and_then(|s| s.get_extruder_pos(Some(eventtime))) {
             Ok(p) => p,
             Err(e) => {
@@ -365,7 +375,7 @@ impl RunoutHelper {
         PyVal::Dict(status)
     }
 
-    fn cmd_query_filament_sensor(&self, gcmd: &GCodeCommand) -> KResult<()> {
+    pub fn cmd_query_filament_sensor(&self, gcmd: &GCodeCommand) -> KResult<()> {
         let msg = format!(
             "Filament Sensor {}: filament {}",
             self.name,
@@ -375,7 +385,7 @@ impl RunoutHelper {
         Ok(())
     }
 
-    fn cmd_set_filament_sensor(&self, gcmd: &GCodeCommand) -> KResult<()> {
+    pub fn cmd_set_filament_sensor(&self, gcmd: &GCodeCommand) -> KResult<()> {
         let b = Lim::new().min(0).max(1);
         let enable = gcmd.get_int_opt("ENABLE", b.clone())?;
         let reset = gcmd.get_int_opt("RESET", b.clone())?;
@@ -412,15 +422,15 @@ impl RunoutHelper {
 }
 
 pub struct SwitchSensor {
-    printer: Rc<Printer>,
-    check_on_print_start: Cell<bool>,
-    reactor: Rc<Reactor>,
+    pub printer: Rc<Printer>,
+    pub check_on_print_start: Cell<bool>,
+    pub reactor: Rc<Reactor>,
     mcu: RefCell<Option<Rc<Mcu>>>,
     pub runout_helper: Rc<RunoutHelper>,
 }
 
 impl SwitchSensor {
-    fn new(config: &ConfigWrapper) -> KResult<Rc<Self>> {
+    pub fn new(config: &ConfigWrapper) -> KResult<Rc<Self>> {
         let printer = config.get_printer();
         let gcode_macro = load_gcode_macro(config)?;
         let buttons = printer.load_as::<PrinterButtons>(config, "buttons")?;
@@ -469,7 +479,7 @@ impl SwitchSensor {
         Ok(s)
     }
 
-    fn get_sensor_status(&self) -> String {
+    pub fn get_sensor_status(&self) -> String {
         let rh = &self.runout_helper;
         let tf = |b: bool| if b { "true" } else { "false" };
         format!(

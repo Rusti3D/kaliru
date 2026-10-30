@@ -27,7 +27,7 @@ const REPORT_TIME: f64 = 0.300;
 const MAX_INVALID_COUNT: i64 = 3;
 
 #[derive(Clone, Copy)]
-enum Chip {
+pub enum Chip {
     Max6675,
     Max31855,
     Max31856,
@@ -35,20 +35,20 @@ enum Chip {
 }
 
 pub struct SensorBase {
-    name: String,
-    chip: Chip,
-    chip_type: &'static str,
-    callback: RefCell<Option<TempCallback>>,
-    min_sample_value: Cell<i64>,
-    max_sample_value: Cell<i64>,
+    pub name: String,
+    pub chip: Chip,
+    pub chip_type: &'static str,
+    pub callback: RefCell<Option<TempCallback>>,
+    pub min_sample_value: Cell<i64>,
+    pub max_sample_value: Cell<i64>,
     minmax_temp: Cell<Option<(f64, f64)>>,
     last: Cell<Option<(i64, i64)>>,
-    report_clock: Cell<i64>,
-    spi: Rc<McuSpi>,
-    mcu: Rc<Mcu>,
-    oid: i64,
-    is_connected: Cell<bool>,
-    config_reg: Vec<u8>,
+    pub report_clock: Cell<i64>,
+    pub spi: Rc<McuSpi>,
+    pub mcu: Rc<Mcu>,
+    pub oid: i64,
+    pub is_connected: Cell<bool>,
+    pub config_reg: Vec<u8>,
 }
 
 fn int_of(p: &Params, k: &str) -> i64 {
@@ -99,7 +99,7 @@ impl SensorBase {
         Ok(s)
     }
 
-    fn build_config(&self) -> KResult<()> {
+    pub fn build_config(&self) -> KResult<()> {
         self.mcu.add_config_cmd(
             &format!("config_thermocouple oid={} spi_oid={} thermocouple_type={}", self.oid, self.spi.get_oid(), self.chip_type),
             false,
@@ -124,7 +124,7 @@ impl SensorBase {
         Ok(())
     }
 
-    fn handle_spi_response(&self, params: &Params) -> KResult<()> {
+    pub fn handle_spi_response(&self, params: &Params) -> KResult<()> {
         let (value, fault) = (int_of(params, "value"), int_of(params, "fault"));
         self.last.set(Some((value, fault)));
         if !self.is_connected.get() {
@@ -164,7 +164,7 @@ impl SensorBase {
         Some(format!("Sensor '{}' temperature {} not in range {:.3}:{:.3}", self.name, tempstr, min_temp, max_temp))
     }
 
-    fn report_fault(&self, msg: &str) {
+    pub fn report_fault(&self, msg: &str) {
         logging::warning(msg);
     }
 
@@ -207,7 +207,7 @@ impl SensorBase {
     }
 
     /// calc_temp(adc); None where python's math.sqrt raises ValueError
-    fn calc_temp(&self, adc: i64) -> Option<f64> {
+    pub fn calc_temp(&self, adc: i64) -> Option<f64> {
         // (scale, sign bit, value mask, mult)
         let thermocouple = |scale: u32, sign: i64, mask: i64, mult: f64| {
             let mut adc = adc >> scale;
@@ -238,7 +238,7 @@ impl SensorBase {
         }
     }
 
-    fn calc_adc(&self, temp: f64) -> i64 {
+    pub fn calc_adc(&self, temp: f64) -> i64 {
         let thermocouple = |mult: f64, max: i64, scale: u32| 0.max(max.min(((temp / mult) + 0.5).trunc() as i64)) << scale;
         match self.chip {
             Chip::Max31856 => thermocouple(MAX31856_MULT, 0x3FFFF, MAX31856_SCALE),
@@ -266,12 +266,13 @@ impl TempSensor for SensorBase {
         Ok(())
     }
 
-    fn setup_callback(&self, cb: TempCallback) {
+    fn setup_callback(&self, cb: TempCallback) -> KResult<()> {
         *self.callback.borrow_mut() = Some(cb);
+        Ok(())
     }
 
-    fn get_report_time_delta(&self) -> f64 {
-        REPORT_TIME
+    fn get_report_time_delta(&self) -> KResult<f64> {
+        Ok(REPORT_TIME)
     }
 
 }

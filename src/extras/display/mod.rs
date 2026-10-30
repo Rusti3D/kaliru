@@ -35,8 +35,9 @@ const REDRAW_TIME: f64 = 0.500;
 // Minimum time between screen redraws
 const REDRAW_MIN_TIME: f64 = 0.100;
 
+crate::impl_downcast!(dyn LcdChip);
 /// the low-level lcd handler interface (python duck types the chips)
-pub trait LcdChip {
+pub trait LcdChip: std::any::Any {
     fn init(&self) -> KResult<()>;
     fn flush(&self) -> KResult<()>;
     fn clear(&self);
@@ -48,6 +49,10 @@ pub trait LcdChip {
     fn get_dimensions(&self) -> (i64, i64);
     /// self.mcu
     fn get_mcu(&self) -> Rc<Mcu>;
+    /// the Rust type's path (python plugins find the Kalico class by it)
+    fn type_name(&self) -> &'static str {
+        std::any::type_name::<Self>()
+    }
 }
 
 type ChipFactory = fn(&ConfigWrapper) -> KResult<Rc<dyn LcdChip>>;
@@ -93,21 +98,21 @@ pub(crate) fn set_slice(buf: &mut [u8], pos: usize, data: &[u8]) {
 
 pub struct PrinterLCD {
     me: Weak<PrinterLCD>,
-    printer: Rc<Printer>,
-    reactor: Rc<Reactor>,
-    lcd_chip: Rc<dyn LcdChip>,
-    menu: RefCell<Option<Rc<menu::MenuManager>>>,
+    pub printer: Rc<Printer>,
+    pub reactor: Rc<Reactor>,
+    pub lcd_chip: Rc<dyn LcdChip>,
+    pub menu: RefCell<Option<Rc<menu::MenuManager>>>,
     templates: RefCell<Option<Rc<PrinterDisplayTemplate>>>,
-    show_data_group: RefCell<String>,
-    screen_update_timer: RefCell<Option<Timer>>,
-    redraw_request_pending: Cell<bool>,
-    redraw_time: Cell<f64>,
+    pub show_data_group: RefCell<String>,
+    pub screen_update_timer: RefCell<Option<Timer>>,
+    pub redraw_request_pending: Cell<bool>,
+    pub redraw_time: Cell<f64>,
 }
 
 const CMD_SET_DISPLAY_GROUP_HELP: &str = "Set the active display group";
 
 impl PrinterLCD {
-    fn new(config: &ConfigWrapper) -> KResult<Rc<Self>> {
+    pub fn new(config: &ConfigWrapper) -> KResult<Rc<Self>> {
         let printer = config.get_printer();
         let reactor = printer.get_reactor();
         // Load low-level lcd handler
@@ -183,7 +188,7 @@ impl PrinterLCD {
     }
 
     /// the display templates (python reads them after creating the menu)
-    fn templates(&self) -> KResult<Rc<PrinterDisplayTemplate>> {
+    pub fn templates(&self) -> KResult<Rc<PrinterDisplayTemplate>> {
         self.templates.borrow().clone().ok_or_else(|| KError::Other("'PrinterLCD' object has no attribute 'display_templates'".into()))
     }
 
@@ -191,7 +196,7 @@ impl PrinterLCD {
         self.lcd_chip.get_dimensions()
     }
 
-    fn handle_ready(&self) -> KResult<()> {
+    pub fn handle_ready(&self) -> KResult<()> {
         self.lcd_chip.init()?;
         // Start screen update timer
         if let Some(t) = self.screen_update_timer.borrow().as_ref() {
@@ -201,7 +206,7 @@ impl PrinterLCD {
     }
 
     // Screen updating
-    fn screen_update_event(&self, eventtime: f64) -> f64 {
+    pub fn screen_update_event(&self, eventtime: f64) -> f64 {
         match self.screen_update(eventtime) {
             Ok(t) => t,
             Err(e) => {
@@ -299,7 +304,7 @@ impl PrinterLCD {
         String::new()
     }
 
-    fn cmd_set_display_group(&self, gcmd: &GCodeCommand) -> KResult<()> {
+    pub fn cmd_set_display_group(&self, gcmd: &GCodeCommand) -> KResult<()> {
         let group = gcmd.get("GROUP")?;
         if !self.templates()?.display_data_groups.contains_key(&group) {
             return Err(gcmd.error(format!("Unknown display_data group '{}'", group)));

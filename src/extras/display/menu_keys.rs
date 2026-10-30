@@ -19,14 +19,14 @@ const LONG_PRESS_DURATION: f64 = 0.800;
 pub type KeyCallback = Rc<dyn Fn(&str, f64) -> KResult<()>>;
 
 pub struct MenuKeys {
-    printer: Rc<Printer>,
-    reactor: Rc<Reactor>,
+    pub printer: Rc<Printer>,
+    pub reactor: Rc<Reactor>,
     callback: KeyCallback,
-    encoder_fast_rate: f64,
-    last_encoder_cw_eventtime: Cell<f64>,
-    last_encoder_ccw_eventtime: Cell<f64>,
-    is_short_click: Cell<bool>,
-    click_timer: RefCell<Option<Timer>>,
+    pub encoder_fast_rate: f64,
+    pub last_encoder_cw_eventtime: Cell<f64>,
+    pub last_encoder_ccw_eventtime: Cell<f64>,
+    pub is_short_click: Cell<bool>,
+    pub click_timer: RefCell<Option<Timer>>,
 }
 
 impl MenuKeys {
@@ -122,20 +122,20 @@ impl MenuKeys {
     }
 
     // Rotary encoder callbacks
-    fn encoder_cw_callback(&self, eventtime: f64) -> KResult<()> {
+    pub fn encoder_cw_callback(&self, eventtime: f64) -> KResult<()> {
         let fast_rate = (eventtime - self.last_encoder_cw_eventtime.get()) <= self.encoder_fast_rate;
         self.last_encoder_cw_eventtime.set(eventtime);
         (self.callback)(if fast_rate { "fast_up" } else { "up" }, eventtime)
     }
 
-    fn encoder_ccw_callback(&self, eventtime: f64) -> KResult<()> {
+    pub fn encoder_ccw_callback(&self, eventtime: f64) -> KResult<()> {
         let fast_rate = (eventtime - self.last_encoder_ccw_eventtime.get()) <= self.encoder_fast_rate;
         self.last_encoder_ccw_eventtime.set(eventtime);
         (self.callback)(if fast_rate { "fast_down" } else { "down" }, eventtime)
     }
 
     // Click handling
-    fn long_click_event(&self, eventtime: f64) -> f64 {
+    pub fn long_click_event(&self, eventtime: f64) -> f64 {
         self.is_short_click.set(false);
         if let Err(e) = (self.callback)("long_click", eventtime) {
             crate::logging::exception_err("menu long_click", &e);
@@ -143,7 +143,7 @@ impl MenuKeys {
         NEVER
     }
 
-    fn click_callback(&self, eventtime: f64, state: bool) -> KResult<()> {
+    pub fn click_callback(&self, eventtime: f64, state: bool) -> KResult<()> {
         let timer = self.click_timer.borrow().clone();
         if state {
             self.is_short_click.set(true);

@@ -32,15 +32,15 @@ fn pin_mcu(printer: &Printer, pin_params: &SharedPinParams) -> KResult<Rc<Mcu>> 
 // ----------------------------------------------------------------------
 
 pub struct McuAnalogMux {
-    mcu: Rc<Mcu>,
-    oids: Vec<i64>,
-    pins: Vec<String>,
-    pin_values: RefCell<Vec<i64>>,
-    update_pin_cmd: RefCell<Option<CommandWrapper>>,
+    pub mcu: Rc<Mcu>,
+    pub oids: Vec<i64>,
+    pub pins: Vec<String>,
+    pub pin_values: RefCell<Vec<i64>>,
+    pub update_pin_cmd: RefCell<Option<CommandWrapper>>,
 }
 
 impl McuAnalogMux {
-    fn new(mcu: &Rc<Mcu>, cmd_queue: &CommandQueue, select_pins_desc: &[String]) -> KResult<Rc<Self>> {
+    pub fn new(mcu: &Rc<Mcu>, cmd_queue: &CommandQueue, select_pins_desc: &[String]) -> KResult<Rc<Self>> {
         let printer = mcu.get_printer();
         let ppins = printer.lookup::<PinsObject>("pins")?;
         let mut pins = vec![];
@@ -67,7 +67,7 @@ impl McuAnalogMux {
         Ok(m)
     }
 
-    fn get_instance_id(&self, select_pins_desc: &[String]) -> KResult<Vec<i64>> {
+    pub fn get_instance_id(&self, select_pins_desc: &[String]) -> KResult<Vec<i64>> {
         let printer = self.mcu.get_printer();
         let ppins = printer.lookup::<PinsObject>("pins")?;
         let mut params = vec![];
@@ -86,7 +86,7 @@ impl McuAnalogMux {
         Ok(params.iter().map(|pp| (pp.invert == 0) as i64).collect())
     }
 
-    fn activate(&self, instance_id: &[i64]) -> KResult<()> {
+    pub fn activate(&self, instance_id: &[i64]) -> KResult<()> {
         let old_values = self.pin_values.borrow().clone();
         for ((oid, old), new) in self.oids.iter().zip(&old_values).zip(instance_id) {
             if old != new {
@@ -107,13 +107,13 @@ impl McuAnalogMux {
 // Share mutexes so only one active tmc_uart command on a single mcu at
 // a time. This helps limit cpu usage on slower micro-controllers.
 pub struct PrinterTMCUartMutexes {
-    mcu_to_mutex: RefCell<Vec<(Rc<Mcu>, Rc<ReactorMutex>)>>,
+    pub mcu_to_mutex: RefCell<Vec<(Rc<Mcu>, Rc<ReactorMutex>)>>,
 }
 
 impl PrinterObject for PrinterTMCUartMutexes {
 }
 
-fn lookup_tmc_uart_mutex(mcu: &Rc<Mcu>) -> KResult<Rc<ReactorMutex>> {
+pub fn lookup_tmc_uart_mutex(mcu: &Rc<Mcu>) -> KResult<Rc<ReactorMutex>> {
     let printer = mcu.get_printer();
     let pmutexes = match printer.lookup_object_opt("tmc_uart").and_then(downcast_rc::<PrinterTMCUartMutexes>) {
         Some(p) => p,
@@ -139,15 +139,15 @@ type InstanceId = Option<Vec<i64>>;
 
 // Code for sending messages on a TMC uart
 pub struct McuTmcUartBitbang {
-    mcu: Rc<Mcu>,
-    mutex: Rc<ReactorMutex>,
-    pullup: i64,
-    rx_pin: String,
-    tx_pin: String,
-    oid: i64,
-    analog_mux: Option<Rc<McuAnalogMux>>,
+    pub mcu: Rc<Mcu>,
+    pub mutex: Rc<ReactorMutex>,
+    pub pullup: i64,
+    pub rx_pin: String,
+    pub tx_pin: String,
+    pub oid: i64,
+    pub analog_mux: Option<Rc<McuAnalogMux>>,
     instances: RefCell<Vec<(InstanceId, i64)>>,
-    tmcuart_send_cmd: RefCell<Option<CommandQueryWrapper>>,
+    pub tmcuart_send_cmd: RefCell<Option<CommandQueryWrapper>>,
 }
 
 impl McuTmcUartBitbang {
@@ -356,15 +356,15 @@ fn lookup_tmc_uart_bitbang(config: &ConfigWrapper, max_addr: i64) -> KResult<(In
 
 // Helper code for communicating via TMC uart
 pub struct McuTmcUart {
-    printer: Rc<Printer>,
-    name: String,
-    name_to_reg: IndexMap<String, i64>,
-    fields: Rc<FieldHelper>,
-    ifcnt: RefCell<Option<i64>>,
+    pub printer: Rc<Printer>,
+    pub name: String,
+    pub name_to_reg: IndexMap<String, i64>,
+    pub fields: Rc<FieldHelper>,
+    pub ifcnt: RefCell<Option<i64>>,
     instance_id: InstanceId,
-    addr: i64,
-    mcu_uart: Rc<McuTmcUartBitbang>,
-    tmc_frequency: f64,
+    pub addr: i64,
+    pub mcu_uart: Rc<McuTmcUartBitbang>,
+    pub tmc_frequency: f64,
 }
 
 impl McuTmcUart {

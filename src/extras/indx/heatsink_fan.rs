@@ -18,11 +18,11 @@ pub struct IndxHeatsinkFan {
     printer: Rc<Printer>,
     mcu: Rc<Mcu>,
     pub fan: Rc<Fan>,
-    check_timer: RefCell<Option<Timer>>,
-    active_stopped_count: Cell<i64>,
-    is_active: Cell<bool>,
+    pub check_timer: RefCell<Option<Timer>>,
+    pub active_stopped_count: Cell<i64>,
+    pub is_active: Cell<bool>,
     pub steppers: RefCell<Vec<Rc<EnableTracking>>>,
-    heaters: RefCell<Vec<Rc<Heater>>>,
+    pub heaters: RefCell<Vec<Rc<Heater>>>,
 }
 
 impl IndxHeatsinkFan {
@@ -67,7 +67,7 @@ impl IndxHeatsinkFan {
         Ok(f)
     }
 
-    fn handle_ready(self: &Rc<Self>) -> KResult<()> {
+    pub fn handle_ready(self: &Rc<Self>) -> KResult<()> {
         let reactor = self.printer.get_reactor();
         let w = Rc::downgrade(self);
         let timer = reactor.register_timer(
@@ -89,7 +89,7 @@ impl IndxHeatsinkFan {
         Ok(())
     }
 
-    fn handle_shutdown(&self) {
+    pub fn handle_shutdown(&self) {
         if let Some(t) = self.check_timer.borrow().as_ref() {
             self.printer.get_reactor().update_timer(t, NEVER);
         }
@@ -99,7 +99,7 @@ impl IndxHeatsinkFan {
         self.heaters.borrow_mut().push(heater);
     }
 
-    fn check_event(&self, eventtime: f64) -> f64 {
+    pub fn check_event(&self, eventtime: f64) -> f64 {
         let mut activate = false;
 
         for heater in self.heaters.borrow().iter() {

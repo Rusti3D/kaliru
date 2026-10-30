@@ -21,17 +21,17 @@ const CMD_CLEAR_PAUSE_HELP: &str = "Clears the current paused state without resu
 const CMD_CANCEL_PRINT_HELP: &str = "Cancel the current print";
 
 pub struct PauseResume {
-    printer: Rc<Printer>,
-    gcode: Rc<GCodeDispatch>,
-    recover_velocity: f64,
-    v_sd: RefCell<Option<Rc<VirtualSD>>>,
+    pub printer: Rc<Printer>,
+    pub gcode: Rc<GCodeDispatch>,
+    pub recover_velocity: f64,
+    pub v_sd: RefCell<Option<Rc<VirtualSD>>>,
     pub is_paused: Cell<bool>,
-    sd_paused: Cell<bool>,
-    pause_command_sent: Cell<bool>,
+    pub sd_paused: Cell<bool>,
+    pub pause_command_sent: Cell<bool>,
 }
 
 impl PauseResume {
-    fn new(config: &ConfigWrapper) -> KResult<Rc<Self>> {
+    pub fn new(config: &ConfigWrapper) -> KResult<Rc<Self>> {
         let printer = config.get_printer();
         let gcode = printer.lookup::<GCodeDispatch>("gcode")?;
         let recover_velocity = config.getfloat("recover_velocity", 50.0, Lim::new())?;
@@ -129,13 +129,13 @@ impl PauseResume {
         Ok(())
     }
 
-    fn cmd_clear_pause(&self, _gcmd: &GCodeCommand) -> KResult<()> {
+    pub fn cmd_clear_pause(&self, _gcmd: &GCodeCommand) -> KResult<()> {
         self.is_paused.set(false);
         self.pause_command_sent.set(false);
         Ok(())
     }
 
-    fn cmd_cancel_print(&self, gcmd: &GCodeCommand) -> KResult<()> {
+    pub fn cmd_cancel_print(&self, gcmd: &GCodeCommand) -> KResult<()> {
         if self.is_sd_active() || self.sd_paused.get() {
             self.v_sd()?.do_cancel()?;
         } else {

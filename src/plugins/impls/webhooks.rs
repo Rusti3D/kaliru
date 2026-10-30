@@ -4,7 +4,8 @@ use crate::method;
 use crate::pyval::PyDict;
 use crate::plugins::convert::{FromPy, ToPy};
 use crate::plugins::native::Args;
-use crate::webhooks::{Ty, WebHooks, WebRequest};
+use crate::plugins::callable::py_function;
+use crate::webhooks::{ClientConnection, ServerSocket, Ty, WebHooks, WebRequest};
 use crate::IndexMap;
 
 pub fn register(r: &mut Registry) {
@@ -30,6 +31,28 @@ pub fn register(r: &mut Registry) {
         let names = objects::unwrap_as::<WebHooks>(o)?.remote_method_names();
         let d: PyDict = names.into_iter().map(|n| (n.into(), PyVal::Dict(IndexMap::default()))).collect();
         Ok(from_pyval(&PyVal::Dict(d)))
+    }, None);
+    // get_callback(path): the endpoint as a callable taking the request
+    r.method("klippy.webhooks.WebHooks.get_callback", |a| {
+        let cb = a.this::<WebHooks>()?.get_callback(&a.string(0)?)?;
+        py_function(Rc::new(move |args: &[PyRef]| {
+            cb(&*objects::unwrap_as::<WebRequest>(&args[0])?)?;
+            Ok(py_none())
+        }))
+    });
+    // WebRequest(client_conn, request): json.loads raises python's own error
+    r.ctor("klippy.webhooks.WebRequest.__init__", |a| {
+        let request = a.string(1)?;
+        lookup("json", "loads")?.call(&[a.arg(1)])?;
+        let conn = if a.arg(0).is_none() { None } else { Some(objects::unwrap_as::<ClientConnection>(a.arg(0))?) };
+        let w: Rc<dyn Any> = Rc::new(WebRequest::new(conn, &request).map_err(|e| KError::Py("ValueError".into(), e))?);
+        Ok(w)
+    });
+    r.attr("klippy.webhooks.ClientConnection.reactor", |o| objects::unwrap_as::<ClientConnection>(o)?.printer.get_reactor().to_py(), None);
+    r.attr("klippy.webhooks.ServerSocket.reactor", |o| objects::unwrap_as::<ServerSocket>(o)?.printer.get_reactor().to_py(), None);
+    r.attr("klippy.webhooks.GCodeHelper.printer", |o| {
+        objects::unwrap_as::<crate::webhooks::GCodeHelper>(o)?;
+        printer().ok_or_else(|| KError::Other("kaliru: no printer".into()))?.to_py()
     }, None);
 
     method!(r, "klippy.webhooks.WebRequest", WebRequest, get_method(w) => w.get_method().to_string());

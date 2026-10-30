@@ -55,7 +55,7 @@ crate::impl_downcast!(dyn ExtraAxis);
 pub trait ExtraAxis: std::any::Any {
     fn check_move(&self, mv: &mut Move, ea_index: usize) -> KResult<()>;
     fn find_past_position(&self, print_time: f64) -> f64;
-    fn calc_junction(&self, prev_move: &Move, mv: &Move, ea_index: usize) -> f64;
+    fn calc_junction(&self, prev_move: &Move, mv: &Move, ea_index: usize) -> KResult<f64>;
     fn process_move(&self, print_time: f64, mv: &Move, ea_index: usize) -> KResult<()>;
     fn get_name(&self) -> String;
     fn get_trapq(&self) -> Option<TrapQRef>;
@@ -65,6 +65,10 @@ pub trait ExtraAxis: std::any::Any {
     fn get_heater(&self) -> KResult<Rc<crate::extras::heaters::Heater>> {
         Err(KError::Other("object has no attribute 'get_heater'".into()))
     }
+    /// the Rust type's path (python plugins find the Kalico class by it)
+    fn type_name(&self) -> &'static str {
+        std::any::type_name::<Self>()
+    }
 }
 
 pub type ExtraAxisRef = Rc<dyn ExtraAxis>;
@@ -73,6 +77,7 @@ pub type ExtraAxisRef = Rc<dyn ExtraAxis>;
 pub type TimingCallback = Rc<dyn Fn(f64) -> KResult<()>>;
 
 // Class to track each move request
+#[derive(Clone)]
 pub struct Move {
     pub start_pos: Vec<f64>,
     pub end_pos: Vec<f64>,
@@ -99,7 +104,7 @@ pub struct Move {
 }
 
 impl Move {
-    fn new(toolhead: &ToolHead, start_pos: &[f64], end_pos: &[f64], speed: f64) -> Move {
+    pub fn new(toolhead: &ToolHead, start_pos: &[f64], end_pos: &[f64], speed: f64) -> Move {
         let mut accel = toolhead.max_accel.get();
         let mut velocity = py_min(speed, toolhead.max_velocity.get());
         let mut is_kinematic_move = true;
@@ -173,9 +178,9 @@ impl Move {
         KError::command(format!("{}: {:.3} {:.3} {:.3} [{:.3}]", msg, ep[0], ep[1], ep[2], ep[3]))
     }
 
-    fn calc_junction(&mut self, prev_move: &Move, extra_axes: &[ExtraAxisRef]) {
+    pub fn calc_junction(&mut self, prev_move: &Move, extra_axes: &[ExtraAxisRef]) -> KResult<()> {
         if !self.is_kinematic_move || !prev_move.is_kinematic_move {
-            return;
+            return Ok(());
         }
         // Allow extra axes to calculate maximum junction
         let mut limits = vec![
@@ -185,7 +190,7 @@ impl Move {
             prev_move.max_start_v2 + prev_move.delta_v2,
         ];
         for (e_index, ea) in extra_axes.iter().enumerate() {
-            limits.push(ea.calc_junction(prev_move, self, e_index + 3));
+            limits.push(ea.calc_junction(prev_move, self, e_index + 3)?);
         }
         let mut max_start_v2 = py_min_of(&limits);
         // Find max velocity using "approximated centripetal velocity"
@@ -210,9 +215,10 @@ impl Move {
         // Apply limits
         self.max_start_v2 = max_start_v2;
         self.max_smoothed_v2 = py_min(max_start_v2, prev_move.max_smoothed_v2 + prev_move.smooth_delta_v2);
+        Ok(())
     }
 
-    fn set_junction(&mut self, start_v2: f64, cruise_v2: f64, end_v2: f64) {
+    pub fn set_junction(&mut self, start_v2: f64, cruise_v2: f64, end_v2: f64) {
         // Determine accel, cruise, and decel portions of the move distance
         let half_inv_accel = 0.5 / self.accel;
         let accel_d = (cruise_v2 - start_v2) * half_inv_accel;
@@ -239,11 +245,17 @@ pub const LOOKAHEAD_FLUSH_TIME: f64 = 0.250;
 // "look-ahead" across moves to reduce acceleration between moves.
 pub struct LookAheadQueue {
     pub queue: Vec<Move>,
-    junction_flush: f64,
+    pub junction_flush: f64,
+}
+
+impl Default for LookAheadQueue {
+    fn default() -> Self {
+        Self::new()
+    }
 }
 
 impl LookAheadQueue {
-    fn new() -> Self {
+    pub fn new() -> Self {
         LookAheadQueue { queue: vec![], junction_flush: LOOKAHEAD_FLUSH_TIME }
     }
 
@@ -318,17 +330,17 @@ impl LookAheadQueue {
         queue.drain(..flush_count).collect()
     }
 
-    /// add_move(); Some(want_flush), None for the first move
-    pub fn add_move(&mut self, mut mv: Move, extra_axes: &[ExtraAxisRef]) -> bool {
+    /// add_move(): whether enough moves are queued to flush
+    pub fn add_move(&mut self, mut mv: Move, extra_axes: &[ExtraAxisRef]) -> KResult<bool> {
         if let Some(prev) = self.queue.last() {
-            mv.calc_junction(prev, extra_axes);
+            mv.calc_junction(prev, extra_axes)?;
             self.junction_flush -= mv.min_move_t;
             self.queue.push(mv);
             // Check if enough moves have been queued to reach the target flush time.
-            return self.junction_flush <= 0.0;
+            return Ok(self.junction_flush <= 0.0);
         }
         self.queue.push(mv);
-        false
+        Ok(false)
     }
 }
 
@@ -337,12 +349,12 @@ pub const BUFFER_TIME_START: f64 = 0.250;
 
 // Main code to track events (and their timing) on the printer toolhead
 pub struct ToolHead {
-    me: std::rc::Weak<ToolHead>,
-    printer: Rc<Printer>,
-    reactor: Rc<Reactor>,
-    pub(crate) mcu: Rc<Mcu>,
+    pub me: std::rc::Weak<ToolHead>,
+    pub printer: Rc<Printer>,
+    pub reactor: Rc<Reactor>,
+    pub mcu: Rc<Mcu>,
     pub lookahead: RefCell<LookAheadQueue>,
-    commanded_pos: RefCell<Vec<f64>>,
+    pub commanded_pos: RefCell<Vec<f64>>,
     // Velocity and acceleration control
     pub max_velocity: Cell<f64>,
     pub max_accel: Cell<f64>,
@@ -352,20 +364,20 @@ pub struct ToolHead {
     pub junction_deviation: Cell<f64>,
     pub max_accel_to_decel: Cell<f64>,
     // Input stall detection
-    pub(crate) check_stall_time: Cell<f64>,
-    print_stall: Cell<i64>,
+    pub check_stall_time: Cell<f64>,
+    pub print_stall: Cell<i64>,
     // Input pause tracking
-    pub(crate) can_pause: Cell<bool>,
-    pub(crate) need_check_pause: Cell<f64>,
+    pub can_pause: Cell<bool>,
+    pub need_check_pause: Cell<f64>,
     // Print time tracking
-    pub(crate) print_time: Cell<f64>,
-    pub(crate) special_queuing_state: RefCell<&'static str>,
-    priming_timer: RefCell<Option<Timer>>,
+    pub print_time: Cell<f64>,
+    pub special_queuing_state: RefCell<&'static str>,
+    pub priming_timer: RefCell<Option<Timer>>,
     // Setup for generating moves
-    motion_queuing: Rc<PrinterMotionQueuing>,
-    trapq: TrapQRef,
-    extra_axes: RefCell<Vec<ExtraAxisRef>>,
-    kin: RefCell<Option<Rc<dyn Kinematics>>>,
+    pub motion_queuing: Rc<PrinterMotionQueuing>,
+    pub trapq: TrapQRef,
+    pub extra_axes: RefCell<Vec<ExtraAxisRef>>,
+    pub kin: RefCell<Option<Rc<dyn Kinematics>>>,
 }
 
 /// the velocity limits ToolHead.__init__ reads
@@ -493,7 +505,7 @@ impl ToolHead {
         self.lookahead.borrow_mut().get_last().map(|m| m.min_move_t)
     }
 
-    fn kin(&self) -> Rc<dyn Kinematics> {
+    pub fn kin(&self) -> Rc<dyn Kinematics> {
         self.kin.borrow().clone().expect("kinematics")
     }
 
@@ -509,11 +521,11 @@ impl ToolHead {
     }
 
     // Print time tracking
-    fn advance_move_time(&self, next_print_time: f64) {
+    pub fn advance_move_time(&self, next_print_time: f64) {
         self.print_time.set(py_max(self.print_time.get(), next_print_time));
     }
 
-    fn calc_print_time(&self) -> KResult<()> {
+    pub fn calc_print_time(&self) -> KResult<()> {
         let curtime = self.reactor.monotonic();
         let est_print_time = self.mcu.estimated_print_time(curtime);
         let kin_time = self.motion_queuing.calc_step_gen_restart(est_print_time);
@@ -526,7 +538,7 @@ impl ToolHead {
         Ok(())
     }
 
-    fn process_lookahead(&self, lazy: bool) -> KResult<()> {
+    pub fn process_lookahead(&self, lazy: bool) -> KResult<()> {
         let moves = self.lookahead.borrow_mut().flush(lazy);
         if moves.is_empty() {
             return Ok(());
@@ -578,7 +590,7 @@ impl ToolHead {
         Ok(())
     }
 
-    fn flush_lookahead(&self, is_runout: bool) -> KResult<()> {
+    pub fn flush_lookahead(&self, is_runout: bool) -> KResult<()> {
         // Transit from "NeedPrime"/"Priming"/main state to "NeedPrime"
         let prev_print_time = self.print_time.get();
         self.process_lookahead(false)?;
@@ -607,7 +619,7 @@ impl ToolHead {
         Ok(self.print_time.get())
     }
 
-    fn check_pause(&self) -> KResult<()> {
+    pub fn check_pause(&self) -> KResult<()> {
         let mut eventtime = self.reactor.monotonic();
         let mut est_print_time = self.mcu.estimated_print_time(eventtime);
         let mut buffer_time = self.print_time.get() - est_print_time;
@@ -659,7 +671,7 @@ impl ToolHead {
         Ok(())
     }
 
-    fn priming_handler(&self, _eventtime: f64) -> f64 {
+    pub fn priming_handler(&self, _eventtime: f64) -> f64 {
         if let Some(t) = self.priming_timer.borrow_mut().take() {
             self.reactor.unregister_timer(&t);
         }
@@ -671,7 +683,7 @@ impl ToolHead {
         NEVER
     }
 
-    fn handle_step_flush(&self, _flush_time: f64, step_gen_time: f64) -> KResult<()> {
+    pub fn handle_step_flush(&self, _flush_time: f64, step_gen_time: f64) -> KResult<()> {
         if !self.special_queuing_state.borrow().is_empty() {
             return Ok(());
         }
@@ -718,7 +730,7 @@ impl ToolHead {
             }
         }
         *self.commanded_pos.borrow_mut() = mv.end_pos.clone();
-        let want_flush = self.lookahead.borrow_mut().add_move(mv, &extra_axes);
+        let want_flush = self.lookahead.borrow_mut().add_move(mv, &extra_axes)?;
         if want_flush {
             self.process_lookahead(true)?;
         }
@@ -798,12 +810,12 @@ impl ToolHead {
 
     // Homing "drip move" handling
 
-    fn drip_load_trapq(&self, submit_move: Move) -> (f64, f64) {
+    pub fn drip_load_trapq(&self, submit_move: Move) -> KResult<(f64, f64)> {
         // Queue move into trapezoid motion queue (trapq)
         let extra_axes = self.extra_axes.borrow().clone();
         if submit_move.move_d != 0.0 {
             *self.commanded_pos.borrow_mut() = submit_move.end_pos.clone();
-            self.lookahead.borrow_mut().add_move(submit_move, &extra_axes);
+            self.lookahead.borrow_mut().add_move(submit_move, &extra_axes)?;
         }
         let moves = self.lookahead.borrow_mut().flush(false);
         // _calc_print_time() errors come from event handlers
@@ -829,10 +841,10 @@ impl ToolHead {
             end_time = end_time + mv.accel_t + mv.cruise_t + mv.decel_t;
         }
         self.lookahead.borrow_mut().reset();
-        (start_time, end_time)
+        Ok((start_time, end_time))
     }
 
-    pub fn drip_move(&self, newpos: &[f64], speed: f64, drip_completion: &Rc<crate::reactor::ReactorCompletion<bool>>) -> KResult<()> {
+    pub fn drip_move(&self, newpos: &[f64], speed: f64, drip_completion: &dyn crate::extras::motion_queuing::DripCompletion) -> KResult<()> {
         // Create and verify move is valid
         let commanded_pos = self.commanded_pos.borrow().clone();
         let mut newpos: Vec<f64> = newpos[..3].to_vec();
@@ -846,7 +858,7 @@ impl ToolHead {
         self.dwell(kin_flush_delay)?;
         // Transmit move in "drip" mode
         self.process_lookahead(false)?;
-        let (start_time, end_time) = self.drip_load_trapq(mv);
+        let (start_time, end_time) = self.drip_load_trapq(mv)?;
         self.motion_queuing.drip_update_time(start_time, end_time, drip_completion)?;
         // Move finished; cleanup any remnants on trapq
         self.motion_queuing.wipe_trapq(&self.trapq);
@@ -860,7 +872,7 @@ impl ToolHead {
         (self.print_time.get(), est_print_time, lookahead_empty)
     }
 
-    fn handle_shutdown(&self) {
+    pub fn handle_shutdown(&self) {
         self.can_pause.set(false);
         self.lookahead.borrow_mut().reset();
     }
@@ -888,7 +900,7 @@ impl ToolHead {
         (self.max_velocity.get(), self.max_accel.get())
     }
 
-    fn calc_junction_deviation(&self) {
+    pub fn calc_junction_deviation(&self) {
         let scv2 = self.square_corner_velocity.get() * self.square_corner_velocity.get();
         self.junction_deviation.set(scv2 * (2.0f64.sqrt() - 1.0) / self.max_accel.get());
         self.max_accel_to_decel.set(self.max_accel.get() * (1.0 - self.min_cruise_ratio.get()));
@@ -972,9 +984,9 @@ impl PrinterObject for ToolHead {
 }
 
 // Support common G-Code commands relative to the toolhead
-struct ToolHeadCommandHelper {
-    printer: Rc<Printer>,
-    toolhead: Rc<ToolHead>,
+pub struct ToolHeadCommandHelper {
+    pub printer: Rc<Printer>,
+    pub toolhead: Rc<ToolHead>,
 }
 
 const CMD_SET_VELOCITY_LIMIT_HELP: &str = "Set printer velocity limits";
@@ -982,6 +994,11 @@ const CMD_RESET_VELOCITY_LIMIT_HELP: &str = "Reset printer velocity limits";
 
 impl ToolHeadCommandHelper {
     fn register(config: &ConfigWrapper) -> KResult<()> {
+        Self::new(config).map(|_| ())
+    }
+
+    /// ToolHeadCommandHelper(config): registers its commands
+    pub fn new(config: &ConfigWrapper) -> KResult<Rc<Self>> {
         let printer = config.get_printer();
         let toolhead = printer.lookup::<ToolHead>("toolhead")?;
         let h = Rc::new(ToolHeadCommandHelper { printer: printer.clone(), toolhead });
@@ -1005,23 +1022,23 @@ impl ToolHeadCommandHelper {
             false,
             Some(CMD_RESET_VELOCITY_LIMIT_HELP),
         )?;
-        let c = h;
+        let c = h.clone();
         gcode.register_command("M204", Some(Rc::new(move |g| c.cmd_m204(g))), false, None)?;
-        Ok(())
+        Ok(h)
     }
 
-    fn cmd_g4(&self, gcmd: &GCodeCommand) -> KResult<()> {
+    pub fn cmd_g4(&self, gcmd: &GCodeCommand) -> KResult<()> {
         // Dwell
         let delay = gcmd.get_float("P", Some(0.0), Lim::new().min(0.0))? / 1000.0;
         self.toolhead.dwell(delay)
     }
 
-    fn cmd_m400(&self, _gcmd: &GCodeCommand) -> KResult<()> {
+    pub fn cmd_m400(&self, _gcmd: &GCodeCommand) -> KResult<()> {
         // Wait for current moves to finish
         self.toolhead.wait_moves()
     }
 
-    fn cmd_set_velocity_limit(&self, gcmd: &GCodeCommand) -> KResult<()> {
+    pub fn cmd_set_velocity_limit(&self, gcmd: &GCodeCommand) -> KResult<()> {
         let max_velocity = gcmd.get_float_opt("VELOCITY", Lim::new().above(0.0))?;
         let max_accel = gcmd.get_float_opt("ACCEL", Lim::new().above(0.0))?;
         let square_corner_velocity = gcmd.get_float_opt("SQUARE_CORNER_VELOCITY", Lim::new().min(0.0))?;
@@ -1058,7 +1075,7 @@ impl ToolHeadCommandHelper {
         Ok(())
     }
 
-    fn cmd_reset_velocity_limit(&self, gcmd: &GCodeCommand) -> KResult<()> {
+    pub fn cmd_reset_velocity_limit(&self, gcmd: &GCodeCommand) -> KResult<()> {
         let kin = self.toolhead.get_kinematics();
         let orig_cfg = self.toolhead.orig_cfg.borrow().clone();
         let (mv, ma, scv, mcr) = self.toolhead.set_max_velocities(
@@ -1082,7 +1099,7 @@ impl ToolHeadCommandHelper {
         Ok(())
     }
 
-    fn cmd_m204(&self, gcmd: &GCodeCommand) -> KResult<()> {
+    pub fn cmd_m204(&self, gcmd: &GCodeCommand) -> KResult<()> {
         // Use S for accel
         let mut accel = gcmd.get_float_opt("S", Lim::new().above(0.0))?;
         if accel.is_none() {

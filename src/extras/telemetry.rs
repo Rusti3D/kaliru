@@ -18,28 +18,34 @@ use std::rc::Rc;
 pub const TELEMETRY_ENDPOINT: &str = "https://telemetry.kalico.gg/collect";
 
 pub struct KalicoTelemetry {
-    printer: Rc<Printer>,
-    enabled: Option<bool>,
+    pub printer: Rc<Printer>,
+    pub enabled: Option<bool>,
 }
 
 impl KalicoTelemetry {
-    fn new(config: &ConfigWrapper) -> KResult<Rc<Self>> {
+    pub fn new(config: &ConfigWrapper) -> KResult<Rc<Self>> {
         let printer = config.get_printer();
         let enabled = config.getboolean_opt("enabled")?;
         let t = Rc::new(KalicoTelemetry { printer: printer.clone(), enabled });
 
         let gcode = printer.lookup::<GCodeDispatch>("gcode")?;
         let c = t.clone();
-        gcode.register_command("TELEMETRY_EXAMPLE", Some(Rc::new(move |g| c.cmd_telemetry_example(g))), true, None)?;
+        // python's gcode help falls back to the handlers' docstrings
+        gcode.register_command(
+            "TELEMETRY_EXAMPLE",
+            Some(Rc::new(move |g| c.cmd_telemetry_example(g))),
+            true,
+            Some("Save an example of the current machine telemetry to 'telemetry.json'"),
+        )?;
 
         if enabled != Some(true) {
             let c = t.clone();
-            gcode.register_command("ENABLE_TELEMETRY", Some(Rc::new(move |g| c.cmd_set_telemetry(g, true))), false, None)?;
+            gcode.register_command("ENABLE_TELEMETRY", Some(Rc::new(move |g| c.cmd_set_telemetry(g, true))), false, Some("Enable Kalico telemetry reporting"))?;
         }
 
         if enabled != Some(false) {
             let c = t.clone();
-            gcode.register_command("DISABLE_TELEMETRY", Some(Rc::new(move |g| c.cmd_set_telemetry(g, false))), false, None)?;
+            gcode.register_command("DISABLE_TELEMETRY", Some(Rc::new(move |g| c.cmd_set_telemetry(g, false))), false, Some("Disable Kalico telemetry reporting"))?;
         }
 
         if enabled.is_none() {
@@ -60,7 +66,7 @@ impl KalicoTelemetry {
         Ok(t)
     }
 
-    fn telemetry_prompt(&self) -> KResult<()> {
+    pub fn telemetry_prompt(&self) -> KResult<()> {
         if self.printer.start_arg("debuginput").map(|v| v.truthy()).unwrap_or(false) {
             return Ok(());
         }
@@ -102,7 +108,7 @@ impl KalicoTelemetry {
         Ok(())
     }
 
-    fn handle_ready(&self) {
+    pub fn handle_ready(&self) {
         match self.collect_telemetry() {
             Ok(data) => send(data),
             Err(_) => {
@@ -117,7 +123,7 @@ impl KalicoTelemetry {
         Path::new(&config_file).parent().map(|p| p.to_path_buf()).unwrap_or_default()
     }
 
-    fn cmd_telemetry_example(&self, gcmd: &GCodeCommand) -> KResult<()> {
+    pub fn cmd_telemetry_example(&self, gcmd: &GCodeCommand) -> KResult<()> {
         let filename = self.config_dir().join("telemetry.json");
         let data = self.collect_telemetry()?;
         let text = data.json_indent(2);
@@ -128,7 +134,7 @@ impl KalicoTelemetry {
     }
 
     // Get the freedesktop machine-id if available, otherwise generate and save our own
-    fn get_machine_id(&self) -> KResult<String> {
+    pub fn get_machine_id(&self) -> KResult<String> {
         let machine_id = Path::new("/etc/machine-id");
         let kalico_machine_id = self.config_dir().join(".machine-id");
         let read = |p: &Path| {
@@ -150,7 +156,7 @@ impl KalicoTelemetry {
 
     // Generate an anonymized version of the current printer configuration.
     // Only section and option names are submitted
-    fn collect_anonymized_config(&self) -> KResult<PyVal> {
+    pub fn collect_anonymized_config(&self) -> KResult<PyVal> {
         let configfile = self.printer.lookup::<ConfigFileObject>("configfile")?;
         let pconfig = configfile.pconfig.borrow();
         let mut res = IndexMap::default();
@@ -169,7 +175,7 @@ impl KalicoTelemetry {
     }
 
     // Collect basic platform information
-    fn collect_platform(&self) -> PyVal {
+    pub fn collect_platform(&self) -> PyVal {
         // SAFETY: utsname is plain data: zeroed is valid
         let mut uts: libc::utsname = unsafe { std::mem::zeroed() };
         // SAFETY: uts is a live utsname
@@ -187,7 +193,7 @@ impl KalicoTelemetry {
     }
 
     // Collect the full telemetry for submission
-    fn collect_telemetry(&self) -> KResult<PyVal> {
+    pub fn collect_telemetry(&self) -> KResult<PyVal> {
         let machine_id = self.get_machine_id()?;
         let arg = |k: &str| self.printer.start_arg(k).unwrap_or_else(|| PyVal::from("unknown"));
         let mut d = crate::pydict! {

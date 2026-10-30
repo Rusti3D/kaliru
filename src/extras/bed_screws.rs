@@ -21,22 +21,22 @@ type Screw = ((f64, f64), String);
 
 pub struct BedScrews {
     me: Weak<BedScrews>,
-    printer: Rc<Printer>,
-    state: RefCell<Option<&'static str>>,
-    current_screw: Cell<usize>,
-    accepted_screws: Cell<i64>,
-    number_of_screws: i64,
+    pub printer: Rc<Printer>,
+    pub state: RefCell<Option<&'static str>>,
+    pub current_screw: Cell<usize>,
+    pub accepted_screws: Cell<i64>,
+    pub number_of_screws: i64,
     adjust: Vec<Screw>,
     fine: Vec<Screw>,
-    speed: f64,
-    lift_speed: f64,
-    horizontal_move_z: f64,
-    probe_z: f64,
-    gcode: Rc<GCodeDispatch>,
+    pub speed: f64,
+    pub lift_speed: f64,
+    pub horizontal_move_z: f64,
+    pub probe_z: f64,
+    pub gcode: Rc<GCodeDispatch>,
 }
 
 impl BedScrews {
-    fn new(config: &ConfigWrapper) -> KResult<Rc<Self>> {
+    pub fn new(config: &ConfigWrapper) -> KResult<Rc<Self>> {
         let printer = config.get_printer();
         // Read config
         let mut screws = vec![];
@@ -91,7 +91,7 @@ impl BedScrews {
         Ok(bs)
     }
 
-    fn reset(&self) {
+    pub fn reset(&self) {
         *self.state.borrow_mut() = None;
         self.current_screw.set(0);
         self.accepted_screws.set(0);
@@ -149,14 +149,14 @@ impl BedScrews {
         Ok(())
     }
 
-    fn unregister_commands(&self) -> KResult<()> {
+    pub fn unregister_commands(&self) -> KResult<()> {
         for cmd in ["ACCEPT", "ADJUSTED", "ABORT"] {
             self.gcode.register_command(cmd, None, false, None)?;
         }
         Ok(())
     }
 
-    fn cmd_bed_screws_adjust(&self, gcmd: &GCodeCommand) -> KResult<()> {
+    pub fn cmd_bed_screws_adjust(&self, gcmd: &GCodeCommand) -> KResult<()> {
         if self.state.borrow().is_some() {
             return Err(gcmd.error("Already in bed_screws helper; use ABORT to exit"));
         }
@@ -166,7 +166,7 @@ impl BedScrews {
         self.move_to_screw("adjust", 0)
     }
 
-    fn cmd_accept(&self, gcmd: &GCodeCommand) -> KResult<()> {
+    pub fn cmd_accept(&self, gcmd: &GCodeCommand) -> KResult<()> {
         self.unregister_commands()?;
         self.accepted_screws.set(self.accepted_screws.get() + 1);
         let state = self.state.borrow().unwrap_or("adjust");
@@ -191,7 +191,7 @@ impl BedScrews {
         Ok(())
     }
 
-    fn cmd_adjusted(&self, gcmd: &GCodeCommand) -> KResult<()> {
+    pub fn cmd_adjusted(&self, gcmd: &GCodeCommand) -> KResult<()> {
         self.unregister_commands()?;
         self.accepted_screws.set(-1);
         self.cmd_accept(gcmd)

@@ -128,20 +128,20 @@ pub fn calc_calibration(angles: &[f64]) -> KResult<(Vec<i64>, f64, bool)> {
 const CMD_ANGLE_CALIBRATE_HELP: &str = "Calibrate angle sensor to stepper motor";
 
 pub struct AngleCalibration {
-    printer: Rc<Printer>,
-    name: String,
-    stepper_name: Option<String>,
-    tmc_module: RefCell<Option<Rc<TmcDriver>>>,
-    mcu_stepper: RefCell<Option<Rc<McuStepper>>>,
+    pub printer: Rc<Printer>,
+    pub name: String,
+    pub stepper_name: Option<String>,
+    pub tmc_module: RefCell<Option<Rc<TmcDriver>>>,
+    pub mcu_stepper: RefCell<Option<Rc<McuStepper>>>,
     // Current calibration data
-    mcu_pos_offset: Cell<Option<f64>>,
-    angle_phase_offset: Cell<f64>,
-    calibration_reversed: Cell<bool>,
-    calibration: RefCell<Vec<i64>>,
+    pub mcu_pos_offset: Cell<Option<f64>>,
+    pub angle_phase_offset: Cell<f64>,
+    pub calibration_reversed: Cell<bool>,
+    pub calibration: RefCell<Vec<i64>>,
 }
 
 impl AngleCalibration {
-    fn new(config: &ConfigWrapper) -> KResult<Rc<Self>> {
+    pub fn new(config: &ConfigWrapper) -> KResult<Rc<Self>> {
         let printer = config.get_printer();
         let c = Rc::new(AngleCalibration {
             printer: printer.clone(),
@@ -200,7 +200,7 @@ impl AngleCalibration {
         self.tmc_module.borrow().clone().ok_or_else(|| KError::Py("AttributeError".into(), "'NoneType' object has no attribute 'get_phase_offset'".into()))
     }
 
-    fn handle_sync_mcu_pos(&self, mcu_stepper: &McuStepper) {
+    pub fn handle_sync_mcu_pos(&self, mcu_stepper: &McuStepper) {
         if Some(mcu_stepper.get_name(false)) == self.stepper_name {
             self.mcu_pos_offset.set(None);
         }
@@ -269,7 +269,7 @@ impl AngleCalibration {
         Ok(Some(stepper.mcu_to_commanded_position_f(self.mcu_pos_offset.get().unwrap_or(0.0))))
     }
 
-    fn load_calibration(&self, angles: &[f64]) -> KResult<()> {
+    pub fn load_calibration(&self, angles: &[f64]) -> KResult<()> {
         let (calibration, angle_phase_offset, calibration_reversed) = calc_calibration(angles)?;
         self.angle_phase_offset.set(angle_phase_offset);
         self.calibration_reversed.set(calibration_reversed);
@@ -277,7 +277,7 @@ impl AngleCalibration {
         Ok(())
     }
 
-    fn lookup_tmc(&self) -> KResult<Rc<TmcDriver>> {
+    pub fn lookup_tmc(&self) -> KResult<Rc<TmcDriver>> {
         for driver in TRINAMIC_DRIVERS {
             let driver_name = format!("{} {}", driver, self.stepper_name());
             if let Some(module) = self.printer.lookup_object_opt(&driver_name).and_then(downcast_rc::<TmcDriver>) {
@@ -287,14 +287,14 @@ impl AngleCalibration {
         Err(KError::command(format!("Unable to find TMC driver for {}", self.stepper_name())))
     }
 
-    fn connect(&self) -> KResult<()> {
+    pub fn connect(&self) -> KResult<()> {
         *self.tmc_module.borrow_mut() = Some(self.lookup_tmc()?);
         let fmove = self.printer.lookup::<ForceMove>("force_move")?;
         *self.mcu_stepper.borrow_mut() = Some(fmove.lookup_stepper(self.stepper_name())?);
         Ok(())
     }
 
-    fn get_stepper_phase(&self) -> KResult<i64> {
+    pub fn get_stepper_phase(&self) -> KResult<i64> {
         let (mcu_phase_offset, phases) = self.tmc_module()?.get_phase_offset();
         let Some(mcu_phase_offset) = mcu_phase_offset else {
             return Err(KError::command(format!("Driver phase not known for {}", self.stepper_name())));
@@ -394,7 +394,7 @@ impl AngleCalibration {
         (angles, (total_variance / total_count as f64).sqrt(), total_count)
     }
 
-    fn cmd_angle_calibrate(&self, gcmd: &GCodeCommand) -> KResult<()> {
+    pub fn cmd_angle_calibrate(&self, gcmd: &GCodeCommand) -> KResult<()> {
         // Perform calibration movement and capture
         let old_calibration = std::mem::take(&mut *self.calibration.borrow_mut());
         let res = self.do_calibration_moves();
@@ -463,8 +463,8 @@ trait AngleSensor {
     }
 }
 
-struct HelperA1333 {
-    spi: Rc<McuSpi>,
+pub struct HelperA1333 {
+    pub spi: Rc<McuSpi>,
 }
 
 impl HelperA1333 {
@@ -483,8 +483,8 @@ impl AngleSensor for HelperA1333 {
     }
 }
 
-struct HelperAS5047D {
-    spi: Rc<McuSpi>,
+pub struct HelperAS5047D {
+    pub spi: Rc<McuSpi>,
 }
 
 impl HelperAS5047D {
@@ -519,22 +519,22 @@ fn angle_transfer_cmd(mcu: &Mcu, spi: &McuSpi, oid: i64) -> KResult<CommandQuery
 const CMD_ANGLE_DEBUG_READ_HELP: &str = "Query low-level angle sensor register";
 const CMD_ANGLE_DEBUG_WRITE_HELP: &str = "Set low-level angle sensor register";
 
-struct HelperTLE5012B {
-    spi: Rc<McuSpi>,
-    oid: i64,
-    last_temperature: Cell<Option<f64>>,
-    mcu: Rc<Mcu>,
-    spi_angle_transfer_cmd: RefCell<Option<CommandQueryWrapper>>,
-    last_chip_mcu_clock: Cell<i64>,
-    last_chip_clock: Cell<i64>,
-    chip_freq: Cell<f64>,
+pub struct HelperTLE5012B {
+    pub spi: Rc<McuSpi>,
+    pub oid: i64,
+    pub last_temperature: Cell<Option<f64>>,
+    pub mcu: Rc<Mcu>,
+    pub spi_angle_transfer_cmd: RefCell<Option<CommandQueryWrapper>>,
+    pub last_chip_mcu_clock: Cell<i64>,
+    pub last_chip_clock: Cell<i64>,
+    pub chip_freq: Cell<f64>,
 }
 
 impl HelperTLE5012B {
     const SPI_MODE: i64 = 1;
     const SPI_SPEED: i64 = 4000000;
 
-    fn new(config: &ConfigWrapper, spi: &Rc<McuSpi>, oid: i64) -> KResult<Rc<Self>> {
+    pub fn new(config: &ConfigWrapper, spi: &Rc<McuSpi>, oid: i64) -> KResult<Rc<Self>> {
         let printer = config.get_printer();
         let mcu = spi.get_mcu();
         let h = Rc::new(HelperTLE5012B {
@@ -576,7 +576,7 @@ impl HelperTLE5012B {
         (!crc & 0xFF) as u8
     }
 
-    fn send_spi(&self, msg: &[u8]) -> KResult<Params> {
+    pub fn send_spi(&self, msg: &[u8]) -> KResult<Params> {
         for _retry in 0..5 {
             let params = if msg[0] & 0x04 != 0 {
                 let cmd = self.spi_angle_transfer_cmd.borrow();
@@ -597,7 +597,7 @@ impl HelperTLE5012B {
         Err(KError::command("Unable to query tle5012b chip"))
     }
 
-    fn read_reg(&self, reg: i64) -> KResult<i64> {
+    pub fn read_reg(&self, reg: i64) -> KResult<i64> {
         let mut cw = 0x8000 | ((reg & 0x3F) << 4) | 0x01;
         if (0x05..=0x11).contains(&reg) {
             cw |= 0x5000;
@@ -607,7 +607,7 @@ impl HelperTLE5012B {
         Ok(((resp[2] as i64) << 8) | resp[3] as i64)
     }
 
-    fn write_reg(&self, reg: i64, val: i64) -> KResult<()> {
+    pub fn write_reg(&self, reg: i64, val: i64) -> KResult<()> {
         let mut cw = ((reg & 0x3F) << 4) | 0x01;
         if (0x05..=0x11).contains(&reg) {
             cw |= 0x5000;
@@ -623,12 +623,12 @@ impl HelperTLE5012B {
         Err(KError::command("Unable to write to tle5012b chip"))
     }
 
-    fn mask_reg(&self, reg: i64, off: i64, on: i64) -> KResult<()> {
+    pub fn mask_reg(&self, reg: i64, off: i64, on: i64) -> KResult<()> {
         let rval = self.read_reg(reg)?;
         self.write_reg(reg, (rval & !off) | on)
     }
 
-    fn query_clock(&self) -> KResult<(i64, i64)> {
+    pub fn query_clock(&self) -> KResult<(i64, i64)> {
         // Read frame counter (and normalize to a 16bit counter)
         let msg = [0x84, 0x42, 0, 0, 0, 0, 0, 0]; // Read with latch, AREV and FSYNC
         let params = self.send_spi(&msg)?;
@@ -645,14 +645,14 @@ impl HelperTLE5012B {
         Ok((mcu_clock, chip_clock))
     }
 
-    fn cmd_angle_debug_read(&self, gcmd: &GCodeCommand) -> KResult<()> {
+    pub fn cmd_angle_debug_read(&self, gcmd: &GCodeCommand) -> KResult<()> {
         let reg = get_reg_param(gcmd, "REG", 0x30 as f64)?;
         let val = self.read_reg(reg)?;
         gcmd.respond_info(&format!("ANGLE REG[0x{:02x}] = 0x{:04x}", reg, val), true);
         Ok(())
     }
 
-    fn cmd_angle_debug_write(&self, gcmd: &GCodeCommand) -> KResult<()> {
+    pub fn cmd_angle_debug_write(&self, gcmd: &GCodeCommand) -> KResult<()> {
         let reg = get_reg_param(gcmd, "REG", 0x30 as f64)?;
         let val = get_reg_param(gcmd, "VAL", 0xFFFF as f64)?;
         self.write_reg(reg, val)
@@ -708,18 +708,18 @@ impl AngleSensor for HelperTLE5012B {
     }
 }
 
-struct HelperMT6816 {
-    spi: Rc<McuSpi>,
-    oid: i64,
-    mcu: Rc<Mcu>,
-    spi_angle_transfer_cmd: RefCell<Option<CommandQueryWrapper>>,
+pub struct HelperMT6816 {
+    pub spi: Rc<McuSpi>,
+    pub oid: i64,
+    pub mcu: Rc<Mcu>,
+    pub spi_angle_transfer_cmd: RefCell<Option<CommandQueryWrapper>>,
 }
 
 impl HelperMT6816 {
     const SPI_MODE: i64 = 3;
     const SPI_SPEED: i64 = 10000000;
 
-    fn new(config: &ConfigWrapper, spi: &Rc<McuSpi>, oid: i64) -> KResult<Rc<Self>> {
+    pub fn new(config: &ConfigWrapper, spi: &Rc<McuSpi>, oid: i64) -> KResult<Rc<Self>> {
         let printer = config.get_printer();
         let mcu = spi.get_mcu();
         let h = Rc::new(HelperMT6816 { spi: spi.clone(), oid, mcu: mcu.clone(), spi_angle_transfer_cmd: RefCell::new(None) });
@@ -735,13 +735,13 @@ impl HelperMT6816 {
         Ok(h)
     }
 
-    fn read_reg(&self, reg: i64) -> KResult<i64> {
+    pub fn read_reg(&self, reg: i64) -> KResult<i64> {
         let msg = [reg as u8, 0, 0];
         let resp = response(&self.spi.spi_transfer(&msg, 0, 0)?);
         Ok(((resp[1] as i64) << 8) | resp[2] as i64)
     }
 
-    fn cmd_angle_debug_read(&self, gcmd: &GCodeCommand) -> KResult<()> {
+    pub fn cmd_angle_debug_read(&self, gcmd: &GCodeCommand) -> KResult<()> {
         let reg = 0x83;
         let val = self.read_reg(reg)?;
         gcmd.respond_info(&format!("ANGLE REG[0x{:02x}] = 0x{:04x}", reg, val), true);
@@ -765,20 +765,20 @@ impl AngleSensor for HelperMT6816 {
 
 const CMD_ANGLE_CHIP_CALIBRATE_HELP: &str = "Run MT6826s calibration sequence";
 
-struct HelperMT6826S {
-    printer: Rc<Printer>,
-    stepper_name: Option<String>,
-    spi: Rc<McuSpi>,
-    oid: i64,
-    mcu: Rc<Mcu>,
-    spi_angle_transfer_cmd: RefCell<Option<CommandQueryWrapper>>,
+pub struct HelperMT6826S {
+    pub printer: Rc<Printer>,
+    pub stepper_name: Option<String>,
+    pub spi: Rc<McuSpi>,
+    pub oid: i64,
+    pub mcu: Rc<Mcu>,
+    pub spi_angle_transfer_cmd: RefCell<Option<CommandQueryWrapper>>,
 }
 
 impl HelperMT6826S {
     const SPI_MODE: i64 = 3;
     const SPI_SPEED: i64 = 10000000;
 
-    fn new(config: &ConfigWrapper, spi: &Rc<McuSpi>, oid: i64) -> KResult<Rc<Self>> {
+    pub fn new(config: &ConfigWrapper, spi: &Rc<McuSpi>, oid: i64) -> KResult<Rc<Self>> {
         let printer = config.get_printer();
         let stepper_name = config.get_opt("stepper")?;
         let mcu = spi.get_mcu();
@@ -819,14 +819,14 @@ impl HelperMT6826S {
         }
     }
 
-    fn read_reg(&self, reg: i64) -> KResult<i64> {
+    pub fn read_reg(&self, reg: i64) -> KResult<i64> {
         let reg = 0x3000 | reg;
         let msg = [(reg >> 8) as u8, (reg & 0xFF) as u8, 0];
         let resp = response(&self.spi.spi_transfer(&msg, 0, 0)?);
         Ok(resp[2] as i64)
     }
 
-    fn write_reg(&self, reg: i64, data: i64) -> KResult<()> {
+    pub fn write_reg(&self, reg: i64, data: i64) -> KResult<()> {
         let reg = 0x6000 | reg;
         let msg = [(reg >> 8) as u8, (reg & 0xFF) as u8, data as u8];
         self.spi.spi_transfer(&msg, 0, 0)?;
@@ -849,7 +849,7 @@ impl HelperMT6826S {
         crc
     }
 
-    fn read_angle(&self, reg: i64) -> KResult<(i64, i64, i64, i64)> {
+    pub fn read_angle(&self, reg: i64) -> KResult<(i64, i64, i64, i64)> {
         let reg = 0x3000 | reg;
         let msg = [(reg >> 8) as u8, (reg & 0xFF) as u8, 0, 0, 0, 0];
         let resp = response(&self.spi.spi_transfer(&msg, 0, 0)?);
@@ -860,7 +860,7 @@ impl HelperMT6826S {
         Ok((angle, status, crc, crc_computed))
     }
 
-    fn cmd_angle_chip_calibrate(&self, gcmd: &GCodeCommand) -> KResult<()> {
+    pub fn cmd_angle_chip_calibrate(&self, gcmd: &GCodeCommand) -> KResult<()> {
         let fmove = self.printer.lookup::<ForceMove>("force_move")?;
         let mcu_stepper = fmove.lookup_stepper(self.stepper_name.as_deref().unwrap_or("None"))?;
         let Some(stepper_name) = &self.stepper_name else {
@@ -901,7 +901,7 @@ impl HelperMT6826S {
         Ok(())
     }
 
-    fn cmd_angle_debug_read(&self, gcmd: &GCodeCommand) -> KResult<()> {
+    pub fn cmd_angle_debug_read(&self, gcmd: &GCodeCommand) -> KResult<()> {
         let reg = get_reg_param(gcmd, "REG", 0x155 as f64)?;
         if reg == 0x003 {
             let (angle, status, crc1, crc2) = self.read_angle(reg)?;
@@ -944,27 +944,27 @@ const SAMPLE_PERIOD: f64 = 0.000400;
 const BATCH_UPDATES: f64 = 0.100;
 
 pub struct Angle {
-    printer: Rc<Printer>,
-    sample_period: f64,
-    calibration: Rc<AngleCalibration>,
+    pub printer: Rc<Printer>,
+    pub sample_period: f64,
+    pub calibration: Rc<AngleCalibration>,
     // Measurement conversion
-    start_clock: Cell<i64>,
-    time_shift: Cell<i64>,
-    sample_ticks: Cell<i64>,
-    last_sequence: Cell<i64>,
-    last_angle: Cell<i64>,
-    spi: Rc<McuSpi>,
-    mcu: Rc<Mcu>,
-    oid: i64,
+    pub start_clock: Cell<i64>,
+    pub time_shift: Cell<i64>,
+    pub sample_ticks: Cell<i64>,
+    pub last_sequence: Cell<i64>,
+    pub last_angle: Cell<i64>,
+    pub spi: Rc<McuSpi>,
+    pub mcu: Rc<Mcu>,
+    pub oid: i64,
     sensor_helper: Rc<dyn AngleSensor>,
-    query_spi_angle_cmd: RefCell<Option<CommandWrapper>>,
+    pub query_spi_angle_cmd: RefCell<Option<CommandWrapper>>,
     bulk_queue: BulkDataQueue,
-    batch_bulk: RefCell<Option<Rc<BatchBulkHelper>>>,
-    name: String,
+    pub batch_bulk: RefCell<Option<Rc<BatchBulkHelper>>>,
+    pub name: String,
 }
 
 impl Angle {
-    fn new(config: &ConfigWrapper) -> KResult<Rc<Self>> {
+    pub fn new(config: &ConfigWrapper) -> KResult<Rc<Self>> {
         let printer = config.get_printer();
         let sample_period = config.getfloat("sample_period", SAMPLE_PERIOD, Lim::new().above(0.0))?;
         let calibration = AngleCalibration::new(config)?;
@@ -1028,7 +1028,7 @@ impl Angle {
         Ok(a)
     }
 
-    fn build_config(&self) -> KResult<()> {
+    pub fn build_config(&self) -> KResult<()> {
         let freq = self.mcu.seconds_to_clock(1.0);
         while ((TCODE_ERROR << self.time_shift.get()) as f64 / freq as f64) < 0.002 {
             self.time_shift.set(self.time_shift.get() + 1);
@@ -1119,7 +1119,7 @@ impl Angle {
     }
 
     // Start, stop, and process message batches
-    fn start_measurements(&self) -> KResult<()> {
+    pub fn start_measurements(&self) -> KResult<()> {
         logging::info(&format!("Starting angle '{}' measurements", self.name));
         self.sensor_helper.start()?;
         // Start bulk reading
@@ -1134,7 +1134,7 @@ impl Angle {
         self.query_cmd()?.send(&[self.oid, reqclock, rest_ticks, self.time_shift.get()].map(Val::Int), 0, reqclock as u64)
     }
 
-    fn finish_measurements(&self) -> KResult<()> {
+    pub fn finish_measurements(&self) -> KResult<()> {
         // Halt bulk reading
         self.query_cmd()?.send_wait_ack(&[self.oid, 0, 0, 0].map(Val::Int), 0, 0)?;
         self.bulk_queue.clear_queue();
@@ -1143,7 +1143,7 @@ impl Angle {
         Ok(())
     }
 
-    fn process_batch(&self, _eventtime: f64) -> KResult<PyVal> {
+    pub fn process_batch(&self, _eventtime: f64) -> KResult<PyVal> {
         if self.sensor_helper.is_tcode_absolute() {
             self.sensor_helper.update_clock()?;
         }

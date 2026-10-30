@@ -24,7 +24,7 @@ use std::cell::{Cell, RefCell};
 use std::rc::{Rc, Weak};
 
 /// self.rail: a PrinterRail (with an endstop) or a single PrinterStepper
-enum RailOrStepper {
+pub enum RailOrStepper {
     Rail(Rc<PrinterRail>),
     Stepper(Rc<McuStepper>),
 }
@@ -62,28 +62,28 @@ const CMD_MANUAL_STEPPER_HELP: &str = "Command a manually configured stepper";
 
 pub struct ManualStepper {
     me: Weak<ManualStepper>,
-    printer: Rc<Printer>,
-    can_home: bool,
-    rail: RailOrStepper,
-    steppers: Vec<Rc<McuStepper>>,
-    velocity: f64,
-    accel: f64,
-    homing_accel: Cell<f64>,
-    next_cmd_time: Cell<f64>,
-    commanded_pos: Cell<f64>,
-    pos_min: Option<f64>,
-    pos_max: Option<f64>,
-    motion_queuing: Rc<PrinterMotionQueuing>,
-    trapq: TrapQRef,
+    pub printer: Rc<Printer>,
+    pub can_home: bool,
+    pub rail: RailOrStepper,
+    pub steppers: Vec<Rc<McuStepper>>,
+    pub velocity: f64,
+    pub accel: f64,
+    pub homing_accel: Cell<f64>,
+    pub next_cmd_time: Cell<f64>,
+    pub commanded_pos: Cell<f64>,
+    pub pos_min: Option<f64>,
+    pub pos_max: Option<f64>,
+    pub motion_queuing: Rc<PrinterMotionQueuing>,
+    pub trapq: TrapQRef,
     // Registered with toolhead as an axtra axis
-    axis_gcode_id: RefCell<Option<String>>,
-    instant_corner_v: Cell<f64>,
-    gaxis_limit_velocity: Cell<f64>,
-    gaxis_limit_accel: Cell<f64>,
+    pub axis_gcode_id: RefCell<Option<String>>,
+    pub instant_corner_v: Cell<f64>,
+    pub gaxis_limit_velocity: Cell<f64>,
+    pub gaxis_limit_accel: Cell<f64>,
 }
 
 impl ManualStepper {
-    fn new(config: &ConfigWrapper) -> KResult<Rc<Self>> {
+    pub fn new(config: &ConfigWrapper) -> KResult<Rc<Self>> {
         let printer = config.get_printer();
         let (can_home, rail, steppers) = if config.get_opt("endstop_pin")?.is_some() {
             let rail = PrinterRail::new(config, false, Some(0.0), false)?;
@@ -143,7 +143,7 @@ impl ManualStepper {
         self.printer.lookup::<ToolHead>("toolhead")
     }
 
-    fn sync_print_time(&self) -> KResult<()> {
+    pub fn sync_print_time(&self) -> KResult<()> {
         let toolhead = self.toolhead()?;
         let print_time = toolhead.get_last_move_time()?;
         if self.next_cmd_time.get() > print_time {
@@ -154,21 +154,21 @@ impl ManualStepper {
         Ok(())
     }
 
-    fn do_enable(&self, enable: bool) -> KResult<()> {
+    pub fn do_enable(&self, enable: bool) -> KResult<()> {
         let stepper_names: Vec<String> = self.steppers.iter().map(|s| s.get_name(false)).collect();
         let stepper_enable = self.printer.lookup::<PrinterStepperEnable>("stepper_enable")?;
         stepper_enable.set_motors_enable(&stepper_names, enable)?;
         Ok(())
     }
 
-    fn do_set_position(&self, setpos: f64) -> KResult<()> {
+    pub fn do_set_position(&self, setpos: f64) -> KResult<()> {
         self.toolhead()?.flush_step_generation()?;
         self.commanded_pos.set(setpos);
         self.rail.set_position(&[setpos, 0.0, 0.0]);
         Ok(())
     }
 
-    fn submit_move(&self, movetime: f64, movepos: f64, speed: f64, accel: f64) -> f64 {
+    pub fn submit_move(&self, movetime: f64, movepos: f64, speed: f64, accel: f64) -> f64 {
         let cp = self.commanded_pos.get();
         let dist = movepos - cp;
         let (axis_r, accel_t, cruise_t, cruise_v) = calc_move_time(dist, speed, accel);
@@ -177,7 +177,7 @@ impl ManualStepper {
         movetime + accel_t + cruise_t + accel_t
     }
 
-    fn do_move(&self, movepos: f64, speed: f64, accel: f64, sync: bool) -> KResult<()> {
+    pub fn do_move(&self, movepos: f64, speed: f64, accel: f64, sync: bool) -> KResult<()> {
         self.sync_print_time()?;
         self.next_cmd_time.set(self.submit_move(self.next_cmd_time.get(), movepos, speed, accel));
         self.motion_queuing.note_mcu_movequeue_activity(self.next_cmd_time.get(), true);
@@ -187,7 +187,7 @@ impl ManualStepper {
         Ok(())
     }
 
-    fn do_homing_move(&self, movepos: f64, speed: f64, accel: f64, triggered: bool, check_trigger: bool) -> KResult<()> {
+    pub fn do_homing_move(&self, movepos: f64, speed: f64, accel: f64, triggered: bool, check_trigger: bool) -> KResult<()> {
         if !self.can_home {
             return Err(KError::command("No endstop for this manual stepper"));
         }
@@ -206,7 +206,7 @@ impl ManualStepper {
         self.pos_min.map(|m| movepos < m).unwrap_or(false) || self.pos_max.map(|m| movepos > m).unwrap_or(false)
     }
 
-    fn cmd_manual_stepper(&self, gcmd: &GCodeCommand) -> KResult<()> {
+    pub fn cmd_manual_stepper(&self, gcmd: &GCodeCommand) -> KResult<()> {
         if gcmd.get_opt("GCODE_AXIS").is_some() {
             return self.command_with_gcode_axis(gcmd);
         }
@@ -242,7 +242,7 @@ impl ManualStepper {
     }
 
     // Register as a gcode axis
-    fn command_with_gcode_axis(&self, gcmd: &GCodeCommand) -> KResult<()> {
+    pub fn command_with_gcode_axis(&self, gcmd: &GCodeCommand) -> KResult<()> {
         let toolhead = self.toolhead()?;
         let gcode_axis = gcmd.get("GCODE_AXIS")?.to_uppercase();
         let instant_corner_v = gcmd.get_float("INSTANTANEOUS_CORNER_VELOCITY", Some(1.0), Lim::new().min(0.0))?;
@@ -310,12 +310,12 @@ impl ExtraAxis for ManualStepper {
         Ok(())
     }
 
-    fn calc_junction(&self, prev_move: &Move, mv: &Move, ea_index: usize) -> f64 {
+    fn calc_junction(&self, prev_move: &Move, mv: &Move, ea_index: usize) -> KResult<f64> {
         let diff_r = mv.axes_r[ea_index] - prev_move.axes_r[ea_index];
         if diff_r != 0.0 {
-            return (self.instant_corner_v.get() / diff_r.abs()).powf(2.0);
+            return Ok((self.instant_corner_v.get() / diff_r.abs()).powf(2.0));
         }
-        mv.max_cruise_v2
+        Ok(mv.max_cruise_v2)
     }
 
     /// (python's manual_stepper has no find_past_position)
@@ -368,7 +368,7 @@ impl HomingToolhead for ManualStepper {
         let start_time = self.next_cmd_time.get();
         let end_time = self.submit_move(start_time, newpos[0], speed, self.homing_accel.get());
         // Drip updates to motors
-        self.motion_queuing.drip_update_time(start_time, end_time, drip_completion)?;
+        self.motion_queuing.drip_update_time(start_time, end_time, &**drip_completion)?;
         // Clear trapq of any remaining parts of movement
         self.motion_queuing.wipe_trapq(&self.trapq);
         self.rail.set_position(&[self.commanded_pos.get(), 0.0, 0.0]);

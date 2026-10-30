@@ -16,17 +16,17 @@ use std::rc::{Rc, Weak};
 
 pub struct DelayedGcode {
     me: Weak<DelayedGcode>,
-    reactor: Rc<Reactor>,
-    gcode: Rc<GCodeDispatch>,
-    timer_gcode: Rc<Template>,
-    duration: Cell<f64>,
-    timer_handler: RefCell<Option<Timer>>,
-    inside_timer: Cell<bool>,
-    repeat: Cell<bool>,
+    pub reactor: Rc<Reactor>,
+    pub gcode: Rc<GCodeDispatch>,
+    pub timer_gcode: Rc<Template>,
+    pub duration: Cell<f64>,
+    pub timer_handler: RefCell<Option<Timer>>,
+    pub inside_timer: Cell<bool>,
+    pub repeat: Cell<bool>,
 }
 
 impl DelayedGcode {
-    fn new(config: &ConfigWrapper) -> KResult<Rc<Self>> {
+    pub fn new(config: &ConfigWrapper) -> KResult<Rc<Self>> {
         if config.get_name().split_whitespace().count() > 2 {
             return Err(KError::config(format!("Name of section '{}' contains illegal whitespace", config.get_name())));
         }
@@ -68,7 +68,7 @@ impl DelayedGcode {
         Ok(d)
     }
 
-    fn handle_ready(&self) {
+    pub fn handle_ready(&self) {
         let mut waketime = NEVER;
         if self.duration.get() != 0.0 {
             waketime = self.reactor.monotonic() + self.duration.get();
@@ -83,7 +83,7 @@ impl DelayedGcode {
         ));
     }
 
-    fn gcode_timer_event(&self, eventtime: f64) -> f64 {
+    pub fn gcode_timer_event(&self, eventtime: f64) -> f64 {
         self.inside_timer.set(true);
         let r = self.timer_gcode.render(None).and_then(|s| self.gcode.run_script(&s));
         if let Err(e) = r {
@@ -98,7 +98,7 @@ impl DelayedGcode {
         nextwake
     }
 
-    fn cmd_update_delayed_gcode(&self, gcmd: &GCodeCommand) -> KResult<()> {
+    pub fn cmd_update_delayed_gcode(&self, gcmd: &GCodeCommand) -> KResult<()> {
         self.duration.set(gcmd.get_float("DURATION", None, Lim::new().min(0.0))?);
         if self.inside_timer.get() {
             self.repeat.set(self.duration.get() != 0.0);

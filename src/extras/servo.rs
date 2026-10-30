@@ -45,9 +45,9 @@ impl PwmCalc {
 
 pub struct PrinterServo {
     calc: PwmCalc,
-    last_value: Cell<f64>,
-    mcu_servo: Rc<dyn PwmPin>,
-    gcrq: RefCell<Option<Rc<GCodeRequestQueue>>>,
+    pub last_value: Cell<f64>,
+    pub mcu_servo: Rc<dyn PwmPin>,
+    pub gcrq: RefCell<Option<Rc<GCodeRequestQueue>>>,
 }
 
 impl PrinterServo {
@@ -74,7 +74,7 @@ impl PrinterServo {
 }
 
 impl PrinterServo {
-    fn new(config: &ConfigWrapper) -> KResult<Rc<Self>> {
+    pub fn new(config: &ConfigWrapper) -> KResult<Rc<Self>> {
         let printer = config.get_printer();
         let min_width = config.getfloat("minimum_pulse_width", 0.001, Lim::new().above(0.0).below(SERVO_SIGNAL_PERIOD))?;
         let max_width = config.getfloat("maximum_pulse_width", 0.002, Lim::new().above(min_width).below(SERVO_SIGNAL_PERIOD))?;
@@ -124,7 +124,7 @@ impl PrinterServo {
         Ok(None)
     }
 
-    fn cmd_set_servo(&self, gcmd: &GCodeCommand) -> KResult<()> {
+    pub fn cmd_set_servo(&self, gcmd: &GCodeCommand) -> KResult<()> {
         let value = match gcmd.get_float_opt("WIDTH", Lim::new())? {
             Some(width) => self.calc.from_pulse_width(width),
             None => {

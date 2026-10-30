@@ -39,19 +39,19 @@ const LM75_REPORT_TIME: f64 = 0.8;
 const LM75_MIN_REPORT_TIME: f64 = 0.5;
 
 pub struct LM75 {
-    printer: Rc<Printer>,
-    i2c: Rc<McuI2c>,
-    mcu: Rc<Mcu>,
-    report_time: f64,
-    temp: Cell<f64>,
-    min_temp: Cell<f64>,
-    max_temp: Cell<f64>,
-    sample_timer: RefCell<Option<Timer>>,
-    callback: RefCell<Option<TempCallback>>,
+    pub printer: Rc<Printer>,
+    pub i2c: Rc<McuI2c>,
+    pub mcu: Rc<Mcu>,
+    pub report_time: f64,
+    pub temp: Cell<f64>,
+    pub min_temp: Cell<f64>,
+    pub max_temp: Cell<f64>,
+    pub sample_timer: RefCell<Option<Timer>>,
+    pub callback: RefCell<Option<TempCallback>>,
 }
 
 impl LM75 {
-    fn new(config: &ConfigWrapper) -> KResult<Rc<Self>> {
+    pub fn new(config: &ConfigWrapper) -> KResult<Rc<Self>> {
         let printer = config.get_printer();
         let name = config.get_name().split_whitespace().last().unwrap_or_default().to_string();
         let i2c = mcu_i2c_from_config(config, Some(LM75_CHIP_ADDR), LM75_I2C_SPEED)?;
@@ -84,7 +84,7 @@ impl LM75 {
         Ok(s)
     }
 
-    fn handle_connect(&self) -> KResult<()> {
+    pub fn handle_connect(&self) -> KResult<()> {
         self.init_lm75();
         if let Some(t) = self.sample_timer.borrow().as_ref() {
             self.printer.get_reactor().update_timer(t, NOW);
@@ -98,7 +98,7 @@ impl LM75 {
         x[0] as f64 + (x[1] >> 7) as f64 * 0.5
     }
 
-    fn init_lm75(&self) {
+    pub fn init_lm75(&self) {
         // Check and report the chip ID but ignore errors since many
         // chips don't have it
         if let Ok(prodid) = self.read_register("PRODID", 1) {
@@ -108,7 +108,7 @@ impl LM75 {
         }
     }
 
-    fn sample_lm75(&self, _eventtime: f64) -> f64 {
+    pub fn sample_lm75(&self, _eventtime: f64) -> f64 {
         let sample = self.read_register("TEMP", 2).and_then(|s| {
             if s.len() < 2 {
                 return Err(KError::Py("IndexError".into(), "bytearray index out of range".into()));
@@ -145,7 +145,7 @@ impl LM75 {
         measured_time + self.report_time
     }
 
-    fn read_register(&self, reg_name: &str, read_len: i64) -> KResult<Vec<u8>> {
+    pub fn read_register(&self, reg_name: &str, read_len: i64) -> KResult<Vec<u8>> {
         // read a single register
         let regs = [lm75_reg(reg_name)];
         let params = self.i2c.i2c_read(&regs, read_len, true)?;
@@ -162,11 +162,12 @@ impl TempSensor for LM75 {
         self.max_temp.set(max_temp);
         Ok(())
     }
-    fn setup_callback(&self, cb: TempCallback) {
+    fn setup_callback(&self, cb: TempCallback) -> KResult<()> {
         *self.callback.borrow_mut() = Some(cb);
+        Ok(())
     }
-    fn get_report_time_delta(&self) -> f64 {
-        self.report_time
+    fn get_report_time_delta(&self) -> KResult<f64> {
+        Ok(self.report_time)
     }
 }
 

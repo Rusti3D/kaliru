@@ -15,15 +15,15 @@ use std::rc::Rc;
 pub type CounterCallback = Rc<dyn Fn(f64, i64, f64) -> KResult<()>>;
 
 pub struct McuCounter {
-    mcu: Rc<Mcu>,
-    oid: i64,
-    pin: String,
-    pullup: i64,
-    poll_time: f64,
-    poll_ticks: Cell<i64>,
-    sample_time: f64,
+    pub mcu: Rc<Mcu>,
+    pub oid: i64,
+    pub pin: String,
+    pub pullup: i64,
+    pub poll_time: f64,
+    pub poll_ticks: Cell<i64>,
+    pub sample_time: f64,
     callback: RefCell<Option<CounterCallback>>,
-    last_count: Cell<i64>,
+    pub last_count: Cell<i64>,
 }
 
 impl McuCounter {
@@ -51,7 +51,7 @@ impl McuCounter {
         Ok(c)
     }
 
-    fn build_config(self: &Rc<Self>) -> KResult<()> {
+    pub fn build_config(self: &Rc<Self>) -> KResult<()> {
         self.mcu.add_config_cmd(&format!("config_counter oid={} pin={} pull_up={}", self.oid, self.pin, self.pullup), false, false);
         let clock = self.mcu.get_query_slot(self.oid);
         self.poll_ticks.set(self.mcu.seconds_to_clock(self.poll_time));
@@ -71,7 +71,7 @@ impl McuCounter {
         *self.callback.borrow_mut() = Some(cb);
     }
 
-    fn handle_counter_state(&self, params: &Params) -> KResult<()> {
+    pub fn handle_counter_state(&self, params: &Params) -> KResult<()> {
         let next_clock = self.mcu.clock32_to_clock64(pint(params, "next_clock"));
         let time = self.mcu.clock_to_print_time((next_clock - self.poll_ticks.get()) as f64);
 
@@ -97,10 +97,10 @@ pub type FrequencyCallback = Rc<dyn Fn(f64, f64) -> KResult<()>>;
 
 pub struct FrequencyCounter {
     pub callback: RefCell<Option<FrequencyCallback>>,
-    last_time: Cell<Option<f64>>,
-    last_count: Cell<Option<i64>>,
-    freq: Cell<f64>,
-    _counter: Rc<McuCounter>,
+    pub last_time: Cell<Option<f64>>,
+    pub last_count: Cell<Option<i64>>,
+    pub freq: Cell<f64>,
+    pub _counter: Rc<McuCounter>,
 }
 
 impl FrequencyCounter {
@@ -121,7 +121,7 @@ impl FrequencyCounter {
         Ok(f)
     }
 
-    fn counter_callback(&self, time: f64, count: i64, count_time: f64) -> KResult<()> {
+    pub fn counter_callback(&self, time: f64, count: i64, count_time: f64) -> KResult<()> {
         match self.last_time.get() {
             None => self.last_time.set(Some(time)), // First sample
             Some(last_time) => {

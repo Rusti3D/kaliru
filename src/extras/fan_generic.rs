@@ -18,12 +18,12 @@ const CMD_SET_FAN_SPEED_HELP: &str = "Sets the speed of a fan";
 
 pub struct PrinterFanGeneric {
     pub fan: Rc<Fan>,
-    template_eval: Rc<PrinterTemplateEvaluator>,
+    pub template_eval: Rc<PrinterTemplateEvaluator>,
     template_cb: RefCell<Option<TemplateCallback>>,
 }
 
 impl PrinterFanGeneric {
-    fn new(config: &ConfigWrapper) -> KResult<Rc<Self>> {
+    pub fn new(config: &ConfigWrapper) -> KResult<Rc<Self>> {
         let printer = config.get_printer();
         let fan = Fan::new(config, 0.0)?;
         let fan_name = config.get_name().split_whitespace().last().unwrap_or("").to_string();
@@ -47,7 +47,7 @@ impl PrinterFanGeneric {
         Ok(f)
     }
 
-    fn template_update(&self, text: &str) -> KResult<()> {
+    pub fn template_update(&self, text: &str) -> KResult<()> {
         let value = match crate::pyfmt::py_float(text) {
             Some(v) => v,
             None => {
@@ -62,7 +62,7 @@ impl PrinterFanGeneric {
         self.fan.set_speed(value, None)
     }
 
-    fn cmd_set_fan_speed(&self, gcmd: &GCodeCommand) -> KResult<()> {
+    pub fn cmd_set_fan_speed(&self, gcmd: &GCodeCommand) -> KResult<()> {
         let speed = gcmd.get_float_opt("SPEED", Lim::new().min(0.0))?;
         let template = gcmd.get_opt("TEMPLATE");
         if speed.is_none() == template.is_none() {

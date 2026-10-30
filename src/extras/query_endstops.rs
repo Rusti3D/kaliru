@@ -19,9 +19,9 @@ use std::rc::Rc;
 const CMD_QUERY_ENDSTOPS_HELP: &str = "Report on the status of each endstop";
 
 pub struct QueryEndstops {
-    printer: Rc<Printer>,
-    endstops: RefCell<Vec<(EndstopRef, String)>>,
-    last_state: RefCell<Vec<(String, i64)>>,
+    pub printer: Rc<Printer>,
+    pub endstops: RefCell<Vec<(EndstopRef, String)>>,
+    pub last_state: RefCell<Vec<(String, i64)>>,
 }
 
 fn state_str(t: i64) -> &'static str {
@@ -33,7 +33,7 @@ fn state_str(t: i64) -> &'static str {
 }
 
 impl QueryEndstops {
-    fn new(config: &ConfigWrapper) -> KResult<Rc<Self>> {
+    pub fn new(config: &ConfigWrapper) -> KResult<Rc<Self>> {
         let printer = config.get_printer();
         let q = Rc::new(QueryEndstops { printer: printer.clone(), endstops: RefCell::new(vec![]), last_state: RefCell::new(vec![]) });
         // Register webhook if server is available
@@ -67,7 +67,7 @@ impl QueryEndstops {
         Ok(())
     }
 
-    fn handle_web_request(&self, web_request: &WebRequest) -> KResult<()> {
+    pub fn handle_web_request(&self, web_request: &WebRequest) -> KResult<()> {
         let gc_mutex = self.printer.lookup::<GCodeDispatch>("gcode")?.get_mutex();
         gc_mutex.lock()?;
         let res = self.query();
@@ -78,7 +78,7 @@ impl QueryEndstops {
         web_request.send(PyVal::Dict(d))
     }
 
-    fn cmd_query_endstops(&self, gcmd: &GCodeCommand) -> KResult<()> {
+    pub fn cmd_query_endstops(&self, gcmd: &GCodeCommand) -> KResult<()> {
         // Query the endstops
         self.query()?;
         // Report results

@@ -23,9 +23,16 @@ use std::rc::Rc;
 pub struct Args {
     pub slf: Option<PyRef>,
     pub args: Vec<PyRef>,
+    /// the called name's ID (usize::MAX for the layer's helpers)
+    pub id: usize,
 }
 
 impl Args {
+    /// the qualified Kalico name called
+    pub fn name(&self) -> &'static str {
+        IDS.get(self.id).copied().unwrap_or("")
+    }
+
     pub fn arg(&self, i: usize) -> &PyRef {
         &self.args[i]
     }
@@ -116,10 +123,20 @@ static HANDLERS: Gil<RefCell<Vec<Option<Handler>>>> = Gil::new(|| RefCell::new(V
 // (class qualname or "@<object handle>", name) a plugin replaced
 static PATCHED: Gil<RefCell<HashSet<(String, String)>>> = Gil::new(|| RefCell::new(HashSet::new()));
 static EXT: Gil<RefCell<HashMap<&'static str, Method>>> = Gil::new(|| RefCell::new(HashMap::new()));
+// the layer's own list / dict fields ("_k.<name>": state Kalico keeps on a
+// python object kaliru has no mirrored attribute for, e.g. the profile
+// manager's profiles), addressed by name from prelude.py's views
+static LAYER_FIELDS: Gil<RefCell<HashMap<&'static str, Handler>>> = Gil::new(|| RefCell::new(HashMap::new()));
 // (kaliru object address, method ID, greenlet) of the mirrored calls running:
 // a plugin's replacement calling the original reaches kaliru's method, which
 // must not dispatch to the replacement again
 static BYPASS: Gil<RefCell<Vec<(usize, usize, usize)>>> = Gil::new(|| RefCell::new(Vec::new()));
+
+/// Whether Kalico has the qualified name (handlers shared by several
+/// classes register only where it does)
+pub fn known(name: &str) -> bool {
+    IDS.contains(&name)
+}
 
 /// Resolve the registry against the generated IDs; names that are not
 /// Kalico's are a bug in the impls
@@ -132,14 +149,21 @@ pub fn install_handlers(reg: Registry) {
     for (i, name) in IDS.iter().enumerate() {
         if let Some(f) = super::impls::generic_methods(name) {
             by_id[i] = Some(Handler::Method(f));
+        } else if let Some(g) = super::impls::generic_attr(name) {
+            by_id[i] = Some(Handler::Attr(g, None));
         }
     }
+    let mut layer = HashMap::new();
     for (name, h) in reg.0.iter().map(|(n, h)| (*n, *h)) {
         match index.get(name) {
             Some(&i) => by_id[i] = Some(h),
+            None if name.starts_with("_k.") => {
+                layer.insert(name, h);
+            }
             None => unknown.push(name),
         }
     }
+    LAYER_FIELDS.with(|l| *l.borrow_mut() = layer);
     assert!(unknown.is_empty(), "plugin handlers for names Kalico does not have: {:?}", unknown);
     HANDLERS.with(|h| *h.borrow_mut() = by_id);
     EXT.with(|e| *e.borrow_mut() = reg.1);
@@ -217,7 +241,7 @@ native!(k_call, |a| {
     if let Some(e) = entry {
         BYPASS.with(|b| b.borrow_mut().push(e));
     }
-    let res = f(&Args { slf: Some(a[0].clone()), args: a[2..].to_vec() });
+    let res = f(&Args { slf: Some(a[0].clone()), args: a[2..].to_vec(), id });
     if let Some(e) = entry {
         // (by identity: the call may have paused while others came and went)
         BYPASS.with(|b| {
@@ -232,14 +256,16 @@ native!(k_call, |a| {
 
 // fcall(id, *args)
 native!(k_fcall, |a| {
-    let Handler::Method(f) = handler(id_of(&a[0])?)? else { return Err(KError::Other("kaliru: not a function".into())) };
-    f(&Args { slf: None, args: a[1..].to_vec() })
+    let id = id_of(&a[0])?;
+    let Handler::Method(f) = handler(id)? else { return Err(KError::Other("kaliru: not a function".into())) };
+    f(&Args { slf: None, args: a[1..].to_vec(), id })
 });
 
 // new(obj, id, *args): obj.__init__
 native!(k_new, |a| {
-    let Handler::Ctor(f) = handler(id_of(&a[1])?)? else { return Err(KError::Other("kaliru: not a constructor".into())) };
-    let rust = f(&Args { slf: Some(a[0].clone()), args: a[2..].to_vec() })?;
+    let id = id_of(&a[1])?;
+    let Handler::Ctor(f) = handler(id)? else { return Err(KError::Other("kaliru: not a constructor".into())) };
+    let rust = f(&Args { slf: Some(a[0].clone()), args: a[2..].to_vec(), id })?;
     objects::bind(&a[0], rust)?;
     Ok(py_none())
 });
@@ -250,12 +276,21 @@ native!(k_get, |a| {
         Handler::Attr(get, _) => get(&a[0]),
         Handler::List(name, _) => lookup("_k", "ListView")?.call(&[&a[0], &py_str(name)]),
         Handler::Dict(name, _) => lookup("_k", "DictView")?.call(&[&a[0], &py_str(name)]),
+        // an attribute Kalico sets to a bound method (heater_bed's
+        // self.get_status = self.heater.get_status) kaliru serves as one
+        Handler::Method(f) => {
+            let (slf, id) = (a[0].clone(), id_of(&a[1])?);
+            super::callable::py_function(Rc::new(move |args: &[PyRef]| f(&Args { slf: Some(slf.clone()), args: args.to_vec(), id })))
+        }
         _ => Err(KError::Other("kaliru: not an attribute".into())),
     }
 });
 
 fn field_handler(name: &PyRef) -> KResult<Handler> {
     let name = name.as_string()?;
+    if let Some(h) = LAYER_FIELDS.with(|l| l.borrow().get(name.as_str()).copied()) {
+        return Ok(h);
+    }
     let id = IDS.iter().position(|n| *n == name).ok_or_else(|| KError::Other(format!("kaliru: no field {}", name)))?;
     handler(id)
 }
@@ -403,7 +438,7 @@ native!(k_ext, |a| {
     let f = EXT
         .with(|e| e.borrow().get(name.as_str()).copied())
         .ok_or_else(|| KError::Other(format!("kaliru: no layer helper {}", name)))?;
-    f(&Args { slf: None, args: a[1..].to_vec() })
+    f(&Args { slf: None, args: a[1..].to_vec(), id: usize::MAX })
 });
 
 const FLAGS: std::ffi::c_int = METH_FASTCALL | METH_KEYWORDS;

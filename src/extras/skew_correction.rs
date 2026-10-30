@@ -44,18 +44,18 @@ const CMD_SKEW_PROFILE_HELP: &str = "Profile management for skew_correction";
 
 pub struct PrinterSkew {
     me: Weak<PrinterSkew>,
-    printer: Rc<Printer>,
-    name: String,
-    current_profile_name: RefCell<String>,
-    xy_factor: Cell<f64>,
-    xz_factor: Cell<f64>,
-    yz_factor: Cell<f64>,
-    skew_profiles: RefCell<IndexMap<String, [f64; 3]>>,
-    next_transform: RefCell<Option<MoveTransformRef>>,
+    pub printer: Rc<Printer>,
+    pub name: String,
+    pub current_profile_name: RefCell<String>,
+    pub xy_factor: Cell<f64>,
+    pub xz_factor: Cell<f64>,
+    pub yz_factor: Cell<f64>,
+    pub skew_profiles: RefCell<IndexMap<String, [f64; 3]>>,
+    pub next_transform: RefCell<Option<MoveTransformRef>>,
 }
 
 impl PrinterSkew {
-    fn new(config: &ConfigWrapper) -> KResult<Rc<Self>> {
+    pub fn new(config: &ConfigWrapper) -> KResult<Rc<Self>> {
         let printer = config.get_printer();
         let name = config.get_name().to_string();
         let s = Rc::new_cyclic(|me| PrinterSkew {
@@ -98,14 +98,14 @@ impl PrinterSkew {
         Ok(s)
     }
 
-    fn handle_connect(&self) -> KResult<()> {
+    pub fn handle_connect(&self) -> KResult<()> {
         let gcode_move = self.printer.lookup::<GCodeMove>("gcode_move")?;
         let me: MoveTransformRef = self.me.upgrade().expect("skew");
         *self.next_transform.borrow_mut() = gcode_move.set_move_transform(me, true)?;
         Ok(())
     }
 
-    fn load_storage(&self, config: &ConfigWrapper) -> KResult<()> {
+    pub fn load_storage(&self, config: &ConfigWrapper) -> KResult<()> {
         // Remove primary skew_correction section, as it is not a stored profile
         for profile in config.get_prefix_sections(&self.name) {
             if profile.get_name() == self.name {
@@ -125,7 +125,7 @@ impl PrinterSkew {
         Ok(())
     }
 
-    fn calc_skew(&self, pos: &[f64]) -> Vec<f64> {
+    pub fn calc_skew(&self, pos: &[f64]) -> Vec<f64> {
         let (xy, xz, yz) = (self.xy_factor.get(), self.xz_factor.get(), self.yz_factor.get());
         let skewed_x = pos[0] - pos[1] * xy - pos[2] * (xz - (xy * yz));
         let skewed_y = pos[1] - pos[2] * yz;
@@ -134,7 +134,7 @@ impl PrinterSkew {
         out
     }
 
-    fn calc_unskew(&self, pos: &[f64]) -> Vec<f64> {
+    pub fn calc_unskew(&self, pos: &[f64]) -> Vec<f64> {
         let (xy, xz, yz) = (self.xy_factor.get(), self.xz_factor.get(), self.yz_factor.get());
         let skewed_x = pos[0] + pos[1] * xy + pos[2] * xz;
         let skewed_y = pos[1] + pos[2] * yz;
@@ -147,14 +147,14 @@ impl PrinterSkew {
         self.next_transform.borrow().clone().ok_or_else(|| KError::Other("'NoneType' object has no attribute 'move'".into()))
     }
 
-    fn update_skew(&self, xy_factor: f64, xz_factor: f64, yz_factor: f64) -> KResult<()> {
+    pub fn update_skew(&self, xy_factor: f64, xz_factor: f64, yz_factor: f64) -> KResult<()> {
         self.xy_factor.set(xy_factor);
         self.xz_factor.set(xz_factor);
         self.yz_factor.set(yz_factor);
         self.printer.lookup::<GCodeMove>("gcode_move")?.reset_last_position()
     }
 
-    fn cmd_get_current_skew(&self, gcmd: &GCodeCommand) -> KResult<()> {
+    pub fn cmd_get_current_skew(&self, gcmd: &GCodeCommand) -> KResult<()> {
         let mut out = "Current Printer Skew:".to_string();
         let factors = [("XY", self.xy_factor.get()), ("XZ", self.xz_factor.get()), ("YZ", self.yz_factor.get())];
         for (plane, fac) in factors {
@@ -164,7 +164,7 @@ impl PrinterSkew {
         Ok(())
     }
 
-    fn cmd_calc_measured_skew(&self, gcmd: &GCodeCommand) -> KResult<()> {
+    pub fn cmd_calc_measured_skew(&self, gcmd: &GCodeCommand) -> KResult<()> {
         let ac = gcmd.get_float("AC", None, Lim::new().above(0.0))?;
         let bd = gcmd.get_float("BD", None, Lim::new().above(0.0))?;
         let ad = gcmd.get_float("AD", None, Lim::new().above(0.0))?;
@@ -173,7 +173,7 @@ impl PrinterSkew {
         Ok(())
     }
 
-    fn cmd_set_skew(&self, gcmd: &GCodeCommand) -> KResult<()> {
+    pub fn cmd_set_skew(&self, gcmd: &GCodeCommand) -> KResult<()> {
         if gcmd.get_int("CLEAR", Some(0), Lim::new())? != 0 {
             return self.update_skew(0.0, 0.0, 0.0);
         }
@@ -196,7 +196,7 @@ impl PrinterSkew {
         Ok(())
     }
 
-    fn cmd_skew_profile(&self, gcmd: &GCodeCommand) -> KResult<()> {
+    pub fn cmd_skew_profile(&self, gcmd: &GCodeCommand) -> KResult<()> {
         if let Some(name) = gcmd.get_opt("LOAD") {
             *self.current_profile_name.borrow_mut() = name.clone();
             let prof = self.skew_profiles.borrow().get(&name).copied();

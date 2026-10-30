@@ -149,7 +149,7 @@ class MessageParser(_k.Object):
     def __init__(self, warn_prefix=""):
         _k.new(self, 6913, warn_prefix)
     def _error(self, msg, *params):
-        return _k.call(self, 6914, msg, params)
+        raise error(self.warn_prefix + (msg % params))
     def check_packet(self, s):
         return _k.call(self, 6915, s)
     def dump(self, s):
@@ -159,13 +159,21 @@ class MessageParser(_k.Object):
     def parse(self, s):
         return _k.call(self, 6918, s)
     def encode_msgblock(self, seq, cmd):
-        return _k.call(self, 6919, seq, cmd)
+        msglen = MESSAGE_MIN + len(cmd)
+        seq = (seq & MESSAGE_SEQ_MASK) | MESSAGE_DEST
+        out = [msglen, seq] + cmd
+        out.append(crc16_ccitt(out))
+        out.append(MESSAGE_SYNC)
+        return out
     def _parse_buffer(self, value):
         return _k.call(self, 6920, value)
     def lookup_command(self, msgformat):
         return _k.call(self, 6921, msgformat)
     def lookup_msgid(self, msgformat):
-        return _k.call(self, 6922, msgformat)
+        msgid = self.msgid_by_format.get(msgformat)
+        if msgid is None:
+            self._error("Unknown command: %s", msgformat)
+        return msgid
     def create_command(self, msg):
         return _k.call(self, 6923, msg)
     def fill_enumerations(self, enumerations):
@@ -175,27 +183,39 @@ class MessageParser(_k.Object):
     def process_identify(self, data, decompress=True):
         return _k.call(self, 6926, data, decompress)
     def get_raw_data_dictionary(self):
-        return _k.call(self, 6927)
+        return self.raw_identify_data
     def get_app_info(self):
-        return _k.call(self, 6928)
+        return self.app
     def get_version_info(self):
-        return _k.call(self, 6929)
+        return self.version, self.build_versions
     def get_messages(self):
         return _k.call(self, 6930)
     def get_enumerations(self):
-        return _k.call(self, 6931)
+        return dict(self.enumerations)
     def get_constants(self):
-        return _k.call(self, 6932)
+        return dict(self.config)
     def get_kconfig(self):
-        return _k.call(self, 6933)
+        return self.kconfig
     class sentinel:
         pass
     def get_constant(self, name, default=sentinel, parser=str):
-        return _k.call(self, 6934, name, default, parser)
+        if name not in self.config:
+            if default is not self.sentinel:
+                return default
+            self._error("Firmware constant '%s' not found", name)
+        try:
+            value = parser(self.config[name])
+        except:
+            self._error(
+                "Unable to parse firmware constant %s: %s",
+                name,
+                self.config[name],
+            )
+        return value
     def get_constant_float(self, name, default=sentinel):
-        return _k.call(self, 6935, name, default)
+        return self.get_constant(name, default, parser=float)
     def get_constant_int(self, name, default=sentinel):
-        return _k.call(self, 6936, name, default)
+        return self.get_constant(name, default, parser=int)
     app = _k.Attr(6937, 'app')
     build_versions = _k.Attr(6938, 'build_versions')
     config = _k.Attr(6939, 'config')

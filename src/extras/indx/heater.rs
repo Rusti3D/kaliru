@@ -100,8 +100,8 @@ fn opt_str(v: Option<f64>) -> String {
 pub struct IndxThermistorWrapper {
     /// keeps the sensor alive (its adc callback holds this weakly)
     _sensor: Rc<dyn TempSensor>,
-    last_temp: Cell<Option<f64>>,
-    temperature_callbacks: RefCell<Vec<TempCallback>>,
+    pub last_temp: Cell<Option<f64>>,
+    pub temperature_callbacks: RefCell<Vec<TempCallback>>,
 }
 
 impl IndxThermistorWrapper {
@@ -129,7 +129,7 @@ impl IndxThermistorWrapper {
         temp_sensor.setup_callback(Rc::new(move |read_time, value| match ww.upgrade() {
             Some(w) => w.callback(read_time, value),
             None => Ok(()),
-        }));
+        }))?;
         Ok(w)
     }
 
@@ -141,7 +141,7 @@ impl IndxThermistorWrapper {
         self.temperature_callbacks.borrow_mut().push(callback);
     }
 
-    fn callback(&self, read_time: f64, value: f64) -> KResult<()> {
+    pub fn callback(&self, read_time: f64, value: f64) -> KResult<()> {
         self.last_temp.set(Some(value));
         let cbs = self.temperature_callbacks.borrow().clone();
         for cb in cbs {
@@ -151,17 +151,17 @@ impl IndxThermistorWrapper {
     }
 }
 
-struct IndxBracketTempSensor {
+pub struct IndxBracketTempSensor {
     mcu: Rc<Mcu>,
     /// (set once the heater exists; python reads heater.cmd_queue at connect)
     heater: RefCell<Weak<IndxToolboardHeater>>,
-    cmd_set_ambient_temp: RefCell<Option<CommandWrapper>>,
-    last_temperature: Cell<Option<f64>>,
-    force_temp: Cell<Option<f64>>,
+    pub cmd_set_ambient_temp: RefCell<Option<CommandWrapper>>,
+    pub last_temperature: Cell<Option<f64>>,
+    pub force_temp: Cell<Option<f64>>,
 }
 
 impl IndxBracketTempSensor {
-    fn new(printer: &Rc<Printer>, mcu: &Rc<Mcu>, sensor: &IndxThermistorWrapper) -> KResult<Rc<Self>> {
+    pub fn new(printer: &Rc<Printer>, mcu: &Rc<Mcu>, sensor: &IndxThermistorWrapper) -> KResult<Rc<Self>> {
         let s = Rc::new(IndxBracketTempSensor {
             mcu: mcu.clone(),
             heater: RefCell::new(Weak::new()),
@@ -193,13 +193,13 @@ impl IndxBracketTempSensor {
         Ok(s)
     }
 
-    fn build_config(&self) -> KResult<()> {
+    pub fn build_config(&self) -> KResult<()> {
         let cq = self.heater.borrow().upgrade().map(|h| h.cmd_queue.clone());
         *self.cmd_set_ambient_temp.borrow_mut() = Some(self.mcu.lookup_command("indx_set_bracket_temp temp=%u", cq)?);
         Ok(())
     }
 
-    fn callback(&self, _read_time: f64, value: f64) -> KResult<()> {
+    pub fn callback(&self, _read_time: f64, value: f64) -> KResult<()> {
         let value = if value < 0.0 { None } else { Some(value) };
         self.last_temperature.set(value);
         let value = self.force_temp.get().or(value);
@@ -209,7 +209,7 @@ impl IndxBracketTempSensor {
         cmd.send(&[Val::Int(float_to_u32(value + KELVIN_OFFSET))], 0, 0)
     }
 
-    fn cmd_force_bracket_temp(&self, gcmd: &GCodeCommand) -> KResult<()> {
+    pub fn cmd_force_bracket_temp(&self, gcmd: &GCodeCommand) -> KResult<()> {
         self.force_temp.set(gcmd.get_float_opt("TEMP", Lim::new())?);
         Ok(())
     }
@@ -370,31 +370,31 @@ pub struct IndxToolboardHeater {
     printer: Rc<Printer>,
     mcu: Rc<Mcu>,
     toolboard_name: String,
-    toolhead: RefCell<Option<Rc<ToolHead>>>,
-    heater: RefCell<Option<Rc<Heater>>>,
-    fan: Rc<IndxHeatsinkFan>,
-    aux_temp_sensors: Vec<(&'static str, Rc<IndxThermistorWrapper>)>,
+    pub toolhead: RefCell<Option<Rc<ToolHead>>>,
+    pub heater: RefCell<Option<Rc<Heater>>>,
+    pub fan: Rc<IndxHeatsinkFan>,
+    pub aux_temp_sensors: Vec<(&'static str, Rc<IndxThermistorWrapper>)>,
     _bracket_temp_update: RefCell<Option<Rc<IndxBracketTempSensor>>>,
     /// keeps the vin_mon adc alive
     _vin_adc: Rc<dyn AdcPin>,
-    supply_voltage: Cell<f64>,
+    pub supply_voltage: Cell<f64>,
     thermal_model: RefCell<ThermalModel>,
-    max_model_error: Cell<f64>,
+    pub max_model_error: Cell<f64>,
     pid: RefCell<[f64; 6]>,
-    max_temp_nozzle: f64,
-    max_temp_sensor: f64,
-    ir_sensor_tuning: Option<(f64, f64, f64)>,
-    coil_timings: Cell<Option<(f64, f64, f64)>>,
-    part_cooling_fan: Option<Rc<Fan>>,
+    pub max_temp_nozzle: f64,
+    pub max_temp_sensor: f64,
+    pub ir_sensor_tuning: Option<(f64, f64, f64)>,
+    pub coil_timings: Cell<Option<(f64, f64, f64)>>,
+    pub part_cooling_fan: Option<Rc<Fan>>,
     temperature_callbacks: RefCell<Vec<NozzleCallback>>,
     pub cmd_queue: CommandQueue,
     last_report: Cell<Option<LastReport>>,
-    power_scale: Cell<f64>,
-    heaters: RefCell<Vec<Rc<Heater>>>,
+    pub power_scale: Cell<f64>,
+    pub heaters: RefCell<Vec<Rc<Heater>>>,
     cmds: RefCell<HeaterCmds>,
     log_file: RefCell<Option<std::fs::File>>,
     raw_ir_log_file: RefCell<Option<std::fs::File>>,
-    raw_ir_log_sensors: RefCell<Vec<String>>,
+    pub raw_ir_log_sensors: RefCell<Vec<String>>,
 }
 
 /// the fan of a fan-like printer object (python: hasattr(obj, "fan"))
@@ -679,7 +679,7 @@ impl IndxToolboardHeater {
         use_it(c)
     }
 
-    fn build_config(&self) -> KResult<()> {
+    pub fn build_config(&self) -> KResult<()> {
         let mcu = &self.mcu;
 
         let w = self.me.clone();
@@ -764,7 +764,7 @@ impl IndxToolboardHeater {
         Ok(())
     }
 
-    fn handle_connect(&self) -> KResult<()> {
+    pub fn handle_connect(&self) -> KResult<()> {
         // Look for heaters that have us as their PWM output
         let pheaters = self.printer.lookup::<PrinterHeaters>("heaters")?;
         let me_ptr = self as *const IndxToolboardHeater as *const ();
@@ -806,12 +806,12 @@ impl IndxToolboardHeater {
         Ok(())
     }
 
-    fn apply_pid_params(&self) -> KResult<()> {
+    pub fn apply_pid_params(&self) -> KResult<()> {
         let p = *self.pid.borrow();
         self.cmd(|c| c.set_control_params.as_ref(), |cmd| cmd.send(&p.map(|v| Val::Int(float_to_u32(v))), 0, 0))
     }
 
-    fn get_max_power(&self, temp: Option<f64>) -> f64 {
+    pub fn get_max_power(&self, temp: Option<f64>) -> f64 {
         let model = self.thermal_model.borrow();
         let params = &model.params;
         let base = params.max_power.unwrap_or(0.0);
@@ -827,17 +827,17 @@ impl IndxToolboardHeater {
         py_max(0.0, adjusted)
     }
 
-    fn heater_config_valid(&self) -> bool {
+    pub fn heater_config_valid(&self) -> bool {
         // Heating is allowed only once with fully populated coil and thermal models.
         self.coil_timings.get().is_some() && self.thermal_model.borrow().is_valid()
     }
 
-    fn cur_target_temp(&self) -> Option<f64> {
+    pub fn cur_target_temp(&self) -> Option<f64> {
         let time = self.printer.get_reactor().monotonic();
         self.heaters.borrow().iter().map(|h| h.get_temp(time).1).find(|t| *t != 0.0)
     }
 
-    fn extruder_position(&self, time: f64) -> KResult<f64> {
+    pub fn extruder_position(&self, time: f64) -> KResult<f64> {
         if self.toolhead.borrow().is_none() {
             *self.toolhead.borrow_mut() = self.printer.lookup_object_opt("toolhead").and_then(crate::printer::downcast_rc::<ToolHead>);
         }
@@ -851,7 +851,7 @@ impl IndxToolboardHeater {
         Ok(extruder.find_past_position(time))
     }
 
-    fn fan_speed(&self, time: f64) -> f64 {
+    pub fn fan_speed(&self, time: f64) -> f64 {
         let Some(fan) = &self.part_cooling_fan else { return 0.0 };
         let speed = match fan.get_status(time) {
             PyVal::Dict(d) => d.get("speed").and_then(|v| v.as_f64()).unwrap_or(0.0),
@@ -860,7 +860,7 @@ impl IndxToolboardHeater {
         py_max(0.0, py_min(1.0, speed))
     }
 
-    fn blend_ambient_temp(&self, sensor_temp: f64) -> f64 {
+    pub fn blend_ambient_temp(&self, sensor_temp: f64) -> f64 {
         // Weighted blend of the board/bracket thermistors and the IR sensor's
         // ambient reading, using the model's ambient_blend_* weights. This is
         // the same ambient the model is fed at runtime, reused by calibration.
@@ -880,7 +880,7 @@ impl IndxToolboardHeater {
         py_sum(components.iter().map(|(t, w)| t * w)) / w_total
     }
 
-    fn handle_report_nozzle_temp(&self, params: &Params) -> KResult<()> {
+    pub fn handle_report_nozzle_temp(&self, params: &Params) -> KResult<()> {
         let clock = self.mcu.clock32_to_clock64(param(params, "clock"));
         let time = self.mcu.clock_to_print_time(clock as f64);
         let nozzle_temp = param(params, "nozzle") as f64 / 100.0 - KELVIN_OFFSET;
@@ -992,17 +992,17 @@ impl IndxToolboardHeater {
         Ok(())
     }
 
-    fn handle_vin_mon(&self, _read_time: f64, read_value: f64) {
+    pub fn handle_vin_mon(&self, _read_time: f64, read_value: f64) {
         let vin = read_value * 3.3 * (4700.0 + 60400.0) / 4700.0;
         self.supply_voltage.set(vin);
     }
 
-    fn set_target_temp(&self, target_temp: f64) -> KResult<()> {
+    pub fn set_target_temp(&self, target_temp: f64) -> KResult<()> {
         let target_temp = if target_temp == 0.0 { f64::NAN } else { target_temp };
         self.cmd(|c| c.set_target.as_ref(), |cmd| cmd.send(&[Val::Int(float_to_u32(target_temp + KELVIN_OFFSET))], 0, 0))
     }
 
-    fn cmd_set_pid(&self, gcmd: &GCodeCommand) -> KResult<()> {
+    pub fn cmd_set_pid(&self, gcmd: &GCodeCommand) -> KResult<()> {
         let p = *self.pid.borrow();
         let new = [
             gcmd.get_float("KP", Some(p[0]), Lim::new())?,
@@ -1016,12 +1016,12 @@ impl IndxToolboardHeater {
         self.apply_pid_params()
     }
 
-    fn cmd_set_cycle_limit(&self, gcmd: &GCodeCommand) -> KResult<()> {
+    pub fn cmd_set_cycle_limit(&self, gcmd: &GCodeCommand) -> KResult<()> {
         let cmd = self.mcu.lookup_command("indx_cycle_limit limit=%u", Some(self.cmd_queue.clone()))?;
         cmd.send(&[Val::Int(gcmd.get_int("LIMIT", None, Lim::new())?)], 0, 0)
     }
 
-    fn cmd_set_ir_sensor_params(&self, gcmd: &GCodeCommand) -> KResult<()> {
+    pub fn cmd_set_ir_sensor_params(&self, gcmd: &GCodeCommand) -> KResult<()> {
         let cmd = self.mcu.lookup_command("indx_set_ir_sensor_params exponent=%u obj_gain=%u bracket_gain=%u", Some(self.cmd_queue.clone()))?;
         let exponent = gcmd.get_float("EXPONENT", None, Lim::new())?;
         let obj_gain = gcmd.get_float("OBJ_GAIN", None, Lim::new())?;
@@ -1029,7 +1029,7 @@ impl IndxToolboardHeater {
         cmd.send(&[Val::Int(float_to_u32(exponent)), Val::Int(float_to_u32(obj_gain)), Val::Int(float_to_u32(bracket_gain))], 0, 0)
     }
 
-    fn cmd_calibrate(&self, gcmd: &GCodeCommand) -> KResult<()> {
+    pub fn cmd_calibrate(&self, gcmd: &GCodeCommand) -> KResult<()> {
         if self.cur_target_temp().is_some() {
             return Err(gcmd.error("Cannot calibrate while the heater is active. Turn the heater off first."));
         }
@@ -1046,7 +1046,7 @@ impl IndxToolboardHeater {
         Ok(())
     }
 
-    fn calibrate_coil_driver(&self, gcmd: &GCodeCommand) -> KResult<()> {
+    pub fn calibrate_coil_driver(&self, gcmd: &GCodeCommand) -> KResult<()> {
         let mcu = &self.mcu;
         let capture = gcmd.get_opt("SAVE_WAVEFORM").is_some();
 
@@ -1139,7 +1139,7 @@ impl IndxToolboardHeater {
         Ok(())
     }
 
-    fn save_coil_config(&self) -> KResult<()> {
+    pub fn save_coil_config(&self) -> KResult<()> {
         let Some((t_on, t_off, t_on_first)) = self.coil_timings.get() else {
             return Err(KError::Other("cannot unpack non-iterable NoneType object".into()));
         };
@@ -1193,7 +1193,7 @@ impl IndxToolboardHeater {
         self.heater.borrow().clone().ok_or_else(|| KError::Other("'NoneType' object has no attribute 'set_temp'".into()))
     }
 
-    fn wait_cooldown(&self, gcmd: &GCodeCommand, min_temp: f64) -> KResult<()> {
+    pub fn wait_cooldown(&self, gcmd: &GCodeCommand, min_temp: f64) -> KResult<()> {
         // Block until the nozzle has cooled below min_temp (the heater must
         // already be off) so the following operation runs at a consistent,
         // repeatable temperature.
@@ -1221,7 +1221,7 @@ impl IndxToolboardHeater {
         r
     }
 
-    fn calibrate_thermal_model(&self, gcmd: &GCodeCommand) -> KResult<()> {
+    pub fn calibrate_thermal_model(&self, gcmd: &GCodeCommand) -> KResult<()> {
         let Some(heater) = self.heater.borrow().clone() else {
             return Err(gcmd.error("INDX heater is not bound to an extruder/heater"));
         };
@@ -1386,7 +1386,7 @@ impl IndxToolboardHeater {
         Ok(())
     }
 
-    fn cmd_fan_calibrate(&self, gcmd: &GCodeCommand) -> KResult<()> {
+    pub fn cmd_fan_calibrate(&self, gcmd: &GCodeCommand) -> KResult<()> {
         let heater = match self.heater.borrow().clone() {
             Some(h) if self.heater_config_valid() => h,
             _ => return Err(gcmd.error("INDX thermal model is not calibrated")),
@@ -1501,7 +1501,7 @@ impl IndxToolboardHeater {
         Ok(())
     }
 
-    fn cmd_measure_power(&self, gcmd: &GCodeCommand) -> KResult<()> {
+    pub fn cmd_measure_power(&self, gcmd: &GCodeCommand) -> KResult<()> {
         let duration = gcmd.get_float("DURATION", Some(5.0), Lim::new().above(0.0))?;
         gcmd.respond_info(&format!("Measuring power for {:.1} seconds", duration), true);
 
@@ -1560,7 +1560,7 @@ impl IndxToolboardHeater {
         crate::printer::downcast_rc::<PrinterExtruder>(obj).ok_or_else(|| KError::Other("extruder has an unexpected type".into()))
     }
 
-    fn cmd_load_filament(&self, gcmd: &GCodeCommand) -> KResult<()> {
+    pub fn cmd_load_filament(&self, gcmd: &GCodeCommand) -> KResult<()> {
         if !self.thermal_model.borrow().is_valid() {
             return Err(gcmd.error("INDX thermal model is not calibrated"));
         }
@@ -1711,7 +1711,7 @@ impl IndxToolboardHeater {
         Ok(())
     }
 
-    fn cmd_clear_filament(&self, gcmd: &GCodeCommand) -> KResult<()> {
+    pub fn cmd_clear_filament(&self, gcmd: &GCodeCommand) -> KResult<()> {
         {
             let mut m = self.thermal_model.borrow_mut();
             m.params.filament_density = 0.0;
@@ -1723,7 +1723,7 @@ impl IndxToolboardHeater {
         Ok(())
     }
 
-    fn cmd_extruder_move(&self, gcmd: &GCodeCommand) -> KResult<()> {
+    pub fn cmd_extruder_move(&self, gcmd: &GCodeCommand) -> KResult<()> {
         let distance = gcmd.get_float("DISTANCE", None, Lim::new())?;
         let speed = gcmd.get_float("SPEED", None, Lim::new().above(0.0))?;
         let current = gcmd.get_float("CURRENT", None, Lim::new().above(0.0))?;
@@ -1766,7 +1766,7 @@ impl IndxToolboardHeater {
         r
     }
 
-    fn cmd_set_model_params(&self, gcmd: &GCodeCommand) -> KResult<()> {
+    pub fn cmd_set_model_params(&self, gcmd: &GCodeCommand) -> KResult<()> {
         let cur = self.thermal_model.borrow().params.clone();
 
         let new_model = ThermalModelParams {
@@ -1790,7 +1790,7 @@ impl IndxToolboardHeater {
         Ok(())
     }
 
-    fn cmd_dump_model_update(&self, gcmd: &GCodeCommand) -> KResult<()> {
+    pub fn cmd_dump_model_update(&self, gcmd: &GCodeCommand) -> KResult<()> {
         if self.cur_target_temp().is_none() {
             return Err(gcmd.error("Heating is not currently active"));
         }
@@ -1801,7 +1801,7 @@ impl IndxToolboardHeater {
         Ok(())
     }
 
-    fn cmd_log(&self, _gcmd: &GCodeCommand) -> KResult<()> {
+    pub fn cmd_log(&self, _gcmd: &GCodeCommand) -> KResult<()> {
         if self.log_file.borrow_mut().take().is_some() {
             return Ok(());
         }
@@ -1811,7 +1811,7 @@ impl IndxToolboardHeater {
         Ok(())
     }
 
-    fn cmd_debug_ir_sensor_eeprom(&self, gcmd: &GCodeCommand) -> KResult<()> {
+    pub fn cmd_debug_ir_sensor_eeprom(&self, gcmd: &GCodeCommand) -> KResult<()> {
         let cmd = self.mcu.lookup_query_command(
             "indx_debug_ir_sensor_eeprom",
             "indx_debug_ir_sensor_eeprom_data data=%*s",
@@ -1830,7 +1830,7 @@ impl IndxToolboardHeater {
         Ok(())
     }
 
-    fn cmd_debug_stream_raw_ir_sensor(&self, gcmd: &GCodeCommand) -> KResult<()> {
+    pub fn cmd_debug_stream_raw_ir_sensor(&self, gcmd: &GCodeCommand) -> KResult<()> {
         if self.raw_ir_log_file.borrow().is_some() {
             let r = self.cmd(|c| c.debug_stream_raw_ir.as_ref(), |cmd| cmd.send(&[Val::Int(0)], 0, 0));
             *self.raw_ir_log_file.borrow_mut() = None;
@@ -1865,7 +1865,7 @@ impl IndxToolboardHeater {
         Ok(())
     }
 
-    fn handle_debug_raw_ir(&self, params: &Params) -> KResult<()> {
+    pub fn handle_debug_raw_ir(&self, params: &Params) -> KResult<()> {
         if self.raw_ir_log_file.borrow().is_none() {
             return Ok(());
         }
@@ -1906,8 +1906,8 @@ impl PwmPin for IndxToolboardHeater {
 }
 
 pub struct HeaterControlIndx {
-    heater: Weak<Heater>,
-    indx_heater: Weak<IndxToolboardHeater>,
+    pub heater: Weak<Heater>,
+    pub indx_heater: Weak<IndxToolboardHeater>,
     profile: RefCell<Option<Profile>>,
 }
 
@@ -1920,9 +1920,9 @@ impl Control for HeaterControlIndx {
         heater.set_pwm(read_time, power)
     }
 
-    fn check_busy(&self, _eventtime: f64, smoothed_temp: f64, target_temp: f64) -> bool {
+    fn check_busy(&self, _eventtime: f64, smoothed_temp: f64, target_temp: f64) -> KResult<bool> {
         // TODO: Improve this
-        smoothed_temp < target_temp - 1.0
+        Ok(smoothed_temp < target_temp - 1.0)
     }
 
     fn get_profile(&self) -> Profile {

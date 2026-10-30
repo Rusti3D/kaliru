@@ -242,20 +242,20 @@ enum Active {
 
 // Parse and dispatch G-Code commands
 pub struct GCodeDispatch {
-    printer: Rc<Printer>,
-    is_fileinput: bool,
-    is_printer_ready: Cell<bool>,
+    pub printer: Rc<Printer>,
+    pub is_fileinput: bool,
+    pub is_printer_ready: Cell<bool>,
     mutex: Rc<ReactorMutex>,
     output_callbacks: RefCell<Vec<(OutputCallback, Option<CallbackOrigin>)>>,
     // python: self.gcode_handlers is the base or the ready dict itself
     active: Cell<Active>,
     base_gcode_handlers: RefCell<IndexMap<String, Handler>>,
     ready_gcode_handlers: RefCell<IndexMap<String, Handler>>,
-    mux_commands: RefCell<IndexMap<String, (String, IndexMap<Option<String>, (Handler, Option<String>)>)>>,
-    gcode_help: RefCell<IndexMap<String, String>>,
-    status_commands: RefCell<PyVal>,
-    interrupt_counter: Cell<i64>,
-    script_context: Cell<i64>,
+    pub mux_commands: RefCell<IndexMap<String, (String, IndexMap<Option<String>, (Handler, Option<String>)>)>>,
+    pub gcode_help: RefCell<IndexMap<String, String>>,
+    pub status_commands: RefCell<PyVal>,
+    pub interrupt_counter: Cell<i64>,
+    pub script_context: Cell<i64>,
 }
 
 impl PrinterObject for GCodeDispatch {
@@ -316,22 +316,24 @@ impl GCodeDispatch {
                 g.increment_interrupt_counter();
                 Ok(())
             }, None),
-            ("LOG_ROLLOVER", |g, _| {
-                // python: self.printer.bglogger.doRollover() (AttributeError without -l)
-                match &g.printer.bglogger {
-                    Some(bg) => {
-                        bg.do_rollover();
-                        Ok(())
-                    }
-                    None => Err(KError::Other("'NoneType' object has no attribute 'doRollover'".into())),
-                }
-            }, None),
+            ("LOG_ROLLOVER", |g, _| g.cmd_log_rollover(), None),
         ];
         for (cmd, func, desc) in handlers {
             let g = gcode.clone();
             gcode.register_command(cmd, Some(Rc::new(move |c: &GCodeCommand| func(&g, c))), true, desc)?;
         }
         Ok(gcode)
+    }
+
+    pub fn cmd_log_rollover(&self) -> KResult<()> {
+        // python: self.printer.bglogger.doRollover() (AttributeError without -l)
+        match &self.printer.bglogger {
+            Some(bg) => {
+                bg.do_rollover();
+                Ok(())
+            }
+            None => Err(KError::Other("'NoneType' object has no attribute 'doRollover'".into())),
+        }
     }
 
     pub fn get_interrupt_counter(&self) -> i64 {
@@ -479,7 +481,7 @@ impl GCodeDispatch {
         self.gcode_help.borrow().clone()
     }
 
-    fn build_status_commands(&self) {
+    pub fn build_status_commands(&self) {
         let mut commands: PyDict = IndexMap::default();
         for cmd in self.handler_names() {
             commands.insert(cmd.into(), PyVal::dict());
@@ -507,7 +509,7 @@ impl GCodeDispatch {
         self.output_callbacks.borrow_mut().push((cb, None));
     }
 
-    fn handle_shutdown(&self) -> KResult<()> {
+    pub fn handle_shutdown(&self) -> KResult<()> {
         if !self.is_printer_ready.get() {
             return Ok(());
         }
@@ -518,12 +520,12 @@ impl GCodeDispatch {
         Ok(())
     }
 
-    fn handle_disconnect(&self) -> KResult<()> {
+    pub fn handle_disconnect(&self) -> KResult<()> {
         self.respond_state("Disconnect");
         Ok(())
     }
 
-    fn handle_ready(&self) -> KResult<()> {
+    pub fn handle_ready(&self) -> KResult<()> {
         self.is_printer_ready.set(true);
         self.active.set(Active::Ready);
         self.build_status_commands();
@@ -677,7 +679,7 @@ impl GCodeDispatch {
         }
     }
 
-    fn respond_state(&self, state: &str) {
+    pub fn respond_state(&self, state: &str) {
         self.respond_info(&format!("Klipper state: {}", state), false);
     }
 
@@ -699,7 +701,7 @@ impl GCodeDispatch {
     }
 
     // G-Code special command handlers
-    fn cmd_default(&self, gcmd: &GCodeCommand) -> KResult<()> {
+    pub fn cmd_default(&self, gcmd: &GCodeCommand) -> KResult<()> {
         let cmd = gcmd.get_command();
         if cmd == "M105" {
             // Don't warn about temperature requests when not ready
@@ -740,7 +742,7 @@ impl GCodeDispatch {
         crate::events::GcodeUnknownCommand::emit(&self.printer, &cmd)
     }
 
-    fn cmd_mux(&self, command: &str, gcmd: &GCodeCommand) -> KResult<()> {
+    pub fn cmd_mux(&self, command: &str, gcmd: &GCodeCommand) -> KResult<()> {
         let (key, func) = {
             let mux = self.mux_commands.borrow();
             let (key, values) = mux.get(command).unwrap();
@@ -764,7 +766,7 @@ impl GCodeDispatch {
         Ok(())
     }
 
-    fn cmd_m115(&self, gcmd: &GCodeCommand) -> KResult<()> {
+    pub fn cmd_m115(&self, gcmd: &GCodeCommand) -> KResult<()> {
         // Get Firmware Version and Capabilities
         let software_version = self.printer.start_arg("software_version").map(|v| v.str()).unwrap_or_else(|| "None".into());
         let msg = format!("FIRMWARE_NAME:Kalico FIRMWARE_VERSION:{}", software_version);
@@ -789,7 +791,7 @@ impl GCodeDispatch {
         Ok(())
     }
 
-    fn cmd_status(&self, gcmd: &GCodeCommand) -> KResult<()> {
+    pub fn cmd_status(&self, gcmd: &GCodeCommand) -> KResult<()> {
         if self.is_printer_ready.get() {
             self.respond_state("Ready");
             return Ok(());
@@ -799,7 +801,7 @@ impl GCodeDispatch {
         Err(gcmd.error(msg))
     }
 
-    fn cmd_help(&self, gcmd: &GCodeCommand) -> KResult<()> {
+    pub fn cmd_help(&self, gcmd: &GCodeCommand) -> KResult<()> {
         let mut cmdhelp = vec![];
         if !self.is_printer_ready.get() {
             cmdhelp.push("Printer is not ready - not all commands available.".to_string());
@@ -820,18 +822,18 @@ impl GCodeDispatch {
 
 // Support reading gcode from a pseudo-tty interface
 pub struct GCodeIO {
-    printer: Rc<Printer>,
-    gcode: Rc<GCodeDispatch>,
-    gcode_mutex: Rc<ReactorMutex>,
+    pub printer: Rc<Printer>,
+    pub gcode: Rc<GCodeDispatch>,
+    pub gcode_mutex: Rc<ReactorMutex>,
     fd: RawFd,
-    is_printer_ready: Cell<bool>,
-    is_processing_data: Cell<bool>,
-    is_fileinput: bool,
-    pipe_is_active: Cell<bool>,
+    pub is_printer_ready: Cell<bool>,
+    pub is_processing_data: Cell<bool>,
+    pub is_fileinput: bool,
+    pub pipe_is_active: Cell<bool>,
     fd_handle: RefCell<Option<FileHandler>>,
-    partial_input: RefCell<String>,
-    pending_commands: RefCell<Vec<String>>,
-    bytes_read: Cell<usize>,
+    pub partial_input: RefCell<String>,
+    pub pending_commands: RefCell<Vec<String>>,
+    pub bytes_read: Cell<usize>,
     input_log: RefCell<VecDeque<(f64, String)>>,
 }
 
@@ -919,7 +921,7 @@ impl GCodeIO {
         }
     }
 
-    fn handle_ready(self: &Rc<Self>) -> KResult<()> {
+    pub fn handle_ready(self: &Rc<Self>) -> KResult<()> {
         self.is_printer_ready.set(true);
         if self.is_fileinput && self.fd_handle.borrow().is_none() {
             self.register_fd();
@@ -936,7 +938,7 @@ impl GCodeIO {
         logging::info(&out.join("\n"));
     }
 
-    fn handle_shutdown(&self) -> KResult<()> {
+    pub fn handle_shutdown(&self) -> KResult<()> {
         if !self.is_printer_ready.get() {
             return Ok(());
         }
@@ -947,7 +949,7 @@ impl GCodeIO {
         Ok(())
     }
 
-    fn process_data(self: &Rc<Self>, eventtime: f64) {
+    pub fn process_data(self: &Rc<Self>, eventtime: f64) {
         if let Err(e) = self.process_data_inner(eventtime) {
             self.printer.unhandled_exception(&e);
         }
@@ -1020,7 +1022,7 @@ impl GCodeIO {
         Ok(())
     }
 
-    fn respond_raw(&self, msg: &str) {
+    pub fn respond_raw(&self, msg: &str) {
         if self.pipe_is_active.get() {
             let data = format!("{}\n", msg);
             // SAFETY: data is a live slice of data.len() bytes

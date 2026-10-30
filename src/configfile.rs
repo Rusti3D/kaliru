@@ -715,7 +715,7 @@ impl PrinterConfig {
         }
     }
 
-    fn read_config_file(&self, filename: &str) -> Result<String> {
+    pub fn read_config_file(&self, filename: &str) -> Result<String> {
         // open(filename, "r"): utf-8, universal newlines
         let res = match std::fs::read(filename) {
             Ok(b) => String::from_utf8(b).map_err(|e| ("UnicodeDecodeError", crate::pyfmt::py_utf8_error(e.as_bytes(), &e.utf8_error()))),
@@ -1001,7 +1001,7 @@ impl PrinterConfig {
         self.status_warnings = PyVal::shared(PyVal::List(warnings));
     }
 
-    fn build_status(&mut self, config: &ConfigWrapper) -> Result<()> {
+    pub fn build_status(&mut self, config: &ConfigWrapper) -> Result<()> {
         let mut raw_config = IndexMap::default();
         for section in config.get_prefix_sections("") {
             let mut section_status = IndexMap::default();

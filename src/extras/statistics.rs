@@ -15,10 +15,10 @@ use std::io::{Read, Seek};
 use std::rc::Rc;
 
 pub struct PrinterSysStats {
-    last_process_time: Cell<f64>,
-    total_process_time: Cell<f64>,
-    last_load_avg: Cell<f64>,
-    last_mem_avail: Cell<i64>,
+    pub last_process_time: Cell<f64>,
+    pub total_process_time: Cell<f64>,
+    pub last_load_avg: Cell<f64>,
+    pub last_mem_avail: Cell<i64>,
     mem_file: RefCell<Option<std::fs::File>>,
 }
 
@@ -39,7 +39,7 @@ fn getloadavg() -> f64 {
 }
 
 impl PrinterSysStats {
-    fn new(config: &ConfigWrapper) -> Rc<Self> {
+    pub fn new(config: &ConfigWrapper) -> Rc<Self> {
         let printer = config.get_printer();
         let s = Rc::new(PrinterSysStats {
             last_process_time: Cell::new(0.0),
@@ -106,13 +106,13 @@ impl PrinterObject for PrinterSysStats {
 }
 
 pub struct PrinterStats {
-    printer: Rc<Printer>,
-    stats_timer: RefCell<Option<Timer>>,
-    stats_cb: RefCell<Vec<PObj>>,
+    pub printer: Rc<Printer>,
+    pub stats_timer: RefCell<Option<Timer>>,
+    pub stats_cb: RefCell<Vec<PObj>>,
 }
 
 impl PrinterStats {
-    fn new(config: &ConfigWrapper) -> Rc<Self> {
+    pub fn new(config: &ConfigWrapper) -> Rc<Self> {
         let printer = config.get_printer();
         let reactor = printer.get_reactor();
         let ps = Rc::new(PrinterStats { printer: printer.clone(), stats_timer: RefCell::new(None), stats_cb: RefCell::new(vec![]) });
@@ -133,7 +133,7 @@ impl PrinterStats {
         ps
     }
 
-    fn handle_ready(&self) {
+    pub fn handle_ready(&self) {
         *self.stats_cb.borrow_mut() =
             self.printer.lookup_objects(None).into_iter().filter(|(_, o)| o.has_stats()).map(|(_, o)| o).collect();
         if self.printer.start_arg("debugoutput").is_none() {
@@ -144,7 +144,7 @@ impl PrinterStats {
         }
     }
 
-    fn generate_stats(&self, eventtime: f64) -> f64 {
+    pub fn generate_stats(&self, eventtime: f64) -> f64 {
         let cbs = self.stats_cb.borrow().clone();
         let stats: Vec<(bool, String)> = cbs.iter().filter_map(|o| o.stats(eventtime)).collect();
         if stats.iter().any(|s| s.0) && get_danger_options().log_statistics {

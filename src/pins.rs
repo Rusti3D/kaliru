@@ -31,9 +31,10 @@ fn invalid_pin_name(pin: &str) -> bool {
     pin.contains(['^', '~', '!', ':']) || pin.chars().any(py_isspace)
 }
 
+crate::impl_downcast!(dyn PinChip);
 /// A pin chip registered with register_chip() (an mcu or an extras chip).
 /// setup_pin() returns the chip's pin object (MCU_endstop, MCU_digital_out...).
-pub trait PinChip {
+pub trait PinChip: Any {
     fn setup_pin(&self, pin_type: &str, pin_params: &SharedPinParams) -> std::result::Result<Rc<dyn Any>, String>;
     /// MCU_buttons(printer, chip) on a chip that is not one of kaliru's MCUs
     /// (a python plugin's): chip.register_config_callback(build_config).
@@ -44,6 +45,10 @@ pub trait PinChip {
     /// the python object of a plugin's chip (pin_params["chip"])
     fn python_object(&self) -> Option<Rc<dyn Any>> {
         None
+    }
+    /// the Rust type's path (python plugins find the Kalico class by it)
+    fn type_name(&self) -> &'static str {
+        std::any::type_name::<Self>()
     }
 }
 
@@ -60,6 +65,7 @@ pub struct PinParams {
 }
 
 pub type SharedPinParams = Rc<RefCell<PinParams>>;
+pub type PinResolverRef = Rc<RefCell<PinResolver>>;
 
 // ----------------------------------------------------------------------
 // Command translation
@@ -149,7 +155,7 @@ impl PinResolver {
 pub struct PrinterPins {
     pub chips: IndexMap<String, Rc<dyn PinChip>>,
     pub active_pins: IndexMap<String, SharedPinParams>,
-    pub pin_resolvers: IndexMap<String, PinResolver>,
+    pub pin_resolvers: IndexMap<String, PinResolverRef>,
     pub allow_multi_use_pins: HashMap<String, bool>,
 }
 
@@ -261,9 +267,10 @@ impl PrinterPins {
         self.active_pins.shift_remove(&share_name);
     }
 
-    pub fn get_pin_resolver(&mut self, chip_name: &str) -> Result<&mut PinResolver> {
+    pub fn get_pin_resolver(&self, chip_name: &str) -> Result<PinResolverRef> {
         self.pin_resolvers
-            .get_mut(chip_name)
+            .get(chip_name)
+            .cloned()
             .ok_or_else(|| error(format!("Unknown chip name '{}'", chip_name)))
     }
 
@@ -273,7 +280,7 @@ impl PrinterPins {
             return Err(error(format!("Duplicate chip name '{}'", chip_name)));
         }
         self.chips.insert(chip_name.to_string(), chip);
-        self.pin_resolvers.insert(chip_name.to_string(), PinResolver::new(true));
+        self.pin_resolvers.insert(chip_name.to_string(), Rc::new(RefCell::new(PinResolver::new(true))));
         Ok(())
     }
 

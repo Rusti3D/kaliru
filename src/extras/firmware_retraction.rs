@@ -18,32 +18,32 @@ const ZHOP_MOVE_SPEED_FRACTION: f64 = 0.8;
 const MAX_Z_MARGIN: f64 = 0.1;
 
 #[derive(Clone, Copy, Default)]
-struct Params {
-    retract_length: f64,
-    retract_speed: f64,
-    unretract_extra_length: f64,
-    unretract_speed: f64,
-    z_hop_height: f64,
-    clear_zhop: bool,
-    unretract_length: f64,
+pub struct Params {
+    pub retract_length: f64,
+    pub retract_speed: f64,
+    pub unretract_extra_length: f64,
+    pub unretract_speed: f64,
+    pub z_hop_height: f64,
+    pub clear_zhop: bool,
+    pub unretract_length: f64,
 }
 
 pub struct FirmwareRetraction {
     me: Weak<FirmwareRetraction>,
-    config_ref: ConfigWrapper,
-    printer: Rc<Printer>,
-    p: Cell<Params>,
-    is_retracted: Cell<bool>,
-    do_zhop: Cell<bool>,
-    current_z_hop_height: Cell<f64>,
-    current_unretract_length: Cell<f64>,
-    current_unretract_speed: Cell<f64>,
-    last_position: RefCell<Vec<f64>>,
-    next_transform: RefCell<Option<MoveTransformRef>>,
-    max_z_vel: f64,
-    gcode_move: RefCell<Option<Rc<GCodeMove>>>,
-    exclude_objects: RefCell<Option<Rc<ExcludeObject>>>,
-    maximum_z: Cell<f64>,
+    pub config_ref: ConfigWrapper,
+    pub printer: Rc<Printer>,
+    pub p: Cell<Params>,
+    pub is_retracted: Cell<bool>,
+    pub do_zhop: Cell<bool>,
+    pub current_z_hop_height: Cell<f64>,
+    pub current_unretract_length: Cell<f64>,
+    pub current_unretract_speed: Cell<f64>,
+    pub last_position: RefCell<Vec<f64>>,
+    pub next_transform: RefCell<Option<MoveTransformRef>>,
+    pub max_z_vel: f64,
+    pub gcode_move: RefCell<Option<Rc<GCodeMove>>>,
+    pub exclude_objects: RefCell<Option<Rc<ExcludeObject>>>,
+    pub maximum_z: Cell<f64>,
 }
 
 const CMD_SET_RETRACTION_HELP: &str = "Set firmware retraction parameters";
@@ -52,7 +52,7 @@ const CMD_CLEAR_RETRACTION_HELP: &str = "Clear retraction state without retract 
 const CMD_RESET_RETRACTION_HELP: &str = "Reset retraction parameters to default values";
 
 impl FirmwareRetraction {
-    fn new(config: &ConfigWrapper) -> KResult<Rc<Self>> {
+    pub fn new(config: &ConfigWrapper) -> KResult<Rc<Self>> {
         let printer = config.get_printer();
         // Get retraction params from config, used also in RESET_RETRACTION
         // and initiate params
@@ -132,7 +132,7 @@ impl FirmwareRetraction {
     }
 
     // Helper method to register commands and instantiate required objects
-    fn handle_ready(&self) -> KResult<()> {
+    pub fn handle_ready(&self) -> KResult<()> {
         let gcode_move = self.printer.lookup::<GCodeMove>("gcode_move")?;
         *self.exclude_objects.borrow_mut() = self.printer.lookup_object_opt("exclude_object").and_then(downcast_rc::<ExcludeObject>);
         // Register move transformation while printer ready
@@ -167,7 +167,7 @@ impl FirmwareRetraction {
         Ok(())
     }
 
-    fn cmd_set_retraction(&self, gcmd: &GCodeCommand) -> KResult<()> {
+    pub fn cmd_set_retraction(&self, gcmd: &GCodeCommand) -> KResult<()> {
         let mut p = self.p.get();
         p.retract_length = gcmd.get_float("RETRACT_LENGTH", Some(p.retract_length), Lim::new().min(0.0))?;
         p.retract_speed = gcmd.get_float("RETRACT_SPEED", Some(p.retract_speed), Lim::new().min(1.0))?;
@@ -180,7 +180,7 @@ impl FirmwareRetraction {
         Ok(())
     }
 
-    fn cmd_get_retraction(&self, gcmd: &GCodeCommand) -> KResult<()> {
+    pub fn cmd_get_retraction(&self, gcmd: &GCodeCommand) -> KResult<()> {
         let p = self.p.get();
         gcmd.respond_info(
             &format!(
@@ -198,14 +198,14 @@ impl FirmwareRetraction {
         Ok(())
     }
 
-    fn cmd_clear_retraction(&self, gcmd: &GCodeCommand) -> KResult<()> {
+    pub fn cmd_clear_retraction(&self, gcmd: &GCodeCommand) -> KResult<()> {
         self.execute_clear_z_hop();
         self.is_retracted.set(false); // Reset retract flag to enable G10 command
         gcmd.respond_info("Retraction was cleared. zhop is undone on next move.", true);
         Ok(())
     }
 
-    fn cmd_reset_retraction(&self, _gcmd: &GCodeCommand) -> KResult<()> {
+    pub fn cmd_reset_retraction(&self, _gcmd: &GCodeCommand) -> KResult<()> {
         // Reset retraction parameters to config values
         self.p.set(Self::get_config_params(&self.config_ref)?);
         Ok(())
@@ -218,7 +218,7 @@ impl FirmwareRetraction {
     }
 
     // Helper to skip command while in exclude object
-    fn test_in_excluded_region(&self) -> bool {
+    pub fn test_in_excluded_region(&self) -> bool {
         match self.exclude_objects.borrow().as_ref() {
             Some(e) => e.test_in_excluded_region(),
             None => false,
@@ -230,7 +230,7 @@ impl FirmwareRetraction {
     }
 
     // Gcode Command G10 to perform firmware retraction
-    fn cmd_g10(&self, gcmd: &GCodeCommand) -> KResult<()> {
+    pub fn cmd_g10(&self, gcmd: &GCodeCommand) -> KResult<()> {
         let (extrude_factor, speed_factor) = self.get_factors()?;
         let p = self.p.get();
         // If filament isn't retracted
@@ -264,7 +264,7 @@ impl FirmwareRetraction {
     }
 
     // GCode Command G11 to perform filament unretraction
-    fn cmd_g11(&self, gcmd: &GCodeCommand) -> KResult<()> {
+    pub fn cmd_g11(&self, gcmd: &GCodeCommand) -> KResult<()> {
         let (extrude_factor, speed_factor) = self.get_factors()?;
         // Check if the filament is retracted
         if self.is_retracted.get() && !self.test_in_excluded_region() {
@@ -315,7 +315,7 @@ impl FirmwareRetraction {
     }
 
     // Helper to limit z_hop while z_max is reached
-    fn limit_zhop(&self, gcmd: &GCodeCommand, pos: &[f64]) -> bool {
+    pub fn limit_zhop(&self, gcmd: &GCodeCommand, pos: &[f64]) -> bool {
         let z_margin = self.maximum_z.get() - pos[2] - MAX_Z_MARGIN;
         let z_hop_height = self.p.get().z_hop_height;
         if z_hop_height > z_margin {
@@ -328,7 +328,7 @@ impl FirmwareRetraction {
     }
 
     // Helper to get extrude_factor & speed_factor
-    fn get_factors(&self) -> KResult<(f64, f64)> {
+    pub fn get_factors(&self) -> KResult<(f64, f64)> {
         let status = self.gcode_move()?.get_status(0.0);
         let get = |k: &str| match &status {
             Some(PyVal::Dict(d)) => d.get(k).and_then(|v| v.as_f64()).unwrap_or(0.0),

@@ -46,17 +46,17 @@ fn threads_factor(thread: i64) -> f64 {
 
 pub struct ScrewsTiltAdjust {
     screws: Vec<([f64; 2], String)>,
-    results: RefCell<PyDict>,
-    max_diff: Cell<Option<f64>>,
-    max_diff_error: Cell<bool>,
-    thread: i64,
-    direction: RefCell<Option<String>>,
-    probe_helper: RefCell<Option<Rc<ProbePointsHelper>>>,
-    gcode: Rc<GCodeDispatch>,
+    pub results: RefCell<PyDict>,
+    pub max_diff: Cell<Option<f64>>,
+    pub max_diff_error: Cell<bool>,
+    pub thread: i64,
+    pub direction: RefCell<Option<String>>,
+    pub probe_helper: RefCell<Option<Rc<ProbePointsHelper>>>,
+    pub gcode: Rc<GCodeDispatch>,
 }
 
 impl ScrewsTiltAdjust {
-    fn new(config: &ConfigWrapper) -> KResult<Rc<Self>> {
+    pub fn new(config: &ConfigWrapper) -> KResult<Rc<Self>> {
         let printer = config.get_printer();
         let mut screws = vec![];
         // Read config
@@ -116,7 +116,7 @@ impl ScrewsTiltAdjust {
         Ok(s)
     }
 
-    fn cmd_screws_tilt_calculate(&self, gcmd: &GCodeCommand) -> KResult<()> {
+    pub fn cmd_screws_tilt_calculate(&self, gcmd: &GCodeCommand) -> KResult<()> {
         self.max_diff.set(gcmd.get_float_opt("MAX_DEVIATION", crate::configfile::Lim::new())?);
         // Option to force all turns to be in the given direction (CW or CCW)
         let mut direction = gcmd.get_opt("DIRECTION");

@@ -15,17 +15,17 @@ use std::rc::Rc;
 pub const KELVIN_TO_CELSIUS: f64 = -273.15;
 
 pub struct PrinterSensorGeneric {
-    name: String,
+    pub name: String,
     _sensor: Rc<dyn TempSensor>,
-    min_temp: f64,
-    max_temp: f64,
-    last_temp: Cell<f64>,
-    measured_min: Cell<f64>,
-    measured_max: Cell<f64>,
+    pub min_temp: f64,
+    pub max_temp: f64,
+    pub last_temp: Cell<f64>,
+    pub measured_min: Cell<f64>,
+    pub measured_max: Cell<f64>,
 }
 
 impl PrinterSensorGeneric {
-    fn new(config: &ConfigWrapper) -> KResult<Rc<Self>> {
+    pub fn new(config: &ConfigWrapper) -> KResult<Rc<Self>> {
         let name = config.get_name().split_whitespace().last().unwrap_or("").to_string();
         let pheaters = load_heaters(config)?;
         let sensor = pheaters.setup_sensor(config)?;
@@ -47,12 +47,12 @@ impl PrinterSensorGeneric {
                 s.temperature_callback(read_time, temp);
             }
             Ok(())
-        }));
+        }))?;
         pheaters.register_sensor(config, s.clone(), None)?;
         Ok(s)
     }
 
-    fn temperature_callback(&self, _read_time: f64, temp: f64) {
+    pub fn temperature_callback(&self, _read_time: f64, temp: f64) {
         self.last_temp.set(temp);
         if temp != 0.0 {
             self.measured_min.set(py_min(self.measured_min.get(), temp));

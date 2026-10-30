@@ -90,7 +90,7 @@ pub fn error_hint(msg: &str) -> &'static str {
 pub type ClarifyCallback = Rc<dyn Fn(&str, &PyVal) -> Option<String>>;
 
 pub struct PrinterMcuError {
-    printer: Rc<Printer>,
+    pub printer: Rc<Printer>,
     clarify_callbacks: RefCell<IndexMap<String, Vec<ClarifyCallback>>>,
 }
 
@@ -128,7 +128,7 @@ impl PrinterMcuError {
         self.clarify_callbacks.borrow_mut().entry(msg.to_string()).or_default().push(callback);
     }
 
-    fn check_mcu_shutdown(&self, msg: &str, details: &PyVal) {
+    pub fn check_mcu_shutdown(&self, msg: &str, details: &PyVal) {
         let mcu_name = dict_str(details, "mcu");
         let mcu_msg = dict_str(details, "reason");
         let event_type = dict_str(details, "event_type");
@@ -153,7 +153,7 @@ impl PrinterMcuError {
         self.printer.update_error_msg(msg, &newmsg);
     }
 
-    fn handle_analyze_shutdown(&self, msg: &str, details: &PyVal) {
+    pub fn handle_analyze_shutdown(&self, msg: &str, details: &PyVal) {
         if msg == "MCU shutdown" {
             self.check_mcu_shutdown(msg, details);
         } else {
@@ -169,7 +169,7 @@ impl PrinterMcuError {
         ));
     }
 
-    fn check_protocol_error(&self, msg: &str, details: &PyVal) {
+    pub fn check_protocol_error(&self, msg: &str, details: &PyVal) {
         let host_version = self.printer.start_arg("software_version").map(|v| v.str()).unwrap_or_default();
         let mut msg_update = vec![];
         let mut msg_updated = vec![];
@@ -210,12 +210,12 @@ impl PrinterMcuError {
         self.printer.update_error_msg(msg, &newmsg.join("\n"));
     }
 
-    fn check_mcu_connect_error(&self, msg: &str, details: &PyVal) {
+    pub fn check_mcu_connect_error(&self, msg: &str, details: &PyVal) {
         let newmsg = format!("{}{}", dict_str(details, "error"), MESSAGE_MCU_CONNECT_ERROR);
         self.printer.update_error_msg(msg, &newmsg);
     }
 
-    fn handle_notify_mcu_error(&self, msg: &str, details: &PyVal) {
+    pub fn handle_notify_mcu_error(&self, msg: &str, details: &PyVal) {
         if msg == "Protocol error" {
             self.check_protocol_error(msg, details);
         } else if msg == "MCU error during connect" {

@@ -123,6 +123,40 @@ class Attr:
             _n.delete(obj, self.id)
 
 
+def config_jinja_env():
+    """PrinterConfig.jinja_env as Kalico builds it"""
+    import jinja2
+    return jinja2.Environment(
+        block_start_string="{!%",
+        block_end_string="%!}",
+        variable_start_string="{!",
+        variable_end_string="!}",
+        comment_start_string="{!#",
+        comment_end_string="#!}",
+        undefined=jinja2.StrictUndefined,
+        keep_trailing_newline=True,
+        extensions=[
+            "jinja2.ext.do",
+            "jinja2.ext.loopcontrols",
+        ],
+    )
+
+
+def macro_jinja_env():
+    """PrinterGCodeMacro.env as Kalico builds it"""
+    import jinja2
+    return jinja2.Environment(
+        "{%",
+        "%}",
+        "{",
+        "}",
+        extensions=[
+            "jinja2.ext.do",
+            "jinja2.ext.loopcontrols",
+        ],
+    )
+
+
 class FileConfig(configparser.RawConfigParser):
     """config.fileconfig of a kaliru config: kaliru's parser, Kalico's
     interpolation included. getint/getfloat/getboolean/SectionProxy are
@@ -132,6 +166,15 @@ class FileConfig(configparser.RawConfigParser):
 
     def __init__(self, *args, **kwargs):
         raise TypeError("kaliru: FileConfig only wraps kaliru's parser")
+
+    @property
+    def _converters(self):
+        # made by RawConfigParser.__init__ (never run here); SectionProxy
+        # reads it
+        return configparser.ConverterMapping(self)
+
+    def defaults(self):
+        return _n.ext("fc_defaults", self)
 
     def sections(self):
         return _n.ext("fc_sections", self)
@@ -284,6 +327,119 @@ class DictView(MutableMapping):
 
     def __len__(self):
         return len(_n.ext("dict_keys", self._owner, self._field))
+
+    def copy(self):
+        return dict(self)
+
+    def __repr__(self):
+        return repr(dict(self))
+
+
+class CData:
+    """A chelper object (struct trapq *, struct stepper_kinematics *) as
+    cffi hands it to Kalico: an opaque handle, the same object each time"""
+
+    __slots__ = ("_k_h", "__weakref__")
+
+    def __repr__(self):
+        return "<cdata '%s'>" % (_n.ext("cdata_type", self),)
+
+
+class _CStruct:
+    """An element of ffi.new("struct <name>[n]")"""
+
+    def __init__(self, fields):
+        for f in fields:
+            setattr(self, f, 0)
+
+
+_CSTRUCTS = {
+    "struct pull_move": ("print_time", "move_t", "start_v", "accel", "start_x", "start_y", "start_z",
+                         "x_r", "y_r", "z_r"),
+    "struct pull_history_steps": ("first_clock", "last_clock", "start_position", "step_count", "interval", "add"),
+}
+
+
+class _CFuncType:
+    """ffi.typeof(<lib function>): its argument and result types"""
+
+    kind = "function"
+
+    def __init__(self, args, result):
+        self.args = tuple(args)
+        self.result = result
+
+
+class FFI:
+    """chelper.get_ffi()[0]: the cffi FFI object's calls plugins make"""
+
+    NULL = None
+
+    def gc(self, cdata, destructor, size=0):
+        # (kaliru frees its chelper objects when the last reference goes)
+        return cdata
+
+    def new(self, cdecl, init=None):
+        import re
+        m = re.match(r"\s*(struct \w+)\s*\[\s*(\d*)\s*\]\s*$", cdecl)
+        if m is None or m.group(1) not in _CSTRUCTS:
+            raise NotImplementedError("kaliru: ffi.new(%r) is not mirrored yet" % (cdecl,))
+        if m.group(2):
+            n = int(m.group(2))
+        else:
+            n = init if isinstance(init, int) else len(init)
+        return [_CStruct(_CSTRUCTS[m.group(1)]) for _ in range(n)]
+
+    def typeof(self, cdecl):
+        for name, f in vars(_ffi[1]).items():
+            if f is cdecl:
+                args, result = _n.ext("ffi_sig", name)
+                return _CFuncType(args, result)
+        raise NotImplementedError("kaliru: ffi.typeof(%r) is not mirrored yet" % (cdecl,))
+
+
+class FFILib:
+    """chelper.get_ffi()[1]: the chelper functions (kaliru's own)"""
+
+    def __getattr__(self, name):
+        f = _n.ext("ffi_fn", name)
+        object.__setattr__(self, name, f)
+        return f
+
+
+_ffi = None
+
+
+def get_ffi():
+    global _ffi
+    if _ffi is None:
+        _ffi = (FFI(), FFILib())
+    return _ffi
+
+
+class ProfileDict(MutableMapping):
+    """A heater profile that lives in kaliru: Kalico's profile dict, shared
+    by the profile manager and the control built from it"""
+
+    __slots__ = ("_k_h", "__weakref__")
+
+    def __getitem__(self, key):
+        return _n.ext("profile_get", self, key)
+
+    def __setitem__(self, key, value):
+        _n.ext("profile_set", self, key, value)
+
+    def __delitem__(self, key):
+        _n.ext("profile_del", self, key)
+
+    def __iter__(self):
+        return iter(_n.ext("profile_keys", self))
+
+    def __len__(self):
+        return len(_n.ext("profile_keys", self))
+
+    def copy(self):
+        return dict(self)
 
     def __repr__(self):
         return repr(dict(self))

@@ -13,12 +13,12 @@ use std::rc::Rc;
 pub struct PrinterBoardAliases;
 
 impl PrinterBoardAliases {
-    fn new(config: &ConfigWrapper) -> KResult<Rc<Self>> {
+    pub fn new(config: &ConfigWrapper) -> KResult<Rc<Self>> {
         let ppins = config.get_printer().lookup::<PinsObject>("pins")?;
         let mcu_names = config
             .getlist("mcu", PyVal::Tuple(vec![PyVal::from("mcu")]), ",", None)?
             .unwrap_or_default();
-        let mut pins = ppins.0.borrow_mut();
+        let pins = ppins.0.borrow_mut();
         for n in &mcu_names {
             pins.get_pin_resolver(n).map_err(|e| KError::Pins(e.0))?;
         }
@@ -31,6 +31,7 @@ impl PrinterBoardAliases {
                 let (name, value) = (items[0].str(), items[1].str());
                 for n in &mcu_names {
                     let pin_resolver = pins.get_pin_resolver(n).map_err(|e| KError::Pins(e.0))?;
+                    let mut pin_resolver = pin_resolver.borrow_mut();
                     let r = if value.starts_with('<') && value.ends_with('>') {
                         pin_resolver.reserve_pin(&name, &value)
                     } else {

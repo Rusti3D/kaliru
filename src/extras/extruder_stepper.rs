@@ -13,11 +13,11 @@ use std::rc::Rc;
 
 pub struct PrinterExtruderStepper {
     pub extruder_stepper: Rc<ExtruderStepper>,
-    extruder_name: String,
+    pub extruder_name: String,
 }
 
 impl PrinterExtruderStepper {
-    fn new(config: &ConfigWrapper) -> KResult<Rc<Self>> {
+    pub fn new(config: &ConfigWrapper) -> KResult<Rc<Self>> {
         let printer = config.get_printer();
         let extruder_stepper = ExtruderStepper::new(config)?;
         let extruder_name = config.get("extruder", Dflt::Required)?;

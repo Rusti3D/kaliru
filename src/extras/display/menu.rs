@@ -163,23 +163,23 @@ struct FileBrowser {
 
 pub struct MenuItem {
     me: Weak<MenuItem>,
-    manager: Weak<MenuManager>,
+    pub manager: Weak<MenuManager>,
     pub kind: Kind,
-    index: Option<i64>,
-    enable: bool,
-    name: Option<String>,
+    pub index: Option<i64>,
+    pub enable: bool,
+    pub name: Option<String>,
     context: Option<Ctx>,
-    enable_tpl: Option<Rc<Template>>,
-    name_tpl: RefCell<Option<Rc<Template>>>,
-    suffix: String,
-    suffix_tpl: Option<Rc<Template>>,
-    id: String,
-    ns: String,
-    last_heartbeat: Cell<Option<f64>>,
-    scroll_pos: Cell<Option<i64>>,
+    pub enable_tpl: Option<Rc<Template>>,
+    pub name_tpl: RefCell<Option<Rc<Template>>>,
+    pub suffix: String,
+    pub suffix_tpl: Option<Rc<Template>>,
+    pub id: String,
+    pub ns: String,
+    pub last_heartbeat: Cell<Option<f64>>,
+    pub scroll_pos: Cell<Option<i64>>,
     /// True / False / None
-    scroll_request_pending: Cell<Option<bool>>,
-    scroll_next: Cell<f64>,
+    pub scroll_request_pending: Cell<Option<bool>>,
+    pub scroll_next: Cell<f64>,
     scripts: RefCell<IndexMap<String, Script>>,
     container: Container,
     input: Option<Input>,
@@ -357,7 +357,7 @@ impl MenuItem {
         Ok(item)
     }
 
-    fn manager(&self) -> Rc<MenuManager> {
+    pub fn manager(&self) -> Rc<MenuManager> {
         self.manager.upgrade().expect("menu manager")
     }
 
@@ -366,7 +366,7 @@ impl MenuItem {
     }
 
     // override
-    fn init(&self) {
+    pub fn init(&self) {
         if self.kind.is_container() {
             // recursive guard
             self.container.parents.borrow_mut().clear();
@@ -387,7 +387,7 @@ impl MenuItem {
         Ok(MenuManager::asflat(self.name.as_deref().unwrap_or("None")))
     }
 
-    fn render_suffix(&self) -> KResult<String> {
+    pub fn render_suffix(&self) -> KResult<String> {
         if let Some(tpl) = &self.suffix_tpl {
             let context = self.get_context(None)?;
             return Ok(MenuManager::asflat(&tpl.render(Some(context))?));
@@ -408,7 +408,7 @@ impl MenuItem {
         Ok(())
     }
 
-    fn is_editing(&self) -> bool {
+    pub fn is_editing(&self) -> bool {
         if self.kind.is_container() {
             return self.container.items.borrow().iter().any(|i| i.is_editing());
         }
@@ -418,11 +418,11 @@ impl MenuItem {
         false
     }
 
-    fn is_scrollable(&self) -> bool {
+    pub fn is_scrollable(&self) -> bool {
         self.kind != Kind::Input
     }
 
-    fn is_enabled(&self) -> bool {
+    pub fn is_enabled(&self) -> bool {
         match self.kind {
             Kind::Disabled => false,
             Kind::FileBrowser => self.manager().virtual_sdcard.is_some() && self.eval_enable_ctx(),
@@ -441,7 +441,7 @@ impl MenuItem {
         }
     }
 
-    fn stop_editing(&self) -> KResult<()> {
+    pub fn stop_editing(&self) -> KResult<()> {
         if self.kind.is_container() {
             let items = self.container.items.borrow().clone();
             for item in items {
@@ -462,7 +462,7 @@ impl MenuItem {
         Ok(())
     }
 
-    fn start_editing(&self) -> KResult<()> {
+    pub fn start_editing(&self) -> KResult<()> {
         if self.input.is_none() || self.is_editing() {
             return Ok(());
         }
@@ -544,11 +544,11 @@ impl MenuItem {
     }
 
     // Called when a item is selected
-    fn select(&self) {
+    pub fn select(&self) {
         self.reset_scroller();
     }
 
-    fn heartbeat(&self, eventtime: f64) -> KResult<()> {
+    pub fn heartbeat(&self, eventtime: f64) -> KResult<()> {
         self.last_heartbeat.set(Some(eventtime));
         if eventtime >= self.scroll_next.get() {
             self.scroll_next.set(eventtime + 0.5);
@@ -572,7 +572,7 @@ impl MenuItem {
         Ok(())
     }
 
-    fn update_scroller(&self) {
+    pub fn update_scroller(&self) {
         match (self.scroll_pos.get(), self.scroll_request_pending.get()) {
             (None, Some(true)) => self.scroll_pos.set(Some(0)),
             (Some(p), Some(true)) => {
@@ -584,14 +584,14 @@ impl MenuItem {
         }
     }
 
-    fn reset_scroller(&self) {
+    pub fn reset_scroller(&self) {
         self.scroll_pos.set(None);
         self.scroll_request_pending.set(Some(false));
     }
 
     /// Allows to control the scroller: True - inc. scroll pos. on next
     /// update, False - hold scroll pos., None - reset the scroller
-    fn need_scroller(&self, value: Option<bool>) {
+    pub fn need_scroller(&self, value: Option<bool>) {
         self.scroll_request_pending.set(value);
     }
 
@@ -617,7 +617,7 @@ impl MenuItem {
         chunks[start..].concat()
     }
 
-    fn render_name(&self, selected: bool) -> KResult<String> {
+    pub fn render_name(&self, selected: bool) -> KResult<String> {
         let mut name = self.render_name_raw()?;
         match (selected, self.scroll_pos.get()) {
             (true, Some(pos)) => name = Self::slice_name(&name, pos),
@@ -693,7 +693,7 @@ impl MenuItem {
         Ok(result)
     }
 
-    fn cursor(&self) -> &'static str {
+    pub fn cursor(&self) -> &'static str {
         ">"
     }
 
@@ -732,14 +732,14 @@ impl MenuItem {
         Ok(self.get_value_ctx(&context))
     }
 
-    fn value_changed(&self) {
+    pub fn value_changed(&self) {
         if let Some(i) = &self.input {
             i.last_change.set(self.last_heartbeat.get());
             i.is_dirty.set(true);
         }
     }
 
-    fn init_value(&self) -> KResult<()> {
+    pub fn init_value(&self) -> KResult<()> {
         let Some(i) = &self.input else { return Ok(()) };
         let context = self.element_context(None)?;
         i.input_value.set(None);
@@ -754,7 +754,7 @@ impl MenuItem {
         Ok(())
     }
 
-    fn get_input_step(&self, fast_rate: bool) -> f64 {
+    pub fn get_input_step(&self, fast_rate: bool) -> f64 {
         let i = self.input.as_ref().expect("input");
         let (lo, hi) = (i.input_min.get().unwrap_or(0.0), i.input_max.get().unwrap_or(0.0));
         if fast_rate && ((hi - lo) / i.input_step > 100.0) {
@@ -779,7 +779,7 @@ impl MenuItem {
 
     // MenuContainer
 
-    fn names_aslist(&self) -> Vec<String> {
+    pub fn names_aslist(&self) -> Vec<String> {
         if self.kind.is_list() {
             return self.manager().lookup_children(&self.get_ns("."));
         }
@@ -787,7 +787,7 @@ impl MenuItem {
     }
 
     /// is_accepted(item)
-    fn is_accepted(&self, item: &MenuItem) -> bool {
+    pub fn is_accepted(&self, item: &MenuItem) -> bool {
         if self.kind == Kind::Dialog {
             return item.kind.is_command();
         }
@@ -800,7 +800,7 @@ impl MenuItem {
         Ok((Some(self.manager().lookup_menuitem(&ns)?), name))
     }
 
-    fn index_of(&self, item: &Rc<MenuItem>, look_inside: bool) -> Option<i64> {
+    pub fn index_of(&self, item: &Rc<MenuItem>, look_inside: bool) -> Option<i64> {
         let own = |c: &MenuItem, item: &Rc<MenuItem>| c.container.items.borrow().iter().position(|i| Rc::ptr_eq(i, item)).map(|p| p as i64);
         let mut index = own(self, item);
         if index.is_none() && look_inside {
@@ -867,7 +867,7 @@ impl MenuItem {
         format!("<class 'klippy.extras.display.menu.{}'>", c)
     }
 
-    fn populate(&self) -> KResult<()> {
+    pub fn populate(&self) -> KResult<()> {
         self.container.allitems.borrow_mut().clear(); // empty list
         for name in self.names_aslist() {
             let (item, name) = self.lookup_item_name(&name)?;
@@ -1018,7 +1018,7 @@ impl MenuItem {
         Ok(())
     }
 
-    fn update_items(&self, keep_pointer: bool) -> KResult<()> {
+    pub fn update_items(&self, keep_pointer: bool) -> KResult<()> {
         let selection = if keep_pointer { self.selected_item() } else { None };
         let all = self.container.allitems.borrow().clone();
         let mut items = vec![];
@@ -1050,11 +1050,11 @@ impl MenuItem {
     }
 
     // select methods
-    fn init_selection(&self) {
+    pub fn init_selection(&self) {
         self.select_at(Some(0));
     }
 
-    fn select_at(&self, index: Option<i64>) -> Option<Rc<MenuItem>> {
+    pub fn select_at(&self, index: Option<i64>) -> Option<Rc<MenuItem>> {
         let mut index = index;
         if self.kind == Kind::Dialog {
             if index == Some(0) {
@@ -1072,7 +1072,7 @@ impl MenuItem {
         item
     }
 
-    fn select_item(&self, needle: &Rc<MenuItem>) {
+    pub fn select_item(&self, needle: &Rc<MenuItem>) {
         let is_selected = self.selected_item().map(|s| Rc::ptr_eq(&s, needle)).unwrap_or(false);
         if !is_selected {
             if let Some(index) = self.index_of(needle, false) {
@@ -1093,7 +1093,7 @@ impl MenuItem {
         None
     }
 
-    fn select_next(&self) {
+    pub fn select_next(&self) {
         let index = match self.container.selected.get() {
             None => {
                 if self.len() > 0 {
@@ -1108,7 +1108,7 @@ impl MenuItem {
         self.select_at(index);
     }
 
-    fn select_prev(&self) {
+    pub fn select_prev(&self) {
         let index = match self.container.selected.get() {
             None => {
                 if self.len() > 0 {
@@ -1123,7 +1123,7 @@ impl MenuItem {
         self.select_at(index);
     }
 
-    fn draw_container(&self, nrows: i64, eventtime: f64) {
+    pub fn draw_container(&self, nrows: i64, eventtime: f64) {
         if !self.kind.is_list() {
             return;
         }
@@ -1216,7 +1216,7 @@ impl MenuItem {
         self.update_items(true)
     }
 
-    fn populate_values(&self) -> KResult<()> {
+    pub fn populate_values(&self) -> KResult<()> {
         let all = self.container.allitems.borrow().clone();
         for (item, _) in all {
             if item.kind != Kind::Input {
@@ -1288,25 +1288,25 @@ fn dict_set(d: &Value, key: &str, value: Value) {
 
 pub struct MenuManager {
     me: Weak<MenuManager>,
-    running: Cell<bool>,
-    menuitems: RefCell<IndexMap<String, Rc<MenuItem>>>,
-    menustack: RefCell<Vec<Rc<MenuItem>>>,
-    dialog_stack: RefCell<Vec<Rc<MenuItem>>>,
-    children: RefCell<IndexMap<String, Vec<String>>>,
-    display: Weak<PrinterLCD>,
-    printer: Rc<Printer>,
-    gcode: Rc<GCodeDispatch>,
-    gcode_queue: RefCell<Vec<String>>,
+    pub running: Cell<bool>,
+    pub menuitems: RefCell<IndexMap<String, Rc<MenuItem>>>,
+    pub menustack: RefCell<Vec<Rc<MenuItem>>>,
+    pub dialog_stack: RefCell<Vec<Rc<MenuItem>>>,
+    pub children: RefCell<IndexMap<String, Vec<String>>>,
+    pub display: Weak<PrinterLCD>,
+    pub printer: Rc<Printer>,
+    pub gcode: Rc<GCodeDispatch>,
+    pub gcode_queue: RefCell<Vec<String>>,
     context: RefCell<Ctx>,
-    root: RefCell<Option<Rc<MenuItem>>>,
-    root_name: String,
-    cols: i64,
-    rows: i64,
-    timeout: i64,
-    timer: Cell<i64>,
-    reverse_navigation: bool,
-    gcode_macro: Rc<PrinterGCodeMacro>,
-    virtual_sdcard: Option<Rc<VirtualSD>>,
+    pub root: RefCell<Option<Rc<MenuItem>>>,
+    pub root_name: String,
+    pub cols: i64,
+    pub rows: i64,
+    pub timeout: i64,
+    pub timer: Cell<i64>,
+    pub reverse_navigation: bool,
+    pub gcode_macro: Rc<PrinterGCodeMacro>,
+    pub virtual_sdcard: Option<Rc<VirtualSD>>,
     _keys: RefCell<Option<Rc<MenuKeys>>>,
 }
 
@@ -1415,7 +1415,7 @@ impl MenuManager {
         *self._keys.borrow_mut() = None;
     }
 
-    fn handle_ready(&self) {
+    pub fn handle_ready(&self) {
         // start timer
         let reactor = self.printer.get_reactor();
         let w = self.me.clone();
@@ -1457,7 +1457,7 @@ impl MenuManager {
         Ok(())
     }
 
-    fn timer_event(&self, eventtime: f64) -> f64 {
+    pub fn timer_event(&self, eventtime: f64) -> f64 {
         if let Err(e) = self.timeout_check() {
             logging::exception_err("menu timer", &e);
         }
@@ -1490,7 +1490,7 @@ impl MenuManager {
         self.running.get()
     }
 
-    fn begin(&self, eventtime: f64) -> KResult<()> {
+    pub fn begin(&self, eventtime: f64) -> KResult<()> {
         self.menustack.borrow_mut().clear();
         self.timer.set(0);
         let root = self.root.borrow().clone();
@@ -1539,7 +1539,7 @@ impl MenuManager {
         context
     }
 
-    fn update_context(&self, eventtime: f64) {
+    pub fn update_context(&self, eventtime: f64) {
         // menu default jinja2 context
         let mut context = create_template_context(&self.printer, Some(eventtime));
         let mut menu: IndexMap<Key, Value> = IndexMap::default();
@@ -1550,11 +1550,11 @@ impl MenuManager {
         *self.context.borrow_mut() = context;
     }
 
-    fn current_dialog(&self) -> Option<Rc<MenuItem>> {
+    pub fn current_dialog(&self) -> Option<Rc<MenuItem>> {
         self.dialog_stack.borrow().last().cloned()
     }
 
-    fn stack_push(&self, container: &Rc<MenuItem>) -> KResult<()> {
+    pub fn stack_push(&self, container: &Rc<MenuItem>) -> KResult<()> {
         if !container.kind.is_container() {
             return Err(error("Wrong type, expected MenuContainer"));
         }
@@ -1578,7 +1578,7 @@ impl MenuManager {
         Ok(())
     }
 
-    fn stack_pop(&self, update: bool) -> KResult<Option<Rc<MenuItem>>> {
+    pub fn stack_pop(&self, update: bool) -> KResult<Option<Rc<MenuItem>>> {
         if self.stack_size() == 0 {
             return Ok(None);
         }
@@ -1614,11 +1614,11 @@ impl MenuManager {
         Ok(Some(container))
     }
 
-    fn stack_size(&self) -> usize {
+    pub fn stack_size(&self) -> usize {
         self.menustack.borrow().len()
     }
 
-    fn stack_peek(&self, lvl: usize) -> Option<Rc<MenuItem>> {
+    pub fn stack_peek(&self, lvl: usize) -> Option<Rc<MenuItem>> {
         let stack = self.menustack.borrow();
         if stack.len() > lvl {
             return Some(stack[stack.len() - lvl - 1].clone());
@@ -1650,7 +1650,7 @@ impl MenuManager {
         None
     }
 
-    fn up(&self, fast_rate: bool) {
+    pub fn up(&self, fast_rate: bool) {
         let Some(container) = self.running_container() else { return };
         self.timer.set(0);
         match container.selected_item() {
@@ -1665,7 +1665,7 @@ impl MenuManager {
         }
     }
 
-    fn down(&self, fast_rate: bool) {
+    pub fn down(&self, fast_rate: bool) {
         let Some(container) = self.running_container() else { return };
         self.timer.set(0);
         match container.selected_item() {
@@ -1740,7 +1740,7 @@ impl MenuManager {
         Ok(false)
     }
 
-    fn press(&self, event: &str) -> KResult<()> {
+    pub fn press(&self, event: &str) -> KResult<()> {
         let Some(container) = self.running_container() else { return Ok(()) };
         self.timer.set(0);
         match container.selected_item() {
@@ -1782,7 +1782,7 @@ impl MenuManager {
         self.gcode_queue.borrow_mut().push(script.to_string());
     }
 
-    fn dispatch_gcode(&self, _eventtime: f64) {
+    pub fn dispatch_gcode(&self, _eventtime: f64) {
         loop {
             let Some(script) = self.gcode_queue.borrow().first().cloned() else { break };
             if let Err(e) = self.gcode.run_script(&script) {
@@ -1797,7 +1797,7 @@ impl MenuManager {
         MenuItem::new(&self.rc(), kind, Source::Kwargs(&kwargs))
     }
 
-    fn add_menuitem(&self, name: &str, item: Rc<MenuItem>) {
+    pub fn add_menuitem(&self, name: &str, item: Rc<MenuItem>) {
         let mut existing_item = false;
         if self.menuitems.borrow().contains_key(name) {
             existing_item = true;
@@ -1824,7 +1824,7 @@ impl MenuManager {
         self.menuitems.borrow().get(name).cloned().ok_or_else(|| KError::config(format!("Unknown menuitem '{}'", name)))
     }
 
-    fn lookup_children(&self, ns: &str) -> Vec<String> {
+    pub fn lookup_children(&self, ns: &str) -> Vec<String> {
         self.children.borrow().get(ns).cloned().unwrap_or_default()
     }
 
@@ -1839,7 +1839,7 @@ impl MenuManager {
         self.load_menuitems(&cfg)
     }
 
-    fn load_menuitems(&self, config: &ConfigWrapper) -> KResult<()> {
+    pub fn load_menuitems(&self, config: &ConfigWrapper) -> KResult<()> {
         for cfg in config.get_prefix_sections("menu ") {
             let type_name = cfg.get("type", Dflt::Required)?;
             let kind = kind_of(&type_name)?;
@@ -1849,7 +1849,7 @@ impl MenuManager {
         Ok(())
     }
 
-    fn click_callback(&self, eventtime: f64, event: &str) -> KResult<()> {
+    pub fn click_callback(&self, eventtime: f64, event: &str) -> KResult<()> {
         if self.is_running() {
             self.press(event)
         } else {
@@ -1858,7 +1858,7 @@ impl MenuManager {
         }
     }
 
-    fn key_event(&self, key: &str, eventtime: f64) -> KResult<()> {
+    pub fn key_event(&self, key: &str, eventtime: f64) -> KResult<()> {
         match key {
             "click" | "long_click" => self.click_callback(eventtime, key)?,
             "up" => self.up(false),
@@ -1923,6 +1923,12 @@ impl Object for MenuAction {
 
 /// the "menu" printer object (the MenuManager)
 pub(crate) struct MenuObject(Weak<MenuManager>);
+
+impl MenuObject {
+    pub fn manager(&self) -> Option<Rc<MenuManager>> {
+        self.0.upgrade()
+    }
+}
 
 impl PrinterObject for MenuObject {
     fn has_status(&self) -> bool {

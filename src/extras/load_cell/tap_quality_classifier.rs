@@ -15,20 +15,20 @@ use std::f64::consts::PI;
 use std::rc::Rc;
 
 pub struct TapQualityClassifierConfig {
-    config_name: String,
-    printer: Rc<Printer>,
-    cfg_minimum_tap_quality: Cell<f64>,
-    cfg_decompression_angle: Cell<Option<f64>>,
-    minimum_tap_quality: Cell<f64>,
-    decompression_angle: Cell<Option<f64>>,
-    max_baseline_force_delta: f64,
-    max_approach_force: f64,
-    max_departure_force: f64,
-    max_dwell_force_drop: f64,
+    pub config_name: String,
+    pub printer: Rc<Printer>,
+    pub cfg_minimum_tap_quality: Cell<f64>,
+    pub cfg_decompression_angle: Cell<Option<f64>>,
+    pub minimum_tap_quality: Cell<f64>,
+    pub decompression_angle: Cell<Option<f64>>,
+    pub max_baseline_force_delta: f64,
+    pub max_approach_force: f64,
+    pub max_departure_force: f64,
+    pub max_dwell_force_drop: f64,
 }
 
 impl TapQualityClassifierConfig {
-    fn new(config: &ConfigWrapper) -> KResult<Self> {
+    pub fn new(config: &ConfigWrapper) -> KResult<Self> {
         let cfg_minimum_tap_quality = config.getfloat("min_tap_quality", 40.0, Lim::new().min(0.0).max(100.0))?;
         let cfg_decompression_angle = config.getfloat_opt("decompression_angle", Lim::new().above(0.0).below(90.0))?;
         let cfg_max_approach_force = config.getfloat("max_approach_force", 50.0, Lim::new().min(0.0).max(100.0))? / 100.0;
@@ -49,7 +49,7 @@ impl TapQualityClassifierConfig {
         })
     }
 
-    fn customize(&self, gcmd: &GCodeCommand) -> KResult<()> {
+    pub fn customize(&self, gcmd: &GCodeCommand) -> KResult<()> {
         self.minimum_tap_quality.set(gcmd.get_float("MIN_TAP_QUALITY", Some(self.cfg_minimum_tap_quality.get()), Lim::new().min(0.0).max(100.0))?);
         let lim = Lim::new().above(0.0).below(90.0);
         self.decompression_angle.set(match self.cfg_decompression_angle.get() {
@@ -59,7 +59,7 @@ impl TapQualityClassifierConfig {
         Ok(())
     }
 
-    fn save_config(&self, field: &str, value: f64) -> KResult<()> {
+    pub fn save_config(&self, field: &str, value: f64) -> KResult<()> {
         let configfile = self.printer.lookup::<ConfigFileObject>("configfile")?;
         configfile.pconfig.borrow_mut().set(&self.config_name, field, &py_float_repr(value))?;
         Ok(())
@@ -90,7 +90,7 @@ impl TapQualityClassifierConfig {
 // 1) The compression force must greater than the trigger force
 // 2) Tap quality metric must be more than the minimum_tap_quality
 pub struct TapQualityClassifier {
-    printer: Rc<Printer>,
+    pub printer: Rc<Printer>,
     config: TapQualityClassifierConfig,
 }
 

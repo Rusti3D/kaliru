@@ -8,10 +8,13 @@ SUBSCRIPTION_REFRESH_TIME = 0.25
 
 class WebRequestError(gcode.CommandError):
     __kaliru_mirror__ = True
-    def __init__(self, message):
-        _k.new(self, 7394, message)
+    def __init__(
+        self,
+        message,
+    ):
+        Exception.__init__(self, message)
     def to_dict(self):
-        return _k.call(self, 7395)
+        return {"error": "WebRequestError", "message": str(self)}
 
 class Sentinel:
     pass

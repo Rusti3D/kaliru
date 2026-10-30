@@ -77,8 +77,12 @@ crate::impl_downcast!(dyn TempSensor);
 /// a temperature sensor as a heater uses it (thermistors, adc sensors, ...)
 pub trait TempSensor: std::any::Any {
     fn setup_minmax(&self, min_temp: f64, max_temp: f64) -> KResult<()>;
-    fn setup_callback(&self, cb: TempCallback);
-    fn get_report_time_delta(&self) -> f64;
+    fn setup_callback(&self, cb: TempCallback) -> KResult<()>;
+    fn get_report_time_delta(&self) -> KResult<f64>;
+    /// the Rust type's path (python plugins find the Kalico class by it)
+    fn type_name(&self) -> &'static str {
+        std::any::type_name::<Self>()
+    }
 }
 
 /// a temperature callback: cb(read_time, temp)
@@ -142,7 +146,7 @@ crate::impl_downcast!(dyn Control);
 pub trait Control: std::any::Any {
     /// temperature_update(read_time, temp, target_temp[, secondary_temp])
     fn temperature_update(&self, read_time: f64, temp: f64, target_temp: f64, secondary_temp: Option<f64>) -> KResult<()>;
-    fn check_busy(&self, eventtime: f64, smoothed_temp: f64, target_temp: f64) -> bool;
+    fn check_busy(&self, eventtime: f64, smoothed_temp: f64, target_temp: f64) -> KResult<bool>;
     fn update_smooth_time(&self) -> KResult<()> {
         Ok(())
     }
@@ -155,6 +159,10 @@ pub trait Control: std::any::Any {
     /// check_valid() (MPC); python only calls it where it exists
     fn check_valid(&self) -> KResult<()> {
         Ok(())
+    }
+    /// the Rust type's path (python plugins find the Kalico class by it)
+    fn type_name(&self) -> &'static str {
+        std::any::type_name::<Self>()
     }
 }
 
@@ -170,36 +178,42 @@ pub fn no_secondary(cls: &str, secondary_temp: Option<f64>) -> KResult<()> {
 
 // Bang-bang control algo
 pub struct ControlBangBang {
-    profile: Profile,
-    heater: Rc<Heater>,
-    heater_max_power: f64,
-    max_delta: f64,
-    heating: Cell<bool>,
+    pub profile: Profile,
+    pub heater: Rc<Heater>,
+    pub heater_max_power: Cell<f64>,
+    pub max_delta: Cell<f64>,
+    pub heating: Cell<bool>,
+    /// self.smooth_time (set by update_smooth_time())
+    pub smooth_time: Cell<Option<f64>>,
 }
 
 impl ControlBangBang {
     pub fn new(profile: &Profile, heater: &Rc<Heater>) -> KResult<Self> {
         let max_delta = prof_f64(profile, "max_delta").unwrap_or(0.0);
-        Ok(ControlBangBang { profile: profile.clone(), heater: heater.clone(), heater_max_power: heater.get_max_power(), max_delta, heating: Cell::new(false) })
+        Ok(ControlBangBang { profile: profile.clone(), heater: heater.clone(), heater_max_power: Cell::new(heater.get_max_power()), max_delta: Cell::new(max_delta), heating: Cell::new(false), smooth_time: Cell::new(None) })
     }
 }
 
 impl Control for ControlBangBang {
     fn temperature_update(&self, read_time: f64, temp: f64, target_temp: f64, secondary_temp: Option<f64>) -> KResult<()> {
         no_secondary("ControlBangBang", secondary_temp)?;
-        if self.heating.get() && temp >= target_temp + self.max_delta {
+        if self.heating.get() && temp >= target_temp + self.max_delta.get() {
             self.heating.set(false);
-        } else if !self.heating.get() && temp <= target_temp - self.max_delta {
+        } else if !self.heating.get() && temp <= target_temp - self.max_delta.get() {
             self.heating.set(true);
         }
         if self.heating.get() {
-            self.heater.set_pwm(read_time, self.heater_max_power)
+            self.heater.set_pwm(read_time, self.heater_max_power.get())
         } else {
             self.heater.set_pwm(read_time, 0.0)
         }
     }
-    fn check_busy(&self, _eventtime: f64, smoothed_temp: f64, target_temp: f64) -> bool {
-        smoothed_temp < target_temp - self.max_delta
+    fn check_busy(&self, _eventtime: f64, smoothed_temp: f64, target_temp: f64) -> KResult<bool> {
+        Ok(smoothed_temp < target_temp - self.max_delta.get())
+    }
+    fn update_smooth_time(&self) -> KResult<()> {
+        self.smooth_time.set(Some(self.heater.get_smooth_time()));
+        Ok(())
     }
     fn get_profile(&self) -> Profile {
         self.profile.clone()
@@ -214,20 +228,22 @@ pub const PID_SETTLE_DELTA: f64 = 1.0;
 pub const PID_SETTLE_SLOPE: f64 = 0.1;
 
 pub struct ControlPID {
-    profile: Profile,
-    heater: Rc<Heater>,
-    heater_max_power: f64,
+    pub profile: Profile,
+    pub heater: Rc<Heater>,
+    pub heater_max_power: Cell<f64>,
     pub kp: Cell<f64>,
     pub ki: Cell<f64>,
     pub kd: Cell<f64>,
-    min_deriv_time: f64,
-    temp_integ_max: Cell<f64>,
-    prev_temp: Cell<f64>,
-    prev_temp_time: Cell<f64>,
-    prev_temp_deriv: Cell<f64>,
+    pub min_deriv_time: Cell<f64>,
+    pub temp_integ_max: Cell<f64>,
+    pub prev_temp: Cell<f64>,
+    pub prev_temp_time: Cell<f64>,
+    pub prev_temp_deriv: Cell<f64>,
     pub prev_temp_integ: Cell<f64>,
+    /// self.smooth_time (set by update_smooth_time())
+    pub smooth_time: Cell<Option<f64>>,
     /// "pid" or the ControlInnerPID of a dual loop
-    kind: &'static str,
+    pub kind: &'static str,
 }
 
 impl ControlPID {
@@ -246,16 +262,17 @@ impl ControlPID {
         Ok(ControlPID {
             profile: profile.clone(),
             heater: heater.clone(),
-            heater_max_power,
+            heater_max_power: Cell::new(heater_max_power),
             kp: Cell::new(kp),
             ki: Cell::new(ki),
             kd: Cell::new(kd),
-            min_deriv_time,
+            min_deriv_time: Cell::new(min_deriv_time),
             temp_integ_max: Cell::new(temp_integ_max),
             prev_temp: Cell::new(prev_temp),
             prev_temp_time: Cell::new(0.0),
             prev_temp_deriv: Cell::new(0.0),
             prev_temp_integ: Cell::new(0.0),
+            smooth_time: Cell::new(None),
             kind: "pid",
         })
     }
@@ -267,7 +284,7 @@ impl ControlPID {
         c.ki.set(pid_param(profile, "inner_pid_ki")? / PID_PARAM_BASE);
         c.kd.set(pid_param(profile, "inner_pid_kd")? / PID_PARAM_BASE);
         if c.ki.get() != 0.0 {
-            c.temp_integ_max.set(c.heater_max_power / c.ki.get());
+            c.temp_integ_max.set(c.heater_max_power.get() / c.ki.get());
         }
         c.kind = "inner";
         Ok(c)
@@ -277,10 +294,11 @@ impl ControlPID {
         let time_diff = read_time - self.prev_temp_time.get();
         // Calculate change of temperature
         let temp_diff = temp - self.prev_temp.get();
-        let temp_deriv = if time_diff >= self.min_deriv_time {
+        let min_deriv_time = self.min_deriv_time.get();
+        let temp_deriv = if time_diff >= min_deriv_time {
             temp_diff / time_diff
         } else {
-            (self.prev_temp_deriv.get() * (self.min_deriv_time - time_diff) + temp_diff) / self.min_deriv_time
+            (self.prev_temp_deriv.get() * (min_deriv_time - time_diff) + temp_diff) / min_deriv_time
         };
         // Calculate accumulated temperature "error"
         let temp_err = target_temp - temp;
@@ -288,7 +306,7 @@ impl ControlPID {
         temp_integ = py_max(0.0, py_min(self.temp_integ_max.get(), temp_integ));
         // Calculate output
         let co = self.kp.get() * temp_err + self.ki.get() * temp_integ - self.kd.get() * temp_deriv;
-        let bounded_co = py_max(0.0, py_min(self.heater_max_power, co));
+        let bounded_co = py_max(0.0, py_min(self.heater_max_power.get(), co));
         // Store state for next measurement
         self.prev_temp.set(temp);
         self.prev_temp_time.set(read_time);
@@ -306,9 +324,13 @@ impl Control for ControlPID {
         let (_, bounded_co) = self.calculate_output(read_time, temp, target_temp);
         self.heater.set_pwm(read_time, bounded_co)
     }
-    fn check_busy(&self, _eventtime: f64, smoothed_temp: f64, target_temp: f64) -> bool {
+    fn check_busy(&self, _eventtime: f64, smoothed_temp: f64, target_temp: f64) -> KResult<bool> {
         let temp_diff = target_temp - smoothed_temp;
-        temp_diff.abs() > PID_SETTLE_DELTA || self.prev_temp_deriv.get().abs() > PID_SETTLE_SLOPE
+        Ok(temp_diff.abs() > PID_SETTLE_DELTA || self.prev_temp_deriv.get().abs() > PID_SETTLE_SLOPE)
+    }
+    fn update_smooth_time(&self) -> KResult<()> {
+        self.smooth_time.set(Some(self.heater.get_smooth_time()));
+        Ok(())
     }
     fn get_profile(&self) -> Profile {
         self.profile.clone()
@@ -320,18 +342,18 @@ impl Control for ControlPID {
 
 // Velocity (PID) control algo
 pub struct ControlVelocityPID {
-    profile: Profile,
-    heater: Rc<Heater>,
-    heater_max_power: f64,
+    pub profile: Profile,
+    pub heater: Rc<Heater>,
+    pub heater_max_power: Cell<f64>,
     pub kp: Cell<f64>,
     pub ki: Cell<f64>,
     pub kd: Cell<f64>,
-    smooth_time: Cell<f64>,
-    temps: RefCell<Vec<f64>>,
-    times: RefCell<Vec<f64>>,
-    d1: Cell<f64>,
-    d2: Cell<f64>,
-    pwm: Cell<f64>,
+    pub smooth_time: Cell<f64>,
+    pub temps: RefCell<Vec<f64>>,
+    pub times: RefCell<Vec<f64>>,
+    pub d1: Cell<f64>,
+    pub d2: Cell<f64>,
+    pub pwm: Cell<f64>,
 }
 
 impl ControlVelocityPID {
@@ -345,7 +367,7 @@ impl ControlVelocityPID {
         Ok(ControlVelocityPID {
             profile: profile.clone(),
             heater: heater.clone(),
-            heater_max_power: heater.get_max_power(),
+            heater_max_power: Cell::new(heater.get_max_power()),
             kp: Cell::new(kp),
             ki: Cell::new(ki),
             kd: Cell::new(kd),
@@ -388,16 +410,16 @@ impl Control for ControlVelocityPID {
         let p = self.kp.get() * -self.d1.get();
         let i = self.ki.get() * error;
         let d = self.kd.get() * -self.d2.get();
-        self.pwm.set(py_max(0.0, py_min(self.heater_max_power, self.pwm.get() + p + i + d)));
+        self.pwm.set(py_max(0.0, py_min(self.heater_max_power.get(), self.pwm.get() + p + i + d)));
         if target_temp == 0.0 {
             self.pwm.set(0.0);
         }
         // update the heater
         self.heater.set_pwm(read_time, self.pwm.get())
     }
-    fn check_busy(&self, _eventtime: f64, smoothed_temp: f64, target_temp: f64) -> bool {
+    fn check_busy(&self, _eventtime: f64, smoothed_temp: f64, target_temp: f64) -> KResult<bool> {
         let temp_diff = target_temp - smoothed_temp;
-        temp_diff.abs() > PID_SETTLE_DELTA || self.d1.get().abs() > PID_SETTLE_SLOPE
+        Ok(temp_diff.abs() > PID_SETTLE_DELTA || self.d1.get().abs() > PID_SETTLE_SLOPE)
     }
     fn update_smooth_time(&self) -> KResult<()> {
         self.smooth_time.set(self.heater.get_smooth_time());
@@ -413,12 +435,14 @@ impl Control for ControlVelocityPID {
 
 // Dual Loop PID control algo
 pub struct ControlDualLoopPID {
-    profile: Profile,
-    heater: Rc<Heater>,
-    heater_max_power: f64,
-    pub primary_pid: ControlPID,
-    pub secondary_pid: ControlPID,
-    pub inner_target_temp: f64,
+    pub profile: Profile,
+    pub heater: Rc<Heater>,
+    pub heater_max_power: Cell<f64>,
+    pub primary_pid: Rc<ControlPID>,
+    pub secondary_pid: Rc<ControlPID>,
+    pub inner_target_temp: Cell<f64>,
+    /// self.smooth_time (set by update_smooth_time())
+    pub smooth_time: Cell<Option<f64>>,
 }
 
 impl ControlDualLoopPID {
@@ -429,10 +453,11 @@ impl ControlDualLoopPID {
         Ok(ControlDualLoopPID {
             profile: profile.clone(),
             heater: heater.clone(),
-            heater_max_power: heater.get_max_power(),
-            primary_pid,
-            secondary_pid,
-            inner_target_temp,
+            heater_max_power: Cell::new(heater.get_max_power()),
+            primary_pid: Rc::new(primary_pid),
+            secondary_pid: Rc::new(secondary_pid),
+            inner_target_temp: Cell::new(inner_target_temp),
+            smooth_time: Cell::new(None),
         })
     }
 }
@@ -445,9 +470,9 @@ impl Control for ControlDualLoopPID {
         let primary_prev_temp_integ = self.primary_pid.prev_temp_integ.get();
         let (primary_co, _) = self.primary_pid.calculate_output(read_time, primary_temp, target_temp);
         let secondary_prev_temp_integ = self.secondary_pid.prev_temp_integ.get();
-        let (secondary_co, _) = self.secondary_pid.calculate_output(read_time, secondary_temp, self.inner_target_temp);
+        let (secondary_co, _) = self.secondary_pid.calculate_output(read_time, secondary_temp, self.inner_target_temp.get());
         let co = py_min(primary_co, secondary_co);
-        let bounded_co = py_max(0.0, py_min(self.heater_max_power, co));
+        let bounded_co = py_max(0.0, py_min(self.heater_max_power.get(), co));
         // If the other loop reduced the final heater output, don't let this
         // loop retain an integrator update based on power that was never
         // actually applied to the heater.
@@ -459,8 +484,12 @@ impl Control for ControlDualLoopPID {
         }
         self.heater.set_pwm(read_time, bounded_co)
     }
-    fn check_busy(&self, eventtime: f64, smoothed_temp: f64, target_temp: f64) -> bool {
+    fn check_busy(&self, eventtime: f64, smoothed_temp: f64, target_temp: f64) -> KResult<bool> {
         self.primary_pid.check_busy(eventtime, smoothed_temp, target_temp)
+    }
+    fn update_smooth_time(&self) -> KResult<()> {
+        self.smooth_time.set(Some(self.heater.get_smooth_time()));
+        Ok(())
     }
     fn get_profile(&self) -> Profile {
         self.profile.clone()
@@ -487,42 +516,46 @@ pub struct Heater {
     pub short_name: String,
     pub reactor: Rc<Reactor>,
     pub config: ConfigWrapper,
-    configfile: Rc<ConfigFileObject>,
+    pub configfile: Rc<ConfigFileObject>,
     /// keeps the sensor alive (the adc callback holds it weakly)
     _sensor: Rc<dyn TempSensor>,
     /// DualSensorHeater's inner sensor (a temperature_sensor object)
-    secondary_sensor: Option<PObj>,
-    mpc_sensors: RefCell<Vec<Rc<dyn MpcSensor>>>,
+    pub secondary_sensor: Option<PObj>,
+    pub mpc_sensors: RefCell<Vec<Rc<dyn MpcSensor>>>,
     pub min_temp: f64,
     pub max_temp: f64,
-    pwm_delay: f64,
-    lost_update_tolerance: f64,
+    pub pwm_delay: Cell<f64>,
+    pub lost_update_tolerance: Cell<f64>,
     pub min_extrude_temp: Cell<f64>,
     pub can_extrude: Cell<bool>,
-    cold_extrude: Cell<bool>,
-    max_power: f64,
-    min_pwm_change: f64,
-    config_smooth_time: f64,
-    smooth_time: Cell<f64>,
-    inv_smooth_time: Cell<f64>,
-    verify_mainthread_time: Cell<f64>,
+    pub cold_extrude: Cell<bool>,
+    pub max_power: Cell<f64>,
+    pub min_pwm_change: Cell<f64>,
+    pub config_smooth_time: Cell<f64>,
+    pub smooth_time: Cell<f64>,
+    pub inv_smooth_time: Cell<f64>,
+    pub verify_mainthread_time: Cell<f64>,
     pub(crate) last_temp: Cell<f64>,
     pub(crate) smoothed_temp: Cell<f64>,
     pub target_temp: Cell<f64>,
-    last_temp_time: Cell<f64>,
-    next_pwm_time: Cell<f64>,
+    pub last_temp_time: Cell<f64>,
+    pub next_pwm_time: Cell<f64>,
     pub last_pwm_value: Cell<f64>,
     mcu_pwm: Rc<dyn PwmPin>,
     gcode: RefCell<Option<Rc<GCodeDispatch>>>,
-    profiles: RefCell<IndexMap<String, Profile>>,
-    incompatible_profiles: RefCell<Vec<String>>,
+    pub profiles: RefCell<IndexMap<String, Profile>>,
+    pub incompatible_profiles: RefCell<Vec<String>>,
     control: RefCell<Option<ControlRef>>,
     set_temp_hook: RefCell<Option<Rc<dyn Fn(f64) -> KResult<()>>>>,
 }
 
 /// an mpc temperature sensor fed by the heater (mpc_*_temperature)
-pub trait MpcSensor {
+pub trait MpcSensor: std::any::Any {
     fn process_temp_update(&self, control: &ControlRef, read_time: f64) -> KResult<()>;
+    /// the Rust type's path (python plugins find the Kalico class by it)
+    fn type_name(&self) -> &'static str {
+        std::any::type_name::<Self>()
+    }
 }
 
 impl Heater {
@@ -537,7 +570,7 @@ impl Heater {
         let max_temp = config.getfloat("max_temp", Dflt::Required, Lim::new().above(min_temp))?;
         sensor.setup_minmax(min_temp, max_temp)?;
         // setup_callback() below, once the heater exists
-        let pwm_delay = sensor.get_report_time_delta();
+        let pwm_delay = sensor.get_report_time_delta()?;
         let lost_update_tolerance = (config.getint("lost_update_tolerance", 2, Lim::new().min(0))? + 1) as f64;
         // Setup temperature checks
         let min_extrude_temp = config.getfloat("min_extrude_temp", 170.0, Lim::new().min(min_temp).max(max_temp))?;
@@ -570,14 +603,14 @@ impl Heater {
             mpc_sensors: RefCell::new(vec![]),
             min_temp,
             max_temp,
-            pwm_delay,
-            lost_update_tolerance,
+            pwm_delay: Cell::new(pwm_delay),
+            lost_update_tolerance: Cell::new(lost_update_tolerance),
             min_extrude_temp: Cell::new(min_extrude_temp),
             can_extrude: Cell::new(can_extrude),
             cold_extrude: Cell::new(false),
-            max_power,
-            min_pwm_change: max_power * MIN_PWM_CHANGE_RATIO,
-            config_smooth_time,
+            max_power: Cell::new(max_power),
+            min_pwm_change: Cell::new(max_power * MIN_PWM_CHANGE_RATIO),
+            config_smooth_time: Cell::new(config_smooth_time),
             smooth_time: Cell::new(config_smooth_time),
             inv_smooth_time: Cell::new(1.0 / config_smooth_time),
             verify_mainthread_time: Cell::new(-999.0),
@@ -598,7 +631,7 @@ impl Heater {
         sensor.setup_callback(Rc::new(move |read_time, temp| match w.upgrade() {
             Some(h) => h.temperature_callback(read_time, temp),
             None => Ok(()),
-        }));
+        }))?;
         // Load additional modules
         printer.load_object(config, &format!("verify_heater {}", short_name), true)?;
         printer.load_object(config, "pid_calibrate", true)?;
@@ -654,18 +687,18 @@ impl Heater {
             value = 0.0;
         }
         if (read_time < self.next_pwm_time.get() || self.last_pwm_value.get() == 0.0)
-            && (value - self.last_pwm_value.get()).abs() < self.min_pwm_change
+            && (value - self.last_pwm_value.get()).abs() < self.min_pwm_change.get()
         {
             // No significant change in value - can suppress update
             return Ok(());
         }
-        let pwm_time = read_time + self.pwm_delay;
-        self.next_pwm_time.set(pwm_time + MAX_HEAT_TIME - (self.lost_update_tolerance * self.pwm_delay + 0.001));
+        let pwm_time = read_time + self.pwm_delay.get();
+        self.next_pwm_time.set(pwm_time + MAX_HEAT_TIME - (self.lost_update_tolerance.get() * self.pwm_delay.get() + 0.001));
         self.last_pwm_value.set(value);
         self.mcu_pwm.set_pwm(pwm_time, value)
     }
 
-    fn temperature_callback(&self, read_time: f64, temp: f64) -> KResult<()> {
+    pub fn temperature_callback(&self, read_time: f64, temp: f64) -> KResult<()> {
         let time_diff = read_time - self.last_temp_time.get();
         self.last_temp.set(temp);
         self.last_temp_time.set(read_time);
@@ -721,11 +754,11 @@ impl Heater {
     }
 
     pub fn get_pwm_delay(&self) -> f64 {
-        self.pwm_delay
+        self.pwm_delay.get()
     }
 
     pub fn get_max_power(&self) -> f64 {
-        self.max_power
+        self.max_power.get()
     }
 
     pub fn get_smooth_time(&self) -> f64 {
@@ -778,7 +811,7 @@ impl Heater {
         (self.smoothed_temp.get(), self.target_temp.get())
     }
 
-    pub fn check_busy(&self, eventtime: f64) -> bool {
+    pub fn check_busy(&self, eventtime: f64) -> KResult<bool> {
         self.get_control().check_busy(eventtime, self.smoothed_temp.get(), self.target_temp.get())
     }
 
@@ -861,21 +894,21 @@ impl Heater {
         Ok(())
     }
 
-    fn cmd_set_heater_temperature(self: &Rc<Self>, gcmd: &GCodeCommand) -> KResult<()> {
+    pub fn cmd_set_heater_temperature(self: &Rc<Self>, gcmd: &GCodeCommand) -> KResult<()> {
         let temp = gcmd.get_float("TARGET", Some(0.0), Lim::new())?;
         let pheaters = self.printer.lookup::<PrinterHeaters>("heaters")?;
         pheaters.set_temperature(self, temp, false)
     }
 
-    fn cmd_cold_extrude(self: &Rc<Self>, gcmd: &GCodeCommand) -> KResult<()> {
+    pub fn cmd_cold_extrude(self: &Rc<Self>, gcmd: &GCodeCommand) -> KResult<()> {
         let cold_extrude = gcmd.get_int_opt("ENABLE", Lim::new().min(0).max(1))?;
         let min_extrude_temp = gcmd.get_float_opt("MIN_EXTRUDE_TEMP", Lim::new().min(self.min_temp).max(self.max_temp))?;
         self.set_cold_extrude(cold_extrude, min_extrude_temp)
     }
 
-    fn cmd_set_smooth_time(self: &Rc<Self>, gcmd: &GCodeCommand) -> KResult<()> {
+    pub fn cmd_set_smooth_time(self: &Rc<Self>, gcmd: &GCodeCommand) -> KResult<()> {
         let save_to_profile = gcmd.get_int("SAVE_TO_PROFILE", Some(0), Lim::new().min(0).max(1))?;
-        self.smooth_time.set(gcmd.get_float("SMOOTH_TIME", Some(self.config_smooth_time), Lim::new().min(0.0))?);
+        self.smooth_time.set(gcmd.get_float("SMOOTH_TIME", Some(self.config_smooth_time.get()), Lim::new().min(0.0))?);
         self.inv_smooth_time.set(1.0 / self.smooth_time.get());
         self.get_control().update_smooth_time()?;
         if save_to_profile != 0 {
@@ -885,7 +918,7 @@ impl Heater {
         Ok(())
     }
 
-    fn cmd_set_heater_pid(self: &Rc<Self>, gcmd: &GCodeCommand) -> KResult<()> {
+    pub fn cmd_set_heater_pid(self: &Rc<Self>, gcmd: &GCodeCommand) -> KResult<()> {
         let control = self.get_control();
         let (kp, ki, kd) = if let Some(c) = control.downcast_ref::<ControlPID>() {
             (&c.kp, &c.ki, &c.kd)
@@ -1451,16 +1484,16 @@ impl HeaterSlot {
 }
 
 pub struct PrinterHeaters {
-    printer: Rc<Printer>,
-    sensor_factories: RefCell<IndexMap<String, SensorFactory>>,
+    pub printer: Rc<Printer>,
+    pub sensor_factories: RefCell<IndexMap<String, SensorFactory>>,
     pub heaters: RefCell<IndexMap<String, HeaterSlot>>,
-    gcode_id_to_sensor: RefCell<IndexMap<String, PObj>>,
+    pub gcode_id_to_sensor: RefCell<IndexMap<String, PObj>>,
     available_heaters: RefCell<Vec<String>>,
     available_sensors: RefCell<Vec<String>>,
     available_monitors: RefCell<Vec<String>>,
-    has_started: Cell<bool>,
-    have_load_sensors: Cell<bool>,
-    gcode: Rc<GCodeDispatch>,
+    pub has_started: Cell<bool>,
+    pub have_load_sensors: Cell<bool>,
+    pub gcode: Rc<GCodeDispatch>,
 }
 
 /// sensor.get_temp(eventtime) of a registered sensor object
@@ -1469,7 +1502,7 @@ fn obj_get_temp(sensor: &PObj, eventtime: f64) -> KResult<(f64, f64)> {
 }
 
 impl PrinterHeaters {
-    fn new(config: &ConfigWrapper) -> KResult<Rc<Self>> {
+    pub fn new(config: &ConfigWrapper) -> KResult<Rc<Self>> {
         let printer = config.get_printer();
         let gcode = printer.lookup::<GCodeDispatch>("gcode")?;
         let ph = Rc::new(PrinterHeaters {
@@ -1506,7 +1539,7 @@ impl PrinterHeaters {
         Ok(ph)
     }
 
-    fn load_config(&self, config: &ConfigWrapper) -> KResult<()> {
+    pub fn load_config(&self, config: &ConfigWrapper) -> KResult<()> {
         self.have_load_sensors.set(true);
         // Load default temperature sensors
         // the file ships inside the binary (python reads it next to heaters.py)
@@ -1637,7 +1670,7 @@ impl PrinterHeaters {
     }
 
     // G-Code M105 temperature reporting
-    fn get_temp_msg(&self, eventtime: f64) -> KResult<String> {
+    pub fn get_temp_msg(&self, eventtime: f64) -> KResult<String> {
         // Tn:XXX /YYY B:XXX /YYY
         let mut out = vec![];
         if self.has_started.get() {
@@ -1655,7 +1688,7 @@ impl PrinterHeaters {
         Ok(out.join(" "))
     }
 
-    fn cmd_m105(&self, gcmd: &GCodeCommand) -> KResult<()> {
+    pub fn cmd_m105(&self, gcmd: &GCodeCommand) -> KResult<()> {
         // Get Extruder Temperature
         let reactor = self.printer.get_reactor();
         let msg = self.get_temp_msg(reactor.monotonic())?;
@@ -1667,6 +1700,12 @@ impl PrinterHeaters {
     }
 
     fn wait_for_temperature(&self, heater: &Rc<Heater>) -> KResult<()> {
+        self.wait_for_temperature_with(&|eventtime| heater.check_busy(eventtime))
+    }
+
+    /// _wait_for_temperature() of a heater given by its check_busy() (a
+    /// python plugin's heater too)
+    pub fn wait_for_temperature_with(&self, check_busy: &dyn Fn(f64) -> KResult<bool>) -> KResult<()> {
         // Helper to wait on heater.check_busy() and report M105 temperatures
         if self.printer.start_arg("debugoutput").is_some() {
             return Ok(());
@@ -1674,7 +1713,7 @@ impl PrinterHeaters {
         self.printer.wait_while(
             |eventtime| {
                 self.gcode.respond_raw(&self.get_temp_msg(eventtime)?);
-                Ok(heater.check_busy(eventtime))
+                check_busy(eventtime)
             },
             true,
             1.0,
@@ -1691,7 +1730,7 @@ impl PrinterHeaters {
         Ok(())
     }
 
-    fn cmd_temperature_wait(&self, gcmd: &GCodeCommand) -> KResult<()> {
+    pub fn cmd_temperature_wait(&self, gcmd: &GCodeCommand) -> KResult<()> {
         let sensor_name = gcmd.get("SENSOR")?;
         if !self.available_sensors.borrow().contains(&sensor_name) {
             return Err(gcmd.error(format!("Unknown sensor '{}'", sensor_name)));

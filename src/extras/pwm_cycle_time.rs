@@ -19,17 +19,17 @@ use std::cell::{Cell, RefCell};
 use std::rc::Rc;
 
 pub struct McuPwmCycle {
-    mcu: Rc<Mcu>,
-    cycle_time: f64,
-    oid: Cell<Option<i64>>,
-    pin: String,
-    invert: bool,
-    start_value: f64,
-    shutdown_value: f64,
-    last_clock: Cell<i64>,
-    cycle_ticks: Cell<i64>,
-    set_cmd: RefCell<Option<CommandWrapper>>,
-    set_cycle_ticks: RefCell<Option<CommandWrapper>>,
+    pub mcu: Rc<Mcu>,
+    pub cycle_time: f64,
+    pub oid: Cell<Option<i64>>,
+    pub pin: String,
+    pub invert: bool,
+    pub start_value: f64,
+    pub shutdown_value: f64,
+    pub last_clock: Cell<i64>,
+    pub cycle_ticks: Cell<i64>,
+    pub set_cmd: RefCell<Option<CommandWrapper>>,
+    pub set_cycle_ticks: RefCell<Option<CommandWrapper>>,
 }
 
 impl McuPwmCycle {
@@ -61,7 +61,7 @@ impl McuPwmCycle {
         self.mcu.clone()
     }
 
-    fn build_config(&self) -> KResult<()> {
+    pub fn build_config(&self) -> KResult<()> {
         let mcu = &self.mcu;
         let cmd_queue = mcu.alloc_command_queue();
         let curtime = mcu.get_printer().get_reactor().monotonic();
@@ -128,16 +128,16 @@ const CMD_SET_PIN_HELP: &str = "Set the value of an output pin";
 
 pub struct PrinterOutputPWMCycle {
     printer: Rc<crate::printer::Printer>,
-    last_print_time: Cell<f64>,
-    scale: f64,
-    last_value: Cell<f64>,
-    mcu_pin: Rc<McuPwmCycle>,
-    last_cycle_time: Cell<f64>,
-    default_cycle_time: f64,
+    pub last_print_time: Cell<f64>,
+    pub scale: f64,
+    pub last_value: Cell<f64>,
+    pub mcu_pin: Rc<McuPwmCycle>,
+    pub last_cycle_time: Cell<f64>,
+    pub default_cycle_time: f64,
 }
 
 impl PrinterOutputPWMCycle {
-    fn new(config: &ConfigWrapper) -> KResult<Rc<Self>> {
+    pub fn new(config: &ConfigWrapper) -> KResult<Rc<Self>> {
         let printer = config.get_printer();
         // Determine start and shutdown values
         let scale = config.getfloat("scale", 1.0, Lim::new().above(0.0))?;
@@ -172,7 +172,7 @@ impl PrinterOutputPWMCycle {
         Ok(o)
     }
 
-    fn set_pin(&self, print_time: f64, value: f64, cycle_time: f64) -> KResult<()> {
+    pub fn set_pin(&self, print_time: f64, value: f64, cycle_time: f64) -> KResult<()> {
         if value == self.last_value.get() && cycle_time == self.last_cycle_time.get() {
             return Ok(());
         }
@@ -185,7 +185,7 @@ impl PrinterOutputPWMCycle {
         Ok(())
     }
 
-    fn cmd_set_pin(self: &Rc<Self>, gcmd: &GCodeCommand) -> KResult<()> {
+    pub fn cmd_set_pin(self: &Rc<Self>, gcmd: &GCodeCommand) -> KResult<()> {
         // Read requested value
         let value = gcmd.get_float("VALUE", None, Lim::new().min(0.0).max(self.scale))? / self.scale;
         let max_duration = self.mcu_pin.get_mcu().max_nominal_duration();

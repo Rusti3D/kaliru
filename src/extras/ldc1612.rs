@@ -57,11 +57,11 @@ pub type FreqSample = (f64, f64, f64);
 const CMD_LDC_CALIBRATE_HELP: &str = "Calibrate LDC1612 DRIVE_CURRENT register";
 
 // Tool for determining appropriate DRIVE_CURRENT register
-struct DriveCurrentCalibrate {
-    printer: Rc<Printer>,
+pub struct DriveCurrentCalibrate {
+    pub printer: Rc<Printer>,
     sensor: RefCell<Weak<LDC1612>>,
-    drive_cur: i64,
-    name: String,
+    pub drive_cur: i64,
+    pub name: String,
 }
 
 impl DriveCurrentCalibrate {
@@ -82,11 +82,11 @@ impl DriveCurrentCalibrate {
         Ok(d)
     }
 
-    fn get_drive_current(&self) -> i64 {
+    pub fn get_drive_current(&self) -> i64 {
         self.drive_cur
     }
 
-    fn cmd_ldc_calibrate(&self, gcmd: &GCodeCommand) -> KResult<()> {
+    pub fn cmd_ldc_calibrate(&self, gcmd: &GCodeCommand) -> KResult<()> {
         let sensor = self.sensor.borrow().upgrade().ok_or_else(|| KError::Other("ldc1612 sensor gone".into()))?;
         let is_in_progress = Rc::new(Cell::new(true));
         let p = is_in_progress.clone();
@@ -119,23 +119,23 @@ impl DriveCurrentCalibrate {
 
 // Interface class to LDC1612 mcu support
 pub struct LDC1612 {
-    calibration: Option<Rc<EddyCalibration>>,
-    dccal: Rc<DriveCurrentCalibrate>,
-    data_rate: i64,
-    i2c: Rc<McuI2c>,
-    mcu: Rc<Mcu>,
-    oid: i64,
-    query_ldc1612_cmd: RefCell<Option<CommandWrapper>>,
-    ldc1612_setup_home_cmd: RefCell<Option<CommandWrapper>>,
-    query_ldc1612_home_state_cmd: RefCell<Option<CommandQueryWrapper>>,
-    clock_freq: i64,
-    error_mask_amplitude: i64,
-    sensor_div: i64,
-    freq_conv: f64,
+    pub calibration: Option<Rc<EddyCalibration>>,
+    pub dccal: Rc<DriveCurrentCalibrate>,
+    pub data_rate: i64,
+    pub i2c: Rc<McuI2c>,
+    pub mcu: Rc<Mcu>,
+    pub oid: i64,
+    pub query_ldc1612_cmd: RefCell<Option<CommandWrapper>>,
+    pub ldc1612_setup_home_cmd: RefCell<Option<CommandWrapper>>,
+    pub query_ldc1612_home_state_cmd: RefCell<Option<CommandQueryWrapper>>,
+    pub clock_freq: i64,
+    pub error_mask_amplitude: i64,
+    pub sensor_div: i64,
+    pub freq_conv: f64,
     ffreader: FixedFreqReader,
-    last_error_count: Cell<i64>,
-    batch_bulk: RefCell<Option<Rc<BatchBulkHelper>>>,
-    name: String,
+    pub last_error_count: Cell<i64>,
+    pub batch_bulk: RefCell<Option<Rc<BatchBulkHelper>>>,
+    pub name: String,
 }
 
 impl LDC1612 {
@@ -205,7 +205,7 @@ impl LDC1612 {
         Ok(s)
     }
 
-    fn build_config(&self) -> KResult<()> {
+    pub fn build_config(&self) -> KResult<()> {
         let cmdqueue = self.i2c.get_command_queue();
         *self.query_ldc1612_cmd.borrow_mut() = Some(self.mcu.lookup_command("query_ldc1612 oid=%c rest_ticks=%u", Some(cmdqueue.clone()))?);
         self.ffreader.setup_query_command("query_status_ldc1612 oid=%c", self.oid, Some(cmdqueue.clone()))?;
@@ -302,7 +302,7 @@ impl LDC1612 {
     }
 
     // Start, stop, and process message batches
-    fn start_measurements(&self) -> KResult<()> {
+    pub fn start_measurements(&self) -> KResult<()> {
         // In case of miswiring, testing LDC1612 device ID prevents treating
         // noise or wrong signal as a correctly initialized device
         let manuf_id = self.read_reg(REG_MANUFACTURER_ID)?;
@@ -334,7 +334,7 @@ impl LDC1612 {
         Ok(())
     }
 
-    fn finish_measurements(&self) -> KResult<()> {
+    pub fn finish_measurements(&self) -> KResult<()> {
         // Halt bulk reading
         self.query_cmd()?.send_wait_ack(&[Val::Int(self.oid), Val::Int(0)], 0, 0)?;
         self.ffreader.note_end()?;
@@ -342,7 +342,7 @@ impl LDC1612 {
         Ok(())
     }
 
-    fn process_batch(&self, _eventtime: f64) -> KResult<PyVal> {
+    pub fn process_batch(&self, _eventtime: f64) -> KResult<PyVal> {
         let raw = self.ffreader.pull_samples()?;
         let mut samples = self.convert_samples(&raw);
         if samples.is_empty() {

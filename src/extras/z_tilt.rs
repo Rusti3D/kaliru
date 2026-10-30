@@ -40,10 +40,10 @@ pub fn positions_repr(positions: &[Vec<f64>]) -> String {
 }
 
 pub struct ZAdjustHelper {
-    printer: Rc<Printer>,
-    name: String,
-    z_count: usize,
-    z_steppers: RefCell<Vec<Rc<McuStepper>>>,
+    pub printer: Rc<Printer>,
+    pub name: String,
+    pub z_count: usize,
+    pub z_steppers: RefCell<Vec<Rc<McuStepper>>>,
 }
 
 impl ZAdjustHelper {
@@ -55,7 +55,7 @@ impl ZAdjustHelper {
         h
     }
 
-    fn handle_connect(&self) -> KResult<()> {
+    pub fn handle_connect(&self) -> KResult<()> {
         let kin = self.printer.lookup::<ToolHead>("toolhead")?.get_kinematics();
         let z_steppers: Vec<Rc<McuStepper>> = kin.get_steppers().into_iter().filter(|s| s.is_active_axis('z')).collect();
         if z_steppers.len() != self.z_count {
@@ -120,7 +120,7 @@ pub enum RetryResult {
 }
 
 pub struct ZAdjustStatus {
-    applied: Cell<bool>,
+    pub applied: Cell<bool>,
 }
 
 impl ZAdjustStatus {
@@ -161,18 +161,18 @@ impl ZAdjustStatus {
 }
 
 pub struct RetryHelper {
-    gcode: Rc<GCodeDispatch>,
-    default_max_retries: i64,
-    default_retry_tolerance: f64,
-    default_increasing_threshold: f64,
-    value_label: String,
-    error_msg_extra: String,
-    max_retries: Cell<i64>,
-    retry_tolerance: Cell<f64>,
-    increasing_threshold: Cell<f64>,
-    current_retry: Cell<i64>,
-    previous: Cell<Option<f64>>,
-    increasing: Cell<i64>,
+    pub gcode: Rc<GCodeDispatch>,
+    pub default_max_retries: i64,
+    pub default_retry_tolerance: f64,
+    pub default_increasing_threshold: f64,
+    pub value_label: String,
+    pub error_msg_extra: String,
+    pub max_retries: Cell<i64>,
+    pub retry_tolerance: Cell<f64>,
+    pub increasing_threshold: Cell<f64>,
+    pub current_retry: Cell<i64>,
+    pub previous: Cell<Option<f64>>,
+    pub increasing: Cell<i64>,
 }
 
 impl RetryHelper {
@@ -208,7 +208,7 @@ impl RetryHelper {
         Ok(())
     }
 
-    fn check_increase(&self, error: f64) -> bool {
+    pub fn check_increase(&self, error: f64) -> bool {
         match self.previous.get() {
             Some(p) if p != 0.0 && error > p + self.increasing_threshold.get() => self.increasing.set(self.increasing.get() + 1),
             _ if self.increasing.get() > 0 => self.increasing.set(self.increasing.get() - 1),
@@ -253,16 +253,16 @@ impl RetryHelper {
 const CMD_Z_TILT_ADJUST_HELP: &str = "Adjust the Z tilt";
 
 pub struct ZTilt {
-    z_positions: Vec<(f64, f64)>,
+    pub z_positions: Vec<(f64, f64)>,
     retry_helper: RetryHelper,
-    probe_helper: RefCell<Option<Rc<ProbePointsHelper>>>,
-    z_status: Rc<ZAdjustStatus>,
-    z_helper: Rc<ZAdjustHelper>,
-    use_adjustments: bool,
+    pub probe_helper: RefCell<Option<Rc<ProbePointsHelper>>>,
+    pub z_status: Rc<ZAdjustStatus>,
+    pub z_helper: Rc<ZAdjustHelper>,
+    pub use_adjustments: bool,
 }
 
 impl ZTilt {
-    fn new(config: &ConfigWrapper) -> KResult<Rc<Self>> {
+    pub fn new(config: &ConfigWrapper) -> KResult<Rc<Self>> {
         let printer = config.get_printer();
         let z_positions = get_pairs(config, "z_positions")?;
         let retry_helper = RetryHelper::new(config, "")?;
@@ -303,7 +303,7 @@ impl ZTilt {
         self.probe_helper.borrow().clone().expect("probe helper")
     }
 
-    fn cmd_z_tilt_adjust(&self, gcmd: &GCodeCommand) -> KResult<()> {
+    pub fn cmd_z_tilt_adjust(&self, gcmd: &GCodeCommand) -> KResult<()> {
         self.z_status.reset();
         self.retry_helper.start(gcmd)?;
         self.probe_helper().start_probe(gcmd)

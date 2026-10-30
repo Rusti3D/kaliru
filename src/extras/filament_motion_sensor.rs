@@ -33,19 +33,19 @@ pub fn find_past_position(obj: &PObj, print_time: f64) -> KResult<f64> {
 }
 
 pub struct EncoderSensor {
-    printer: Rc<Printer>,
-    extruder_name: String,
-    detection_length: Cell<f64>,
-    reactor: Rc<Reactor>,
-    runout_helper: Rc<RunoutHelper>,
-    extruder: RefCell<Option<PObj>>,
+    pub printer: Rc<Printer>,
+    pub extruder_name: String,
+    pub detection_length: Cell<f64>,
+    pub reactor: Rc<Reactor>,
+    pub runout_helper: Rc<RunoutHelper>,
+    pub extruder: RefCell<Option<PObj>>,
     mcu: RefCell<Option<Rc<Mcu>>>,
-    filament_runout_pos: Cell<Option<f64>>,
+    pub filament_runout_pos: Cell<Option<f64>>,
     timer: RefCell<Option<Timer>>,
 }
 
 impl EncoderSensor {
-    fn new(config: &ConfigWrapper) -> KResult<Rc<Self>> {
+    pub fn new(config: &ConfigWrapper) -> KResult<Rc<Self>> {
         // Read config
         let printer = config.get_printer();
         let switch_pin = config.get("switch_pin", Dflt::Required)?;
@@ -104,13 +104,13 @@ impl EncoderSensor {
         }
     }
 
-    fn update_filament_runout_pos(&self, eventtime: Option<f64>) -> KResult<()> {
+    pub fn update_filament_runout_pos(&self, eventtime: Option<f64>) -> KResult<()> {
         let pos = self.get_extruder_pos(eventtime)?;
         self.filament_runout_pos.set(Some(pos + self.detection_length.get()));
         Ok(())
     }
 
-    fn handle_ready(self: &Rc<Self>) -> KResult<()> {
+    pub fn handle_ready(self: &Rc<Self>) -> KResult<()> {
         *self.extruder.borrow_mut() = Some(self.printer.lookup_object(&self.extruder_name)?);
         *self.mcu.borrow_mut() = Some(self.printer.lookup::<Mcu>("mcu")?);
         self.update_filament_runout_pos(None)?;
@@ -126,7 +126,7 @@ impl EncoderSensor {
         Ok(())
     }
 
-    fn extruder_pos_update_event(&self, eventtime: f64) -> f64 {
+    pub fn extruder_pos_update_event(&self, eventtime: f64) -> f64 {
         let r = self.get_extruder_pos(Some(eventtime)).and_then(|extruder_pos| {
             // Check for filament runout
             let present = extruder_pos < self.filament_runout_pos.get().unwrap_or(0.0);
@@ -138,7 +138,7 @@ impl EncoderSensor {
         eventtime + CHECK_RUNOUT_TIMEOUT
     }
 
-    fn encoder_event(&self, eventtime: f64) -> KResult<()> {
+    pub fn encoder_event(&self, eventtime: f64) -> KResult<()> {
         if self.extruder.borrow().is_some() {
             self.update_filament_runout_pos(Some(eventtime))?;
             // Check for filament insertion
@@ -148,7 +148,7 @@ impl EncoderSensor {
         Ok(())
     }
 
-    fn get_sensor_status(&self) -> String {
+    pub fn get_sensor_status(&self) -> String {
         let rh = &self.runout_helper;
         let tf = |b: bool| if b { "true" } else { "false" };
         format!(

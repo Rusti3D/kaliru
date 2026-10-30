@@ -91,7 +91,7 @@ fn matrix_pyval(m: &[Vec<f64>]) -> PyVal {
 }
 
 // retreive commma separated pair from config
-fn parse_config_pair(config: &ConfigWrapper, option: &str, default: i64, minval: Option<i64>, maxval: Option<i64>) -> KResult<(i64, i64)> {
+pub fn parse_config_pair(config: &ConfigWrapper, option: &str, default: i64, minval: Option<i64>, maxval: Option<i64>) -> KResult<(i64, i64)> {
     let pair = config
         .getintlist(option, PyVal::Tuple(vec![PyVal::Int(default), PyVal::Int(default)]), ",", None)?
         .unwrap_or_default();
@@ -121,7 +121,7 @@ fn parse_config_pair(config: &ConfigWrapper, option: &str, default: i64, minval:
 }
 
 // retreive commma separated pair from a g-code command
-fn parse_gcmd_pair(gcmd: &GCodeCommand, name: &str, minval: Option<i64>, maxval: Option<i64>) -> KResult<(i64, i64)> {
+pub fn parse_gcmd_pair(gcmd: &GCodeCommand, name: &str, minval: Option<i64>, maxval: Option<i64>) -> KResult<(i64, i64)> {
     let err = || gcmd.error(format!("Unable to parse parameter '{}'", name));
     let raw = gcmd.get(name).map_err(|_| err())?;
     let pair: Option<Vec<i64>> = raw.split(',').map(|v| crate::pyfmt::py_int(py_strip(v))).collect();
@@ -148,7 +148,7 @@ fn parse_gcmd_pair(gcmd: &GCodeCommand, name: &str, minval: Option<i64>, maxval:
 }
 
 // retreive commma separated coordinate from a g-code command
-fn parse_gcmd_coord(gcmd: &GCodeCommand, name: &str) -> KResult<(f64, f64)> {
+pub fn parse_gcmd_coord(gcmd: &GCodeCommand, name: &str) -> KResult<(f64, f64)> {
     let err = || gcmd.error(format!("Unable to parse parameter '{}'", name));
     let raw = gcmd.get(name).map_err(|_| err())?;
     let v: Option<Vec<f64>> = raw.split(',').map(|v| crate::pyfmt::py_float(py_strip(v))).collect();
@@ -173,27 +173,27 @@ const CMD_BED_MESH_PROFILE_HELP: &str = "Bed Mesh Persistent Storage management"
 pub const FADE_DISABLE: f64 = 0x7FFFFFFF as f64;
 
 pub struct BedMesh {
-    printer: Rc<Printer>,
-    last_position: RefCell<Vec<f64>>,
-    bmc: RefCell<Option<Rc<BedMeshCalibrate>>>,
-    z_mesh: RefCell<Option<Rc<ZMesh>>>,
-    toolhead: RefCell<Option<Rc<ToolHead>>>,
-    horizontal_move_z: Cell<f64>,
-    fade_start: Cell<f64>,
-    fade_end: Cell<f64>,
-    fade_dist: Cell<f64>,
-    log_fade_complete: Cell<bool>,
-    base_fade_target: Cell<Option<f64>>,
-    fade_target: Cell<f64>,
-    tool_offset: Cell<f64>,
-    splitter: RefCell<Option<Rc<MoveSplitter>>>,
-    pmgr: RefCell<Option<Rc<ProfileManager>>>,
-    default_mesh_name: RefCell<Option<String>>,
-    status: RefCell<PyVal>,
+    pub printer: Rc<Printer>,
+    pub last_position: RefCell<Vec<f64>>,
+    pub bmc: RefCell<Option<Rc<BedMeshCalibrate>>>,
+    pub z_mesh: RefCell<Option<Rc<ZMesh>>>,
+    pub toolhead: RefCell<Option<Rc<ToolHead>>>,
+    pub horizontal_move_z: Cell<f64>,
+    pub fade_start: Cell<f64>,
+    pub fade_end: Cell<f64>,
+    pub fade_dist: Cell<f64>,
+    pub log_fade_complete: Cell<bool>,
+    pub base_fade_target: Cell<Option<f64>>,
+    pub fade_target: Cell<f64>,
+    pub tool_offset: Cell<f64>,
+    pub splitter: RefCell<Option<Rc<MoveSplitter>>>,
+    pub pmgr: RefCell<Option<Rc<ProfileManager>>>,
+    pub default_mesh_name: RefCell<Option<String>>,
+    pub status: RefCell<PyVal>,
 }
 
 impl BedMesh {
-    fn new(config: &ConfigWrapper) -> KResult<Rc<Self>> {
+    pub fn new(config: &ConfigWrapper) -> KResult<Rc<Self>> {
         let printer = config.get_printer();
         let gcode = printer.lookup::<GCodeDispatch>("gcode")?;
         // the config options are read in python's order: the fields fill
@@ -260,28 +260,28 @@ impl BedMesh {
         Ok(bm)
     }
 
-    fn splitter(&self) -> Rc<MoveSplitter> {
+    pub fn splitter(&self) -> Rc<MoveSplitter> {
         self.splitter.borrow().clone().expect("splitter")
     }
 
-    fn pmgr(&self) -> Rc<ProfileManager> {
+    pub fn pmgr(&self) -> Rc<ProfileManager> {
         self.pmgr.borrow().clone().expect("pmgr")
     }
 
-    fn bmc(&self) -> Rc<BedMeshCalibrate> {
+    pub fn bmc(&self) -> Rc<BedMeshCalibrate> {
         self.bmc.borrow().clone().expect("bmc")
     }
 
     /// bmc.zero_ref_pos
     pub fn zero_ref_pos(&self) -> Option<(f64, f64)> {
-        self.bmc().zero_ref_pos
+        self.bmc().zero_ref_pos.get()
     }
 
-    fn toolhead(&self) -> KResult<Rc<ToolHead>> {
+    pub fn toolhead(&self) -> KResult<Rc<ToolHead>> {
         self.toolhead.borrow().clone().ok_or_else(|| KError::Other("'NoneType' object has no attribute 'get_position'".into()))
     }
 
-    fn handle_connect(&self) -> KResult<()> {
+    pub fn handle_connect(&self) -> KResult<()> {
         *self.toolhead.borrow_mut() = Some(self.printer.lookup::<ToolHead>("toolhead")?);
         let default_mesh_name = self.default_mesh_name.borrow().clone();
         if let Some(name) = default_mesh_name.filter(|n| !n.is_empty()) {
@@ -359,7 +359,7 @@ impl BedMesh {
         }
     }
 
-    fn bm_get_position(&self) -> KResult<Vec<f64>> {
+    pub fn bm_get_position(&self) -> KResult<Vec<f64>> {
         // Return last, non-transformed position
         let toolhead = self.toolhead()?;
         let z_mesh = self.z_mesh.borrow().clone();
@@ -398,7 +398,7 @@ impl BedMesh {
         Ok(self.last_position.borrow().clone())
     }
 
-    fn bm_move(&self, newpos: &[f64], speed: f64) -> KResult<()> {
+    pub fn bm_move(&self, newpos: &[f64], speed: f64) -> KResult<()> {
         let toolhead = self.toolhead()?;
         let factor = self.get_z_factor(newpos[2]);
         let z_mesh = self.z_mesh.borrow().clone();
@@ -456,7 +456,7 @@ impl BedMesh {
         self.z_mesh.borrow().clone()
     }
 
-    fn cmd_bed_mesh_output(self: &Rc<Self>, gcmd: &GCodeCommand) -> KResult<()> {
+    pub fn cmd_bed_mesh_output(self: &Rc<Self>, gcmd: &GCodeCommand) -> KResult<()> {
         if gcmd.get_int("PGP", Some(0), Lim::new())? != 0 {
             // Print Generated Points instead of mesh
             self.bmc().print_generated_points(&|m: &str| gcmd.respond_info(m, true), false)?;
@@ -469,7 +469,7 @@ impl BedMesh {
         Ok(())
     }
 
-    fn cmd_bed_mesh_map(self: &Rc<Self>, gcmd: &GCodeCommand) -> KResult<()> {
+    pub fn cmd_bed_mesh_map(self: &Rc<Self>, gcmd: &GCodeCommand) -> KResult<()> {
         match self.get_mesh() {
             Some(z_mesh) => {
                 let params = z_mesh.get_mesh_params();
@@ -486,11 +486,11 @@ impl BedMesh {
         Ok(())
     }
 
-    fn cmd_bed_mesh_clear(self: &Rc<Self>, _gcmd: &GCodeCommand) -> KResult<()> {
+    pub fn cmd_bed_mesh_clear(self: &Rc<Self>, _gcmd: &GCodeCommand) -> KResult<()> {
         self.set_mesh(None)
     }
 
-    fn cmd_bed_mesh_offset(self: &Rc<Self>, gcmd: &GCodeCommand) -> KResult<()> {
+    pub fn cmd_bed_mesh_offset(self: &Rc<Self>, gcmd: &GCodeCommand) -> KResult<()> {
         match self.get_mesh() {
             Some(z_mesh) => {
                 let mut offsets = [None, None];
@@ -509,7 +509,7 @@ impl BedMesh {
         Ok(())
     }
 
-    fn cmd_bed_mesh_check(self: &Rc<Self>, gcmd: &GCodeCommand) -> KResult<()> {
+    pub fn cmd_bed_mesh_check(self: &Rc<Self>, gcmd: &GCodeCommand) -> KResult<()> {
         let Some(z_mesh) = self.get_mesh() else {
             return Err(KError::command("No mesh has been loaded"));
         };
@@ -645,7 +645,7 @@ impl PrinterObject for BedMesh {
 
 /// ZrefMode
 #[derive(Clone, Copy, PartialEq)]
-enum ZrefMode {
+pub enum ZrefMode {
     /// Zero reference disabled
     Disabled,
     /// Zero reference position within mesh
@@ -657,12 +657,12 @@ enum ZrefMode {
 pub const ALGOS: &[&str] = &["lagrange", "bicubic"];
 
 #[derive(Clone)]
-struct OrigConfig {
-    radius: Option<f64>,
-    origin: Option<(f64, f64)>,
-    mesh_min: (f64, f64),
-    mesh_max: (f64, f64),
-    mesh_config: MeshParams,
+pub struct OrigConfig {
+    pub radius: Option<f64>,
+    pub origin: Option<(f64, f64)>,
+    pub mesh_min: (f64, f64),
+    pub mesh_max: (f64, f64),
+    pub mesh_config: MeshParams,
 }
 
 /// the config BedMeshCalibrate.__init__ reads before the probe helper
@@ -679,7 +679,7 @@ struct BedMeshCalibrateConfig {
 }
 
 impl BedMeshCalibrateConfig {
-    fn read(config: &ConfigWrapper) -> KResult<Self> {
+    pub fn read(config: &ConfigWrapper) -> KResult<Self> {
         let adaptive_margin = config.getfloat("adaptive_margin", 0.0, Lim::new())?;
         let zero_ref_pos = config.getfloatlist("zero_reference_position", Dflt::None, ",", Some(2))?.map(|v| (v[0], v[1]));
         let mut c = BedMeshCalibrateConfig {
@@ -697,7 +697,7 @@ impl BedMeshCalibrateConfig {
         Ok(c)
     }
 
-    fn init_mesh_config(&mut self, config: &ConfigWrapper) -> KResult<()> {
+    pub fn init_mesh_config(&mut self, config: &ConfigWrapper) -> KResult<()> {
         self.radius = config.getfloat_opt("mesh_radius", Lim::new().above(0.0))?;
         let (x_cnt, y_cnt, min_x, min_y, max_x, max_y);
         if let Some(radius) = self.radius {
@@ -803,7 +803,7 @@ impl BedMeshCalibrateConfig {
     }
 }
 
-fn verify_algorithm(params: &mut MeshParams, error: &dyn Fn(String) -> KError) -> KResult<()> {
+pub fn verify_algorithm(params: &mut MeshParams, error: &dyn Fn(String) -> KError) -> KResult<()> {
     let x_pps = pi(params, "mesh_x_pps");
     let y_pps = pi(params, "mesh_y_pps");
     let algo = ps(params, "algo");
@@ -842,27 +842,27 @@ fn verify_algorithm(params: &mut MeshParams, error: &dyn Fn(String) -> KError) -
 }
 
 pub struct BedMeshCalibrate {
-    printer: Rc<Printer>,
-    orig_config: OrigConfig,
-    radius: Cell<Option<f64>>,
-    origin: Cell<Option<(f64, f64)>>,
-    mesh_min: Cell<(f64, f64)>,
-    mesh_max: Cell<(f64, f64)>,
-    adaptive_margin: f64,
-    zero_ref_pos: Option<(f64, f64)>,
-    zero_reference_mode: Cell<ZrefMode>,
-    faulty_regions: Vec<((f64, f64), (f64, f64))>,
-    substituted_indices: RefCell<IndexMap<usize, Vec<(f64, f64)>>>,
-    bedmesh: Weak<BedMesh>,
-    mesh_config: RefCell<MeshParams>,
-    points: RefCell<Vec<(f64, f64)>>,
-    profile_name: RefCell<Option<String>>,
-    probe_helper: RefCell<Option<Rc<ProbePointsHelper>>>,
-    gcode: Rc<GCodeDispatch>,
+    pub printer: Rc<Printer>,
+    pub orig_config: OrigConfig,
+    pub radius: Cell<Option<f64>>,
+    pub origin: Cell<Option<(f64, f64)>>,
+    pub mesh_min: Cell<(f64, f64)>,
+    pub mesh_max: Cell<(f64, f64)>,
+    pub adaptive_margin: f64,
+    pub zero_ref_pos: Cell<Option<(f64, f64)>>,
+    pub zero_reference_mode: Cell<ZrefMode>,
+    pub faulty_regions: Vec<((f64, f64), (f64, f64))>,
+    pub substituted_indices: RefCell<IndexMap<usize, Vec<(f64, f64)>>>,
+    pub bedmesh: Weak<BedMesh>,
+    pub mesh_config: RefCell<MeshParams>,
+    pub points: RefCell<Vec<(f64, f64)>>,
+    pub profile_name: RefCell<Option<String>>,
+    pub probe_helper: RefCell<Option<Rc<ProbePointsHelper>>>,
+    pub gcode: Rc<GCodeDispatch>,
 }
 
 impl BedMeshCalibrate {
-    fn new(config: &ConfigWrapper, bedmesh: &Rc<BedMesh>) -> KResult<Rc<Self>> {
+    pub fn new(config: &ConfigWrapper, bedmesh: &Rc<BedMesh>) -> KResult<Rc<Self>> {
         let printer = config.get_printer();
         let cfg = BedMeshCalibrateConfig::read(config)?;
         let bmc = Rc::new(BedMeshCalibrate {
@@ -873,7 +873,7 @@ impl BedMeshCalibrate {
             mesh_min: Cell::new(cfg.mesh_min),
             mesh_max: Cell::new(cfg.mesh_max),
             adaptive_margin: cfg.adaptive_margin,
-            zero_ref_pos: cfg.zero_ref_pos,
+            zero_ref_pos: Cell::new(cfg.zero_ref_pos),
             zero_reference_mode: Cell::new(ZrefMode::Disabled),
             faulty_regions: cfg.faulty_regions,
             substituted_indices: RefCell::new(IndexMap::default()),
@@ -909,15 +909,15 @@ impl BedMeshCalibrate {
         Ok(bmc)
     }
 
-    fn bedmesh(&self) -> Rc<BedMesh> {
+    pub fn bedmesh(&self) -> Rc<BedMesh> {
         self.bedmesh.upgrade().expect("bed mesh")
     }
 
-    fn probe_helper(&self) -> Rc<ProbePointsHelper> {
+    pub fn probe_helper(&self) -> Rc<ProbePointsHelper> {
         self.probe_helper.borrow().clone().expect("probe helper")
     }
 
-    fn generate_points(&self, error: &dyn Fn(String) -> KError, probe_method: &str) -> KResult<()> {
+    pub fn generate_points(&self, error: &dyn Fn(String) -> KError, probe_method: &str) -> KResult<()> {
         let (x_cnt, y_cnt) = {
             let mc = self.mesh_config.borrow();
             (pi(&mc, "x_count"), pi(&mc, "y_count"))
@@ -973,7 +973,7 @@ impl BedMeshCalibrate {
             pos_y += y_dist;
         }
         *self.points.borrow_mut() = points;
-        let mode = match self.zero_ref_pos {
+        let mode = match self.zero_ref_pos.get() {
             None => ZrefMode::Disabled,
             Some(_) if probe_method == "manual" => ZrefMode::Disabled,
             // Zero Reference position within mesh
@@ -988,7 +988,7 @@ impl BedMeshCalibrate {
         self.substituted_indices.borrow_mut().clear();
         if mode == ZrefMode::Probe {
             // Cannot probe a reference within a faulty region
-            let z = self.zero_ref_pos.unwrap();
+            let z = self.zero_ref_pos.get().unwrap();
             for (min_c, max_c) in &self.faulty_regions {
                 if within(z, *min_c, *max_c, 0.0) {
                     let opt = "zero_reference_position";
@@ -1073,7 +1073,7 @@ impl BedMeshCalibrate {
             let mesh_pt = format!("({:.1}, {:.1})", x, y);
             print_func(&format!("  {:<4}| {:<16}| {}", i, adj_pt, mesh_pt));
         }
-        if let Some(z) = self.zero_ref_pos {
+        if let Some(z) = self.zero_ref_pos.get() {
             print_func(&format!("bed_mesh: zero_reference_position is ({:.2}, {:.2})", z.0, z.1));
         }
         let si = self.substituted_indices.borrow();
@@ -1089,7 +1089,7 @@ impl BedMeshCalibrate {
     }
 
     /// set_adaptive_mesh(gcmd) -> the mesh changed
-    fn set_adaptive_mesh(&self, gcmd: &GCodeCommand) -> KResult<bool> {
+    pub fn set_adaptive_mesh(&self, gcmd: &GCodeCommand) -> KResult<bool> {
         if gcmd.get_int("ADAPTIVE", Some(0), Lim::new())? == 0 {
             return Ok(false);
         }
@@ -1203,7 +1203,7 @@ impl BedMeshCalibrate {
         Ok(true)
     }
 
-    fn update_config(&self, gcmd: &GCodeCommand) -> KResult<()> {
+    pub fn update_config(&self, gcmd: &GCodeCommand) -> KResult<()> {
         // reset default configuration
         self.radius.set(self.orig_config.radius);
         self.origin.set(self.orig_config.origin);
@@ -1278,7 +1278,7 @@ impl BedMeshCalibrate {
         Ok(())
     }
 
-    fn get_adjusted_points(&self) -> Vec<(f64, f64)> {
+    pub fn get_adjusted_points(&self) -> Vec<(f64, f64)> {
         let points = self.points.borrow();
         let si = self.substituted_indices.borrow();
         let mut adj_pts = vec![];
@@ -1300,12 +1300,12 @@ impl BedMeshCalibrate {
             adj_pts = points.clone();
         }
         if self.zero_reference_mode.get() == ZrefMode::Probe {
-            adj_pts.push(self.zero_ref_pos.unwrap());
+            adj_pts.push(self.zero_ref_pos.get().unwrap());
         }
         adj_pts
     }
 
-    fn cmd_bed_mesh_calibrate(&self, gcmd: &GCodeCommand) -> KResult<()> {
+    pub fn cmd_bed_mesh_calibrate(&self, gcmd: &GCodeCommand) -> KResult<()> {
         let name = gcmd.get_or("PROFILE", "default");
         if py_strip(&name).is_empty() {
             return Err(gcmd.error("Value for parameter 'PROFILE' must be specified"));
@@ -1316,7 +1316,7 @@ impl BedMeshCalibrate {
         self.probe_helper().start_probe(gcmd)
     }
 
-    fn probe_finalize(&self, offsets: (f64, f64, f64), positions: &[Vec<f64>]) -> KResult<FinalizeResult> {
+    pub fn probe_finalize(&self, offsets: (f64, f64, f64), positions: &[Vec<f64>]) -> KResult<FinalizeResult> {
         let (x_offset, y_offset, mut z_offset) = offsets;
         let mut positions: Vec<Vec<f64>> = positions.iter().map(|p| vec![py_round(p[0], 2), py_round(p[1], 2), p[2]]).collect();
         if self.zero_reference_mode.get() == ZrefMode::Probe {
@@ -1473,7 +1473,7 @@ impl BedMeshCalibrate {
             // The reference can be anywhere in the mesh, therefore
             // it is necessary to set the reference after the initial mesh
             // is generated to lookup the correct z value.
-            let z = self.zero_ref_pos.unwrap();
+            let z = self.zero_ref_pos.get().unwrap();
             z_mesh.set_zero_reference(z.0, z.1);
         }
         self.bedmesh().set_mesh(Some(z_mesh))?;
@@ -1484,7 +1484,7 @@ impl BedMeshCalibrate {
         Ok(FinalizeResult::Done)
     }
 
-    fn dump_points(&self, probed_pts: &[Vec<f64>], corrected_pts: &[Vec<f64>], offsets: (f64, f64, f64)) {
+    pub fn dump_points(&self, probed_pts: &[Vec<f64>], corrected_pts: &[Vec<f64>], offsets: (f64, f64, f64)) {
         // logs generated points with offset applied, points received
         // from the finalize callback, and the list of corrected points
         let points = self.points.borrow();
@@ -1516,23 +1516,23 @@ impl BedMeshCalibrate {
 // ----------------------------------------------------------------------
 
 pub struct MoveSplitter {
-    split_delta_z: f64,
-    move_check_distance: f64,
-    z_mesh: RefCell<Option<Rc<ZMesh>>>,
-    fade_offset: Cell<f64>,
-    prev_pos: RefCell<Vec<f64>>,
-    next_pos: RefCell<Vec<f64>>,
-    current_pos: RefCell<Vec<f64>>,
-    z_factor: Cell<f64>,
-    z_offset: Cell<f64>,
+    pub split_delta_z: f64,
+    pub move_check_distance: f64,
+    pub z_mesh: RefCell<Option<Rc<ZMesh>>>,
+    pub fade_offset: Cell<f64>,
+    pub prev_pos: RefCell<Vec<f64>>,
+    pub next_pos: RefCell<Vec<f64>>,
+    pub current_pos: RefCell<Vec<f64>>,
+    pub z_factor: Cell<f64>,
+    pub z_offset: Cell<f64>,
     pub traverse_complete: Cell<bool>,
-    distance_checked: Cell<f64>,
-    total_move_length: Cell<f64>,
-    axis_move: RefCell<Vec<bool>>,
+    pub distance_checked: Cell<f64>,
+    pub total_move_length: Cell<f64>,
+    pub axis_move: RefCell<Vec<bool>>,
 }
 
 impl MoveSplitter {
-    fn new(config: &ConfigWrapper, _gcode: &Rc<GCodeDispatch>) -> KResult<Self> {
+    pub fn new(config: &ConfigWrapper, _gcode: &Rc<GCodeDispatch>) -> KResult<Self> {
         let split_delta_z = config.getfloat("split_delta_z", 0.025, Lim::new().min(0.01))?;
         let move_check_distance = config.getfloat("move_check_distance", 5.0, Lim::new().min(3.0))?;
         Ok(MoveSplitter {
@@ -1552,12 +1552,12 @@ impl MoveSplitter {
         })
     }
 
-    fn initialize(&self, mesh: Option<Rc<ZMesh>>, fade_offset: f64) {
+    pub fn initialize(&self, mesh: Option<Rc<ZMesh>>, fade_offset: f64) {
         *self.z_mesh.borrow_mut() = mesh;
         self.fade_offset.set(fade_offset);
     }
 
-    fn build_move(&self, prev_pos: &[f64], next_pos: &[f64], factor: f64) -> KResult<()> {
+    pub fn build_move(&self, prev_pos: &[f64], next_pos: &[f64], factor: f64) -> KResult<()> {
         *self.prev_pos.borrow_mut() = prev_pos.to_vec();
         *self.next_pos.borrow_mut() = next_pos.to_vec();
         *self.current_pos.borrow_mut() = prev_pos.to_vec();
@@ -1571,14 +1571,14 @@ impl MoveSplitter {
         Ok(())
     }
 
-    fn calc_z_offset(&self, pos: &[f64]) -> KResult<f64> {
+    pub fn calc_z_offset(&self, pos: &[f64]) -> KResult<f64> {
         let z_mesh = self.z_mesh.borrow().clone().ok_or_else(|| KError::Other("'NoneType' object has no attribute 'calc_z'".into()))?;
         let z = z_mesh.calc_z(pos[0], pos[1]);
         let offset = self.fade_offset.get();
         Ok(self.z_factor.get() * (z - offset) + offset)
     }
 
-    fn set_next_move(&self, distance_from_prev: f64) -> KResult<()> {
+    pub fn set_next_move(&self, distance_from_prev: f64) -> KResult<()> {
         let t = distance_from_prev / self.total_move_length.get();
         if t > 1.0 || t < 0.0 {
             return Err(KError::command("bed_mesh: Slice distance is negative or greater than entire move length"));
@@ -1593,7 +1593,7 @@ impl MoveSplitter {
         Ok(())
     }
 
-    fn split(&self) -> KResult<Option<Vec<f64>>> {
+    pub fn split(&self) -> KResult<Option<Vec<f64>>> {
         if self.traverse_complete.get() {
             // Traverse complete
             return Ok(None);
@@ -1635,20 +1635,20 @@ impl MoveSplitter {
 // ----------------------------------------------------------------------
 
 pub struct ZMesh {
-    profile_name: String,
-    probed_matrix: RefCell<Option<Vec<Vec<f64>>>>,
-    mesh_matrix: RefCell<Option<Vec<Vec<f64>>>>,
-    mesh_params: MeshParams,
-    mesh_offsets: RefCell<[f64; 2]>,
-    mesh_x_min: f64,
-    mesh_y_min: f64,
-    algo: String,
-    mesh_x_count: usize,
-    mesh_y_count: usize,
-    x_mult: usize,
-    y_mult: usize,
-    mesh_x_dist: f64,
-    mesh_y_dist: f64,
+    pub profile_name: String,
+    pub probed_matrix: RefCell<Option<Vec<Vec<f64>>>>,
+    pub mesh_matrix: RefCell<Option<Vec<Vec<f64>>>>,
+    pub mesh_params: MeshParams,
+    pub mesh_offsets: RefCell<[f64; 2]>,
+    pub mesh_x_min: f64,
+    pub mesh_y_min: f64,
+    pub algo: String,
+    pub mesh_x_count: usize,
+    pub mesh_y_count: usize,
+    pub x_mult: usize,
+    pub y_mult: usize,
+    pub mesh_x_dist: f64,
+    pub mesh_y_dist: f64,
 }
 
 // (u64: the same values on 32-bit hosts)
@@ -1703,7 +1703,7 @@ impl ZMesh {
         }
     }
 
-    fn rounded(m: &Option<Vec<Vec<f64>>>) -> Vec<Vec<f64>> {
+    pub fn rounded(m: &Option<Vec<Vec<f64>>>) -> Vec<Vec<f64>> {
         match m {
             Some(m) => m.iter().map(|line| line.iter().map(|z| py_round(*z, 6)).collect()).collect(),
             None => vec![vec![]],
@@ -1852,7 +1852,7 @@ impl ZMesh {
         }
     }
 
-    fn get_linear_index(&self, coord: f64, axis: usize) -> (f64, usize) {
+    pub fn get_linear_index(&self, coord: f64, axis: usize) -> (f64, usize) {
         let (mesh_min, mesh_cnt, mesh_dist) = if axis == 0 {
             // X-axis
             (self.mesh_x_min, self.mesh_x_count, self.mesh_x_dist)
@@ -1867,7 +1867,7 @@ impl ZMesh {
         (constrain(t, 0.0, 1.0), idx)
     }
 
-    fn initial_matrix(&self, z_matrix: &[Vec<f64>]) -> Vec<Vec<f64>> {
+    pub fn initial_matrix(&self, z_matrix: &[Vec<f64>]) -> Vec<Vec<f64>> {
         let (x_mult, y_mult) = (self.x_mult, self.y_mult);
         (0..self.mesh_y_count)
             .map(|j| {
@@ -1878,7 +1878,7 @@ impl ZMesh {
             .collect()
     }
 
-    fn sample_lagrange(&self, z_matrix: &[Vec<f64>]) {
+    pub fn sample_lagrange(&self, z_matrix: &[Vec<f64>]) {
         let (x_mult, y_mult) = (self.x_mult, self.y_mult);
         let mut mm = self.initial_matrix(z_matrix);
         let (xpts, ypts) = self.get_lagrange_coords();
@@ -1909,13 +1909,13 @@ impl ZMesh {
         *self.mesh_matrix.borrow_mut() = Some(mm);
     }
 
-    fn get_lagrange_coords(&self) -> (Vec<f64>, Vec<f64>) {
+    pub fn get_lagrange_coords(&self) -> (Vec<f64>, Vec<f64>) {
         let xpts = (0..pi(&self.mesh_params, "x_count") as usize).map(|i| self.get_x_coordinate(i * self.x_mult)).collect();
         let ypts = (0..pi(&self.mesh_params, "y_count") as usize).map(|j| self.get_y_coordinate(j * self.y_mult)).collect();
         (xpts, ypts)
     }
 
-    fn calc_lagrange(&self, mm: &[Vec<f64>], lpts: &[f64], c: f64, vec: usize, axis: usize) -> f64 {
+    pub fn calc_lagrange(&self, mm: &[Vec<f64>], lpts: &[f64], c: f64, vec: usize, axis: usize) -> f64 {
         let pt_cnt = lpts.len();
         let mut total = 0.0;
         for i in 0..pt_cnt {
@@ -1940,7 +1940,7 @@ impl ZMesh {
         total
     }
 
-    fn sample_bicubic(&self, z_matrix: &[Vec<f64>]) -> Result<(), String> {
+    pub fn sample_bicubic(&self, z_matrix: &[Vec<f64>]) -> Result<(), String> {
         // should work for any number of probe points above 3x3
         let (x_mult, y_mult) = (self.x_mult, self.y_mult);
         let c = pf(&self.mesh_params, "tension");
@@ -1972,7 +1972,7 @@ impl ZMesh {
         Ok(())
     }
 
-    fn get_x_ctl_pts(&self, mm: &[Vec<f64>], x: usize, y: usize) -> Result<[f64; 5], String> {
+    pub fn get_x_ctl_pts(&self, mm: &[Vec<f64>], x: usize, y: usize) -> Result<[f64; 5], String> {
         // Fetch control points and t for a X value in the mesh
         let x_mult = self.x_mult;
         let x_row = &mm[y];
@@ -2002,7 +2002,7 @@ impl ZMesh {
         }
     }
 
-    fn get_y_ctl_pts(&self, mm: &[Vec<f64>], x: usize, y: usize) -> Result<[f64; 5], String> {
+    pub fn get_y_ctl_pts(&self, mm: &[Vec<f64>], x: usize, y: usize) -> Result<[f64; 5], String> {
         // Fetch control points and t for a Y value in the mesh
         let y_mult = self.y_mult;
         let last_pt = self.mesh_y_count as i64 - 1 - y_mult as i64;
@@ -2032,7 +2032,7 @@ impl ZMesh {
         }
     }
 
-    fn cardinal_spline(p: [f64; 5], tension: f64) -> f64 {
+    pub fn cardinal_spline(p: [f64; 5], tension: f64) -> f64 {
         let t = p[4];
         let t2 = t * t;
         let t3 = t2 * t;
@@ -2052,21 +2052,21 @@ impl ZMesh {
 
 #[derive(Clone)]
 pub struct MeshProfile {
-    points: Vec<Vec<f64>>,
-    mesh_params: MeshParams,
+    pub points: Vec<Vec<f64>>,
+    pub mesh_params: MeshParams,
 }
 
 pub struct ProfileManager {
-    name: String,
-    printer: Rc<Printer>,
-    gcode: Rc<GCodeDispatch>,
-    bedmesh: Weak<BedMesh>,
-    profiles: RefCell<IndexMap<String, MeshProfile>>,
-    incompatible_profiles: Vec<String>,
+    pub name: String,
+    pub printer: Rc<Printer>,
+    pub gcode: Rc<GCodeDispatch>,
+    pub bedmesh: Weak<BedMesh>,
+    pub profiles: RefCell<IndexMap<String, MeshProfile>>,
+    pub incompatible_profiles: Vec<String>,
 }
 
 impl ProfileManager {
-    fn new(config: &ConfigWrapper, bedmesh: &Rc<BedMesh>) -> KResult<Rc<Self>> {
+    pub fn new(config: &ConfigWrapper, bedmesh: &Rc<BedMesh>) -> KResult<Rc<Self>> {
         let name = config.get_name().to_string();
         let printer = config.get_printer();
         let gcode = printer.lookup::<GCodeDispatch>("gcode")?;
@@ -2122,7 +2122,7 @@ impl ProfileManager {
         self.profiles.borrow().clone()
     }
 
-    fn profiles_pyval(&self) -> PyVal {
+    pub fn profiles_pyval(&self) -> PyVal {
         let d: PyDict = self
             .profiles
             .borrow()
@@ -2139,7 +2139,7 @@ impl ProfileManager {
     }
 
     #[allow(dead_code)]
-    fn check_incompatible_profiles(&self) -> KResult<()> {
+    pub fn check_incompatible_profiles(&self) -> KResult<()> {
         if !self.incompatible_profiles.is_empty() {
             let configfile = self.printer.lookup::<ConfigFileObject>("configfile")?;
             for profile in &self.incompatible_profiles {
@@ -2156,7 +2156,7 @@ impl ProfileManager {
         Ok(())
     }
 
-    fn bedmesh(&self) -> Rc<BedMesh> {
+    pub fn bedmesh(&self) -> Rc<BedMesh> {
         self.bedmesh.upgrade().expect("bed mesh")
     }
 
@@ -2228,7 +2228,7 @@ impl ProfileManager {
         Ok(())
     }
 
-    fn cmd_bed_mesh_profile(&self, gcmd: &GCodeCommand) -> KResult<()> {
+    pub fn cmd_bed_mesh_profile(&self, gcmd: &GCodeCommand) -> KResult<()> {
         for key in ["LOAD", "SAVE", "REMOVE"] {
             if let Some(name) = gcmd.get_opt(key) {
                 if py_strip(&name).is_empty() {

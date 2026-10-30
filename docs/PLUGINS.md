@@ -234,7 +234,9 @@ Plugin threads therefore run only at points where they could also run under Kali
 
 Both sides run on CPython 3.15 with the same packages: the reference uses `~/rk/venv315`, and kaliru gets that venv's site-packages.
 
-There is no regression without plugins: stock suite 87/88 (`printers/13` timing, as before), cases 62/62.
+There is no regression without plugins: stock suite 87/88 (`printers/13` timing, as before), cases 64/64 (2026-10-30).
+
+2026-10-30: all 9 plugin cases identical apart from the wall-clock times AFC writes into its own log lines (not masked) and the `virtual_pins` macro traceback (kaliru renders templates natively: one `File "<kaliru>"` frame for Kalico's python/jinja frames).
 
 ### How the layer is built (`src/plugins/`)
 

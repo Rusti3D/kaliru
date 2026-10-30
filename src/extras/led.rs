@@ -30,13 +30,13 @@ const CMD_SET_LED_TEMPLATE_HELP: &str = "Assign a display_template to an LED";
 // Helper code for common LED initialization and control
 pub struct LEDHelper {
     me: Weak<LEDHelper>,
-    printer: Rc<Printer>,
-    mutex: Rc<ReactorMutex>,
+    pub printer: Rc<Printer>,
+    pub mutex: Rc<ReactorMutex>,
     update_func: UpdateFunc,
-    led_count: i64,
-    need_transmit: Cell<bool>,
+    pub led_count: i64,
+    pub need_transmit: Cell<bool>,
     led_state: RefCell<Vec<Color>>,
-    template_eval: Rc<PrinterTemplateEvaluator>,
+    pub template_eval: Rc<PrinterTemplateEvaluator>,
     tcallbacks: RefCell<Vec<TemplateCallback>>,
     check_transmit_cb: RefCell<Option<TemplateFlush>>,
 }
@@ -138,7 +138,7 @@ impl LEDHelper {
         Ok(())
     }
 
-    fn template_update(&self, index: i64, text: &str) -> KResult<()> {
+    pub fn template_update(&self, index: i64, text: &str) -> KResult<()> {
         // text.split(",", 4): at most 5 parts
         let pieces: Vec<&str> = text.splitn(5, ',').collect();
         let parsed: Option<Vec<f64>> = pieces.iter().map(|f| crate::pyfmt::py_float(f).map(|v| py_max(0.0, py_min(1.0, v)))).collect();
@@ -190,7 +190,7 @@ impl LEDHelper {
         Ok(())
     }
 
-    fn cmd_set_led(&self, gcmd: &GCodeCommand) -> KResult<()> {
+    pub fn cmd_set_led(&self, gcmd: &GCodeCommand) -> KResult<()> {
         // Parse parameters
         let lim = || Lim::new().min(0.0).max(1.0);
         let red = gcmd.get_float("RED", Some(0.0), lim())?;
@@ -221,7 +221,7 @@ impl LEDHelper {
         }
     }
 
-    fn cmd_set_led_template(&self, gcmd: &GCodeCommand) -> KResult<()> {
+    pub fn cmd_set_led_template(&self, gcmd: &GCodeCommand) -> KResult<()> {
         let index = gcmd.get_int_opt("INDEX", Lim::new().min(1).max(self.led_count))?;
         let flush = self.check_transmit_cb.borrow().clone();
         let tcallbacks = self.tcallbacks.borrow().clone();
@@ -271,15 +271,15 @@ pub fn led_helper_of(obj: &crate::printer::PObj) -> Option<Rc<LEDHelper>> {
 }
 
 pub struct PrinterPWMLED {
-    printer: Rc<Printer>,
+    pub printer: Rc<Printer>,
     pins: Vec<(usize, Rc<dyn PwmPin>)>,
-    last_print_time: Cell<f64>,
+    pub last_print_time: Cell<f64>,
     pub(crate) led_helper: RefCell<Option<Rc<LEDHelper>>>,
     prev_color: RefCell<Color>,
 }
 
 impl PrinterPWMLED {
-    fn new(config: &ConfigWrapper) -> KResult<Rc<Self>> {
+    pub fn new(config: &ConfigWrapper) -> KResult<Rc<Self>> {
         let printer = config.get_printer();
         // Configure pwm pins
         let cycle_time = config.getfloat("cycle_time", 0.010, Lim::new().above(0.0).max(MAX_SCHEDULE_TIME))?;
@@ -321,7 +321,7 @@ impl PrinterPWMLED {
         Ok(led)
     }
 
-    fn update_leds(&self, led_state: &[Color], print_time: Option<f64>) -> KResult<()> {
+    pub fn update_leds(&self, led_state: &[Color], print_time: Option<f64>) -> KResult<()> {
         let print_time = match print_time {
             Some(pt) => pt,
             None => {

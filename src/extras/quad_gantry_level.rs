@@ -35,17 +35,17 @@ impl Line {
 
 pub struct QuadGantryLevel {
     retry_helper: RetryHelper,
-    max_adjust: f64,
-    horizontal_move_z: f64,
-    probe_helper: RefCell<Option<Rc<ProbePointsHelper>>>,
-    z_status: Rc<ZAdjustStatus>,
-    z_helper: Rc<ZAdjustHelper>,
-    gantry_corners: Vec<(f64, f64)>,
-    gcode: Rc<GCodeDispatch>,
+    pub max_adjust: f64,
+    pub horizontal_move_z: f64,
+    pub probe_helper: RefCell<Option<Rc<ProbePointsHelper>>>,
+    pub z_status: Rc<ZAdjustStatus>,
+    pub z_helper: Rc<ZAdjustHelper>,
+    pub gantry_corners: Vec<(f64, f64)>,
+    pub gcode: Rc<GCodeDispatch>,
 }
 
 impl QuadGantryLevel {
-    fn new(config: &ConfigWrapper) -> KResult<Rc<Self>> {
+    pub fn new(config: &ConfigWrapper) -> KResult<Rc<Self>> {
         let printer = config.get_printer();
         let retry_helper = RetryHelper::new(config, "Possibly Z motor numbering is wrong")?;
         let max_adjust = config.getfloat("max_adjust", 4.0, Lim::new().above(0))?;
@@ -99,7 +99,7 @@ impl QuadGantryLevel {
         self.probe_helper.borrow().clone().expect("probe helper")
     }
 
-    fn cmd_quad_gantry_level(&self, gcmd: &GCodeCommand) -> KResult<()> {
+    pub fn cmd_quad_gantry_level(&self, gcmd: &GCodeCommand) -> KResult<()> {
         self.z_status.reset();
         self.retry_helper.start(gcmd)?;
         self.probe_helper().start_probe(gcmd)

@@ -76,17 +76,17 @@ impl Bus {
 
 // Printer class that controls LIS2DW chip
 pub struct LIS2DW {
-    printer: Rc<Printer>,
+    pub printer: Rc<Printer>,
     cmd_helper: RefCell<Option<Rc<AccelCommandHelper>>>,
     pub(crate) lis_type: &'static str,
     axes_map: AxisMap,
-    data_rate: i64,
+    pub data_rate: i64,
     bus: Bus,
-    mcu: Rc<Mcu>,
-    oid: i64,
-    query_lis2dw_cmd: RefCell<Option<CommandWrapper>>,
+    pub mcu: Rc<Mcu>,
+    pub oid: i64,
+    pub query_lis2dw_cmd: RefCell<Option<CommandWrapper>>,
     ffreader: FixedFreqReader,
-    last_error_count: Cell<i64>,
+    pub last_error_count: Cell<i64>,
     pub(crate) batch_bulk: RefCell<Option<Rc<BatchBulkHelper>>>,
     pub name: String,
 }
@@ -168,13 +168,13 @@ impl LIS2DW {
         Ok(l)
     }
 
-    fn build_config(&self) -> KResult<()> {
+    pub fn build_config(&self) -> KResult<()> {
         let cmdqueue = self.bus.get_command_queue();
         *self.query_lis2dw_cmd.borrow_mut() = Some(self.mcu.lookup_command("query_lis2dw oid=%c rest_ticks=%u", Some(cmdqueue.clone()))?);
         self.ffreader.setup_query_command("query_lis2dw_status oid=%c", self.oid, Some(cmdqueue))
     }
 
-    fn check_connected(&self) -> KResult<()> {
+    pub fn check_connected(&self) -> KResult<()> {
         if self.mcu.non_critical_disconnected.get() {
             return Err(KError::command(format!(
                 "LIS2DW: {} could not connect because mcu: {} is non_critical_disconnected!",
@@ -194,7 +194,7 @@ impl LIS2DW {
     }
 
     // Start, stop, and process message batches
-    fn start_measurements(&self) -> KResult<()> {
+    pub fn start_measurements(&self) -> KResult<()> {
         // In case of miswiring, testing LIS2DW device ID prevents treating
         // noise or wrong signal as a correctly initialized device
         let dev_id = self.read_reg(REG_LIS2DW_WHO_AM_I_ADDR)?;
@@ -254,7 +254,7 @@ impl LIS2DW {
         Ok(())
     }
 
-    fn finish_measurements(&self) -> KResult<()> {
+    pub fn finish_measurements(&self) -> KResult<()> {
         // Halt bulk reading
         self.set_reg(REG_LIS2DW_FIFO_CTRL, 0x00)?;
         self.query_cmd()?.send_wait_ack(&[Val::Int(self.oid), Val::Int(0)], 0, 0)?;
@@ -263,7 +263,7 @@ impl LIS2DW {
         self.set_reg(REG_LIS2DW_FIFO_CTRL, 0x00)
     }
 
-    fn process_batch(&self, _eventtime: f64) -> KResult<PyVal> {
+    pub fn process_batch(&self, _eventtime: f64) -> KResult<PyVal> {
         let samples = self.ffreader.pull_samples()?;
         // Measurement decoding
         let samples: Vec<[f64; 4]> = samples.iter().map(|(ptime, f)| convert_sample(&self.axes_map, *ptime, [f[0], f[1], f[2]])).collect();

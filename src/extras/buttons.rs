@@ -43,19 +43,19 @@ pub const QUERY_TIME: f64 = 0.002;
 pub const RETRANSMIT_COUNT: i64 = 50;
 
 pub struct McuButtons {
-    reactor: Rc<Reactor>,
-    mcu: Rc<Mcu>,
-    pin_list: RefCell<Vec<(String, i64)>>,
+    pub reactor: Rc<Reactor>,
+    pub mcu: Rc<Mcu>,
+    pub pin_list: RefCell<Vec<(String, i64)>>,
     callbacks: RefCell<Vec<(i64, i64, ButtonCallback)>>,
-    invert: Cell<i64>,
-    last_button: Cell<i64>,
-    ack_cmd: RefCell<Option<CommandWrapper>>,
-    ack_count: Cell<i64>,
-    oid: Cell<i64>,
+    pub invert: Cell<i64>,
+    pub last_button: Cell<i64>,
+    pub ack_cmd: RefCell<Option<CommandWrapper>>,
+    pub ack_count: Cell<i64>,
+    pub oid: Cell<i64>,
 }
 
 impl McuButtons {
-    fn new(printer: &Printer, mcu: &Rc<Mcu>) -> Rc<Self> {
+    pub fn new(printer: &Printer, mcu: &Rc<Mcu>) -> Rc<Self> {
         let b = Rc::new(McuButtons {
             reactor: printer.get_reactor(),
             mcu: mcu.clone(),
@@ -72,7 +72,7 @@ impl McuButtons {
         b
     }
 
-    fn setup_buttons(&self, pins: &[(String, i64, i64)], callback: ButtonCallback) {
+    pub fn setup_buttons(&self, pins: &[(String, i64, i64)], callback: ButtonCallback) {
         let mut mask = 0;
         let mut pin_list = self.pin_list.borrow_mut();
         let shift = pin_list.len() as i64;
@@ -86,7 +86,7 @@ impl McuButtons {
         self.callbacks.borrow_mut().push((mask, shift, callback));
     }
 
-    fn build_config(self: &Rc<Self>) -> KResult<()> {
+    pub fn build_config(self: &Rc<Self>) -> KResult<()> {
         let pin_list = self.pin_list.borrow().clone();
         if pin_list.is_empty() {
             return Ok(());
@@ -187,19 +187,19 @@ pub const ADC_SAMPLE_TIME: f64 = 0.001;
 pub const ADC_SAMPLE_COUNT: i64 = 6;
 
 pub struct McuAdcButtons {
-    reactor: Rc<Reactor>,
+    pub reactor: Rc<Reactor>,
     buttons: RefCell<Vec<(f64, f64, ButtonCallback)>>,
-    last_button: Cell<Option<usize>>,
-    last_pressed: Cell<Option<usize>>,
-    last_debouncetime: Cell<f64>,
-    pullup: f64,
-    min_value: Cell<f64>,
-    max_value: Cell<f64>,
+    pub last_button: Cell<Option<usize>>,
+    pub last_pressed: Cell<Option<usize>>,
+    pub last_debouncetime: Cell<f64>,
+    pub pullup: f64,
+    pub min_value: Cell<f64>,
+    pub max_value: Cell<f64>,
     _mcu_adc: Rc<dyn crate::mcu::AdcPin>,
 }
 
 impl McuAdcButtons {
-    fn new(printer: &Rc<Printer>, pin: &str, pullup: f64) -> KResult<Rc<Self>> {
+    pub fn new(printer: &Rc<Printer>, pin: &str, pullup: f64) -> KResult<Rc<Self>> {
         let mcu_adc = crate::pins::setup_adc_pin(printer, pin)?;
         mcu_adc.setup_adc_sample(ADC_SAMPLE_TIME, ADC_SAMPLE_COUNT, 0.0, 1.0, 0);
         let b = Rc::new(McuAdcButtons {
@@ -228,13 +228,13 @@ impl McuAdcButtons {
         Ok(b)
     }
 
-    fn setup_button(&self, min_value: f64, max_value: f64, callback: ButtonCallback) {
+    pub fn setup_button(&self, min_value: f64, max_value: f64, callback: ButtonCallback) {
         self.min_value.set(py_min(self.min_value.get(), min_value));
         self.max_value.set(py_max(self.max_value.get(), max_value));
         self.buttons.borrow_mut().push((min_value, max_value, callback));
     }
 
-    fn adc_callback(&self, read_time: f64, read_value: f64) {
+    pub fn adc_callback(&self, read_time: f64, read_value: f64) {
         let adc = py_max(0.00001, py_min(0.99999, read_value));
         let value = self.pullup * adc / (1.0 - adc);
 
@@ -274,7 +274,7 @@ impl McuAdcButtons {
         self.last_button.set(btn);
     }
 
-    fn call_button(&self, button: usize, state: bool) {
+    pub fn call_button(&self, button: usize, state: bool) {
         let callback = self.buttons.borrow()[button].2.clone();
         run_callback(&self.reactor, callback, None, state as i64);
     }
@@ -345,15 +345,15 @@ mod half_step {
     ];
 }
 
-struct RotaryEncoder {
+pub struct RotaryEncoder {
     states: &'static [[usize; 4]],
     cw_callback: PushCallback,
     ccw_callback: PushCallback,
-    encoder_state: Cell<usize>,
+    pub encoder_state: Cell<usize>,
 }
 
 impl RotaryEncoder {
-    fn encoder_callback(&self, eventtime: f64, state: i64) -> KResult<()> {
+    pub fn encoder_callback(&self, eventtime: f64, state: i64) -> KResult<()> {
         let row = self.states.get(self.encoder_state.get() & 0xF).ok_or_else(|| KError::Other("tuple index out of range".into()))?;
         let es = row[(state & 0x3) as usize];
         self.encoder_state.set(es);
@@ -367,12 +367,12 @@ impl RotaryEncoder {
 }
 
 pub struct DebounceButton {
-    reactor: Rc<Reactor>,
+    pub reactor: Rc<Reactor>,
     button_action: ButtonCallback,
-    debounce_delay: f64,
-    logical_state: Cell<Option<i64>>,
-    physical_state: Cell<Option<i64>>,
-    latest_eventtime: Cell<f64>,
+    pub debounce_delay: f64,
+    pub logical_state: Cell<Option<i64>>,
+    pub physical_state: Cell<Option<i64>>,
+    pub latest_eventtime: Cell<f64>,
 }
 
 impl DebounceButton {
@@ -389,7 +389,7 @@ impl DebounceButton {
         }))
     }
 
-    fn button_handler(self: &Rc<Self>, eventtime: f64, state: i64) -> KResult<()> {
+    pub fn button_handler(self: &Rc<Self>, eventtime: f64, state: i64) -> KResult<()> {
         self.physical_state.set(Some(state));
         self.latest_eventtime.set(eventtime);
         // if there would be no state transition, ignore the event:
@@ -409,7 +409,7 @@ impl DebounceButton {
         Ok(())
     }
 
-    fn debounce_event(&self, eventtime: f64) -> KResult<()> {
+    pub fn debounce_event(&self, eventtime: f64) -> KResult<()> {
         // if there would be no state transition, ignore the event:
         if self.logical_state.get() == self.physical_state.get() {
             return Ok(());
@@ -429,16 +429,16 @@ impl DebounceButton {
 // ----------------------------------------------------------------------
 
 pub struct PrinterButtons {
-    printer: Rc<Printer>,
-    mcu_buttons: RefCell<IndexMap<String, Rc<McuButtons>>>,
+    pub printer: Rc<Printer>,
+    pub mcu_buttons: RefCell<IndexMap<String, Rc<McuButtons>>>,
     /// every button group by mcu name, in creation order (mcu_buttons keeps
     /// only an mcu's newest one)
     groups: RefCell<Vec<(String, Rc<McuButtons>)>>,
-    adc_buttons: RefCell<IndexMap<String, Rc<McuAdcButtons>>>,
+    pub adc_buttons: RefCell<IndexMap<String, Rc<McuAdcButtons>>>,
 }
 
 impl PrinterButtons {
-    fn new(config: &ConfigWrapper) -> KResult<Rc<Self>> {
+    pub fn new(config: &ConfigWrapper) -> KResult<Rc<Self>> {
         let printer = config.get_printer();
         printer.load_object(config, "query_adc", true)?;
         Ok(Rc::new(PrinterButtons {

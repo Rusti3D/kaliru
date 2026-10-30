@@ -19,21 +19,21 @@ use std::rc::Rc;
 const UPDATE_INTERVAL: f64 = 0.10;
 
 pub struct CS1237 {
-    printer: Rc<Printer>,
-    name: String,
-    last_error_count: Cell<i64>,
+    pub printer: Rc<Printer>,
+    pub name: String,
+    pub last_error_count: Cell<i64>,
     sensor_errors: RefCell<IndexMap<i64, String>>,
-    sps: i64,
-    mcu: Rc<Mcu>,
-    oid: i64,
+    pub sps: i64,
+    pub mcu: Rc<Mcu>,
+    pub oid: i64,
     ffreader: FixedFreqReader,
-    batch_bulk: RefCell<Option<Rc<BatchBulkHelper>>>,
-    query_cmd: RefCell<Option<CommandWrapper>>,
-    attach_probe_cmd: RefCell<Option<CommandWrapper>>,
+    pub batch_bulk: RefCell<Option<Rc<BatchBulkHelper>>>,
+    pub query_cmd: RefCell<Option<CommandWrapper>>,
+    pub attach_probe_cmd: RefCell<Option<CommandWrapper>>,
 }
 
 impl CS1237 {
-    fn new(config: &ConfigWrapper) -> KResult<Rc<Self>> {
+    pub fn new(config: &ConfigWrapper) -> KResult<Rc<Self>> {
         let printer = config.get_printer();
         let name = config.get_name().split_whitespace().last().unwrap_or_default().to_string();
 
@@ -81,7 +81,7 @@ impl CS1237 {
         Ok(s)
     }
 
-    fn build_config(&self) -> KResult<()> {
+    pub fn build_config(&self) -> KResult<()> {
         let cmd_queue = self.mcu.alloc_command_queue();
         *self.query_cmd.borrow_mut() = Some(self.mcu.lookup_command("query_cs1237 oid=%c rest_ticks=%u", Some(cmd_queue.clone()))?);
         *self.attach_probe_cmd.borrow_mut() =
@@ -105,7 +105,7 @@ impl CS1237 {
         self.sensor_errors.borrow().get(&error_code).cloned().unwrap_or_else(|| "Unknown CS1237 error".into())
     }
 
-    fn convert_samples(&self, samples: &[(f64, Vec<i64>)]) -> Vec<PyVal> {
+    pub fn convert_samples(&self, samples: &[(f64, Vec<i64>)]) -> Vec<PyVal> {
         let mut out = vec![];
         for (ptime, f) in samples {
             let value = f[0];
@@ -119,14 +119,14 @@ impl CS1237 {
         out
     }
 
-    fn start_measurements(&self) -> KResult<()> {
+    pub fn start_measurements(&self) -> KResult<()> {
         let rest_ticks = self.mcu.seconds_to_clock(1.0 / (10.0 * self.sps as f64));
         self.query_cmd.borrow().as_ref().ok_or_else(no_cmd)?.send(&[Val::Int(self.oid), Val::Int(rest_ticks)], 0, 0)?;
         logging::info(&format!("CS1237 starting '{}' measurements at {} SPS", self.name, self.sps));
         self.ffreader.note_start()
     }
 
-    fn finish_measurements(&self) -> KResult<()> {
+    pub fn finish_measurements(&self) -> KResult<()> {
         if self.printer.is_shutdown() {
             return Ok(());
         }
@@ -136,7 +136,7 @@ impl CS1237 {
         Ok(())
     }
 
-    fn process_batch(&self, _eventtime: f64) -> KResult<PyVal> {
+    pub fn process_batch(&self, _eventtime: f64) -> KResult<PyVal> {
         let samples = self.ffreader.pull_samples()?;
         let samples = self.convert_samples(&samples);
         Ok(adc_batch(samples, self.last_error_count.get(), self.ffreader.get_last_overflows()))

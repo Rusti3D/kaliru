@@ -31,11 +31,11 @@ pub fn literal_eval(src: &str) -> Result<Value, (String, String)> {
 pub struct DisplayTemplate {
     pub name: String,
     params: IndexMap<String, Value>,
-    template: Rc<Template>,
+    pub template: Rc<Template>,
 }
 
 impl DisplayTemplate {
-    fn new(config: &ConfigWrapper) -> KResult<Self> {
+    pub fn new(config: &ConfigWrapper) -> KResult<Self> {
         let name_parts: Vec<&str> = config.get_name().split_whitespace().collect();
         if name_parts.len() != 2 {
             return Err(KError::config(format!("Section name '{}' is not valid", config.get_name())));
@@ -138,7 +138,7 @@ pub struct Glyph {
 // Global cache of DisplayTemplate, DisplayGroup, and glyphs
 pub struct PrinterDisplayTemplate {
     pub display_templates: IndexMap<String, Rc<DisplayTemplate>>,
-    pub display_data_groups: IndexMap<String, DisplayGroup>,
+    pub display_data_groups: IndexMap<String, Rc<DisplayGroup>>,
     pub display_glyphs: IndexMap<String, Glyph>,
 }
 
@@ -161,7 +161,7 @@ fn parse_glyph(glyph_name: &str, data: &str, width: usize, height: usize) -> KRe
 }
 
 impl PrinterDisplayTemplate {
-    fn new(config: &ConfigWrapper) -> KResult<Self> {
+    pub fn new(config: &ConfigWrapper) -> KResult<Self> {
         let printer = config.get_printer();
         // Load default display config file
         let pconfig = printer.lookup::<ConfigFileObject>("configfile")?;
@@ -196,7 +196,7 @@ impl PrinterDisplayTemplate {
         }
         let mut display_data_groups = IndexMap::default();
         for (group_name, data_configs) in &groups {
-            display_data_groups.insert(group_name.clone(), DisplayGroup::new(config, group_name, data_configs)?);
+            display_data_groups.insert(group_name.clone(), Rc::new(DisplayGroup::new(config, group_name, data_configs)?));
         }
         // Load display glyphs
         let dg_prefix = "display_glyph ";

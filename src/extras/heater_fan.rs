@@ -17,17 +17,17 @@ use std::rc::Rc;
 pub const PIN_MIN_TIME: f64 = 0.100;
 
 pub struct PrinterHeaterFan {
-    printer: Rc<Printer>,
-    heater_names: Vec<String>,
-    heater_temp: f64,
-    heaters: RefCell<Vec<Rc<Heater>>>,
+    pub printer: Rc<Printer>,
+    pub heater_names: Vec<String>,
+    pub heater_temp: f64,
+    pub heaters: RefCell<Vec<Rc<Heater>>>,
     pub fan: Rc<Fan>,
-    fan_speed: f64,
-    last_speed: Cell<f64>,
+    pub fan_speed: f64,
+    pub last_speed: Cell<f64>,
 }
 
 impl PrinterHeaterFan {
-    fn new(config: &ConfigWrapper) -> KResult<Rc<Self>> {
+    pub fn new(config: &ConfigWrapper) -> KResult<Rc<Self>> {
         let printer = config.get_printer();
         load_heaters(config)?;
         // klippy:ready is registered before Fan() registers its handlers
@@ -54,7 +54,7 @@ impl PrinterHeaterFan {
         Ok(hf)
     }
 
-    fn handle_ready(self: &Rc<Self>) -> KResult<()> {
+    pub fn handle_ready(self: &Rc<Self>) -> KResult<()> {
         let pheaters = self.printer.lookup::<PrinterHeaters>("heaters")?;
         let mut heaters = vec![];
         for n in &self.heater_names {
@@ -73,7 +73,7 @@ impl PrinterHeaterFan {
         Ok(())
     }
 
-    fn callback(&self, eventtime: f64) -> f64 {
+    pub fn callback(&self, eventtime: f64) -> f64 {
         let mut speed = 0.0;
         for heater in self.heaters.borrow().iter() {
             let (current_temp, target_temp) = heater.get_temp(eventtime);

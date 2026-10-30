@@ -19,12 +19,12 @@ use std::cell::{Cell, RefCell};
 use std::rc::{Rc, Weak};
 
 pub struct BedTilt {
-    printer: Rc<Printer>,
-    x_adjust: Cell<f64>,
-    y_adjust: Cell<f64>,
-    z_adjust: Cell<f64>,
+    pub printer: Rc<Printer>,
+    pub x_adjust: Cell<f64>,
+    pub y_adjust: Cell<f64>,
+    pub z_adjust: Cell<f64>,
     calibrate: RefCell<Option<Rc<BedTiltCalibrate>>>,
-    toolhead: RefCell<Option<Rc<ToolHead>>>,
+    pub toolhead: RefCell<Option<Rc<ToolHead>>>,
 }
 
 fn params_repr(p: &IndexMap<String, f64>) -> String {
@@ -33,7 +33,7 @@ fn params_repr(p: &IndexMap<String, f64>) -> String {
 }
 
 impl BedTilt {
-    fn new(config: &ConfigWrapper) -> KResult<Rc<Self>> {
+    pub fn new(config: &ConfigWrapper) -> KResult<Rc<Self>> {
         let printer = config.get_printer();
         let bt = Rc::new(BedTilt {
             printer: printer.clone(),
@@ -67,7 +67,7 @@ impl BedTilt {
         self.toolhead.borrow().clone().ok_or_else(|| KError::Other("'NoneType' object has no attribute 'get_position'".into()))
     }
 
-    fn update_adjust(&self, x_adjust: f64, y_adjust: f64, z_adjust: f64) -> KResult<()> {
+    pub fn update_adjust(&self, x_adjust: f64, y_adjust: f64, z_adjust: f64) -> KResult<()> {
         self.x_adjust.set(x_adjust);
         self.y_adjust.set(y_adjust);
         self.z_adjust.set(z_adjust);
@@ -110,14 +110,14 @@ const CMD_BED_TILT_CALIBRATE_HELP: &str = "Bed tilt calibration script";
 
 // Helper script to calibrate the bed tilt
 pub struct BedTiltCalibrate {
-    printer: Rc<Printer>,
-    bedtilt: Weak<BedTilt>,
-    probe_helper: RefCell<Option<Rc<ProbePointsHelper>>>,
-    gcode: Rc<GCodeDispatch>,
+    pub printer: Rc<Printer>,
+    pub bedtilt: Weak<BedTilt>,
+    pub probe_helper: RefCell<Option<Rc<ProbePointsHelper>>>,
+    pub gcode: Rc<GCodeDispatch>,
 }
 
 impl BedTiltCalibrate {
-    fn new(config: &ConfigWrapper, bedtilt: &Rc<BedTilt>) -> KResult<Rc<Self>> {
+    pub fn new(config: &ConfigWrapper, bedtilt: &Rc<BedTilt>) -> KResult<Rc<Self>> {
         let printer = config.get_printer();
         let gcode = printer.lookup::<GCodeDispatch>("gcode")?;
         let c = Rc::new(BedTiltCalibrate { printer, bedtilt: Rc::downgrade(bedtilt), probe_helper: RefCell::new(None), gcode: gcode.clone() });

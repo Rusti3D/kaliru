@@ -55,8 +55,8 @@ pub struct IndxToolboard {
     pub printer: Rc<Printer>,
     pub name: String,
     pub mcu: Rc<Mcu>,
-    heater: RefCell<Option<Rc<IndxToolboardHeater>>>,
-    dock_measurement: RefCell<Option<Rc<IndxDockMeasurement>>>,
+    pub heater: RefCell<Option<Rc<IndxToolboardHeater>>>,
+    pub dock_measurement: RefCell<Option<Rc<IndxDockMeasurement>>>,
 }
 
 impl IndxToolboard {
@@ -85,7 +85,7 @@ impl IndxToolboard {
             pins.register_chip(&name, chip).map_err(|e| KError::Pins(e.0))?;
             let resolver = pins.get_pin_resolver(mcu.get_name()).map_err(|e| KError::Pins(e.0))?;
             for (alias, pin) in PIN_ALIASES {
-                resolver.alias_pin(alias, pin).map_err(|e| KError::Pins(e.0))?;
+                resolver.borrow_mut().alias_pin(alias, pin).map_err(|e| KError::Pins(e.0))?;
             }
         }
 
@@ -142,7 +142,7 @@ impl IndxToolboard {
         Ok([gcmd.get_int("RED", None, lim())?, gcmd.get_int("GREEN", None, lim())?, gcmd.get_int("BLUE", None, lim())?])
     }
 
-    fn cmd_led_force_color(&self, gcmd: &GCodeCommand) -> KResult<()> {
+    pub fn cmd_led_force_color(&self, gcmd: &GCodeCommand) -> KResult<()> {
         let cmd = self.mcu.lookup_command("indx_led_force_color r=%c g=%c b=%c force=%c", None)?;
         if gcmd.get_opt("CLEAR").is_none() {
             let [r, g, b] = Self::rgb(gcmd)?;
@@ -152,7 +152,7 @@ impl IndxToolboard {
         }
     }
 
-    fn cmd_led_set_current(&self, gcmd: &GCodeCommand) -> KResult<()> {
+    pub fn cmd_led_set_current(&self, gcmd: &GCodeCommand) -> KResult<()> {
         let cmd = self.mcu.lookup_command("indx_led_set_current r=%c g=%c b=%c", None)?;
         let [r, g, b] = Self::rgb(gcmd)?;
         cmd.send(&[Val::Int(r), Val::Int(g), Val::Int(b)], 0, 0)
@@ -177,8 +177,8 @@ impl PrinterObject for IndxToolboard {
     }
 }
 
-struct IndxToolboardPins {
-    toolboard: Weak<IndxToolboard>,
+pub struct IndxToolboardPins {
+    pub toolboard: Weak<IndxToolboard>,
 }
 
 impl PinChip for IndxToolboardPins {
@@ -195,13 +195,13 @@ impl PinChip for IndxToolboardPins {
 
 const CMD_INDX_DOCK_MEASURE_HELP: &str = "Measure INDX dock X/Y position by energizing XY motors and homing.";
 
-struct IndxDockMeasurement {
-    printer: Rc<Printer>,
-    last_dock_measurement: RefCell<Option<PyVal>>,
+pub struct IndxDockMeasurement {
+    pub printer: Rc<Printer>,
+    pub last_dock_measurement: RefCell<Option<PyVal>>,
 }
 
 impl IndxDockMeasurement {
-    fn new(toolboard: &Rc<IndxToolboard>) -> KResult<Rc<Self>> {
+    pub fn new(toolboard: &Rc<IndxToolboard>) -> KResult<Rc<Self>> {
         let printer = toolboard.printer.clone();
         let d = Rc::new(IndxDockMeasurement { printer: printer.clone(), last_dock_measurement: RefCell::new(None) });
         let gcode = printer.lookup::<GCodeDispatch>("gcode")?;
@@ -218,7 +218,7 @@ impl IndxDockMeasurement {
         Ok(d)
     }
 
-    fn cmd_indx_dock_measure(&self, gcmd: &GCodeCommand) -> KResult<()> {
+    pub fn cmd_indx_dock_measure(&self, gcmd: &GCodeCommand) -> KResult<()> {
         let x_first = gcmd.get_int("X_FIRST", Some(0), Lim::new().min(0.0).max(1.0))?;
         let axes = if x_first != 0 { [0, 1] } else { [1, 0] };
         let retreat: Option<Vec<f64>> = gcmd.get_or("RETREAT", "0,0").split(',').map(|v| py_float(v.trim())).collect();

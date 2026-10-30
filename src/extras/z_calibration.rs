@@ -45,43 +45,43 @@ fn need(v: Option<f64>) -> KResult<f64> {
 
 pub struct ZCalibrationHelper {
     me: Weak<ZCalibrationHelper>,
-    z_endstop: RefCell<Option<EndstopRef>>,
-    z_homing: Cell<Option<f64>>,
-    last_state: Cell<bool>,
-    last_z_offset: Cell<f64>,
-    position_z_endstop: Cell<Option<f64>>,
+    pub z_endstop: RefCell<Option<EndstopRef>>,
+    pub z_homing: Cell<Option<f64>>,
+    pub last_state: Cell<bool>,
+    pub last_z_offset: Cell<f64>,
+    pub position_z_endstop: Cell<Option<f64>>,
     config: ConfigWrapper,
-    printer: Rc<Printer>,
-    switch_offset: f64,
-    max_deviation: Option<f64>,
-    offset_margins: Vec<f64>,
-    speed: f64,
-    clearance: Cell<Option<f64>>,
-    safe_z_height: Cell<Option<f64>>,
-    samples: Cell<Option<i64>>,
-    tolerance: Cell<Option<f64>>,
-    retries: Cell<Option<i64>>,
-    samples_result: RefCell<Option<String>>,
-    lift_speed: Cell<Option<f64>>,
-    probing_speed: Cell<Option<f64>>,
-    second_speed: Cell<Option<f64>>,
-    retract_dist: Cell<Option<f64>>,
-    position_min: Cell<Option<f64>>,
-    first_fast: bool,
+    pub printer: Rc<Printer>,
+    pub switch_offset: f64,
+    pub max_deviation: Option<f64>,
+    pub offset_margins: Vec<f64>,
+    pub speed: f64,
+    pub clearance: Cell<Option<f64>>,
+    pub safe_z_height: Cell<Option<f64>>,
+    pub samples: Cell<Option<i64>>,
+    pub tolerance: Cell<Option<f64>>,
+    pub retries: Cell<Option<i64>>,
+    pub samples_result: RefCell<Option<String>>,
+    pub lift_speed: Cell<Option<f64>>,
+    pub probing_speed: Cell<Option<f64>>,
+    pub second_speed: Cell<Option<f64>>,
+    pub retract_dist: Cell<Option<f64>>,
+    pub position_min: Cell<Option<f64>>,
+    pub first_fast: bool,
     nozzle_site: RefCell<Option<Site>>,
     switch_site: RefCell<Option<Site>>,
     switch_xy_offsets: Option<Site>,
     bed_site: RefCell<Option<Site>>,
     wiggle_offsets: Option<Site>,
-    start_gcode: Rc<Template>,
-    switch_gcode: Rc<Template>,
-    end_gcode: Rc<Template>,
-    query_endstops: Rc<QueryEndstops>,
-    gcode: Rc<GCodeDispatch>,
+    pub start_gcode: Rc<Template>,
+    pub switch_gcode: Rc<Template>,
+    pub end_gcode: Rc<Template>,
+    pub query_endstops: Rc<QueryEndstops>,
+    pub gcode: Rc<GCodeDispatch>,
 }
 
 impl ZCalibrationHelper {
-    fn new(config: &ConfigWrapper) -> KResult<Rc<Self>> {
+    pub fn new(config: &ConfigWrapper) -> KResult<Rc<Self>> {
         let printer = config.get_printer();
         let switch_offset = config.getfloat("switch_offset", 0.0, Lim::new())?;
         // max_deviation is deprecated
@@ -187,7 +187,7 @@ impl ZCalibrationHelper {
         Ok(h)
     }
 
-    fn handle_connect(&self) -> KResult<()> {
+    pub fn handle_connect(&self) -> KResult<()> {
         // get z-endstop object
         for (endstop, name) in self.query_endstops.endstops() {
             if name == "z" {
@@ -219,7 +219,7 @@ impl ZCalibrationHelper {
         Ok(())
     }
 
-    fn load_probe(&self, probe: &PrinterProbe) {
+    pub fn load_probe(&self, probe: &PrinterProbe) {
         if self.samples.get().is_none() {
             self.samples.set(Some(probe.sample_count));
         }
@@ -247,7 +247,7 @@ impl ZCalibrationHelper {
         }
     }
 
-    fn handle_home_rails_end(&self, _homing_state: &Rc<Homing>, rails: &[RailRef]) {
+    pub fn handle_home_rails_end(&self, _homing_state: &Rc<Homing>, rails: &[RailRef]) {
         // get z homing position
         for rail in rails {
             if rail.get_steppers()[0].is_active_axis('z') {
@@ -276,7 +276,7 @@ impl ZCalibrationHelper {
         probe.as_ref().and_then(as_printer_probe).ok_or_else(|| KError::Other("'NoneType' object has no attribute 'sample_count'".into()))
     }
 
-    fn cmd_calibrate_z(&self, gcmd: &GCodeCommand) -> KResult<()> {
+    pub fn cmd_calibrate_z(&self, gcmd: &GCodeCommand) -> KResult<()> {
         let probe = self.command_probe(gcmd)?;
         self.load_probe(&probe);
         if self.z_homing.get().is_none() {
@@ -306,7 +306,7 @@ impl ZCalibrationHelper {
         state.calibrate_z()
     }
 
-    fn cmd_probe_z_accuracy(&self, gcmd: &GCodeCommand) -> KResult<()> {
+    pub fn cmd_probe_z_accuracy(&self, gcmd: &GCodeCommand) -> KResult<()> {
         let probe = self.command_probe(gcmd)?;
         self.load_probe(&probe);
         if self.z_homing.get().is_none() {
@@ -364,7 +364,7 @@ impl ZCalibrationHelper {
         Ok(())
     }
 
-    fn cmd_calculate_switch_offset(&self, gcmd: &GCodeCommand) -> KResult<()> {
+    pub fn cmd_calculate_switch_offset(&self, gcmd: &GCodeCommand) -> KResult<()> {
         let toolhead = self.printer.lookup::<ToolHead>("toolhead")?;
         let pos = toolhead.get_position();
         let new_switch_offset = self.switch_offset - (pos[2] - self.last_z_offset.get());
@@ -392,7 +392,7 @@ impl ZCalibrationHelper {
         self.z_endstop.borrow().clone().ok_or_else(|| KError::Other("'NoneType' object has no attribute 'get_mcu'".into()))
     }
 
-    fn probe(&self, mcu_endstop: &EndstopRef, z_position: f64, speed: f64, wiggle: bool) -> KResult<Vec<f64>> {
+    pub fn probe(&self, mcu_endstop: &EndstopRef, z_position: f64, speed: f64, wiggle: bool) -> KResult<Vec<f64>> {
         let toolhead = self.printer.lookup::<ToolHead>("toolhead")?;
         let mut pos = toolhead.get_position();
         pos[2] = z_position;
@@ -415,7 +415,7 @@ impl ZCalibrationHelper {
         self.printer.lookup::<ToolHead>("toolhead")?.manual_move(coord, speed)
     }
 
-    fn move_safe_z(&self, pos: &[f64], lift_speed: f64) -> KResult<()> {
+    pub fn move_safe_z(&self, pos: &[f64], lift_speed: f64) -> KResult<()> {
         // clearance is deprecated
         if let Some(clearance) = self.clearance.get() {
             if pos[2] < clearance {
@@ -432,7 +432,7 @@ impl ZCalibrationHelper {
         Ok(())
     }
 
-    fn log_config(&self) -> KResult<()> {
+    pub fn log_config(&self) -> KResult<()> {
         let samples_result = self.samples_result.borrow().clone().unwrap_or_else(|| "None".into());
         let (nozzle, switch, bed) = (self.nozzle_site.borrow().clone(), self.switch_site.borrow().clone(), self.bed_site.borrow().clone());
         let msg = format!(

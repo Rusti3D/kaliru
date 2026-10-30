@@ -23,17 +23,17 @@ const HOST_REPORT_TIME: f64 = 1.0;
 const RPI_PROC_TEMP_FILE: &str = "/sys/class/thermal/thermal_zone0/temp";
 
 pub struct TemperatureHost {
-    printer: Rc<Printer>,
-    temp: Cell<f64>,
-    min_temp: Cell<f64>,
-    max_temp: Cell<f64>,
-    sample_timer: RefCell<Option<Timer>>,
+    pub printer: Rc<Printer>,
+    pub temp: Cell<f64>,
+    pub min_temp: Cell<f64>,
+    pub max_temp: Cell<f64>,
+    pub sample_timer: RefCell<Option<Timer>>,
     file_handle: RefCell<Option<std::fs::File>>,
-    callback: RefCell<Option<TempCallback>>,
+    pub callback: RefCell<Option<TempCallback>>,
 }
 
 impl TemperatureHost {
-    fn new(config: &ConfigWrapper) -> KResult<Rc<Self>> {
+    pub fn new(config: &ConfigWrapper) -> KResult<Rc<Self>> {
         let printer = config.get_printer();
         let name = config.get_name().split_whitespace().last().unwrap_or_default().to_string();
         let path = config.get("sensor_path", RPI_PROC_TEMP_FILE)?;
@@ -70,7 +70,7 @@ impl TemperatureHost {
         Ok(s)
     }
 
-    fn handle_connect(&self) -> KResult<()> {
+    pub fn handle_connect(&self) -> KResult<()> {
         if let Some(t) = self.sample_timer.borrow().as_ref() {
             self.printer.get_reactor().update_timer(t, NOW);
         }
@@ -87,7 +87,7 @@ impl TemperatureHost {
         Ok(v / 1000.0)
     }
 
-    fn sample_pi_temperature(&self, _eventtime: f64) -> f64 {
+    pub fn sample_pi_temperature(&self, _eventtime: f64) -> f64 {
         match self.read_temp() {
             Ok(t) => self.temp.set(t),
             Err(e) => {
@@ -127,11 +127,12 @@ impl TempSensor for TemperatureHost {
         self.max_temp.set(max_temp);
         Ok(())
     }
-    fn setup_callback(&self, cb: TempCallback) {
+    fn setup_callback(&self, cb: TempCallback) -> KResult<()> {
         *self.callback.borrow_mut() = Some(cb);
+        Ok(())
     }
-    fn get_report_time_delta(&self) -> f64 {
-        HOST_REPORT_TIME
+    fn get_report_time_delta(&self) -> KResult<f64> {
+        Ok(HOST_REPORT_TIME)
     }
 }
 

@@ -19,12 +19,12 @@ const PCA9533_PWM1: u8 = 0b100;
 const PCA9533_PLS0: u8 = 0b101;
 
 pub struct PCA9533 {
-    i2c: Rc<McuI2c>,
+    pub i2c: Rc<McuI2c>,
     pub(crate) led_helper: RefCell<Option<Rc<LEDHelper>>>,
 }
 
 impl PCA9533 {
-    fn new(config: &ConfigWrapper) -> KResult<Rc<Self>> {
+    pub fn new(config: &ConfigWrapper) -> KResult<Rc<Self>> {
         let printer = config.get_printer();
         let i2c = mcu_i2c_from_config(config, Some(98), 100000)?;
         let p = Rc::new(PCA9533 { i2c, led_helper: RefCell::new(None) });
@@ -43,14 +43,14 @@ impl PCA9533 {
         Ok(p)
     }
 
-    fn handle_connect(&self) -> KResult<()> {
+    pub fn handle_connect(&self) -> KResult<()> {
         self.i2c.i2c_write(&[PCA9533_PWM0, 85], 0, 0)?;
         self.i2c.i2c_write(&[PCA9533_PWM1, 170], 0, 0)?;
         let state = self.led_helper.borrow().as_ref().map(|h| h.led_state()).unwrap_or_default();
         self.update_leds(&state, None)
     }
 
-    fn update_leds(&self, led_state: &[Color], print_time: Option<f64>) -> KResult<()> {
+    pub fn update_leds(&self, led_state: &[Color], print_time: Option<f64>) -> KResult<()> {
         let rmap = [0u8, 2, 3, 1, 1];
         let v: Vec<u8> = led_state[0].iter().map(|v| rmap[(v * 4.0).trunc() as usize]).collect();
         let (red, green, blue, white) = (v[0], v[1], v[2], v[3]);

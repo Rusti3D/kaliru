@@ -20,23 +20,23 @@ use std::rc::{Rc, Weak};
 
 pub struct McuQueuedPwm {
     me: Weak<McuQueuedPwm>,
-    mcu: Rc<Mcu>,
-    hardware_pwm: Cell<bool>,
-    cycle_time: Cell<f64>,
-    max_duration: Cell<f64>,
-    oid: i64,
-    motion_queuing: Rc<PrinterMotionQueuing>,
+    pub mcu: Rc<Mcu>,
+    pub hardware_pwm: Cell<bool>,
+    pub cycle_time: Cell<f64>,
+    pub max_duration: Cell<f64>,
+    pub oid: i64,
+    pub motion_queuing: Rc<PrinterMotionQueuing>,
     syncemitter: SyncEmitterRef,
-    pin: String,
-    invert: bool,
-    start_value: Cell<f64>,
-    shutdown_value: Cell<f64>,
-    last_clock: Cell<i64>,
-    last_value: Cell<i64>,
-    default_value: Cell<f64>,
-    duration_ticks: Cell<i64>,
-    pwm_max: Cell<f64>,
-    set_cmd_tag: Cell<Option<u32>>,
+    pub pin: String,
+    pub invert: bool,
+    pub start_value: Cell<f64>,
+    pub shutdown_value: Cell<f64>,
+    pub last_clock: Cell<i64>,
+    pub last_value: Cell<i64>,
+    pub default_value: Cell<f64>,
+    pub duration_ticks: Cell<i64>,
+    pub pwm_max: Cell<f64>,
+    pub set_cmd_tag: Cell<Option<u32>>,
 }
 
 impl McuQueuedPwm {
@@ -95,7 +95,7 @@ impl McuQueuedPwm {
         self.shutdown_value.set(py_max(0.0, py_min(1.0, shutdown_value)));
     }
 
-    fn build_config(&self) -> KResult<()> {
+    pub fn build_config(&self) -> KResult<()> {
         let mcu = &self.mcu;
         let printer = mcu.get_printer();
         let (start_value, shutdown_value) = (self.start_value.get(), self.shutdown_value.get());
@@ -176,7 +176,7 @@ impl McuQueuedPwm {
         Ok(())
     }
 
-    fn send_update(&self, clock: i64, val: i64) {
+    pub fn send_update(&self, clock: i64, val: i64) {
         let clock = self.last_clock.get().max(clock);
         self.last_clock.set(clock);
         self.last_value.set(val);
@@ -193,7 +193,7 @@ impl McuQueuedPwm {
         self.motion_queuing.note_mcu_movequeue_activity(wake_print_time, false);
     }
 
-    fn gen_intermediate_updates(&self, clock: i64) {
+    pub fn gen_intermediate_updates(&self, clock: i64) {
         if self.last_value.get() as f64 == self.default_value.get() {
             return;
         }
@@ -212,7 +212,7 @@ impl McuQueuedPwm {
         self.send_update(clock, v);
     }
 
-    fn flush_notification(&self, must_flush_time: f64, _max_step_gen_time: f64) -> KResult<()> {
+    pub fn flush_notification(&self, must_flush_time: f64, _max_step_gen_time: f64) -> KResult<()> {
         let clock = self.mcu.print_time_to_clock(must_flush_time);
         self.gen_intermediate_updates(clock);
         Ok(())
@@ -222,15 +222,15 @@ impl McuQueuedPwm {
 const CMD_SET_PIN_HELP: &str = "Set the value of an output pin";
 
 pub struct PrinterOutputPin {
-    printer: Rc<Printer>,
-    mcu_pin: Rc<McuQueuedPwm>,
-    scale: f64,
-    last_print_time: Cell<f64>,
-    last_value: Cell<f64>,
+    pub printer: Rc<Printer>,
+    pub mcu_pin: Rc<McuQueuedPwm>,
+    pub scale: f64,
+    pub last_print_time: Cell<f64>,
+    pub last_value: Cell<f64>,
 }
 
 impl PrinterOutputPin {
-    fn new(config: &ConfigWrapper) -> KResult<Rc<Self>> {
+    pub fn new(config: &ConfigWrapper) -> KResult<Rc<Self>> {
         let printer = config.get_printer();
         let ppins = printer.lookup::<PinsObject>("pins")?;
         // Determine pin type
@@ -263,7 +263,7 @@ impl PrinterOutputPin {
         Ok(o)
     }
 
-    fn set_pin(&self, print_time: f64, value: f64) {
+    pub fn set_pin(&self, print_time: f64, value: f64) {
         if value == self.last_value.get() {
             return;
         }
@@ -273,7 +273,7 @@ impl PrinterOutputPin {
         self.last_print_time.set(print_time);
     }
 
-    fn cmd_set_pin(self: &Rc<Self>, gcmd: &GCodeCommand) -> KResult<()> {
+    pub fn cmd_set_pin(self: &Rc<Self>, gcmd: &GCodeCommand) -> KResult<()> {
         // Read requested value
         let value = gcmd.get_float("VALUE", None, Lim::new().min(0.0).max(self.scale))? / self.scale;
         // Obtain print_time and apply requested settings

@@ -99,13 +99,13 @@ const CMD_DELTA_CALIBRATE_HELP: &str = "Delta calibration script";
 const CMD_DELTA_ANALYZE_HELP: &str = "Extended delta calibration tool";
 
 pub struct DeltaCalibrate {
-    printer: Rc<Printer>,
-    probe_helper: RefCell<Option<Rc<ProbePointsHelper>>>,
+    pub printer: Rc<Printer>,
+    pub probe_helper: RefCell<Option<Rc<ProbePointsHelper>>>,
     last_probe_positions: RefCell<Vec<(f64, Stable)>>,
     manual_heights: RefCell<Vec<(f64, Stable)>>,
-    delta_analyze_entry: RefCell<IndexMap<String, Vec<f64>>>,
+    pub delta_analyze_entry: RefCell<IndexMap<String, Vec<f64>>>,
     last_distances: Vec<Distance>,
-    gcode: Rc<GCodeDispatch>,
+    pub gcode: Rc<GCodeDispatch>,
 }
 
 fn kin_delta(printer: &Printer) -> KResult<Rc<dyn Calibration>> {
@@ -114,7 +114,7 @@ fn kin_delta(printer: &Printer) -> KResult<Rc<dyn Calibration>> {
 }
 
 impl DeltaCalibrate {
-    fn new(config: &ConfigWrapper) -> KResult<Rc<Self>> {
+    pub fn new(config: &ConfigWrapper) -> KResult<Rc<Self>> {
         let printer = config.get_printer();
         let p = printer.clone();
         crate::events::KlippyConnect::on(&printer, move || {
@@ -313,7 +313,7 @@ impl DeltaCalibrate {
         Ok(())
     }
 
-    fn add_manual_height(&self, height: f64) -> KResult<()> {
+    pub fn add_manual_height(&self, height: f64) -> KResult<()> {
         // Determine current location of toolhead
         let toolhead = self.printer.lookup::<ToolHead>("toolhead")?;
         toolhead.flush_step_generation()?;
@@ -332,7 +332,7 @@ impl DeltaCalibrate {
         Ok(())
     }
 
-    fn do_extended_calibration(&self) -> KResult<()> {
+    pub fn do_extended_calibration(&self) -> KResult<()> {
         // Extract distance positions
         let entry = self.delta_analyze_entry.borrow().clone();
         let distances = if entry.len() <= 1 {
@@ -351,7 +351,7 @@ impl DeltaCalibrate {
         self.calculate_params(&last, &distances)
     }
 
-    fn cmd_delta_analyze(&self, gcmd: &GCodeCommand) -> KResult<()> {
+    pub fn cmd_delta_analyze(&self, gcmd: &GCodeCommand) -> KResult<()> {
         // Check for manual height entry
         if let Some(mheight) = gcmd.get_float_opt("MANUAL_HEIGHT", Lim::new())? {
             return self.add_manual_height(mheight);

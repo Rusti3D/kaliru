@@ -2,7 +2,7 @@
 // (variables) / PrinterGCodeMacro / Template / TemplateWrapperJinja,
 // stepper_enable.PrinterStepperEnable / EnableTracking
 use super::*;
-use crate::extras::gcode_macro::{GCodeMacro, PrinterGCodeMacro, Template, TemplateWrapperJinja};
+use crate::extras::gcode_macro::{GCodeMacro, GetStatusWrapperJinja, PrinterGCodeMacro, Template, TemplateWrapperJinja};
 use crate::extras::pause_resume::PauseResume;
 use crate::extras::stepper_enable::{EnableTracking, PrinterStepperEnable};
 use crate::jinja::value::Value;
@@ -12,6 +12,149 @@ use crate::plugins::convert::ToPy;
 use crate::plugins::native::DictField;
 
 pub fn register(r: &mut Registry) {
+    // statistics: python's list holds each object's bound stats method
+    r.attr("klippy.extras.statistics.PrinterStats.stats_cb", |o| {
+        let objs = objects::unwrap_as::<crate::extras::statistics::PrinterStats>(o)?.stats_cb.borrow().clone();
+        let l = lookup("builtins", "list")?.call(&[])?;
+        for obj in objs {
+            l.call_method("append", &[&objects::wrap_pobj(obj)?.getattr("stats")?])?;
+        }
+        Ok(l)
+    }, None);
+    // trad_rack.fil_homing_lengths: {name: length} (kaliru keeps them in key order)
+    r.attr("klippy.extras.trad_rack.TradRack.fil_homing_lengths", |o| {
+        let tr = objects::unwrap_as::<crate::extras::trad_rack::TradRack>(o)?;
+        let d = lookup("builtins", "dict")?.call(&[])?;
+        let names = ["user load lane", "load selector", "bowden load", "bowden unload", "unload toolhead"];
+        for (k, v) in names.iter().zip(tr.fil_homing_lengths) {
+            d.call_method("__setitem__", &[&py_str(k), &py_float(v)])?;
+        }
+        Ok(d)
+    }, None);
+    // homing_override.prev_G28: the G28 handler it replaced
+    r.attr("klippy.extras.homing_override.HomingOverride.prev_G28", |o| {
+        match objects::unwrap_as::<crate::extras::homing_override::HomingOverride>(o)?.prev_g28.borrow().clone() {
+            Some(h) => super::gcode::handler_to_py(h),
+            None => Ok(py_none()),
+        }
+    }, None);
+    // menu: Kalico's _root is the menu_root name (root the loaded container)
+    r.attr("klippy.extras.display.menu.MenuManager._root", |o| {
+        Ok(py_str(&objects::unwrap_as::<crate::extras::display::menu::MenuManager>(o)?.root_name))
+    }, None);
+    // query_endstops.endstops: [(endstop, name)] (a snapshot)
+    r.attr("klippy.extras.query_endstops.QueryEndstops.endstops", |o| {
+        let q = objects::unwrap_as::<crate::extras::query_endstops::QueryEndstops>(o)?;
+        let items: KResult<Vec<PyRef>> = q
+            .endstops
+            .borrow()
+            .iter()
+            .map(|(e, name)| Ok(py_tuple(vec![super::pins::endstop_to_py(e)?, py_str(name)])))
+            .collect();
+        Ok(py_list(items?))
+    }, None);
+    // save_variables.allVariables (a snapshot)
+    r.attr("klippy.extras.save_variables.SaveVariables.allVariables", |o| {
+        let sv = objects::unwrap_as::<crate::extras::save_variables::SaveVariables>(o)?;
+        let d = lookup("builtins", "dict")?.call(&[])?;
+        for (k, v) in sv.all_variables.borrow().iter() {
+            d.call_method("__setitem__", &[&py_str(k), &crate::plugins::values::value_to_py(v)?])?;
+        }
+        Ok(d)
+    }, None);
+    // virtual_sdcard.current_file: None, or the file python would have open
+    // (its own handle at kaliru's read position: reads don't move kaliru's)
+    r.attr("klippy.extras.virtual_sdcard.VirtualSD.current_file", |o| {
+        let vsd = objects::unwrap_as::<crate::extras::virtual_sdcard::VirtualSD>(o)?;
+        let Some(name) = vsd.current_file_name() else { return Ok(py_none()) };
+        let f = lookup("io", "open")?.call(&[&py_str(&name), &py_str("r"), &py_int(-1), &py_none(), &py_none(), &py_str("")])?;
+        f.call_method("seek", &[&py_int(vsd.file_position.get() as i64)])?;
+        Ok(f)
+    }, None);
+    // display.display: the lcd chip, the menu and the display templates
+    {
+        use crate::extras::display::PrinterLCD;
+        use crate::extras::display_templates::PrinterDisplayTemplate;
+        r.attr("klippy.extras.display.display.PrinterLCD.lcd_chip", |o| {
+            super::traits::lcd_chip_to_py(objects::unwrap_as::<PrinterLCD>(o)?.lcd_chip.clone())
+        }, None);
+        r.attr("klippy.extras.display.display.PrinterLCD.menu", |o| match objects::unwrap_as::<PrinterLCD>(o)?.menu.borrow().clone() {
+            Some(m) => objects::wrap(m),
+            None => Ok(py_none()),
+        }, None);
+        fn templates_dict(t: &PrinterDisplayTemplate) -> KResult<PyRef> {
+            let d = crate::plugins::py::lookup("builtins", "dict")?.call(&[])?;
+            for (k, v) in &t.display_templates {
+                d.call_method("__setitem__", &[&py_str(k), &objects::wrap(v.clone())?])?;
+            }
+            Ok(d)
+        }
+        r.attr("klippy.extras.display.display.PrinterLCD.display_templates", |o| {
+            templates_dict(&*objects::unwrap_as::<PrinterLCD>(o)?.templates()?)
+        }, None);
+        r.method("klippy.extras.display.display.PrinterDisplayTemplate.get_display_templates", |a| {
+            templates_dict(&*a.this::<PrinterDisplayTemplate>()?)
+        });
+        r.attr("klippy.extras.display.display.PrinterDisplayTemplate.display_templates", |o| {
+            templates_dict(&*objects::unwrap_as::<PrinterDisplayTemplate>(o)?)
+        }, None);
+        // display groups {name: DisplayGroup} and glyphs
+        // {name: {"icon16x16": (icon1, icon2), "icon5x8": (slot, rows)}}
+        fn groups_dict(t: &PrinterDisplayTemplate) -> KResult<PyRef> {
+            let d = crate::plugins::py::lookup("builtins", "dict")?.call(&[])?;
+            for (k, v) in &t.display_data_groups {
+                d.call_method("__setitem__", &[&py_str(k), &objects::wrap(v.clone())?])?;
+            }
+            Ok(d)
+        }
+        fn glyphs_dict(t: &PrinterDisplayTemplate) -> KResult<PyRef> {
+            let d = crate::plugins::py::lookup("builtins", "dict")?.call(&[])?;
+            for (k, g) in &t.display_glyphs {
+                let icons = crate::plugins::py::lookup("builtins", "dict")?.call(&[])?;
+                if let Some((icon1, icon2)) = &g.icon16x16 {
+                    icons.call_method("__setitem__", &[&py_str("icon16x16"), &py_tuple(vec![icon1.clone().to_py()?, icon2.clone().to_py()?])])?;
+                }
+                if let Some((slot, rows)) = &g.icon5x8 {
+                    icons.call_method("__setitem__", &[&py_str("icon5x8"), &py_tuple(vec![py_int(*slot), rows.clone().to_py()?])])?;
+                }
+                d.call_method("__setitem__", &[&py_str(k), &icons])?;
+            }
+            Ok(d)
+        }
+        r.attr("klippy.extras.display.display.PrinterDisplayTemplate.display_data_groups", |o| {
+            groups_dict(&*objects::unwrap_as::<PrinterDisplayTemplate>(o)?)
+        }, None);
+        r.method("klippy.extras.display.display.PrinterDisplayTemplate.get_display_data_groups", |a| {
+            groups_dict(&*a.this::<PrinterDisplayTemplate>()?)
+        });
+        r.attr("klippy.extras.display.display.PrinterDisplayTemplate.display_glyphs", |o| {
+            glyphs_dict(&*objects::unwrap_as::<PrinterDisplayTemplate>(o)?)
+        }, None);
+        r.method("klippy.extras.display.display.PrinterDisplayTemplate.get_display_glyphs", |a| {
+            glyphs_dict(&*a.this::<PrinterDisplayTemplate>()?)
+        });
+        r.attr("klippy.extras.display.display.PrinterLCD.display_data_groups", |o| {
+            groups_dict(&*objects::unwrap_as::<PrinterLCD>(o)?.templates()?)
+        }, None);
+        // show_data_group: the DisplayGroup shown (kaliru keeps its name)
+        r.attr("klippy.extras.display.display.PrinterLCD.show_data_group", |o| {
+            let lcd = objects::unwrap_as::<PrinterLCD>(o)?;
+            let name = lcd.show_data_group.borrow().clone();
+            match lcd.templates()?.display_data_groups.get(&name) {
+                Some(g) => objects::wrap(g.clone()),
+                None => Ok(py_none()),
+            }
+        }, None);
+        // DisplayTemplate.get_params(): {name: value}
+        r.method("klippy.extras.display.display.DisplayTemplate.get_params", |a| {
+            let t = a.this::<crate::extras::display_templates::DisplayTemplate>()?;
+            let d = crate::plugins::py::lookup("builtins", "dict")?.call(&[])?;
+            for (k, v) in t.get_params() {
+                d.call_method("__setitem__", &[&py_str(k), &crate::plugins::values::value_to_py(v)?])?;
+            }
+            Ok(d)
+        });
+    }
     method!(r, "klippy.extras.pause_resume.PauseResume", PauseResume, send_pause_command(p) => p.send_pause_command());
     method!(r, "klippy.extras.pause_resume.PauseResume", PauseResume, send_resume_command(p) => p.send_resume_command());
     method!(r, "klippy.extras.pause_resume.PauseResume", PauseResume, is_sd_active(p) => p.is_sd_active());
@@ -36,6 +179,34 @@ pub fn register(r: &mut Registry) {
     ro_attr!(r, "klippy.extras.gcode_macro.PrinterGCodeMacro.printer", PrinterGCodeMacro, |m| m.printer.clone());
     r.attr("klippy.extras.gcode_macro.Template.function", template_function, None);
     r.method("klippy.extras.gcode_macro.Template.__getattr__", |a| template_function(a.slf.as_ref().unwrap())?.getattr(&a.string(0)?));
+    // Template(context=None): self.function(context)
+    r.method("klippy.extras.gcode_macro.Template.__call__", |a| template_function(a.slf.as_ref().unwrap())?.call(&[a.arg(0)]));
+    // reload(script_type, script) with the gcode_macro environment
+    r.method("klippy.extras.gcode_macro.Template.reload", |a| {
+        let t = a.this::<Template>()?;
+        let gm = t.printer.lookup::<PrinterGCodeMacro>("gcode_macro")?;
+        t.reload(gm.env(), &a.string(0)?, &a.string(1)?)?;
+        Ok(py_none())
+    });
+    // env: the jinja2 environment Kalico builds (kaliru renders its own)
+    r.attr("klippy.extras.gcode_macro.Template.env", |_o| macro_env(), None);
+    r.attr("klippy.extras.gcode_macro.PrinterGCodeMacro.env", |_o| macro_env(), None);
+    ro_attr!(r, "klippy.extras.gcode_macro.PrinterGCodeMacro.gcode", PrinterGCodeMacro, |m| m.printer.lookup::<crate::gcode::GCodeDispatch>("gcode"));
+    ro_attr!(r, "klippy.extras.gcode_macro.GCodeMacro.printer", GCodeMacro, |m| m.template.printer.clone());
+    // the gcode_macro object's create_template_context
+    r.attr("klippy.extras.gcode_macro.TemplateWrapperJinja.create_template_context", |o| {
+        let t = objects::unwrap_as::<TemplateWrapperJinja>(o)?;
+        t.printer.lookup::<PrinterGCodeMacro>("gcode_macro")?.to_py()?.getattr("create_template_context")
+    }, None);
+    // cache: {name: status}
+    r.attr("klippy.extras.gcode_macro.GetStatusWrapperJinja.cache", |o| {
+        let cache = objects::unwrap_as::<GetStatusWrapperJinja>(o)?.cache.borrow().clone();
+        let d = crate::plugins::py::lookup("builtins", "dict")?.call(&[])?;
+        for (k, v) in &cache {
+            d.call_method("__setitem__", &[&py_str(k), &crate::plugins::values::value_to_py(v)?])?;
+        }
+        Ok(d)
+    }, None);
     method!(r, "klippy.extras.gcode_macro.TemplateWrapperJinja", TemplateWrapperJinja, render(t, context: Option<PyRef>) =>
         t.render(template_context(context)?));
     method!(r, "klippy.extras.gcode_macro.TemplateWrapperJinja", TemplateWrapperJinja, run_gcode_from_command(t, context: Option<PyRef>) =>
@@ -121,4 +292,15 @@ fn template_context(context: Option<PyRef>) -> KResult<Option<IndexMap<String, V
         crate::pyval::PyVal::Dict(d) => Ok(Some(d.iter().map(|(k, v)| (k.to_string(), Value::from_pyval(v))).collect())),
         _ => Err(KError::Py("TypeError".into(), "kaliru: a template context must be a dict".into())),
     }
+}
+
+/// PrinterGCodeMacro.env (one, as Kalico's single gcode_macro object has)
+fn macro_env() -> KResult<PyRef> {
+    thread_local!(static ENV: std::cell::RefCell<Option<PyRef>> = const { std::cell::RefCell::new(None) });
+    if let Some(e) = ENV.with(|e| e.borrow().clone()) {
+        return Ok(e);
+    }
+    let env = crate::plugins::py::lookup("_k", "macro_jinja_env")?.call(&[])?;
+    ENV.with(|e| *e.borrow_mut() = Some(env.clone()));
+    Ok(env)
 }

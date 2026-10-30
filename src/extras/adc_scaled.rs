@@ -21,9 +21,9 @@ const REPORT_TIME: f64 = 0.300;
 
 pub struct McuScaledAdc {
     me: Weak<McuScaledAdc>,
-    main: Weak<PrinterADCScaled>,
-    last_state: Cell<(f64, f64)>,
-    mcu_adc: Rc<dyn AdcPin>,
+    pub main: Weak<PrinterADCScaled>,
+    pub last_state: Cell<(f64, f64)>,
+    pub mcu_adc: Rc<dyn AdcPin>,
     callback: RefCell<Option<AdcCallback>>,
 }
 
@@ -43,7 +43,7 @@ impl McuScaledAdc {
         }))
     }
 
-    fn handle_callback(&self, read_time: f64, read_value: f64) -> KResult<()> {
+    pub fn handle_callback(&self, read_time: f64, read_value: f64) -> KResult<()> {
         let main = self.main.upgrade().ok_or_else(|| KError::Other("adc_scaled gone".into()))?;
         let max_adc = main.last_vref.get().1;
         let min_adc = main.last_vssa.get().1;
@@ -82,17 +82,17 @@ impl AdcPin for McuScaledAdc {
 
 pub struct PrinterADCScaled {
     me: Weak<PrinterADCScaled>,
-    printer: Rc<Printer>,
-    name: String,
-    last_vref: Cell<(f64, f64)>,
-    last_vssa: Cell<(f64, f64)>,
-    inv_smooth_time: f64,
-    mcu: Rc<Mcu>,
+    pub printer: Rc<Printer>,
+    pub name: String,
+    pub last_vref: Cell<(f64, f64)>,
+    pub last_vssa: Cell<(f64, f64)>,
+    pub inv_smooth_time: f64,
+    pub mcu: Rc<Mcu>,
     scaled: RefCell<Vec<Rc<McuScaledAdc>>>,
 }
 
 impl PrinterADCScaled {
-    fn new(config: &ConfigWrapper) -> KResult<Rc<Self>> {
+    pub fn new(config: &ConfigWrapper) -> KResult<Rc<Self>> {
         let printer = config.get_printer();
         let name = config.get_name().split_whitespace().nth(1).unwrap_or("").to_string();
         // Configure vref and vssa pins (the callbacks find the object
@@ -149,7 +149,7 @@ impl PrinterADCScaled {
         Ok(mcu_adc)
     }
 
-    fn calc_smooth(&self, read_time: f64, read_value: f64, last: (f64, f64)) -> (f64, f64) {
+    pub fn calc_smooth(&self, read_time: f64, read_value: f64, last: (f64, f64)) -> (f64, f64) {
         let (last_time, last_value) = last;
         let time_diff = read_time - last_time;
         let value_diff = read_value - last_value;

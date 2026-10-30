@@ -87,36 +87,36 @@ struct Omega {
 
 pub struct Palette2 {
     me: Weak<Palette2>,
-    printer: Rc<Printer>,
-    reactor: Rc<Reactor>,
-    virtual_sdcard: Rc<VirtualSD>,
-    pause_resume: Rc<PauseResume>,
-    gcode: Rc<GCodeDispatch>,
+    pub printer: Rc<Printer>,
+    pub reactor: Rc<Reactor>,
+    pub virtual_sdcard: Rc<VirtualSD>,
+    pub pause_resume: Rc<PauseResume>,
+    pub gcode: Rc<GCodeDispatch>,
     serial: RefCell<Option<Uart>>,
-    serial_port: String,
-    baud: i64,
-    feedrate_splice: f64,
-    feedrate_normal: f64,
-    auto_load_speed: i64,
-    auto_cancel_variation: Option<f64>,
+    pub serial_port: String,
+    pub baud: i64,
+    pub feedrate_splice: f64,
+    pub feedrate_normal: f64,
+    pub auto_load_speed: i64,
+    pub auto_cancel_variation: Option<f64>,
     st: RefCell<Omega>,
-    omega_drives: RefCell<Vec<String>>,
-    read_timer: RefCell<Option<Timer>>,
-    read_buffer: RefCell<String>,
+    pub omega_drives: RefCell<Vec<String>>,
+    pub read_timer: RefCell<Option<Timer>>,
+    pub read_buffer: RefCell<String>,
     read_queue: RefCell<VecDeque<String>>,
-    write_timer: RefCell<Option<Timer>>,
+    pub write_timer: RefCell<Option<Timer>>,
     write_queue: RefCell<VecDeque<Option<String>>>,
-    heartbeat_timer: RefCell<Option<Timer>>,
-    heartbeat: Cell<Option<f64>>,
-    signal_disconnect: Cell<bool>,
-    is_printing: Cell<bool>,
-    smart_load_timer: RefCell<Option<Timer>>,
+    pub heartbeat_timer: RefCell<Option<Timer>>,
+    pub heartbeat: Cell<Option<f64>>,
+    pub signal_disconnect: Cell<bool>,
+    pub is_printing: Cell<bool>,
+    pub smart_load_timer: RefCell<Option<Timer>>,
 }
 
 type P2Cmd = fn(&Palette2, &GCodeCommand) -> KResult<()>;
 
 impl Palette2 {
-    fn new(config: &ConfigWrapper) -> KResult<Rc<Self>> {
+    pub fn new(config: &ConfigWrapper) -> KResult<Rc<Self>> {
         let printer = config.get_printer();
         let virtual_sdcard = match printer.load_object(config, "virtual_sdcard", true) {
             Err(e) if matches!(e.base(), KError::Config(_)) => {
@@ -213,7 +213,7 @@ impl Palette2 {
         Ok(p)
     }
 
-    fn reset(&self) {
+    pub fn reset(&self) {
         *self.st.borrow_mut() = Omega::default();
     }
 
@@ -249,7 +249,7 @@ impl Palette2 {
         )
     }
 
-    fn cmd_connect(&self, gcmd: &GCodeCommand) -> KResult<()> {
+    pub fn cmd_connect(&self, gcmd: &GCodeCommand) -> KResult<()> {
         if self.serial.borrow().is_some() {
             gcmd.respond_info("Palette 2 serial port is already active, disconnect first", true);
             return Ok(());
@@ -296,7 +296,7 @@ impl Palette2 {
         Ok(())
     }
 
-    fn cmd_clear(&self, gcmd: &GCodeCommand) -> KResult<()> {
+    pub fn cmd_clear(&self, gcmd: &GCodeCommand) -> KResult<()> {
         logging::info("Clearing Palette 2 input and output");
         if self.check_p2(Some(gcmd)) {
             for l in COMMAND_CLEAR {
@@ -306,7 +306,7 @@ impl Palette2 {
         Ok(())
     }
 
-    fn cmd_cut(&self, gcmd: &GCodeCommand) -> KResult<()> {
+    pub fn cmd_cut(&self, gcmd: &GCodeCommand) -> KResult<()> {
         logging::info("Cutting outgoing filament in Palette 2");
         if self.check_p2(Some(gcmd)) {
             self.put(COMMAND_CUT);
@@ -314,7 +314,7 @@ impl Palette2 {
         Ok(())
     }
 
-    fn cmd_smart_load(&self, gcmd: &GCodeCommand) -> KResult<()> {
+    pub fn cmd_smart_load(&self, gcmd: &GCodeCommand) -> KResult<()> {
         if self.check_p2(Some(gcmd)) {
             if !self.st.borrow().is_loading {
                 gcmd.respond_info("Cannot auto load when the Palette 2 is not ready", true);
@@ -333,7 +333,7 @@ impl Palette2 {
         Ok(())
     }
 
-    fn wait_for_heartbeat(&self) -> KResult<()> {
+    pub fn wait_for_heartbeat(&self) -> KResult<()> {
         let start_ts = self.reactor.monotonic();
         let mut curr_ts = start_ts;
         loop {
@@ -354,7 +354,7 @@ impl Palette2 {
         Ok(())
     }
 
-    fn cmd_o1(&self, gcmd: &GCodeCommand) -> KResult<()> {
+    pub fn cmd_o1(&self, gcmd: &GCodeCommand) -> KResult<()> {
         logging::info("Initializing print with Pallete 2");
         if !self.check_p2(Some(gcmd)) {
             return Err(KError::command("Cannot initialize print, palette 2 is not connected"));
@@ -369,7 +369,7 @@ impl Palette2 {
         self.pause_resume.send_pause_command()
     }
 
-    fn cmd_o9(&self, gcmd: &GCodeCommand) -> KResult<()> {
+    pub fn cmd_o9(&self, gcmd: &GCodeCommand) -> KResult<()> {
         logging::info("Print finished, resetting Palette 2 state");
         if self.check_p2(Some(gcmd)) {
             self.put(gcmd.get_commandline());
@@ -378,7 +378,7 @@ impl Palette2 {
         Ok(())
     }
 
-    fn cmd_o21(&self, gcmd: &GCodeCommand) -> KResult<()> {
+    pub fn cmd_o21(&self, gcmd: &GCodeCommand) -> KResult<()> {
         logging::debug(&format!("Omega version: {}", gcmd.get_commandline()));
         self.reset();
         self.st.borrow_mut().header[0] = Some(gcmd.get_commandline().to_string());
@@ -393,7 +393,7 @@ impl Palette2 {
         Ok(())
     }
 
-    fn cmd_o25(&self, gcmd: &GCodeCommand) -> KResult<()> {
+    pub fn cmd_o25(&self, gcmd: &GCodeCommand) -> KResult<()> {
         logging::debug(&format!("Omega inputs: {}", gcmd.get_commandline()));
         let line = gcmd.get_commandline().to_string();
         self.st.borrow_mut().header[4] = Some(line.clone());
@@ -411,7 +411,7 @@ impl Palette2 {
         Ok(())
     }
 
-    fn cmd_o30(&self, gcmd: &GCodeCommand) -> KResult<()> {
+    pub fn cmd_o30(&self, gcmd: &GCodeCommand) -> KResult<()> {
         let line = gcmd.get_commandline();
         let param_drive: String = line.chars().skip(5).take(1).collect();
         let param_distance = tail(line, 8).to_string();
@@ -423,7 +423,7 @@ impl Palette2 {
         Ok(())
     }
 
-    fn cmd_o31(&self, gcmd: &GCodeCommand) -> KResult<()> {
+    pub fn cmd_o31(&self, gcmd: &GCodeCommand) -> KResult<()> {
         if self.check_p2(Some(gcmd)) {
             self.st.borrow_mut().current_ping = Some(gcmd.get_commandline().to_string());
             logging::debug(&format!("Omega ping command: {}", gcmd.get_commandline()));
@@ -434,7 +434,7 @@ impl Palette2 {
         Ok(())
     }
 
-    fn cmd_o32(&self, gcmd: &GCodeCommand) -> KResult<()> {
+    pub fn cmd_o32(&self, gcmd: &GCodeCommand) -> KResult<()> {
         logging::debug(&format!("Omega algorithm: {}", gcmd.get_commandline()));
         self.st.borrow_mut().algorithms.push(gcmd.get_commandline().to_string());
         Ok(())
@@ -656,7 +656,7 @@ impl Palette2 {
         Ok(())
     }
 
-    fn p2cmd(&self, line: &str) -> KResult<()> {
+    pub fn p2cmd(&self, line: &str) -> KResult<()> {
         let t: Vec<&str> = line.split_whitespace().collect();
         let ocode = t[0];
         let params = &t[1..];

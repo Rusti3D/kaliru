@@ -19,15 +19,15 @@ use std::rc::{Rc, Weak};
 const CMD_QUERY_BUTTON_HELP: &str = "Report on the state of a button";
 
 pub struct GCodeButton {
-    name: String,
-    last_state: Cell<i64>,
-    press_template: RefCell<Option<Rc<Template>>>,
-    release_template: RefCell<Option<Rc<Template>>>,
-    gcode: Rc<GCodeDispatch>,
+    pub name: String,
+    pub last_state: Cell<i64>,
+    pub press_template: RefCell<Option<Rc<Template>>>,
+    pub release_template: RefCell<Option<Rc<Template>>>,
+    pub gcode: Rc<GCodeDispatch>,
 }
 
 impl GCodeButton {
-    fn new(config: &ConfigWrapper) -> KResult<Rc<Self>> {
+    pub fn new(config: &ConfigWrapper) -> KResult<Rc<Self>> {
         let printer = config.get_printer();
         let name = config.get_name().split(' ').next_back().unwrap_or_default().to_string();
         let pin = config.get("pin", Dflt::Required)?;
@@ -79,12 +79,12 @@ impl GCodeButton {
         }
     }
 
-    fn cmd_query_button(&self, gcmd: &GCodeCommand) -> KResult<()> {
+    pub fn cmd_query_button(&self, gcmd: &GCodeCommand) -> KResult<()> {
         gcmd.respond_info(&format!("{}: {}", self.name, self.state()), true);
         Ok(())
     }
 
-    fn button_callback(&self, _eventtime: f64, state: i64) {
+    pub fn button_callback(&self, _eventtime: f64, state: i64) {
         self.last_state.set(state);
         let template = if state != 0 { self.press_template.borrow().clone() } else { self.release_template.borrow().clone() };
         let Some(template) = template else { return };

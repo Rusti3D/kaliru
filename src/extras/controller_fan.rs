@@ -19,22 +19,22 @@ use std::rc::{Rc, Weak};
 const PIN_MIN_TIME: f64 = 0.100;
 
 pub struct ControllerFan {
-    printer: Rc<Printer>,
-    stepper_names: RefCell<Option<Vec<String>>>,
-    stepper_enable: Rc<PrinterStepperEnable>,
-    heaters: RefCell<Vec<Rc<Heater>>>,
+    pub printer: Rc<Printer>,
+    pub stepper_names: RefCell<Option<Vec<String>>>,
+    pub stepper_enable: Rc<PrinterStepperEnable>,
+    pub heaters: RefCell<Vec<Rc<Heater>>>,
     pub fan: Rc<Fan>,
-    fan_speed: f64,
-    idle_speed: f64,
-    standby_speed: f64,
-    idle_timeout: i64,
-    heater_names: Vec<String>,
-    last_on: Cell<i64>,
-    last_speed: Cell<f64>,
+    pub fan_speed: f64,
+    pub idle_speed: f64,
+    pub standby_speed: f64,
+    pub idle_timeout: i64,
+    pub heater_names: Vec<String>,
+    pub last_on: Cell<i64>,
+    pub last_speed: Cell<f64>,
 }
 
 impl ControllerFan {
-    fn new(config: &ConfigWrapper) -> KResult<Rc<Self>> {
+    pub fn new(config: &ConfigWrapper) -> KResult<Rc<Self>> {
         let printer = config.get_printer();
         // klippy:ready and klippy:connect are registered before Fan() registers its handlers
         let slot: Rc<RefCell<Weak<ControllerFan>>> = Rc::new(RefCell::new(Weak::new()));
@@ -77,7 +77,7 @@ impl ControllerFan {
         Ok(cf)
     }
 
-    fn handle_connect(&self) -> KResult<()> {
+    pub fn handle_connect(&self) -> KResult<()> {
         // Heater lookup
         let pheaters = self.printer.lookup::<PrinterHeaters>("heaters")?;
         let mut heaters = vec![];
@@ -103,7 +103,7 @@ impl ControllerFan {
         Ok(())
     }
 
-    fn handle_ready(self: &Rc<Self>) {
+    pub fn handle_ready(self: &Rc<Self>) {
         let reactor = self.printer.get_reactor();
         let w = Rc::downgrade(self);
         reactor.register_timer(
@@ -115,7 +115,7 @@ impl ControllerFan {
         );
     }
 
-    fn callback(&self, eventtime: f64) -> f64 {
+    pub fn callback(&self, eventtime: f64) -> f64 {
         let mut speed = self.standby_speed;
         let mut active = false;
         for name in self.stepper_names.borrow().iter().flatten() {

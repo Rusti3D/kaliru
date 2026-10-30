@@ -17,11 +17,11 @@ use std::rc::Rc;
 const CMD_QUERY_ADC_HELP: &str = "Report the last value of an analog pin";
 
 pub struct QueryADC {
-    adc: RefCell<IndexMap<String, Rc<dyn AdcPin>>>,
+    pub adc: RefCell<IndexMap<String, Rc<dyn AdcPin>>>,
 }
 
 impl QueryADC {
-    fn new(config: &ConfigWrapper) -> KResult<Rc<Self>> {
+    pub fn new(config: &ConfigWrapper) -> KResult<Rc<Self>> {
         let printer = config.get_printer();
         let q = Rc::new(QueryADC { adc: RefCell::new(IndexMap::default()) });
         let gcode = printer.lookup::<GCodeDispatch>("gcode")?;
@@ -34,7 +34,7 @@ impl QueryADC {
         self.adc.borrow_mut().insert(name.to_string(), mcu_adc);
     }
 
-    fn cmd_query_adc(&self, gcmd: &GCodeCommand) -> KResult<()> {
+    pub fn cmd_query_adc(&self, gcmd: &GCodeCommand) -> KResult<()> {
         let name = gcmd.get_opt("NAME");
         let adc = name.as_ref().and_then(|n| self.adc.borrow().get(n).cloned());
         let Some(adc) = adc else {

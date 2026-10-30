@@ -91,24 +91,24 @@ const CMD_SDCARD_PRINT_FILE_HELP: &str = "Loads a SD file and starts the print. 
 
 pub struct VirtualSD {
     me: Weak<VirtualSD>,
-    printer: Rc<Printer>,
+    pub printer: Rc<Printer>,
     pub with_subdirs: bool,
     pub sdcard_dirname: String,
     current_file: RefCell<Option<TextFile>>,
-    file_position: Cell<u64>,
-    file_size: Cell<u64>,
-    print_stats: Rc<PrintStats>,
-    reactor: Rc<Reactor>,
-    must_pause_work: Cell<bool>,
-    cmd_from_sd: Cell<bool>,
-    next_file_position: Cell<u64>,
-    work_timer: RefCell<Option<Timer>>,
-    on_error_gcode: Rc<Template>,
-    gcode: Rc<GCodeDispatch>,
+    pub file_position: Cell<u64>,
+    pub file_size: Cell<u64>,
+    pub print_stats: Rc<PrintStats>,
+    pub reactor: Rc<Reactor>,
+    pub must_pause_work: Cell<bool>,
+    pub cmd_from_sd: Cell<bool>,
+    pub next_file_position: Cell<u64>,
+    pub work_timer: RefCell<Option<Timer>>,
+    pub on_error_gcode: Rc<Template>,
+    pub gcode: Rc<GCodeDispatch>,
 }
 
 impl VirtualSD {
-    fn new(config: &ConfigWrapper) -> KResult<Rc<Self>> {
+    pub fn new(config: &ConfigWrapper) -> KResult<Rc<Self>> {
         let printer = config.get_printer();
         // sdcard state
         let sd = config.get("path", Dflt::Required)?;
@@ -180,7 +180,7 @@ impl VirtualSD {
         Ok(vsd)
     }
 
-    fn handle_analyze_shutdown(&self, _msg: &str, _details: &PyVal) {
+    pub fn handle_analyze_shutdown(&self, _msg: &str, _details: &PyVal) {
         if self.work_timer.borrow().is_none() {
             return;
         }
@@ -254,14 +254,19 @@ impl VirtualSD {
         }
     }
 
-    fn file_path(&self) -> PyVal {
+    /// the open file's name (python's current_file.name)
+    pub fn current_file_name(&self) -> Option<String> {
+        self.current_file.borrow().as_ref().map(|f| f.name.clone())
+    }
+
+    pub fn file_path(&self) -> PyVal {
         match self.current_file.borrow().as_ref() {
             Some(f) => PyVal::Str(f.name.clone()),
             None => PyVal::None,
         }
     }
 
-    fn progress(&self) -> f64 {
+    pub fn progress(&self) -> f64 {
         if self.file_size.get() != 0 {
             self.file_position.get() as f64 / self.file_size.get() as f64
         } else {
@@ -312,7 +317,7 @@ impl VirtualSD {
     }
 
     // G-Code commands
-    fn reset_file(&self) -> KResult<()> {
+    pub fn reset_file(&self) -> KResult<()> {
         if self.current_file.borrow().is_some() {
             self.do_pause()?;
             *self.current_file.borrow_mut() = None;
@@ -323,14 +328,14 @@ impl VirtualSD {
         crate::events::VirtualSdcardResetFile::emit(&self.printer)
     }
 
-    fn cmd_sdcard_reset_file(&self, gcmd: &GCodeCommand) -> KResult<()> {
+    pub fn cmd_sdcard_reset_file(&self, gcmd: &GCodeCommand) -> KResult<()> {
         if self.cmd_from_sd.get() {
             return Err(gcmd.error("SDCARD_RESET_FILE cannot be run from the sdcard"));
         }
         self.reset_file()
     }
 
-    fn cmd_sdcard_print_file(&self, gcmd: &GCodeCommand) -> KResult<()> {
+    pub fn cmd_sdcard_print_file(&self, gcmd: &GCodeCommand) -> KResult<()> {
         if self.work_timer.borrow().is_some() {
             return Err(gcmd.error("SD busy"));
         }
@@ -343,7 +348,7 @@ impl VirtualSD {
         self.do_resume()
     }
 
-    fn cmd_m20(&self, gcmd: &GCodeCommand) -> KResult<()> {
+    pub fn cmd_m20(&self, gcmd: &GCodeCommand) -> KResult<()> {
         // List SD card
         let files = self.get_file_list(self.with_subdirs)?;
         gcmd.respond_raw("Begin file list");
@@ -354,13 +359,13 @@ impl VirtualSD {
         Ok(())
     }
 
-    fn cmd_m21(&self, gcmd: &GCodeCommand) -> KResult<()> {
+    pub fn cmd_m21(&self, gcmd: &GCodeCommand) -> KResult<()> {
         // Initialize SD card
         gcmd.respond_raw("SD card ok");
         Ok(())
     }
 
-    fn cmd_m23(&self, gcmd: &GCodeCommand) -> KResult<()> {
+    pub fn cmd_m23(&self, gcmd: &GCodeCommand) -> KResult<()> {
         // Select SD file
         if self.work_timer.borrow().is_some() {
             return Err(gcmd.error("SD busy"));
@@ -373,7 +378,7 @@ impl VirtualSD {
         self.load_file(gcmd, &filename, self.with_subdirs)
     }
 
-    fn load_file(&self, gcmd: &GCodeCommand, filename: &str, check_subdirs: bool) -> KResult<()> {
+    pub fn load_file(&self, gcmd: &GCodeCommand, filename: &str, check_subdirs: bool) -> KResult<()> {
         let files = self.get_file_list(check_subdirs)?;
         let flist: Vec<&String> = files.iter().map(|f| &f.0).collect();
         let mut files_by_lower: IndexMap<String, String> = IndexMap::default();
@@ -406,17 +411,17 @@ impl VirtualSD {
         crate::events::VirtualSdcardLoadFile::emit(&self.printer)
     }
 
-    fn cmd_m24(&self, _gcmd: &GCodeCommand) -> KResult<()> {
+    pub fn cmd_m24(&self, _gcmd: &GCodeCommand) -> KResult<()> {
         // Start/resume SD print
         self.do_resume()
     }
 
-    fn cmd_m25(&self, _gcmd: &GCodeCommand) -> KResult<()> {
+    pub fn cmd_m25(&self, _gcmd: &GCodeCommand) -> KResult<()> {
         // Pause SD print
         self.do_pause()
     }
 
-    fn cmd_m26(&self, gcmd: &GCodeCommand) -> KResult<()> {
+    pub fn cmd_m26(&self, gcmd: &GCodeCommand) -> KResult<()> {
         // Set SD position
         if self.work_timer.borrow().is_some() {
             return Err(gcmd.error("SD busy"));
@@ -426,7 +431,7 @@ impl VirtualSD {
         Ok(())
     }
 
-    fn cmd_m27(&self, gcmd: &GCodeCommand) -> KResult<()> {
+    pub fn cmd_m27(&self, gcmd: &GCodeCommand) -> KResult<()> {
         // Report SD print status
         if self.current_file.borrow().is_none() {
             gcmd.respond_raw("Not SD printing.");
@@ -449,7 +454,7 @@ impl VirtualSD {
     }
 
     // Background work timer
-    fn work_handler(&self, _eventtime: f64) -> f64 {
+    pub fn work_handler(&self, _eventtime: f64) -> f64 {
         logging::info(&format!("Starting SD card print (position {})", self.file_position.get()));
         if let Some(t) = self.work_timer.borrow().as_ref() {
             self.reactor.unregister_timer(t);

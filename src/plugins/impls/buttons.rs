@@ -1,6 +1,7 @@
 // klippy/extras/buttons.py: PrinterButtons (python callbacks)
 use super::*;
-use crate::extras::buttons::{ButtonCallback, PrinterButtons, PushCallback};
+use crate::extras::buttons::{ButtonCallback, McuAdcButtons, McuButtons, PrinterButtons, PushCallback};
+use crate::plugins::convert::FromPy;
 use crate::method;
 
 /// callback(eventtime, state)
@@ -20,6 +21,22 @@ fn push_cb(f: PyRef) -> PushCallback {
 }
 
 pub fn register(r: &mut Registry) {
+    objects::register_class::<McuButtons>("klippy.extras.buttons", "MCU_buttons");
+    objects::register_class::<McuAdcButtons>("klippy.extras.buttons", "MCU_ADC_buttons");
+    // setup_buttons(pins, callback): pins the pin_params dicts
+    r.method("klippy.extras.buttons.MCU_buttons.setup_buttons", |a| {
+        let mut pins = vec![];
+        for p in Vec::<PyRef>::from_py(a.arg(0))? {
+            let get = |k: &str| p.call_method("__getitem__", &[&py_str(k)]);
+            pins.push((get("pin")?.as_string()?, get("invert")?.is_true()? as i64, get("pullup")?.as_i64()?));
+        }
+        a.this::<McuButtons>()?.setup_buttons(&pins, button_cb(a.arg(1).clone()));
+        Ok(py_none())
+    });
+    r.method("klippy.extras.buttons.MCU_ADC_buttons.setup_button", |a| {
+        a.this::<McuAdcButtons>()?.setup_button(a.f64(0)?, a.f64(1)?, button_cb(a.arg(2).clone()));
+        Ok(py_none())
+    });
     method!(r, "klippy.extras.buttons.PrinterButtons", PrinterButtons, register_buttons(b, pins: Vec<String>, callback: PyRef) => {
         let pins: Vec<&str> = pins.iter().map(|s| s.as_str()).collect();
         b.register_buttons(&pins, button_cb(callback))

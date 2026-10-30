@@ -41,13 +41,13 @@ pub type RequestCallback = Rc<dyn Fn(f64, f64) -> KResult<Option<(Action, f64)>>
 
 // Helper code to queue g-code requests
 pub struct GCodeRequestQueue {
-    printer: Rc<Printer>,
-    mcu: Rc<Mcu>,
+    pub printer: Rc<Printer>,
+    pub mcu: Rc<Mcu>,
     callback: RequestCallback,
-    rqueue: RefCell<Vec<(f64, f64)>>,
-    next_min_flush_time: Cell<f64>,
-    toolhead: RefCell<Option<Rc<ToolHead>>>,
-    motion_queuing: Rc<PrinterMotionQueuing>,
+    pub rqueue: RefCell<Vec<(f64, f64)>>,
+    pub next_min_flush_time: Cell<f64>,
+    pub toolhead: RefCell<Option<Rc<ToolHead>>>,
+    pub motion_queuing: Rc<PrinterMotionQueuing>,
 }
 
 impl GCodeRequestQueue {
@@ -84,7 +84,7 @@ impl GCodeRequestQueue {
         Ok(q)
     }
 
-    fn flush_notification(&self, must_flush_time: f64, _max_step_gen_time: f64) -> KResult<()> {
+    pub fn flush_notification(&self, must_flush_time: f64, _max_step_gen_time: f64) -> KResult<()> {
         let _min_sched_time = self.mcu.min_schedule_time();
         loop {
             let (next_time, pos, req_val) = {
@@ -124,7 +124,7 @@ impl GCodeRequestQueue {
         }
     }
 
-    fn queue_request(&self, print_time: f64, value: f64) {
+    pub fn queue_request(&self, print_time: f64, value: f64) {
         self.rqueue.borrow_mut().push((print_time, value));
         self.motion_queuing.note_mcu_movequeue_activity(print_time, false);
     }
@@ -226,14 +226,14 @@ fn same_cb<T: ?Sized>(a: &Rc<T>, b: &Rc<T>) -> bool {
 // Main template evaluation code
 pub struct PrinterTemplateEvaluator {
     me: Weak<PrinterTemplateEvaluator>,
-    printer: Rc<Printer>,
+    pub printer: Rc<Printer>,
     active_templates: RefCell<Vec<Active>>,
-    render_timer: RefCell<Option<Timer>>,
-    templates: IndexMap<String, Rc<DisplayTemplate>>,
+    pub render_timer: RefCell<Option<Timer>>,
+    pub templates: IndexMap<String, Rc<DisplayTemplate>>,
 }
 
 impl PrinterTemplateEvaluator {
-    fn new(config: &ConfigWrapper) -> KResult<Rc<Self>> {
+    pub fn new(config: &ConfigWrapper) -> KResult<Rc<Self>> {
         let printer = config.get_printer();
         // Load templates
         let dtemplates = lookup_display_templates(config)?;
@@ -248,7 +248,7 @@ impl PrinterTemplateEvaluator {
         }))
     }
 
-    fn activate_timer(&self) {
+    pub fn activate_timer(&self) {
         if self.render_timer.borrow().is_some() || self.active_templates.borrow().is_empty() {
             return;
         }
@@ -295,7 +295,7 @@ impl PrinterTemplateEvaluator {
         }
     }
 
-    fn render(&self, eventtime: f64) -> f64 {
+    pub fn render(&self, eventtime: f64) -> f64 {
         if self.active_templates.borrow().is_empty() {
             // Nothing to do - unregister timer
             if let Some(t) = self.render_timer.borrow_mut().take() {
@@ -424,17 +424,17 @@ enum OutPin {
 }
 
 pub struct PrinterOutputPin {
-    is_pwm: bool,
+    pub is_pwm: bool,
     mcu_pin: OutPin,
-    scale: f64,
-    last_value: Cell<f64>,
-    gcrq: RefCell<Option<Rc<GCodeRequestQueue>>>,
-    template_eval: RefCell<Option<Rc<PrinterTemplateEvaluator>>>,
+    pub scale: f64,
+    pub last_value: Cell<f64>,
+    pub gcrq: RefCell<Option<Rc<GCodeRequestQueue>>>,
+    pub template_eval: RefCell<Option<Rc<PrinterTemplateEvaluator>>>,
     template_cb: RefCell<Option<TemplateCallback>>,
 }
 
 impl PrinterOutputPin {
-    fn new(config: &ConfigWrapper) -> KResult<Rc<Self>> {
+    pub fn new(config: &ConfigWrapper) -> KResult<Rc<Self>> {
         let printer = config.get_printer();
         // Determine pin type
         let is_pwm = config.getboolean("pwm", false)?;
@@ -511,7 +511,7 @@ impl PrinterOutputPin {
         self.gcrq.borrow().clone().expect("gcrq")
     }
 
-    fn template_update(&self, text: &str) -> KResult<()> {
+    pub fn template_update(&self, text: &str) -> KResult<()> {
         let value = match crate::pyfmt::py_float(text) {
             Some(v) => v,
             None => {
@@ -526,7 +526,7 @@ impl PrinterOutputPin {
         self.gcrq().send_async_request(value, None)
     }
 
-    fn cmd_set_pin(&self, gcmd: &GCodeCommand) -> KResult<()> {
+    pub fn cmd_set_pin(&self, gcmd: &GCodeCommand) -> KResult<()> {
         let value = gcmd.get_float_opt("VALUE", Lim::new().min(0.0).max(self.scale))?;
         let template = gcmd.get_opt("TEMPLATE");
         if value.is_none() == template.is_none() {

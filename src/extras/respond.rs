@@ -17,11 +17,11 @@ const RESPOND_TYPES_NO_SPACE: &[(&str, &str)] = &[("echo_no_space", "echo:")];
 const CMD_RESPOND_HELP: &str = "Echo the message prepended with a prefix";
 
 pub struct HostResponder {
-    default_prefix: String,
+    pub default_prefix: String,
 }
 
 impl HostResponder {
-    fn new(config: &ConfigWrapper) -> KResult<Rc<Self>> {
+    pub fn new(config: &ConfigWrapper) -> KResult<Rc<Self>> {
         let printer = config.get_printer();
         let default_prefix = config.getchoice("default_type", RESPOND_TYPES, "echo")?;
         let default_prefix = config.get("default_prefix", default_prefix)?;
@@ -39,13 +39,13 @@ impl HostResponder {
         Ok(hr)
     }
 
-    fn cmd_m118(&self, gcmd: &GCodeCommand) -> KResult<()> {
+    pub fn cmd_m118(&self, gcmd: &GCodeCommand) -> KResult<()> {
         let msg = gcmd.get_raw_command_parameters();
         gcmd.respond_raw(&format!("{} {}", self.default_prefix, msg));
         Ok(())
     }
 
-    fn cmd_respond(&self, gcmd: &GCodeCommand) -> KResult<()> {
+    pub fn cmd_respond(&self, gcmd: &GCodeCommand) -> KResult<()> {
         let mut no_space = false;
         let respond_type = gcmd.get_opt("TYPE");
         let mut prefix = self.default_prefix.clone();

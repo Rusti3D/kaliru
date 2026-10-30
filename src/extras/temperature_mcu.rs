@@ -22,25 +22,25 @@ const REPORT_TIME: f64 = 0.300;
 const RANGE_CHECK_COUNT: i64 = 4;
 
 pub struct PrinterTemperatureMCU {
-    base_temperature: Cell<f64>,
-    slope: Cell<f64>,
-    temp1: Option<f64>,
-    adc1: f64,
-    temp2: Option<f64>,
-    adc2: f64,
-    min_temp: Cell<f64>,
-    max_temp: Cell<f64>,
-    debug_read_cmd: RefCell<Option<CommandQueryWrapper>>,
-    reference_voltage: f64,
-    mcu_adc: Rc<McuAdc>,
-    diag_helper: RefCell<Option<Rc<HelperTemperatureDiagnostics>>>,
-    danger_check_count: i64,
-    temperature_callback: RefCell<Option<TempCallback>>,
-    mcu_type: RefCell<String>,
+    pub base_temperature: Cell<f64>,
+    pub slope: Cell<f64>,
+    pub temp1: Option<f64>,
+    pub adc1: f64,
+    pub temp2: Option<f64>,
+    pub adc2: f64,
+    pub min_temp: Cell<f64>,
+    pub max_temp: Cell<f64>,
+    pub debug_read_cmd: RefCell<Option<CommandQueryWrapper>>,
+    pub reference_voltage: f64,
+    pub mcu_adc: Rc<McuAdc>,
+    pub diag_helper: RefCell<Option<Rc<HelperTemperatureDiagnostics>>>,
+    pub danger_check_count: i64,
+    pub temperature_callback: RefCell<Option<TempCallback>>,
+    pub mcu_type: RefCell<String>,
 }
 
 impl PrinterTemperatureMCU {
-    fn new(config: &ConfigWrapper) -> KResult<Rc<Self>> {
+    pub fn new(config: &ConfigWrapper) -> KResult<Rc<Self>> {
         let printer = config.get_printer();
         // Read config
         let mcu_name = config.get("sensor_mcu", "mcu")?;
@@ -91,7 +91,7 @@ impl PrinterTemperatureMCU {
     }
 
     // Internal code
-    fn adc_callback(&self, read_time: f64, read_value: f64) -> KResult<()> {
+    pub fn adc_callback(&self, read_time: f64, read_value: f64) -> KResult<()> {
         let temp = self.base_temperature.get() + read_value * self.slope.get();
         let cb = self.temperature_callback.borrow().clone();
         match cb {
@@ -100,19 +100,19 @@ impl PrinterTemperatureMCU {
         }
     }
 
-    fn calc_temp(&self, adc: f64) -> f64 {
+    pub fn calc_temp(&self, adc: f64) -> f64 {
         self.base_temperature.get() + adc * self.slope.get()
     }
 
-    fn calc_adc(&self, temp: f64) -> f64 {
+    pub fn calc_adc(&self, temp: f64) -> f64 {
         (temp - self.base_temperature.get()) / self.slope.get()
     }
 
-    fn calc_base(&self, temp: f64, adc: f64) -> f64 {
+    pub fn calc_base(&self, temp: f64, adc: f64) -> f64 {
         temp - adc * self.slope.get()
     }
 
-    fn build_config(&self) -> KResult<()> {
+    pub fn build_config(&self) -> KResult<()> {
         // Obtain mcu information
         let mcu = self.mcu_adc.get_mcu();
         *self.debug_read_cmd.borrow_mut() = Some(mcu.lookup_query_command("debug_read order=%c addr=%u", "debug_result val=%u", None, None, false)?);
@@ -174,7 +174,7 @@ impl PrinterTemperatureMCU {
         self.mcu_adc.build_config()
     }
 
-    fn config_unknown(&self) -> KResult<()> {
+    pub fn config_unknown(&self) -> KResult<()> {
         Err(KError::config(format!("MCU temperature not supported on {}", self.mcu_type.borrow())))
     }
 
@@ -184,34 +184,34 @@ impl PrinterTemperatureMCU {
         Ok(())
     }
 
-    fn config_gd32e230x8(&self) -> KResult<()> {
+    pub fn config_gd32e230x8(&self) -> KResult<()> {
         self.fixed(3.3 / -0.004300, 25.0, 1.45 / 3.3)
     }
 
-    fn config_gd32f303xe(&self) -> KResult<()> {
+    pub fn config_gd32f303xe(&self) -> KResult<()> {
         self.fixed(3.3 / -0.004100, 25.0, 1.45 / 3.3)
     }
 
-    fn config_gd32f303xb(&self) -> KResult<()> {
+    pub fn config_gd32f303xb(&self) -> KResult<()> {
         self.fixed(3.3 / -0.004100, 25.0, 1.45 / 3.3)
     }
 
-    fn config_rp2040(&self) -> KResult<()> {
+    pub fn config_rp2040(&self) -> KResult<()> {
         let rv = self.reference_voltage;
         self.fixed(rv / -0.001721, 27.0, 0.706 / rv)
     }
 
-    fn config_sam3(&self) -> KResult<()> {
+    pub fn config_sam3(&self) -> KResult<()> {
         let rv = self.reference_voltage;
         self.fixed(rv / 0.002650, 27.0, 0.8 / rv)
     }
 
-    fn config_sam4(&self) -> KResult<()> {
+    pub fn config_sam4(&self) -> KResult<()> {
         let rv = self.reference_voltage;
         self.fixed(rv / 0.004700, 27.0, 1.44 / rv)
     }
 
-    fn config_same70(&self) -> KResult<()> {
+    pub fn config_same70(&self) -> KResult<()> {
         let rv = self.reference_voltage;
         self.fixed(rv / 0.002330, 25.0, 0.72 / rv)
     }
@@ -239,16 +239,16 @@ impl PrinterTemperatureMCU {
         self.config_samd21_at(0x00806030)
     }
 
-    fn config_samd51(&self) -> KResult<()> {
+    pub fn config_samd51(&self) -> KResult<()> {
         self.config_samd21_at(0x00800100)
     }
 
-    fn config_stm32f1(&self) -> KResult<()> {
+    pub fn config_stm32f1(&self) -> KResult<()> {
         let rv = self.reference_voltage;
         self.fixed(rv / -0.004300, 25.0, 1.43 / rv)
     }
 
-    fn config_stm32f2(&self) -> KResult<()> {
+    pub fn config_stm32f2(&self) -> KResult<()> {
         let rv = self.reference_voltage;
         self.fixed(rv / 0.002500, 25.0, 0.76 / rv)
     }
@@ -267,26 +267,26 @@ impl PrinterTemperatureMCU {
         self.calibrated(0x1FFF7A2C, 0x1FFF7A2E, 3.3, 4095.0, 30.0, 110.0)
     }
 
-    fn config_stm32f0x2(&self) -> KResult<()> {
+    pub fn config_stm32f0x2(&self) -> KResult<()> {
         self.calibrated(0x1FFFF7B8, 0x1FFFF7C2, 3.3, 4095.0, 30.0, 110.0)
     }
 
-    fn config_stm32f070(&self) -> KResult<()> {
+    pub fn config_stm32f070(&self) -> KResult<()> {
         self.slope.set(self.reference_voltage / -0.004300);
         let cal_adc_30 = self.read16(0x1FFFF7B8)? as f64 / 4095.0;
         self.base_temperature.set(self.calc_base(30.0, cal_adc_30));
         Ok(())
     }
 
-    fn config_stm32g0(&self) -> KResult<()> {
+    pub fn config_stm32g0(&self) -> KResult<()> {
         self.calibrated(0x1FFF75A8, 0x1FFF75CA, 3.0, 4095.0, 30.0, 130.0)
     }
 
-    fn config_stm32h723(&self) -> KResult<()> {
+    pub fn config_stm32h723(&self) -> KResult<()> {
         self.calibrated(0x1FF1E820, 0x1FF1E840, 3.3, 4095.0, 30.0, 130.0)
     }
 
-    fn config_stm32h7(&self) -> KResult<()> {
+    pub fn config_stm32h7(&self) -> KResult<()> {
         self.calibrated(0x1FF1E820, 0x1FF1E840, 3.3, 65535.0, 30.0, 110.0)
     }
 
@@ -300,11 +300,11 @@ impl PrinterTemperatureMCU {
         }
     }
 
-    fn read16(&self, addr: i64) -> KResult<i64> {
+    pub fn read16(&self, addr: i64) -> KResult<i64> {
         self.debug_read(1, addr)
     }
 
-    fn read32(&self, addr: i64) -> KResult<i64> {
+    pub fn read32(&self, addr: i64) -> KResult<i64> {
         self.debug_read(2, addr)
     }
 }
@@ -316,12 +316,13 @@ impl TempSensor for PrinterTemperatureMCU {
         Ok(())
     }
 
-    fn setup_callback(&self, cb: TempCallback) {
+    fn setup_callback(&self, cb: TempCallback) -> KResult<()> {
         *self.temperature_callback.borrow_mut() = Some(cb);
+        Ok(())
     }
 
-    fn get_report_time_delta(&self) -> f64 {
-        REPORT_TIME
+    fn get_report_time_delta(&self) -> KResult<f64> {
+        Ok(REPORT_TIME)
     }
 
 }

@@ -89,6 +89,32 @@ pub fn register(r: &mut Registry) {
     method!(r, "klippy.gcode.GCodeDispatch", GCodeDispatch, respond_raw(g, msg: String) => g.respond_raw(&msg));
     method!(r, "klippy.gcode.GCodeDispatch", GCodeDispatch, _respond_error(g, msg: String) => g.respond_error(&msg));
     method!(r, "klippy.gcode.GCodeDispatch", GCodeDispatch, request_restart(g, result: String) => g.request_restart(&result));
+    // the commands registered at startup
+    r.method("klippy.gcode.GCodeDispatch.cmd_M110", |_a| Ok(py_none()));
+    method!(r, "klippy.gcode.GCodeDispatch", GCodeDispatch, cmd_M112(g, _gcmd: PyRef) => g.cmd_m112());
+    method!(r, "klippy.gcode.GCodeDispatch", GCodeDispatch, cmd_RESTART(g, _gcmd: PyRef) => g.request_restart("restart"));
+    method!(r, "klippy.gcode.GCodeDispatch", GCodeDispatch, cmd_FIRMWARE_RESTART(g, _gcmd: PyRef) => g.request_restart("firmware_restart"));
+    r.method("klippy.gcode.GCodeDispatch.cmd_ECHO", |a| {
+        let gcmd = gcmd_from_py(a.arg(0))?;
+        gcmd.respond_info(gcmd.get_commandline(), false);
+        Ok(py_none())
+    });
+    method!(r, "klippy.gcode.GCodeDispatch", GCodeDispatch, cmd_HEATER_INTERRUPT(g, _gcmd: PyRef) => g.increment_interrupt_counter());
+    method!(r, "klippy.gcode.GCodeDispatch", GCodeDispatch, cmd_LOG_ROLLOVER(g, _gcmd: PyRef) => g.cmd_log_rollover());
+    // {cmd: (key, {value: func})}: a snapshot
+    r.attr("klippy.gcode.GCodeDispatch.mux_commands", |o| {
+        let mux = gd(o)?.mux_commands.borrow().clone();
+        let d = lookup("builtins", "dict")?.call(&[])?;
+        for (cmd, (key, values)) in mux {
+            let vd = lookup("builtins", "dict")?.call(&[])?;
+            for (value, (h, _desc)) in values {
+                let v = value.as_deref().map_or_else(py_none, py_str);
+                vd.call_method("__setitem__", &[&v, &handler_to_py(h)?])?;
+            }
+            d.call_method("__setitem__", &[&py_str(&cmd), &py_tuple(vec![py_str(&key), vd])])?;
+        }
+        Ok(d)
+    }, None);
     r.attr("klippy.gcode.GCodeDispatch.mutex", |o| gd(o)?.get_mutex().to_py(), None);
     r.dict("klippy.gcode.GCodeDispatch.ready_gcode_handlers", handlers_field());
     r.dict("klippy.gcode.GCodeDispatch.base_gcode_handlers", handlers_field());
@@ -142,11 +168,7 @@ fn which_of(field: &str) -> &'static str {
 fn handlers_field() -> DictField {
     DictField {
         get: |o, f, key| match gd(o)?.handler_in(which_of(f), &key.as_string()?) {
-            Some(h) => py_function(Rc::new(move |args: &[PyRef]| {
-                let gcmd = gcmd_from_py(&args[0])?;
-                h(&gcmd)?;
-                Ok(py_none())
-            })),
+            Some(h) => handler_to_py(h),
             None => Err(KError::Py("KeyError".into(), key.repr()?)),
         },
         set: |_o, f, _key, _value| {
@@ -155,6 +177,15 @@ fn handlers_field() -> DictField {
         del: |_o, f, _key| Err(KError::Py("NotImplementedError".into(), format!("kaliru: deleting from {} (use register_command)", f))),
         keys: |o, f| Ok(gd(o)?.handler_dict_names(which_of(f)).iter().map(|k| py_str(k)).collect()),
     }
+}
+
+/// A kaliru handler as a python callable taking the command
+pub fn handler_to_py(h: Handler) -> KResult<PyRef> {
+    py_function(Rc::new(move |args: &[PyRef]| {
+        let gcmd = gcmd_from_py(&args[0])?;
+        h(&gcmd)?;
+        Ok(py_none())
+    }))
 }
 
 /// The python object of a command handed to a handler: the command itself
@@ -195,7 +226,15 @@ pub fn handler_of(func: PyRef) -> Handler {
 fn register_command(a: &Args) -> KResult<PyRef> {
     let g = a.this::<GCodeDispatch>()?;
     let func = if a.arg(1).is_none() { None } else { Some(handler_of(a.arg(1).clone())) };
-    let old = g.register_command(&a.string(0)?, func, a.bool(2)?, a.opt_string(3)?.as_deref())?;
+    // python: desc defaults to the handler's docstring
+    let mut desc = a.opt_string(3)?;
+    if desc.is_none() && func.is_some() {
+        let doc = a.arg(1).getattr("__doc__")?;
+        if doc.is_true()? {
+            desc = Some(String::from_py(&doc)?);
+        }
+    }
+    let old = g.register_command(&a.string(0)?, func, a.bool(2)?, desc.as_deref())?;
     match old {
         None => Ok(py_none()),
         Some(h) => py_function(Rc::new(move |args: &[PyRef]| {

@@ -26,21 +26,21 @@ const REPLICAPE_PCA9685_CYCLE_TIME: f64 = 0.001;
 const PIN_MIN_TIME: f64 = 0.100;
 
 pub struct Pca9685Pwm {
-    replicape: Rc<Replicape>,
-    channel: i64,
-    mcu: Rc<Mcu>,
-    bus: i64,
-    address: i64,
-    cycle_time: f64,
-    max_duration: Cell<f64>,
-    oid: Cell<Option<i64>>,
-    invert: i64,
-    start_value: Cell<f64>,
-    shutdown_value: Cell<f64>,
-    is_enable: Cell<bool>,
-    last_clock: Cell<i64>,
-    pwm_max: Cell<f64>,
-    set_cmd: RefCell<Option<CommandWrapper>>,
+    pub replicape: Rc<Replicape>,
+    pub channel: i64,
+    pub mcu: Rc<Mcu>,
+    pub bus: i64,
+    pub address: i64,
+    pub cycle_time: f64,
+    pub max_duration: Cell<f64>,
+    pub oid: Cell<Option<i64>>,
+    pub invert: i64,
+    pub start_value: Cell<f64>,
+    pub shutdown_value: Cell<f64>,
+    pub is_enable: Cell<bool>,
+    pub last_clock: Cell<i64>,
+    pub pwm_max: Cell<f64>,
+    pub set_cmd: RefCell<Option<CommandWrapper>>,
 }
 
 impl Pca9685Pwm {
@@ -72,7 +72,7 @@ impl Pca9685Pwm {
         Ok(p)
     }
 
-    fn build_config(&self) -> KResult<()> {
+    pub fn build_config(&self) -> KResult<()> {
         self.pwm_max.set(self.mcu.get_constant_float("PCA9685_MAX")?);
         let cycle_ticks = self.mcu.seconds_to_clock(self.cycle_time);
         self.mcu.request_move_queue_slot();
@@ -178,9 +178,9 @@ impl DigitalOutPin for Pca9685Pwm {
 }
 
 pub struct ReplicapeDACEnable {
-    mcu: Rc<Mcu>,
-    value: f64,
-    pwm: Rc<Pca9685Pwm>,
+    pub mcu: Rc<Mcu>,
+    pub value: f64,
+    pub pwm: Rc<Pca9685Pwm>,
 }
 
 impl ReplicapeDACEnable {
@@ -226,7 +226,7 @@ fn servo_pins(name: &str) -> Option<(&'static str, &'static str, &'static str)> 
 }
 
 pub struct ServoPwm {
-    mcu_pwm: Rc<McuPwm>,
+    pub mcu_pwm: Rc<McuPwm>,
 }
 
 impl ServoPwm {
@@ -263,8 +263,9 @@ impl ServoPwm {
         let pru_mcu = replicape.mcu_pwm_enable.get_mcu();
         let printer = pru_mcu.get_printer();
         let ppins = printer.lookup::<PinsObject>("pins").map_err(|e| e.to_string())?;
-        let mut pins = ppins.0.borrow_mut();
+        let pins = ppins.0.borrow_mut();
         let pin_resolver = pins.get_pin_resolver(pru_mcu.get_name()).map_err(|e| e.0)?;
+        let mut pin_resolver = pin_resolver.borrow_mut();
         pin_resolver.reserve_pin(resv1, &config_name).map_err(|e| e.0)?;
         pin_resolver.reserve_pin(resv2, &config_name).map_err(|e| e.0)?;
         Ok(Rc::new(ServoPwm { mcu_pwm }))
@@ -312,21 +313,21 @@ enum PinClass {
 
 pub struct Replicape {
     me: Weak<Replicape>,
-    host_mcu: Rc<Mcu>,
-    mcu_pwm_enable: Rc<dyn DigitalOutPin>,
-    mcu_pwm_start_value: Cell<bool>,
-    mcu_pwm_shutdown_value: Cell<bool>,
-    last_pwm_enable_time: Cell<f64>,
+    pub host_mcu: Rc<Mcu>,
+    pub mcu_pwm_enable: Rc<dyn DigitalOutPin>,
+    pub mcu_pwm_start_value: Cell<bool>,
+    pub mcu_pwm_shutdown_value: Cell<bool>,
+    pub last_pwm_enable_time: Cell<f64>,
     pins: IndexMap<String, (PinClass, i64)>,
     stepper_dacs: IndexMap<i64, f64>,
     enabled_channels: RefCell<IndexMap<i64, bool>>,
-    sr_disabled: RefCell<Vec<u8>>,
-    sr_enabled: RefCell<Vec<u8>>,
-    sr_spi: Rc<McuSpi>,
+    pub sr_disabled: RefCell<Vec<u8>>,
+    pub sr_enabled: RefCell<Vec<u8>>,
+    pub sr_spi: Rc<McuSpi>,
 }
 
 impl Replicape {
-    fn new(config: &ConfigWrapper) -> KResult<Rc<Self>> {
+    pub fn new(config: &ConfigWrapper) -> KResult<Rc<Self>> {
         let printer: Rc<Printer> = config.get_printer();
         config.getchoice("revision", &[("B3", "B3")], Dflt::Required)?;
         let host_mcu = get_printer_mcu(&printer, &config.get("host_mcu", Dflt::Required)?)?;
@@ -412,14 +413,14 @@ impl Replicape {
         Ok(r)
     }
 
-    fn note_pwm_start_value(&self, channel: i64, start_value: f64, shutdown_value: f64) {
+    pub fn note_pwm_start_value(&self, channel: i64, start_value: f64, shutdown_value: f64) {
         self.mcu_pwm_start_value.set(self.mcu_pwm_start_value.get() | (start_value != 0.0));
         self.mcu_pwm_shutdown_value.set(self.mcu_pwm_shutdown_value.get() | (shutdown_value != 0.0));
         self.mcu_pwm_enable.setup_start_value(self.mcu_pwm_start_value.get(), self.mcu_pwm_shutdown_value.get());
         self.enabled_channels.borrow_mut().insert(channel, start_value != 0.0);
     }
 
-    fn note_pwm_enable(&self, print_time: f64, channel: i64, is_enable: bool) -> KResult<()> {
+    pub fn note_pwm_enable(&self, print_time: f64, channel: i64, is_enable: bool) -> KResult<()> {
         self.enabled_channels.borrow_mut().insert(channel, is_enable);
         // Check if need to set the pca9685 enable pin
         let pe_time = py_max(print_time, self.last_pwm_enable_time.get() + PIN_MIN_TIME);

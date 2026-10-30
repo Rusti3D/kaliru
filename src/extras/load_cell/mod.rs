@@ -27,7 +27,7 @@ use std::rc::Rc;
 
 /// BulkAdcSensor: clients receive the BulkAdcData dict ({"data": [rows],
 /// "errors": n, "overflows": n}) and return False to disconnect
-pub trait BulkAdcSensor {
+pub trait BulkAdcSensor: std::any::Any {
     /// Get the MCU the sensor is attached to
     fn get_mcu(&self) -> Rc<Mcu>;
     /// Return the sample per second of the sensor
@@ -40,6 +40,10 @@ pub trait BulkAdcSensor {
     fn add_client(&self, callback: ClientCallback) -> KResult<()>;
     /// McuLoadCellProbe: attach a sensor to a LoadCell object on the MCU
     fn attach_load_cell_probe(&self, load_cell_probe_oid: i64) -> KResult<()>;
+    /// the Rust type's path (python plugins find the Kalico class by it)
+    fn type_name(&self) -> &'static str {
+        std::any::type_name::<Self>()
+    }
 }
 
 /// a sensor class of the load_cell_sensors components

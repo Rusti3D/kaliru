@@ -22,6 +22,9 @@ struct Entry {
     py: PyRef,
     // the same object as a printer object, when it is one
     pobj: Option<PObj>,
+    // the same object as trait objects (Rc<dyn TempSensor>, ...): a trait
+    // object cannot be recovered from Rc<dyn Any>
+    views: Vec<Box<dyn Any>>,
 }
 
 #[derive(Default)]
@@ -35,9 +38,18 @@ struct Table {
     by_addr: HashMap<usize, usize>,
     // Rust type -> mirrored class (module, class name)
     classes: HashMap<TypeId, (&'static str, &'static str)>,
+    // Rust type -> its mirrored class chosen per object (a Heater with a
+    // secondary sensor is a DualSensorHeater)
+    class_fns: HashMap<TypeId, fn(&dyn Any) -> (&'static str, &'static str)>,
     // printer object types that also travel as plain Rc (a heater as
     // extruder.heater): how to see one as a printer object
     pobj_casts: HashMap<TypeId, fn(Rc<dyn Any>) -> Option<PObj>>,
+    // Rust type -> its trait object views (each a Box<Rc<dyn Trait>>), for
+    // objects no view was stored with (a plugin constructed them)
+    view_casts: HashMap<TypeId, Vec<fn(Rc<dyn Any>) -> Box<dyn Any>>>,
+    // Rust type -> the object python sees in its place (kaliru's stand-in
+    // for a Kalico object it cannot hold directly, e.g. a weak handle)
+    redirects: HashMap<TypeId, fn(&Rc<dyn Any>) -> Option<(Rc<dyn Any>, &'static str)>>,
 }
 
 static TABLE: Gil<RefCell<Table>> = Gil::new(|| RefCell::new(Table::default()));
@@ -52,6 +64,11 @@ pub fn register_class<T: 'static>(module: &'static str, class: &'static str) {
     TABLE.with(|t| t.borrow_mut().classes.insert(TypeId::of::<T>(), (module, class)));
 }
 
+/// Register the mirrored class of a Rust type that depends on the object
+pub fn register_class_fn<T: 'static>(f: fn(&dyn Any) -> (&'static str, &'static str)) {
+    TABLE.with(|t| t.borrow_mut().class_fns.insert(TypeId::of::<T>(), f));
+}
+
 /// A printer object type that kaliru also hands out as a plain Rc<T>: its
 /// python object stays usable where kaliru wants the printer object
 pub fn register_pobj<T: crate::printer::PrinterObject + 'static>() {
@@ -61,9 +78,20 @@ pub fn register_pobj<T: crate::printer::PrinterObject + 'static>() {
     TABLE.with(|t| t.borrow_mut().pobj_casts.insert(TypeId::of::<T>(), cast::<T>));
 }
 
+/// How to see a Rust type as a trait object (`Box::new(rc as Rc<dyn Trait>)`
+/// of the downcast object): unwrap_view() of objects a plugin constructed
+pub fn register_view<T: 'static>(f: fn(Rc<dyn Any>) -> Box<dyn Any>) {
+    TABLE.with(|t| t.borrow_mut().view_casts.entry(TypeId::of::<T>()).or_default().push(f));
+}
+
 /// The Kalico class of a Rust type: registered, else by its path
 /// (kaliru::extras::heaters::Heater is klippy.extras.heaters.Heater)
-fn class_of(tid: TypeId, type_name: &str) -> KResult<PyRef> {
+fn class_of(rust: &Rc<dyn Any>, type_name: &str) -> KResult<PyRef> {
+    let tid = (**rust).type_id();
+    if let Some(f) = TABLE.with(|t| t.borrow().class_fns.get(&tid).copied()) {
+        let (module, class) = f(&**rust);
+        return lookup(module, class);
+    }
     if let Some((module, class)) = TABLE.with(|t| t.borrow().classes.get(&tid).copied()) {
         return lookup(module, class);
     }
@@ -99,7 +127,17 @@ pub fn wrap_pobj(pobj: PObj) -> KResult<PyRef> {
     wrap_impl(rust, type_name, Some(pobj))
 }
 
+/// Python sees `f(obj)` (object, Rust type path) wherever kaliru hands it a T
+pub fn register_redirect<T: 'static>(f: fn(&Rc<dyn Any>) -> Option<(Rc<dyn Any>, &'static str)>) {
+    TABLE.with(|t| t.borrow_mut().redirects.insert(TypeId::of::<T>(), f));
+}
+
 fn wrap_impl(rust: Rc<dyn Any>, type_name: &str, pobj: Option<PObj>) -> KResult<PyRef> {
+    if let Some(f) = TABLE.with(|t| t.borrow().redirects.get(&(*rust).type_id()).copied()) {
+        if let Some((target, name)) = f(&rust) {
+            return wrap_impl(target, name, None);
+        }
+    }
     let pobj = pobj.or_else(|| {
         let cast = TABLE.with(|t| t.borrow().pobj_casts.get(&(*rust).type_id()).copied());
         cast.and_then(|c| c(rust.clone()))
@@ -116,16 +154,56 @@ fn wrap_impl(rust: Rc<dyn Any>, type_name: &str, pobj: Option<PObj>) -> KResult<
     }) {
         return Ok(py);
     }
-    let cls = class_of((*rust).type_id(), type_name)?;
+    let cls = class_of(&rust, type_name)?;
     // cls.__new__(cls): the object exists already, __init__ must not run
     let py = cls.getattr("__new__")?.call(&[&cls])?;
     bind_impl(&py, rust, pobj)?;
     Ok(py)
 }
 
+/// wrap() of a trait object (`Rc<dyn TempSensor>`): `rust` is the same
+/// object as Rc<dyn Any>, `type_name` its concrete type's path; the view
+/// comes back from unwrap_view()
+pub fn wrap_view<D: ?Sized + 'static>(rust: Rc<dyn Any>, view: Rc<D>, type_name: &str) -> KResult<PyRef> {
+    let a = addr(&rust);
+    let py = wrap_impl(rust, type_name, None)?;
+    add_view(a, view);
+    Ok(py)
+}
+
+fn add_view<D: ?Sized + 'static>(a: usize, view: Rc<D>) {
+    TABLE.with(|t| {
+        let mut t = t.borrow_mut();
+        let Some(h) = t.by_addr.get(&a).copied() else { return };
+        if let Some(e) = t.entries.get_mut(&h) {
+            if !e.views.iter().any(|v| v.is::<Rc<D>>()) {
+                e.views.push(Box::new(view));
+            }
+        }
+    });
+}
+
+/// The trait object view of a python object's kaliru object, if it has one
+pub fn unwrap_view<D: ?Sized + 'static>(py: &PyRef) -> Option<Rc<D>> {
+    let h = py.getattr("_k_h").ok()?.as_i64().ok()? as usize;
+    let (stored, rust) = TABLE.with(|t| {
+        let t = t.borrow();
+        let e = t.entries.get(&h)?;
+        Some((e.views.iter().find_map(|v| v.downcast_ref::<Rc<D>>().cloned()), e.rust.clone()))
+    })?;
+    if stored.is_some() {
+        return stored;
+    }
+    let casts = TABLE.with(|t| t.borrow().view_casts.get(&(*rust).type_id()).cloned())?;
+    casts.into_iter().find_map(|c| c(rust.clone()).downcast::<Rc<D>>().ok().map(|b| *b))
+}
+
 /// Make `py` the python object of `rust` (_k.new)
 pub fn bind(py: &PyRef, rust: Rc<dyn Any>) -> KResult<()> {
-    bind_impl(py, rust, None)
+    // (a printer object type: usable as one where kaliru wants it)
+    let cast = TABLE.with(|t| t.borrow().pobj_casts.get(&(*rust).type_id()).copied());
+    let pobj = cast.and_then(|c| c(rust.clone()));
+    bind_impl(py, rust, pobj)
 }
 
 fn bind_impl(py: &PyRef, rust: Rc<dyn Any>, pobj: Option<PObj>) -> KResult<()> {
@@ -134,7 +212,7 @@ fn bind_impl(py: &PyRef, rust: Rc<dyn Any>, pobj: Option<PObj>) -> KResult<()> {
         let h = t.next_handle;
         t.next_handle += 1;
         t.by_addr.insert(addr(&rust), h);
-        t.entries.insert(h, Entry { rust, py: py.clone(), pobj });
+        t.entries.insert(h, Entry { rust, py: py.clone(), pobj, views: vec![] });
         (h, t.entries.len() >= t.sweep_at.max(64))
     });
     if sweep {
@@ -190,7 +268,7 @@ pub fn existing(rust: &Rc<dyn Any>) -> Option<PyRef> {
 }
 
 /// Release the bindings nothing else holds: the Rust object's only owner
-/// is the table (its Rc, and the printer object view of it) and the python
+/// is the table (its Rc, its printer object and trait object views) and the python
 /// object's only reference is the table's (sys.getrefcount against that of
 /// a fresh object held the same way). Neither side can be reached again, so
 /// nothing can tell; the next sweep runs when the table has doubled.
@@ -202,7 +280,7 @@ fn sweep_unreachable() -> KResult<()> {
         t.borrow()
             .entries
             .iter()
-            .filter(|(_, e)| Rc::strong_count(&e.rust) == 1 + e.pobj.is_some() as usize)
+            .filter(|(_, e)| Rc::strong_count(&e.rust) == 1 + e.pobj.is_some() as usize + e.views.len())
             .map(|(h, e)| (*h, e.py.clone()))
             .collect()
     });

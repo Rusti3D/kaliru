@@ -23,16 +23,16 @@ const RESET_MIN_TIME: f64 = 0.000050;
 const MAX_MCU_SIZE: usize = 500; // Sanity check on LED chain length
 
 pub struct PrinterNeoPixel {
-    printer: Rc<Printer>,
-    mcu: Rc<Mcu>,
-    oid: i64,
-    pin: String,
-    neopixel_update_cmd: RefCell<Option<CommandWrapper>>,
-    neopixel_send_cmd: RefCell<Option<CommandQueryWrapper>>,
-    color_map: Vec<(usize, (usize, usize))>,
+    pub printer: Rc<Printer>,
+    pub mcu: Rc<Mcu>,
+    pub oid: i64,
+    pub pin: String,
+    pub neopixel_update_cmd: RefCell<Option<CommandWrapper>>,
+    pub neopixel_send_cmd: RefCell<Option<CommandQueryWrapper>>,
+    pub color_map: Vec<(usize, (usize, usize))>,
     pub(crate) led_helper: RefCell<Option<Rc<LEDHelper>>>,
-    color_data: RefCell<Vec<u8>>,
-    old_color_data: RefCell<Vec<u8>>,
+    pub color_data: RefCell<Vec<u8>>,
+    pub old_color_data: RefCell<Vec<u8>>,
 }
 
 fn sorted(s: &str) -> Vec<char> {
@@ -42,7 +42,7 @@ fn sorted(s: &str) -> Vec<char> {
 }
 
 impl PrinterNeoPixel {
-    fn new(config: &ConfigWrapper) -> KResult<Rc<Self>> {
+    pub fn new(config: &ConfigWrapper) -> KResult<Rc<Self>> {
         let printer = config.get_printer();
         // Configure neopixel
         let ppins = printer.lookup::<PinsObject>("pins")?;
@@ -110,7 +110,7 @@ impl PrinterNeoPixel {
         Ok(n)
     }
 
-    fn build_config(&self) -> KResult<()> {
+    pub fn build_config(&self) -> KResult<()> {
         let bmt = self.mcu.seconds_to_clock(BIT_MAX_TIME);
         let rmt = self.mcu.seconds_to_clock(RESET_MIN_TIME);
         self.mcu.add_config_cmd(
@@ -137,14 +137,14 @@ impl PrinterNeoPixel {
         Ok(())
     }
 
-    fn update_color_data(&self, led_state: &[Color]) {
+    pub fn update_color_data(&self, led_state: &[Color]) {
         let mut color_data = self.color_data.borrow_mut();
         for (cdidx, (lidx, cidx)) in &self.color_map {
             color_data[*cdidx] = (led_state[*lidx][*cidx] * 255.0 + 0.5).trunc() as i64 as u8;
         }
     }
 
-    fn send_data(&self, print_time: Option<f64>) -> KResult<()> {
+    pub fn send_data(&self, print_time: Option<f64>) -> KResult<()> {
         if self.mcu.non_critical_disconnected.get() {
             return Ok(());
         }
@@ -195,7 +195,7 @@ impl PrinterNeoPixel {
         Ok(())
     }
 
-    fn update_leds(&self, led_state: &[Color], print_time: Option<f64>) -> KResult<()> {
+    pub fn update_leds(&self, led_state: &[Color], print_time: Option<f64>) -> KResult<()> {
         self.update_color_data(led_state);
         self.send_data(print_time)
     }

@@ -39,19 +39,19 @@ impl Mode {
 }
 
 pub struct PrinterSensorCombined {
-    printer: Rc<Printer>,
-    sensor_names: Vec<String>,
-    max_deviation: f64,
-    sensors: RefCell<Vec<PObj>>,
+    pub printer: Rc<Printer>,
+    pub sensor_names: Vec<String>,
+    pub max_deviation: f64,
+    pub sensors: RefCell<Vec<PObj>>,
     apply_mode: Mode,
-    last_temp: Cell<f64>,
-    min_temp: Cell<f64>,
-    max_temp: Cell<f64>,
-    humidity: Cell<Option<f64>>,
-    pressure: Cell<Option<f64>>,
-    gas: Cell<Option<f64>>,
-    temperature_update_timer: RefCell<Option<Timer>>,
-    temperature_callback: RefCell<Option<TempCallback>>,
+    pub last_temp: Cell<f64>,
+    pub min_temp: Cell<f64>,
+    pub max_temp: Cell<f64>,
+    pub humidity: Cell<Option<f64>>,
+    pub pressure: Cell<Option<f64>>,
+    pub gas: Cell<Option<f64>>,
+    pub temperature_update_timer: RefCell<Option<Timer>>,
+    pub temperature_callback: RefCell<Option<TempCallback>>,
 }
 
 fn status_of(sensor: &PObj, eventtime: f64) -> PyDict {
@@ -62,7 +62,7 @@ fn status_of(sensor: &PObj, eventtime: f64) -> PyDict {
 }
 
 impl PrinterSensorCombined {
-    fn new(config: &ConfigWrapper) -> KResult<Rc<Self>> {
+    pub fn new(config: &ConfigWrapper) -> KResult<Rc<Self>> {
         let printer = config.get_printer();
         let name = config.get_name().split_whitespace().last().unwrap_or("").to_string();
         // get sensor names
@@ -110,7 +110,7 @@ impl PrinterSensorCombined {
         Ok(s)
     }
 
-    fn handle_connect(&self) -> KResult<()> {
+    pub fn handle_connect(&self) -> KResult<()> {
         let reactor = self.printer.get_reactor();
         for sensor_name in &self.sensor_names {
             let sensor = self.printer.lookup_object(sensor_name)?;
@@ -131,7 +131,7 @@ impl PrinterSensorCombined {
         Ok(())
     }
 
-    fn handle_ready(&self) {
+    pub fn handle_ready(&self) {
         // Start temperature update timer
         // There is a race condition with sensors where they can be not ready,
         // and return 0 or None - initialize a little bit later.
@@ -141,7 +141,7 @@ impl PrinterSensorCombined {
         }
     }
 
-    fn update_temp(&self, eventtime: f64) {
+    pub fn update_temp(&self, eventtime: f64) {
         // (a None reading would raise in python's max(); NaN here)
         let values: Vec<f64> = self
             .sensors
@@ -167,7 +167,7 @@ impl PrinterSensorCombined {
         }
     }
 
-    fn update_additional(&self, eventtime: f64) {
+    pub fn update_additional(&self, eventtime: f64) {
         let mut values: [Vec<f64>; 3] = [vec![], vec![], vec![]];
         for sensor in self.sensors.borrow().iter() {
             let sensor_status = status_of(sensor, eventtime);
@@ -188,7 +188,7 @@ impl PrinterSensorCombined {
         }
     }
 
-    fn temperature_update_event(&self, eventtime: f64) -> f64 {
+    pub fn temperature_update_event(&self, eventtime: f64) -> f64 {
         // update sensor value
         self.update_temp(eventtime);
         self.update_additional(eventtime);
@@ -229,12 +229,13 @@ impl TempSensor for PrinterSensorCombined {
         Ok(())
     }
 
-    fn setup_callback(&self, cb: TempCallback) {
+    fn setup_callback(&self, cb: TempCallback) -> KResult<()> {
         *self.temperature_callback.borrow_mut() = Some(cb);
+        Ok(())
     }
 
-    fn get_report_time_delta(&self) -> f64 {
-        REPORT_TIME
+    fn get_report_time_delta(&self) -> KResult<f64> {
+        Ok(REPORT_TIME)
     }
 
 }

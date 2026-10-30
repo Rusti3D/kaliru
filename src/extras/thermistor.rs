@@ -25,11 +25,11 @@ fn py_log(x: f64) -> KResult<f64> {
 
 // Analog voltage to temperature converter for thermistors
 pub struct Thermistor {
-    pullup: f64,
-    inline_resistor: f64,
-    c1: Cell<f64>,
-    c2: Cell<f64>,
-    c3: Cell<f64>,
+    pub pullup: f64,
+    pub inline_resistor: f64,
+    pub c1: Cell<f64>,
+    pub c2: Cell<f64>,
+    pub c3: Cell<f64>,
 }
 
 impl Thermistor {

@@ -31,15 +31,15 @@ const REG_I_ON: [i64; 16] = [0x2A, 0x2D, 0x30, 0x33, 0x36, 0x3B, 0x40, 0x45, 0x4
 
 pub struct SX1509 {
     me: Weak<SX1509>,
-    i2c: Rc<McuI2c>,
-    mcu: Rc<Mcu>,
-    last_clock: Cell<i64>,
+    pub i2c: Rc<McuI2c>,
+    pub mcu: Rc<Mcu>,
+    pub last_clock: Cell<i64>,
     reg_dict: RefCell<IndexMap<i64, i64>>,
     reg_i_on_dict: RefCell<IndexMap<i64, i64>>,
 }
 
 impl SX1509 {
-    fn new(config: &ConfigWrapper) -> KResult<Rc<Self>> {
+    pub fn new(config: &ConfigWrapper) -> KResult<Rc<Self>> {
         let printer = config.get_printer();
         let name = config.get_name().split_whitespace().nth(1).unwrap_or("").to_string();
         let i2c = mcu_i2c_from_config(config, None, 400000)?;
@@ -70,7 +70,7 @@ impl SX1509 {
         Ok(s)
     }
 
-    fn handle_connect(&self) -> KResult<()> {
+    pub fn handle_connect(&self) -> KResult<()> {
         // Reset the chip, Default RegClock/RegMisc 0x0
         self.i2c.i2c_write(&[REG_RESET as u8, 0x12], 0, 0)?;
         self.i2c.i2c_write(&[REG_RESET as u8, 0x34], 0, 0)?;
@@ -98,19 +98,19 @@ impl SX1509 {
         }
     }
 
-    fn clear_bits_in_register(&self, reg: i64, bitmask: i64) {
+    pub fn clear_bits_in_register(&self, reg: i64, bitmask: i64) {
         self.update(reg, |v| v & !bitmask);
     }
 
-    fn set_bits_in_register(&self, reg: i64, bitmask: i64) {
+    pub fn set_bits_in_register(&self, reg: i64, bitmask: i64) {
         self.update(reg, |v| v | bitmask);
     }
 
-    fn set_register(&self, reg: i64, value: i64) {
+    pub fn set_register(&self, reg: i64, value: i64) {
         self.update(reg, |_| value);
     }
 
-    fn send_register(&self, reg: i64, print_time: f64) -> KResult<()> {
+    pub fn send_register(&self, reg: i64, print_time: f64) -> KResult<()> {
         let mut data = vec![(reg & 0xFF) as u8];
         if let Some(v) = self.reg_dict.borrow().get(&reg) {
             // Word
@@ -155,12 +155,12 @@ impl PrinterObject for SX1509 {
 }
 
 pub struct SX1509DigitalOut {
-    sx1509: Rc<SX1509>,
-    bitmask: i64,
-    invert: bool,
-    start_value: Cell<bool>,
-    shutdown_value: Cell<bool>,
-    max_duration: Cell<f64>,
+    pub sx1509: Rc<SX1509>,
+    pub bitmask: i64,
+    pub invert: bool,
+    pub start_value: Cell<bool>,
+    pub shutdown_value: Cell<bool>,
+    pub max_duration: Cell<f64>,
 }
 
 impl SX1509DigitalOut {
@@ -219,14 +219,14 @@ impl DigitalOutPin for SX1509DigitalOut {
 }
 
 pub struct SX1509Pwm {
-    sx1509: Rc<SX1509>,
-    i_on_reg: i64,
-    invert: bool,
-    start_value: Cell<f64>,
-    shutdown_value: Cell<f64>,
-    max_duration: Cell<f64>,
-    hardware_pwm: Cell<bool>,
-    cycle_time: Cell<f64>,
+    pub sx1509: Rc<SX1509>,
+    pub i_on_reg: i64,
+    pub invert: bool,
+    pub start_value: Cell<f64>,
+    pub shutdown_value: Cell<f64>,
+    pub max_duration: Cell<f64>,
+    pub hardware_pwm: Cell<bool>,
+    pub cycle_time: Cell<f64>,
 }
 
 impl SX1509Pwm {

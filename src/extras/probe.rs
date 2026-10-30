@@ -47,7 +47,7 @@ pub enum RetryStrategy {
 impl RetryStrategy {
     const ALL: [RetryStrategy; 4] = [RetryStrategy::Fail, RetryStrategy::Ignore, RetryStrategy::Retry, RetryStrategy::Circle];
 
-    fn name(self) -> &'static str {
+    pub fn name(self) -> &'static str {
         match self {
             RetryStrategy::Fail => "FAIL",
             RetryStrategy::Ignore => "IGNORE",
@@ -62,10 +62,10 @@ pub const MAX_CIRCLE_RETRIES: i64 = 6 * 3;
 pub const RAPID_SCAN_WINDOW_SIZE: f64 = 2.0;
 
 pub struct RetryPolicy {
-    cfg_retry_speed: f64,
-    cfg_bad_probe_strategy: RetryStrategy,
-    cfg_bad_probe_retries: i64,
-    cfg_pattern_spacing: f64,
+    pub cfg_retry_speed: f64,
+    pub cfg_bad_probe_strategy: RetryStrategy,
+    pub cfg_bad_probe_retries: i64,
+    pub cfg_pattern_spacing: f64,
     pub retry_speed: Cell<f64>,
     pub bad_probe_strategy: Cell<RetryStrategy>,
     pub bad_probe_retries: Cell<i64>,
@@ -120,10 +120,10 @@ impl RetryPolicy {
 }
 
 pub struct GcodeNozzleScrubber {
-    printer: Rc<Printer>,
-    template: Rc<Template>,
-    cfg_scrubbing_frequency: i64,
-    scrubbing_frequency: Cell<i64>,
+    pub printer: Rc<Printer>,
+    pub template: Rc<Template>,
+    pub cfg_scrubbing_frequency: i64,
+    pub scrubbing_frequency: Cell<i64>,
 }
 
 impl GcodeNozzleScrubber {
@@ -162,14 +162,15 @@ impl GcodeNozzleScrubber {
 }
 
 pub struct ProbeRetryState {
-    bad_probe_count: Cell<i64>,
-    start_pos: (f64, f64),
-    fouled_count: Cell<usize>,
-    circle_lookup: Vec<(f64, f64)>,
+    pub retry_policy: Rc<RetryPolicy>,
+    pub bad_probe_count: Cell<i64>,
+    pub start_pos: (f64, f64),
+    pub fouled_count: Cell<usize>,
+    pub circle_lookup: Vec<(f64, f64)>,
 }
 
 impl ProbeRetryState {
-    fn build_hexagonal_offsets(distance_step: f64) -> Vec<(f64, f64)> {
+    pub fn build_hexagonal_offsets(distance_step: f64) -> Vec<(f64, f64)> {
         let mut lookup = vec![(0.0, 0.0)];
         let max_rings = 2;
         let size = distance_step / 3f64.sqrt();
@@ -195,7 +196,7 @@ impl ProbeRetryState {
         lookup
     }
 
-    fn new(pos: (f64, f64), retry_policy: &RetryPolicy) -> Self {
+    pub fn new(pos: (f64, f64), retry_policy: &Rc<RetryPolicy>) -> Self {
         // Build circular lookup based on pattern spacing
         logging::info(&format!("retry policy={}", retry_policy.bad_probe_strategy.get() as i64));
         let circle_lookup = if retry_policy.bad_probe_strategy.get() == RetryStrategy::Circle {
@@ -203,20 +204,20 @@ impl ProbeRetryState {
         } else {
             vec![]
         };
-        ProbeRetryState { bad_probe_count: Cell::new(0), start_pos: pos, fouled_count: Cell::new(0), circle_lookup }
+        ProbeRetryState { retry_policy: retry_policy.clone(), bad_probe_count: Cell::new(0), start_pos: pos, fouled_count: Cell::new(0), circle_lookup }
     }
 
-    fn has_retries_remaining(&self, policy: &RetryPolicy) -> bool {
+    pub fn has_retries_remaining(&self, policy: &RetryPolicy) -> bool {
         self.bad_probe_count.get() <= policy.bad_probe_retries.get()
     }
 
-    fn reset(&self) {
+    pub fn reset(&self) {
         self.bad_probe_count.set(0);
     }
 
     /// Evaluate probe result based on strategy. Ok(true): the probe is
     /// accepted, Ok(false): retry it; Err for FAIL or exhausted retries.
-    fn evaluate_probe(&self, policy: &RetryPolicy, is_good: Option<bool>, gcmd: &GCodeCommand) -> KResult<bool> {
+    pub fn evaluate_probe(&self, policy: &RetryPolicy, is_good: Option<bool>, gcmd: &GCodeCommand) -> KResult<bool> {
         let strategy = policy.bad_probe_strategy.get();
         if is_good == Some(true) || strategy == RetryStrategy::Ignore {
             return Ok(true);
@@ -239,7 +240,7 @@ impl ProbeRetryState {
         Ok(false)
     }
 
-    fn get_position(&self, policy: &RetryPolicy) -> KResult<[Option<f64>; 3]> {
+    pub fn get_position(&self, policy: &RetryPolicy) -> KResult<[Option<f64>; 3]> {
         if policy.bad_probe_strategy.get() != RetryStrategy::Circle {
             return Ok([Some(self.start_pos.0), Some(self.start_pos.1), None]);
         }
@@ -252,18 +253,18 @@ impl ProbeRetryState {
 }
 
 pub struct RetrySession {
-    pub retry_policy: RetryPolicy,
-    scrubber: GcodeNozzleScrubber,
-    point_lookup: RefCell<IndexMap<(u64, u64), Rc<ProbeRetryState>>>,
-    pos: Cell<Option<(f64, f64)>>,
-    gcmd: RefCell<Option<GCodeCommand>>,
-    retry_state: RefCell<Option<Rc<ProbeRetryState>>>,
+    pub retry_policy: Rc<RetryPolicy>,
+    pub scrubber: GcodeNozzleScrubber,
+    pub point_lookup: RefCell<IndexMap<(u64, u64), Rc<ProbeRetryState>>>,
+    pub pos: Cell<Option<(f64, f64)>>,
+    pub gcmd: RefCell<Option<GCodeCommand>>,
+    pub retry_state: RefCell<Option<Rc<ProbeRetryState>>>,
 }
 
 impl RetrySession {
     pub fn new(config: &ConfigWrapper) -> KResult<Self> {
         Ok(RetrySession {
-            retry_policy: RetryPolicy::new(config)?,
+            retry_policy: Rc::new(RetryPolicy::new(config)?),
             scrubber: GcodeNozzleScrubber::new(config)?,
             point_lookup: RefCell::new(IndexMap::default()),
             pos: Cell::new(None),
@@ -273,7 +274,7 @@ impl RetrySession {
     }
 
     /// round(pos, 1) as a dict key (floats compare by value; -0.0 == 0.0)
-    fn quantize_position(pos: (f64, f64)) -> (u64, u64) {
+    pub fn quantize_position(pos: (f64, f64)) -> (u64, u64) {
         let key = |v: f64| {
             let r = py_round(v, 1);
             (if r == 0.0 { 0.0 } else { r }).to_bits()
@@ -312,11 +313,11 @@ impl RetrySession {
         self.pos.get().unwrap_or((0.0, 0.0))
     }
 
-    fn state(&self) -> KResult<Rc<ProbeRetryState>> {
+    pub fn state(&self) -> KResult<Rc<ProbeRetryState>> {
         self.retry_state.borrow().clone().ok_or_else(|| KError::Other("'NoneType' object has no attribute 'get_position'".into()))
     }
 
-    fn gcmd(&self) -> KResult<GCodeCommand> {
+    pub fn gcmd(&self) -> KResult<GCodeCommand> {
         self.gcmd.borrow().clone().ok_or_else(|| KError::Other("'NoneType' object has no attribute 'error'".into()))
     }
 
@@ -359,7 +360,7 @@ impl RetrySession {
 // ----------------------------------------------------------------------
 
 pub struct ProbeList {
-    printer: Rc<Printer>,
+    pub printer: Rc<Printer>,
     /// name -> (probe object, is_default_probe)
     pub probes: RefCell<IndexMap<String, (PObj, bool)>>,
     pub default_probe: RefCell<Option<(String, PObj)>>,
@@ -400,7 +401,7 @@ pub fn as_printer_probe(obj: &PObj) -> Option<Rc<PrinterProbe>> {
 }
 
 impl ProbeList {
-    fn new(printer: &Rc<Printer>) -> KResult<Rc<Self>> {
+    pub fn new(printer: &Rc<Printer>) -> KResult<Rc<Self>> {
         let pl = Rc::new(ProbeList { printer: printer.clone(), probes: RefCell::new(IndexMap::default()), default_probe: RefCell::new(None) });
         let p = pl.clone();
         crate::events::KlippyConnect::on(printer, move || {
@@ -413,7 +414,7 @@ impl ProbeList {
         Ok(pl)
     }
 
-    fn handle_connect(&self) {
+    pub fn handle_connect(&self) {
         if self.default_probe.borrow().is_none() {
             if let Some(probe) = self.printer.lookup_object_opt("probe") {
                 *self.default_probe.borrow_mut() = Some(("probe".into(), probe));
@@ -485,7 +486,7 @@ impl ProbeList {
         Ok(obj)
     }
 
-    fn cmd_list_probes(&self, gcmd: &GCodeCommand) -> KResult<()> {
+    pub fn cmd_list_probes(&self, gcmd: &GCodeCommand) -> KResult<()> {
         gcmd.respond_info("Registered probes:", true);
         for (key, (_, is_default)) in self.probes.borrow().iter() {
             gcmd.respond_info(&format!("- {}{}", key, if *is_default { " [default]" } else { "" }), true);
@@ -548,32 +549,34 @@ const CMD_PROBE_CALIBRATE_HELP: &str = "Calibrate the probe's z_offset";
 const CMD_Z_OFFSET_APPLY_PROBE_HELP: &str = "Adjust the probe's z_offset";
 
 pub struct PrinterProbe {
-    me: Weak<PrinterProbe>,
-    printer: Rc<Printer>,
+    pub me: Weak<PrinterProbe>,
+    pub printer: Rc<Printer>,
     pub name: String,
     pub probe_name: String,
     pub mcu_probe: Rc<dyn McuProbe>,
     pub speed: f64,
-    retry_speed: f64,
+    pub retry_speed: f64,
     pub lift_speed: f64,
-    x_offset: f64,
-    y_offset: f64,
+    pub x_offset: f64,
+    pub y_offset: f64,
     pub z_offset: f64,
-    drop_first_result: bool,
-    probe_calibrate_z: Cell<f64>,
-    multi_probe_pending: Cell<bool>,
-    last_state: RefCell<PyVal>,
-    last_z_result: Cell<f64>,
-    gcode_move: Rc<GCodeMove>,
-    retry_session: RetrySession,
-    z_position: f64,
+    pub drop_first_result: bool,
+    pub probe_calibrate_z: Cell<f64>,
+    pub multi_probe_pending: Cell<bool>,
+    pub last_state: RefCell<PyVal>,
+    pub last_z_result: Cell<f64>,
+    pub gcode_move: Rc<GCodeMove>,
+    pub retry_session: Rc<RetrySession>,
+    pub z_position: f64,
     pub sample_count: i64,
     pub sample_retract_dist: f64,
     pub samples_result: String,
     pub samples_tolerance: f64,
     pub samples_retries: i64,
     pub is_default_probe: bool,
-    gcode: Rc<GCodeDispatch>,
+    pub gcode: Rc<GCodeDispatch>,
+    /// self.was_last_result_good (set False in __init__)
+    pub was_last_result_good: Cell<bool>,
 }
 
 impl PrinterProbe {
@@ -592,7 +595,7 @@ impl PrinterProbe {
             .load_object(config, "gcode_move", true)?
             .and_then(downcast_rc::<GCodeMove>)
             .ok_or_else(|| KError::Other("gcode_move has an unexpected type".into()))?;
-        let retry_session = RetrySession::new(config)?;
+        let retry_session = Rc::new(RetrySession::new(config)?);
         // Infer Z position to move to during a probe
         let z_position = if config.has_section("stepper_z") {
             let zconfig = config.getsection("stepper_z");
@@ -637,6 +640,7 @@ impl PrinterProbe {
             samples_retries,
             is_default_probe,
             gcode: gcode.clone(),
+            was_last_result_good: Cell::new(false),
         });
         {
             let ppins = printer.lookup::<PinsObject>("pins")?;
@@ -691,22 +695,22 @@ impl PrinterProbe {
         Ok(probe)
     }
 
-    fn rc(&self) -> Rc<PrinterProbe> {
+    pub fn rc(&self) -> Rc<PrinterProbe> {
         self.me.upgrade().expect("probe")
     }
 
-    fn endstop(&self) -> EndstopRef {
+    pub fn endstop(&self) -> EndstopRef {
         self.mcu_probe.clone()
     }
 
     /// the home_rails_begin / _end arguments (homing_state, rails) include
     /// a rail with this probe as endstop
-    fn rails_use_probe(&self, rails: &[RailRef]) -> bool {
+    pub fn rails_use_probe(&self, rails: &[RailRef]) -> bool {
         let me = self.endstop();
         rails.iter().flat_map(|r| r.get_endstops()).any(|(es, _)| same_endstop(&es, &me))
     }
 
-    fn register_commands(&self, key: Option<&str>) -> KResult<()> {
+    pub fn register_commands(&self, key: Option<&str>) -> KResult<()> {
         type PCmd = fn(&Rc<PrinterProbe>, &GCodeCommand) -> KResult<()>;
         let cmds: [(&str, PCmd, &str); 5] = [
             ("PROBE", PrinterProbe::cmd_probe, CMD_PROBE_HELP),
@@ -747,7 +751,7 @@ impl PrinterProbe {
         (self.x_offset, self.y_offset, self.z_offset)
     }
 
-    fn toolhead(&self) -> KResult<Rc<ToolHead>> {
+    pub fn toolhead(&self) -> KResult<Rc<ToolHead>> {
         self.printer.lookup::<ToolHead>("toolhead")
     }
 
@@ -775,7 +779,7 @@ impl PrinterProbe {
         }
     }
 
-    fn probe(&self, speed: f64, gcmd: &GCodeCommand) -> KResult<(Vec<f64>, Option<bool>)> {
+    pub fn probe(&self, speed: f64, gcmd: &GCodeCommand) -> KResult<(Vec<f64>, Option<bool>)> {
         let pos = self.toolhead()?.get_position();
         let (mut epos, is_good) = self.probing_move(speed, gcmd)?;
         // get z compensation from axis_twist_compensation
@@ -794,16 +798,16 @@ impl PrinterProbe {
         Ok((epos, is_good))
     }
 
-    fn move_to(&self, coord: &[Option<f64>], speed: f64) -> KResult<()> {
+    pub fn move_to(&self, coord: &[Option<f64>], speed: f64) -> KResult<()> {
         self.toolhead()?.manual_move(coord, speed)
     }
 
-    fn calc_mean(positions: &[Vec<f64>]) -> Vec<f64> {
+    pub fn calc_mean(positions: &[Vec<f64>]) -> Vec<f64> {
         let count = positions.len() as f64;
         (0..3).map(|i| crate::pyfmt::py_sum(positions.iter().map(|p| p[i])) / count).collect()
     }
 
-    fn calc_median(positions: &[Vec<f64>]) -> Vec<f64> {
+    pub fn calc_median(positions: &[Vec<f64>]) -> Vec<f64> {
         let mut z_sorted = positions.to_vec();
         z_sorted.sort_by(|a, b| a[2].partial_cmp(&b[2]).unwrap_or(std::cmp::Ordering::Equal));
         let middle = positions.len() / 2;
@@ -815,7 +819,7 @@ impl PrinterProbe {
         Self::calc_mean(&z_sorted[middle - 1..middle + 1])
     }
 
-    fn discard_first_result(&self, speed: f64, retry_session: &RetrySession, gcmd: &GCodeCommand) -> KResult<()> {
+    pub fn discard_first_result(&self, speed: f64, retry_session: &RetrySession, gcmd: &GCodeCommand) -> KResult<()> {
         if self.drop_first_result {
             let (_pos, is_good) = self.probe(speed, gcmd)?;
             // marks the initial probing location as fouled if needed
@@ -826,7 +830,7 @@ impl PrinterProbe {
     }
 
     // Raise the toolhead at the current x/y location
-    fn retract(&self, gcmd: &GCodeCommand) -> KResult<()> {
+    pub fn retract(&self, gcmd: &GCodeCommand) -> KResult<()> {
         let sample_retract_dist = gcmd.get_float("SAMPLE_RETRACT_DIST", Some(self.sample_retract_dist), Lim::new().above(0.0))?;
         let lift_speed = self.get_lift_speed(Some(gcmd))?;
         let pos = self.toolhead()?.get_position();
@@ -834,7 +838,7 @@ impl PrinterProbe {
     }
 
     /// Probe for a single good result with retries based on strategy
-    fn run_probe_with_retries(&self, speed: f64, retry_session: &RetrySession, gcmd: &GCodeCommand) -> KResult<Vec<f64>> {
+    pub fn run_probe_with_retries(&self, speed: f64, retry_session: &RetrySession, gcmd: &GCodeCommand) -> KResult<Vec<f64>> {
         while retry_session.can_retry()? {
             self.move_to(&retry_session.get_probe_position()?, self.retry_speed)?;
             // Probe position
@@ -867,7 +871,7 @@ impl PrinterProbe {
             None => {
                 self.retry_session.start(gcmd)?;
                 self.retry_session.set_position(&self.toolhead()?.get_position());
-                &self.retry_session
+                &*self.retry_session
             }
             Some(rs) => rs,
         };
@@ -909,7 +913,7 @@ impl PrinterProbe {
         Ok(Self::calc_mean(&positions))
     }
 
-    fn cmd_probe(self: &Rc<Self>, gcmd: &GCodeCommand) -> KResult<()> {
+    pub fn cmd_probe(self: &Rc<Self>, gcmd: &GCodeCommand) -> KResult<()> {
         let pos = self.run_probe(gcmd, None)?;
         gcmd.respond_info(&format!("Result is z={:.6}", pos[2]), true);
         self.last_z_result.set(pos[2]);
@@ -924,7 +928,7 @@ impl PrinterProbe {
         Ok(())
     }
 
-    fn cmd_query_probe(self: &Rc<Self>, gcmd: &GCodeCommand) -> KResult<()> {
+    pub fn cmd_query_probe(self: &Rc<Self>, gcmd: &GCodeCommand) -> KResult<()> {
         let print_time = self.toolhead()?.get_last_move_time()?;
         let res = self.mcu_probe.query_endstop(print_time)?;
         *self.last_state.borrow_mut() = PyVal::Int(res);
@@ -932,7 +936,7 @@ impl PrinterProbe {
         Ok(())
     }
 
-    fn cmd_probe_accuracy(self: &Rc<Self>, gcmd: &GCodeCommand) -> KResult<()> {
+    pub fn cmd_probe_accuracy(self: &Rc<Self>, gcmd: &GCodeCommand) -> KResult<()> {
         let speed = gcmd.get_float("PROBE_SPEED", Some(self.speed), Lim::new().above(0.0))?;
         let lift_speed = self.get_lift_speed(Some(gcmd))?;
         let sample_count = gcmd.get_int("SAMPLES", Some(10), Lim::new().min(1))?;
@@ -997,7 +1001,7 @@ impl PrinterProbe {
         Ok(())
     }
 
-    fn probe_calibrate_finalize(&self, kin_pos: Option<Vec<f64>>) -> KResult<()> {
+    pub fn probe_calibrate_finalize(&self, kin_pos: Option<Vec<f64>>) -> KResult<()> {
         let Some(kin_pos) = kin_pos else { return Ok(()) };
         let z_offset = self.probe_calibrate_z.get() - kin_pos[2];
         self.gcode.respond_info(
@@ -1012,7 +1016,7 @@ impl PrinterProbe {
         Ok(())
     }
 
-    fn cmd_probe_calibrate(self: &Rc<Self>, gcmd: &GCodeCommand) -> KResult<()> {
+    pub fn cmd_probe_calibrate(self: &Rc<Self>, gcmd: &GCodeCommand) -> KResult<()> {
         verify_no_manual_probe(&self.printer)?;
         // Perform initial probe
         let lift_speed = self.get_lift_speed(Some(gcmd))?;
@@ -1031,7 +1035,7 @@ impl PrinterProbe {
         ManualProbeHelper::start(&self.printer, gcmd, Rc::new(move |kin_pos| p.probe_calibrate_finalize(kin_pos)))
     }
 
-    fn cmd_z_offset_apply_probe(self: &Rc<Self>, _gcmd: &GCodeCommand) -> KResult<()> {
+    pub fn cmd_z_offset_apply_probe(self: &Rc<Self>, _gcmd: &GCodeCommand) -> KResult<()> {
         let offset = self.gcode_move.homing_position()[2];
         let configfile = self.printer.lookup::<ConfigFileObject>("configfile")?;
         if offset == 0.0 {
@@ -1091,14 +1095,14 @@ pub enum Multi {
 
 // Endstop wrapper that enables probe specific features
 pub struct ProbeEndstopWrapper {
-    me: Weak<ProbeEndstopWrapper>,
-    printer: Rc<Printer>,
-    position_endstop: f64,
-    stow_on_each_sample: bool,
-    activate_gcode: Rc<Template>,
-    deactivate_gcode: Rc<Template>,
-    mcu_endstop: Rc<McuEndstop>,
-    multi: Cell<Multi>,
+    pub me: Weak<ProbeEndstopWrapper>,
+    pub printer: Rc<Printer>,
+    pub position_endstop: f64,
+    pub stow_on_each_sample: bool,
+    pub activate_gcode: Rc<Template>,
+    pub deactivate_gcode: Rc<Template>,
+    pub mcu_endstop: Rc<McuEndstop>,
+    pub multi: Cell<Multi>,
 }
 
 impl ProbeEndstopWrapper {
@@ -1135,7 +1139,7 @@ impl ProbeEndstopWrapper {
         Ok(w)
     }
 
-    fn handle_mcu_identify(&self) -> KResult<()> {
+    pub fn handle_mcu_identify(&self) -> KResult<()> {
         let kin = self.printer.lookup::<ToolHead>("toolhead")?.get_kinematics();
         for stepper in kin.get_steppers() {
             if stepper.is_active_axis('z') {
@@ -1145,7 +1149,7 @@ impl ProbeEndstopWrapper {
         Ok(())
     }
 
-    fn run_script(&self, template: &Template, what: &str) -> KResult<()> {
+    pub fn run_script(&self, template: &Template, what: &str) -> KResult<()> {
         let toolhead = self.printer.lookup::<ToolHead>("toolhead")?;
         let start_pos = toolhead.get_position();
         template.run_gcode_from_command(None)?;
@@ -1155,11 +1159,11 @@ impl ProbeEndstopWrapper {
         Ok(())
     }
 
-    fn raise_probe(&self) -> KResult<()> {
+    pub fn raise_probe(&self) -> KResult<()> {
         self.run_script(&self.deactivate_gcode, "deactivate_gcode")
     }
 
-    fn lower_probe(&self) -> KResult<()> {
+    pub fn lower_probe(&self) -> KResult<()> {
         self.run_script(&self.activate_gcode, "activate_gcode")
     }
 }
@@ -1250,29 +1254,29 @@ pub type PointsFinalize = Rc<dyn Fn((f64, f64, f64), &[Vec<f64>]) -> KResult<Fin
 // Helper code that can probe a series of points and report the
 // position at each point.
 pub struct ProbePointsHelper {
-    me: Weak<ProbePointsHelper>,
-    printer: Rc<Printer>,
-    finalize_callback: PointsFinalize,
-    probe_points: RefCell<Vec<(f64, f64)>>,
-    name: String,
-    gcode: Rc<GCodeDispatch>,
-    horizontal_move_z: Cell<f64>,
-    default_horizontal_move_z: f64,
-    enable_horizontal_z_clearance: bool,
-    horizontal_z_clearance: Cell<Option<f64>>,
-    default_horizontal_z_clearance: Option<f64>,
-    adaptive_horizontal_move_z: bool,
-    min_horizontal_move_z: f64,
-    speed: f64,
-    use_offsets: Cell<bool>,
-    alternate_probe_direction: bool,
-    start_reverse: bool,
-    enforce_lift_speed: Cell<bool>,
-    retry_session: RetrySession,
-    lift_speed: Cell<f64>,
-    probe_offsets: Cell<(f64, f64, f64)>,
-    results: RefCell<Vec<Vec<f64>>>,
-    probe_pass_direction_reversed: Cell<bool>,
+    pub me: Weak<ProbePointsHelper>,
+    pub printer: Rc<Printer>,
+    pub finalize_callback: PointsFinalize,
+    pub probe_points: RefCell<Vec<(f64, f64)>>,
+    pub name: String,
+    pub gcode: Rc<GCodeDispatch>,
+    pub horizontal_move_z: Cell<f64>,
+    pub default_horizontal_move_z: f64,
+    pub enable_horizontal_z_clearance: bool,
+    pub horizontal_z_clearance: Cell<Option<f64>>,
+    pub default_horizontal_z_clearance: Option<f64>,
+    pub adaptive_horizontal_move_z: bool,
+    pub min_horizontal_move_z: f64,
+    pub speed: f64,
+    pub use_offsets: Cell<bool>,
+    pub alternate_probe_direction: bool,
+    pub start_reverse: bool,
+    pub enforce_lift_speed: Cell<bool>,
+    pub retry_session: Rc<RetrySession>,
+    pub lift_speed: Cell<f64>,
+    pub probe_offsets: Cell<(f64, f64, f64)>,
+    pub results: RefCell<Vec<Vec<f64>>>,
+    pub probe_pass_direction_reversed: Cell<bool>,
 }
 
 impl ProbePointsHelper {
@@ -1318,7 +1322,7 @@ impl ProbePointsHelper {
         let enforce_lift_speed = config.getboolean("enforce_lift_speed", false)?;
 
         // Probe retry configuration
-        let retry_session = RetrySession::new(config)?;
+        let retry_session = Rc::new(RetrySession::new(config)?);
         Ok(Rc::new_cyclic(|me| ProbePointsHelper {
             me: me.clone(),
             printer: printer.clone(),
@@ -1374,7 +1378,7 @@ impl ProbePointsHelper {
         }
     }
 
-    fn store_probe_result(&self, position: Vec<f64>) {
+    pub fn store_probe_result(&self, position: Vec<f64>) {
         if self.probe_pass_direction_reversed.get() {
             self.results.borrow_mut().insert(0, position);
         } else {
@@ -1382,11 +1386,11 @@ impl ProbePointsHelper {
         }
     }
 
-    fn toolhead(&self) -> KResult<Rc<ToolHead>> {
+    pub fn toolhead(&self) -> KResult<Rc<ToolHead>> {
         self.printer.lookup::<ToolHead>("toolhead")
     }
 
-    fn lift_toolhead(&self) -> KResult<()> {
+    pub fn lift_toolhead(&self) -> KResult<()> {
         let toolhead = self.toolhead()?;
         // Lift toolhead
         let mut speed = self.lift_speed.get();
@@ -1405,7 +1409,7 @@ impl ProbePointsHelper {
         toolhead.manual_move(&[None, None, Some(z_pos)], speed)
     }
 
-    fn next_pos(&self) -> KResult<[Option<f64>; 3]> {
+    pub fn next_pos(&self) -> KResult<[Option<f64>; 3]> {
         let result_count = self.results.borrow().len();
         let points = self.probe_points.borrow();
         let point_index = if self.probe_pass_direction_reversed.get() { points.len() - result_count - 1 } else { result_count };
@@ -1418,7 +1422,7 @@ impl ProbePointsHelper {
         self.retry_session.get_probe_position()
     }
 
-    fn move_next(&self) -> KResult<bool> {
+    pub fn move_next(&self) -> KResult<bool> {
         let toolhead = self.toolhead()?;
         // Check if done probing
         let mut done = false;
@@ -1531,7 +1535,7 @@ impl ProbePointsHelper {
         Ok(())
     }
 
-    fn start_rapid_scan(&self, gcmd: &GCodeCommand, probe: &Rc<PrinterProbe>) -> KResult<()> {
+    pub fn start_rapid_scan(&self, gcmd: &GCodeCommand, probe: &Rc<PrinterProbe>) -> KResult<()> {
         let toolhead = self.toolhead()?;
 
         self.probe_offsets.set(probe.get_offsets());
@@ -1685,7 +1689,7 @@ impl ProbePointsHelper {
         Ok(())
     }
 
-    fn generate_rapid_path(&self) -> Vec<((f64, f64), bool)> {
+    pub fn generate_rapid_path(&self) -> Vec<((f64, f64), bool)> {
         // TODO: When changing direction, add an arc where the points don't capture
         let mut points = vec![];
 
@@ -1712,7 +1716,7 @@ impl ProbePointsHelper {
         points
     }
 
-    fn manual_probe_start(&self) -> KResult<()> {
+    pub fn manual_probe_start(&self) -> KResult<()> {
         let done = self.move_next()?;
         if !done {
             let gcmd = self.gcode.create_gcode_command("", "", IndexMap::default());
@@ -1722,7 +1726,7 @@ impl ProbePointsHelper {
         Ok(())
     }
 
-    fn manual_probe_finalize(&self, kin_pos: Option<Vec<f64>>) -> KResult<()> {
+    pub fn manual_probe_finalize(&self, kin_pos: Option<Vec<f64>>) -> KResult<()> {
         let Some(kin_pos) = kin_pos else { return Ok(()) };
         self.store_probe_result(kin_pos);
         self.manual_probe_start()

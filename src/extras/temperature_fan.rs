@@ -23,30 +23,40 @@ pub const PID_PARAM_BASE: f64 = 255.0;
 
 const CMD_SET_TEMPERATURE_FAN_TARGET_HELP: &str = "Sets a temperature fan target and fan speed limits";
 
+crate::impl_downcast!(dyn TfControl);
 /// the control algorithm of a temperature fan
-trait TfControl {
+pub trait TfControl: std::any::Any {
     fn temperature_callback(&self, tf: &TemperatureFan, read_time: f64, temp: f64) -> KResult<()>;
     fn get_type(&self) -> &'static str;
+    /// the Rust type's path (python plugins find the Kalico class by it)
+    fn type_name(&self) -> &'static str {
+        std::any::type_name::<Self>()
+    }
 }
 
 pub struct TemperatureFan {
+    pub name: String,
     pub fan: Rc<Fan>,
-    min_temp: f64,
-    max_temp: f64,
-    _sensor: Rc<dyn TempSensor>,
-    speed_delay: Cell<f64>,
-    max_speed: Cell<f64>,
-    min_speed: Cell<f64>,
-    last_temp: Cell<f64>,
-    target_temp_conf: Cell<f64>,
-    target_temp: Cell<f64>,
-    control: RefCell<Option<Box<dyn TfControl>>>,
-    next_speed_time: Cell<f64>,
-    last_speed_value: Cell<f64>,
+    pub min_temp: f64,
+    pub max_temp: f64,
+    pub sensor: Rc<dyn TempSensor>,
+    pub speed_delay: Cell<f64>,
+    pub max_speed_conf: Cell<f64>,
+    pub max_speed: Cell<f64>,
+    pub min_speed_conf: Cell<f64>,
+    pub min_speed: Cell<f64>,
+    pub last_temp: Cell<f64>,
+    /// (python sets it once, to 0.0)
+    pub last_temp_time: f64,
+    pub target_temp_conf: Cell<f64>,
+    pub target_temp: Cell<f64>,
+    pub control: RefCell<Option<Rc<dyn TfControl>>>,
+    pub next_speed_time: Cell<f64>,
+    pub last_speed_value: Cell<f64>,
 }
 
 impl TemperatureFan {
-    fn new(config: &ConfigWrapper) -> KResult<Rc<Self>> {
+    pub fn new(config: &ConfigWrapper) -> KResult<Rc<Self>> {
         let name = config.get_name().split_whitespace().nth(1).unwrap_or("").to_string();
         let printer = config.get_printer();
         let fan = Fan::new(config, 1.0)?;
@@ -56,14 +66,18 @@ impl TemperatureFan {
         let sensor = pheaters.setup_sensor(config)?;
         sensor.setup_minmax(min_temp, max_temp)?;
         let tf = Rc::new(TemperatureFan {
+            name: name.clone(),
             fan,
             min_temp,
             max_temp,
-            _sensor: sensor.clone(),
+            sensor: sensor.clone(),
             speed_delay: Cell::new(0.0),
+            max_speed_conf: Cell::new(0.0),
             max_speed: Cell::new(0.0),
+            min_speed_conf: Cell::new(0.0),
             min_speed: Cell::new(0.0),
             last_temp: Cell::new(0.0),
+            last_temp_time: 0.0,
             target_temp_conf: Cell::new(0.0),
             target_temp: Cell::new(0.0),
             control: RefCell::new(None),
@@ -74,12 +88,14 @@ impl TemperatureFan {
         sensor.setup_callback(Rc::new(move |read_time, temp| match w.upgrade() {
             Some(tf) => tf.temperature_callback(read_time, temp),
             None => Ok(()),
-        }));
+        }))?;
         pheaters.register_sensor(config, tf.clone(), None)?;
-        tf.speed_delay.set(sensor.get_report_time_delta());
+        tf.speed_delay.set(sensor.get_report_time_delta()?);
         let max_speed_conf = config.getfloat("max_speed", 1.0, Lim::new().above(0.0).max(1.0))?;
+        tf.max_speed_conf.set(max_speed_conf);
         tf.max_speed.set(max_speed_conf);
         let min_speed_conf = config.getfloat("min_speed", 0.3, Lim::new().min(0.0).max(1.0))?;
+        tf.min_speed_conf.set(min_speed_conf);
         tf.min_speed.set(min_speed_conf);
         let target_temp_conf = config.getfloat(
             "target_temp",
@@ -89,10 +105,10 @@ impl TemperatureFan {
         tf.target_temp_conf.set(target_temp_conf);
         tf.target_temp.set(target_temp_conf);
         let algo = config.getchoice("control", &[("watermark", 0), ("pid", 1), ("curve", 2)], Dflt::Required)?;
-        let control: Box<dyn TfControl> = match algo {
-            0 => Box::new(ControlBangBang::new(config)?),
-            1 => Box::new(ControlPID::new(&tf, config)?),
-            _ => Box::new(ControlCurve::new(&tf, config)?),
+        let control: Rc<dyn TfControl> = match algo {
+            0 => Rc::new(ControlBangBang::new(config)?),
+            1 => Rc::new(ControlPID::new(&tf, config)?),
+            _ => Rc::new(ControlCurve::new(&tf, config)?),
         };
         *tf.control.borrow_mut() = Some(control);
         let gcode = printer.lookup::<GCodeDispatch>("gcode")?;
@@ -128,7 +144,7 @@ impl TemperatureFan {
         self.fan.set_speed(value, Some(speed_time))
     }
 
-    fn temperature_callback(&self, read_time: f64, temp: f64) -> KResult<()> {
+    pub fn temperature_callback(&self, read_time: f64, temp: f64) -> KResult<()> {
         self.last_temp.set(temp);
         let control = self.control.borrow();
         match control.as_ref() {
@@ -153,7 +169,7 @@ impl TemperatureFan {
         self.control.borrow().as_ref().map(|c| c.get_type()).unwrap_or("")
     }
 
-    fn cmd_set_temperature_fan_target(&self, gcmd: &GCodeCommand) -> KResult<()> {
+    pub fn cmd_set_temperature_fan_target(&self, gcmd: &GCodeCommand) -> KResult<()> {
         let temp = gcmd.get_float_opt("TARGET", Lim::new())?;
         if temp.is_some() && self.control_type() == "curve" {
             return Err(gcmd.error("Setting Target not supported for control curve"));
@@ -229,10 +245,10 @@ impl PrinterObject for TemperatureFan {
 // Bang-bang control algo
 // ----------------------------------------------------------------------
 
-struct ControlBangBang {
-    reverse: bool,
-    max_delta: f64,
-    heating: Cell<bool>,
+pub struct ControlBangBang {
+    pub reverse: bool,
+    pub max_delta: f64,
+    pub heating: Cell<bool>,
 }
 
 impl ControlBangBang {
@@ -269,21 +285,21 @@ impl TfControl for ControlBangBang {
 pub const PID_SETTLE_DELTA: f64 = 1.0;
 pub const PID_SETTLE_SLOPE: f64 = 0.1;
 
-struct ControlPID {
-    reverse: bool,
-    kp: f64,
-    ki: f64,
-    kd: f64,
-    min_deriv_time: f64,
-    temp_integ_max: f64,
-    prev_temp: Cell<f64>,
-    prev_temp_time: Cell<f64>,
-    prev_temp_deriv: Cell<f64>,
-    prev_temp_integ: Cell<f64>,
+pub struct ControlPID {
+    pub reverse: bool,
+    pub kp: f64,
+    pub ki: f64,
+    pub kd: f64,
+    pub min_deriv_time: f64,
+    pub temp_integ_max: f64,
+    pub prev_temp: Cell<f64>,
+    pub prev_temp_time: Cell<f64>,
+    pub prev_temp_deriv: Cell<f64>,
+    pub prev_temp_integ: Cell<f64>,
 }
 
 impl ControlPID {
-    fn new(tf: &TemperatureFan, config: &ConfigWrapper) -> KResult<Self> {
+    pub fn new(tf: &TemperatureFan, config: &ConfigWrapper) -> KResult<Self> {
         let reverse = config.getboolean("reverse", false)?;
         let kp = config.getfloat("pid_Kp", Dflt::Required, Lim::new())? / PID_PARAM_BASE;
         let ki = config.getfloat("pid_Ki", Dflt::Required, Lim::new())? / PID_PARAM_BASE;
@@ -349,14 +365,14 @@ impl TfControl for ControlPID {
 // Curve control algo
 // ----------------------------------------------------------------------
 
-struct ControlCurve {
+pub struct ControlCurve {
     /// [temps, speeds] with the heating / cooling hysteresis applied
-    curve_heating: [Vec<f64>; 2],
-    curve_cooling: [Vec<f64>; 2],
+    pub curve_heating: [Vec<f64>; 2],
+    pub curve_cooling: [Vec<f64>; 2],
 }
 
 impl ControlCurve {
-    fn new(tf: &TemperatureFan, config: &ConfigWrapper) -> KResult<Self> {
+    pub fn new(tf: &TemperatureFan, config: &ConfigWrapper) -> KResult<Self> {
         let raw = config.getlists("points", Dflt::Required, &[",", "\n"], Some(2), ListParser::Float, true)?;
         let mut points: Vec<(f64, f64)> = raw
             .as_ref()

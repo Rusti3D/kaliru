@@ -42,7 +42,7 @@ const MAX_BUSY_CYCLES: i64 = 5;
 
 /// the AHTBase subclasses
 #[derive(Clone, Copy)]
-enum Model {
+pub enum Model {
     Aht1x,
     Aht2x,
     Aht3x,
@@ -59,21 +59,21 @@ impl Model {
 }
 
 pub struct AHTBase {
-    model: Model,
-    printer: Rc<Printer>,
-    name: String,
-    i2c: Rc<McuI2c>,
-    report_time: i64,
-    temp: Cell<f64>,
-    min_temp: Cell<f64>,
-    max_temp: Cell<f64>,
+    pub model: Model,
+    pub printer: Rc<Printer>,
+    pub name: String,
+    pub i2c: Rc<McuI2c>,
+    pub report_time: i64,
+    pub temp: Cell<f64>,
+    pub min_temp: Cell<f64>,
+    pub max_temp: Cell<f64>,
     /// a float until the first measurement, then python's int
-    humidity: Cell<f64>,
+    pub humidity: Cell<f64>,
     humidity_int: Cell<bool>,
-    sample_timer: RefCell<Option<Timer>>,
-    is_calibrated: Cell<bool>,
-    init_sent: Cell<bool>,
-    callback: RefCell<Option<TempCallback>>,
+    pub sample_timer: RefCell<Option<Timer>>,
+    pub is_calibrated: Cell<bool>,
+    pub init_sent: Cell<bool>,
+    pub callback: RefCell<Option<TempCallback>>,
 }
 
 impl AHTBase {
@@ -116,7 +116,7 @@ impl AHTBase {
         Ok(s)
     }
 
-    fn handle_connect(&self) -> KResult<()> {
+    pub fn handle_connect(&self) -> KResult<()> {
         self.init_sensor()?;
         if let Some(t) = self.sample_timer.borrow().as_ref() {
             self.printer.get_reactor().update_timer(t, NOW);
@@ -130,7 +130,7 @@ impl AHTBase {
         Ok(())
     }
 
-    fn send_init(&self) -> KResult<()> {
+    pub fn send_init(&self) -> KResult<()> {
         match self.model {
             Model::Aht1x => {
                 self.i2c.i2c_write(&CMD_INIT_AHT1X, 0, 0)?;
@@ -145,7 +145,7 @@ impl AHTBase {
         }
     }
 
-    fn init_sensor(&self) -> KResult<()> {
+    pub fn init_sensor(&self) -> KResult<()> {
         self.send_init()?;
 
         self.init_sent.set(true);
@@ -165,7 +165,7 @@ impl AHTBase {
         Ok(())
     }
 
-    fn soft_reset(&self) -> KResult<()> {
+    pub fn soft_reset(&self) -> KResult<()> {
         logging::info(&format!("{} {}: performing soft reset", self.model.name(), self.name));
         self.i2c.i2c_write(&CMD_RESET, 0, 0)?;
         self.pause(0.020)
@@ -221,7 +221,7 @@ impl AHTBase {
         Ok(data)
     }
 
-    fn make_measurement(&self) -> bool {
+    pub fn make_measurement(&self) -> bool {
         if !self.init_sent.get() {
             return false;
         }
@@ -250,7 +250,7 @@ impl AHTBase {
         true
     }
 
-    fn sample_aht(&self, _eventtime: f64) -> f64 {
+    pub fn sample_aht(&self, _eventtime: f64) -> f64 {
         if !self.make_measurement() {
             self.temp.set(0.0);
             self.humidity.set(0.0);
@@ -294,11 +294,12 @@ impl TempSensor for AHTBase {
         self.max_temp.set(max_temp);
         Ok(())
     }
-    fn setup_callback(&self, cb: TempCallback) {
+    fn setup_callback(&self, cb: TempCallback) -> KResult<()> {
         *self.callback.borrow_mut() = Some(cb);
+        Ok(())
     }
-    fn get_report_time_delta(&self) -> f64 {
-        self.report_time as f64
+    fn get_report_time_delta(&self) -> KResult<f64> {
+        Ok(self.report_time as f64)
     }
 }
 

@@ -22,9 +22,9 @@ enum McuPins {
 
 pub struct PrinterMultiPin {
     me: Weak<PrinterMultiPin>,
-    printer: Rc<Printer>,
-    pin_type: RefCell<Option<String>>,
-    pin_list: Vec<String>,
+    pub printer: Rc<Printer>,
+    pub pin_type: RefCell<Option<String>>,
+    pub pin_list: Vec<String>,
     mcu_pins: RefCell<McuPins>,
 }
 
@@ -47,7 +47,7 @@ impl PinChip for MultiPinChip {
 }
 
 impl PrinterMultiPin {
-    fn new(config: &ConfigWrapper) -> KResult<Rc<Self>> {
+    pub fn new(config: &ConfigWrapper) -> KResult<Rc<Self>> {
         let printer = config.get_printer();
         let ppins = printer.lookup::<PinsObject>("pins")?;
         // (a second multi_pin section finds the chip registered)

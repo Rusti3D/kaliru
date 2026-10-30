@@ -22,18 +22,18 @@ const SAMPLE_ERROR_LONG_READ: i64 = 0x40000000;
 
 // Implementation of HX711 and HX717
 pub struct HX71xBase {
-    printer: Rc<Printer>,
-    name: String,
-    last_error_count: Cell<i64>,
-    consecutive_fails: Cell<i64>,
-    sensor_type: &'static str,
-    mcu: Rc<Mcu>,
-    oid: i64,
-    sps: i64,
+    pub printer: Rc<Printer>,
+    pub name: String,
+    pub last_error_count: Cell<i64>,
+    pub consecutive_fails: Cell<i64>,
+    pub sensor_type: &'static str,
+    pub mcu: Rc<Mcu>,
+    pub oid: i64,
+    pub sps: i64,
     ffreader: FixedFreqReader,
-    batch_bulk: RefCell<Option<Rc<BatchBulkHelper>>>,
-    query_hx71x_cmd: RefCell<Option<CommandWrapper>>,
-    attach_probe_cmd: RefCell<Option<CommandWrapper>>,
+    pub batch_bulk: RefCell<Option<Rc<BatchBulkHelper>>>,
+    pub query_hx71x_cmd: RefCell<Option<CommandWrapper>>,
+    pub attach_probe_cmd: RefCell<Option<CommandWrapper>>,
 }
 
 impl HX71xBase {
@@ -100,7 +100,7 @@ impl HX71xBase {
         Ok(s)
     }
 
-    fn build_config(&self) -> KResult<()> {
+    pub fn build_config(&self) -> KResult<()> {
         *self.query_hx71x_cmd.borrow_mut() = Some(self.mcu.lookup_command("query_hx71x oid=%c rest_ticks=%u", None)?);
         *self.attach_probe_cmd.borrow_mut() =
             Some(self.mcu.lookup_command("hx71x_attach_load_cell_probe oid=%c load_cell_probe_oid=%c", None)?);
@@ -108,7 +108,7 @@ impl HX71xBase {
     }
 
     // Measurement decoding
-    fn convert_samples(&self, samples: &[(f64, Vec<i64>)]) -> Vec<PyVal> {
+    pub fn convert_samples(&self, samples: &[(f64, Vec<i64>)]) -> Vec<PyVal> {
         let mut out = vec![];
         for (ptime, f) in samples {
             let val = f[0];
@@ -122,7 +122,7 @@ impl HX71xBase {
     }
 
     // Start, stop, and process message batches
-    fn start_measurements(&self) -> KResult<()> {
+    pub fn start_measurements(&self) -> KResult<()> {
         self.consecutive_fails.set(0);
         self.last_error_count.set(0);
         // Start bulk reading
@@ -133,7 +133,7 @@ impl HX71xBase {
         self.ffreader.note_start()
     }
 
-    fn finish_measurements(&self) -> KResult<()> {
+    pub fn finish_measurements(&self) -> KResult<()> {
         // don't use serial connection after shutdown
         if self.printer.is_shutdown() {
             return Ok(());
@@ -145,7 +145,7 @@ impl HX71xBase {
         Ok(())
     }
 
-    fn process_batch(&self, _eventtime: f64) -> KResult<PyVal> {
+    pub fn process_batch(&self, _eventtime: f64) -> KResult<PyVal> {
         let prev_overflows = self.ffreader.get_last_overflows();
         let prev_error_count = self.last_error_count.get();
         let samples = self.ffreader.pull_samples()?;

@@ -32,12 +32,12 @@ fn no_data(attr: &str) -> KError {
 
 #[derive(Clone)]
 pub struct TestAxis {
-    name: String,
-    vib_dir: (f64, f64),
+    pub name: String,
+    pub vib_dir: (f64, f64),
 }
 
 impl TestAxis {
-    fn new(axis: Option<&str>, vib_dir: Option<(f64, f64)>) -> Self {
+    pub fn new(axis: Option<&str>, vib_dir: Option<(f64, f64)>) -> Self {
         let name = match (axis, vib_dir) {
             (Some(a), _) => a.to_string(),
             (None, Some(d)) => format!("axis={:.3},{:.3}", d.0, d.1),
@@ -59,15 +59,15 @@ impl TestAxis {
         TestAxis { name, vib_dir }
     }
 
-    fn matches(&self, chip_axis: &str) -> bool {
+    pub fn matches(&self, chip_axis: &str) -> bool {
         (self.vib_dir.0 != 0.0 && chip_axis.contains('x')) || (self.vib_dir.1 != 0.0 && chip_axis.contains('y'))
     }
 
-    fn get_name(&self) -> &str {
+    pub fn get_name(&self) -> &str {
         &self.name
     }
 
-    fn get_point(&self, l: f64) -> (f64, f64) {
+    pub fn get_point(&self, l: f64) -> (f64, f64) {
         (self.vib_dir.0 * l, self.vib_dir.1 * l)
     }
 }
@@ -145,19 +145,19 @@ fn suspend_limits(printer: &Rc<Printer>, max_accel: f64, max_velocity: f64, inpu
 /// a test sequence entry: (time, accel, freq)
 type TestSeq = Vec<(f64, f64, f64)>;
 
-struct VibrationPulseTestGenerator {
-    min_freq: f64,
-    max_freq: f64,
-    accel_per_hz: f64,
-    hz_per_sec: f64,
-    freq_start: Cell<f64>,
-    freq_end: Cell<f64>,
-    test_accel_per_hz: Cell<f64>,
-    test_hz_per_sec: Cell<f64>,
+pub struct VibrationPulseTestGenerator {
+    pub min_freq: f64,
+    pub max_freq: f64,
+    pub accel_per_hz: f64,
+    pub hz_per_sec: f64,
+    pub freq_start: Cell<f64>,
+    pub freq_end: Cell<f64>,
+    pub test_accel_per_hz: Cell<f64>,
+    pub test_hz_per_sec: Cell<f64>,
 }
 
 impl VibrationPulseTestGenerator {
-    fn new(config: &ConfigWrapper) -> KResult<Self> {
+    pub fn new(config: &ConfigWrapper) -> KResult<Self> {
         let min_freq = config.getfloat("min_freq", 5.0, Lim::new().min(1.0))?;
         // Defaults are such that max_freq * accel_per_hz == 10000 (max_accel)
         let max_freq = config.getfloat("max_freq", 135.0, Lim::new().min(min_freq).max(300.0))?;
@@ -175,7 +175,7 @@ impl VibrationPulseTestGenerator {
         })
     }
 
-    fn prepare_test(&self, gcmd: &GCodeCommand) -> KResult<()> {
+    pub fn prepare_test(&self, gcmd: &GCodeCommand) -> KResult<()> {
         self.freq_start.set(gcmd.get_float("FREQ_START", Some(self.min_freq), Lim::new().min(1.0))?);
         self.freq_end.set(gcmd.get_float("FREQ_END", Some(self.max_freq), Lim::new().min(self.freq_start.get()).max(300.0))?);
         self.test_accel_per_hz.set(gcmd.get_float("ACCEL_PER_HZ", Some(self.accel_per_hz), Lim::new().above(0.0))?);
@@ -183,11 +183,11 @@ impl VibrationPulseTestGenerator {
         Ok(())
     }
 
-    fn get_max_freq(&self) -> f64 {
+    pub fn get_max_freq(&self) -> f64 {
         self.freq_end.get()
     }
 
-    fn get_accel_per_hz(&self) -> f64 {
+    pub fn get_accel_per_hz(&self) -> f64 {
         // The value in effect for the current test (including any
         // ACCEL_PER_HZ override), not the configured default
         self.test_accel_per_hz.get()
@@ -212,16 +212,16 @@ impl VibrationPulseTestGenerator {
     }
 }
 
-struct SweepingVibrationsTestGenerator {
+pub struct SweepingVibrationsTestGenerator {
     vibration_generator: VibrationPulseTestGenerator,
-    sweeping_accel: f64,
-    sweeping_period: f64,
-    test_sweeping_accel: Cell<f64>,
-    test_sweeping_period: Cell<f64>,
+    pub sweeping_accel: f64,
+    pub sweeping_period: f64,
+    pub test_sweeping_accel: Cell<f64>,
+    pub test_sweeping_period: Cell<f64>,
 }
 
 impl SweepingVibrationsTestGenerator {
-    fn new(config: &ConfigWrapper) -> KResult<Self> {
+    pub fn new(config: &ConfigWrapper) -> KResult<Self> {
         let vibration_generator = VibrationPulseTestGenerator::new(config)?;
         let sweeping_accel = config.getfloat("sweeping_accel", 400.0, Lim::new().above(0.0))?;
         let sweeping_period = config.getfloat("sweeping_period", 0.0, Lim::new().min(0.0))?;
@@ -234,7 +234,7 @@ impl SweepingVibrationsTestGenerator {
         })
     }
 
-    fn prepare_test(&self, gcmd: &GCodeCommand) -> KResult<()> {
+    pub fn prepare_test(&self, gcmd: &GCodeCommand) -> KResult<()> {
         self.vibration_generator.prepare_test(gcmd)?;
         self.test_sweeping_accel.set(gcmd.get_float("SWEEPING_ACCEL", Some(self.sweeping_accel), Lim::new().above(0.0))?);
         self.test_sweeping_period.set(gcmd.get_float("SWEEPING_PERIOD", Some(self.sweeping_period), Lim::new().min(0.0))?);
@@ -271,8 +271,8 @@ impl SweepingVibrationsTestGenerator {
     }
 }
 
-struct ResonanceTestExecutor {
-    printer: Rc<Printer>,
+pub struct ResonanceTestExecutor {
+    pub printer: Rc<Printer>,
 }
 
 impl ResonanceTestExecutor {
@@ -359,14 +359,14 @@ const CMD_SHAPER_CALIBRATE_HELP: &str = "Similar to TEST_RESONANCES but suggest 
 const CMD_MEASURE_AXES_NOISE_HELP: &str = "Measures noise of all enabled accelerometer chips";
 
 pub struct ResonanceTester {
-    printer: Rc<Printer>,
-    move_speed: f64,
+    pub printer: Rc<Printer>,
+    pub move_speed: f64,
     generator: SweepingVibrationsTestGenerator,
     executor: ResonanceTestExecutor,
-    accel_chip_names: Vec<(String, String)>,
-    accel_chips: RefCell<Vec<(String, PObj)>>,
-    max_smoothing: Option<f64>,
-    probe_points: Vec<Vec<f64>>,
+    pub accel_chip_names: Vec<(String, String)>,
+    pub accel_chips: RefCell<Vec<(String, PObj)>>,
+    pub max_smoothing: Option<f64>,
+    pub probe_points: Vec<Vec<f64>>,
 }
 
 /// an object as an accelerometer chip (python duck types it)
@@ -375,7 +375,7 @@ fn accel_chip(obj: &PObj) -> KResult<Rc<dyn AccelChip>> {
 }
 
 impl ResonanceTester {
-    fn new(config: &ConfigWrapper) -> KResult<Rc<Self>> {
+    pub fn new(config: &ConfigWrapper) -> KResult<Rc<Self>> {
         let printer = config.get_printer();
         let move_speed = config.getfloat("move_speed", 50.0, Lim::new().above(0.0))?;
         let generator = SweepingVibrationsTestGenerator::new(config)?;
@@ -454,7 +454,7 @@ impl ResonanceTester {
         Ok(rt)
     }
 
-    fn connect(&self) -> KResult<()> {
+    pub fn connect(&self) -> KResult<()> {
         let mut chips = vec![];
         for (chip_axis, chip_name) in &self.accel_chip_names {
             match self.printer.lookup_object(chip_name) {
@@ -550,7 +550,7 @@ impl ResonanceTester {
         Ok(calibration_data)
     }
 
-    fn get_max_calibration_freq(&self) -> f64 {
+    pub fn get_max_calibration_freq(&self) -> f64 {
         1.5 * self.generator.vibration_generator.get_max_freq()
     }
 
@@ -573,11 +573,11 @@ impl ResonanceTester {
         Ok(output)
     }
 
-    fn parse_chips(&self, accel_chips: &str) -> KResult<Vec<PObj>> {
+    pub fn parse_chips(&self, accel_chips: &str) -> KResult<Vec<PObj>> {
         accel_chips.split(',').map(|chip_name| self.printer.lookup_object(chip_name.trim())).collect()
     }
 
-    fn cmd_test_resonances(&self, gcmd: &GCodeCommand) -> KResult<()> {
+    pub fn cmd_test_resonances(&self, gcmd: &GCodeCommand) -> KResult<()> {
         // Parse parameters
         let axis = parse_axis(gcmd, &gcmd.get("AXIS")?.to_lowercase())?;
         let chips_str = gcmd.get_opt("CHIPS");
@@ -640,7 +640,7 @@ impl ResonanceTester {
         Ok(())
     }
 
-    fn cmd_shaper_calibrate(&self, gcmd: &GCodeCommand) -> KResult<()> {
+    pub fn cmd_shaper_calibrate(&self, gcmd: &GCodeCommand) -> KResult<()> {
         // Parse parameters
         let calibrate_axes = match gcmd.get_opt("AXIS").filter(|a| !a.is_empty()) {
             None => vec![TestAxis::new(Some("x"), None), TestAxis::new(Some("y"), None)],
@@ -715,7 +715,7 @@ impl ResonanceTester {
         Ok(())
     }
 
-    fn cmd_measure_axes_noise(&self, gcmd: &GCodeCommand) -> KResult<()> {
+    pub fn cmd_measure_axes_noise(&self, gcmd: &GCodeCommand) -> KResult<()> {
         let meas_time = gcmd.get_float("MEAS_TIME", Some(2.0), Lim::new().above(0.0))?;
         let mut raw_values = vec![];
         for (chip_axis, chip) in self.accel_chips.borrow().iter() {
@@ -746,7 +746,7 @@ impl ResonanceTester {
         Ok(())
     }
 
-    fn check_active_fans(&self, gcmd: &GCodeCommand) {
+    pub fn check_active_fans(&self, gcmd: &GCodeCommand) {
         let mut active_fans = vec![];
         for (name, obj) in self.printer.lookup_objects(None) {
             let module_name = name.split(' ').next().unwrap_or("");

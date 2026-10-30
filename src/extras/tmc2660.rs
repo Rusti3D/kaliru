@@ -39,8 +39,8 @@ pub fn field_formatters(field: &str, v: i64) -> Option<String> {
 pub struct TMC2660CurrentHelper {
     me: Weak<TMC2660CurrentHelper>,
     base: BaseTMCCurrentHelper,
-    current: Cell<f64>,
-    idle_current_percentage: i64,
+    pub current: Cell<f64>,
+    pub idle_current_percentage: i64,
 }
 
 impl TMC2660CurrentHelper {
@@ -76,19 +76,19 @@ impl TMC2660CurrentHelper {
         Ok(h)
     }
 
-    fn calc_current_bits(&self, current: f64, vsense: bool) -> i64 {
+    pub fn calc_current_bits(&self, current: f64, vsense: bool) -> i64 {
         let vref = if vsense { 0.165 } else { 0.310 };
         let sr = self.base.sense_resistor;
         let cs = (32.0 * sr * current * 2f64.sqrt() / vref + 0.5).trunc() as i64 - 1;
         0.max(31.min(cs))
     }
 
-    fn calc_current_from_bits(&self, cs: i64, vsense: bool) -> f64 {
+    pub fn calc_current_from_bits(&self, cs: i64, vsense: bool) -> f64 {
         let vref = if vsense { 0.165 } else { 0.310 };
         (cs + 1) as f64 * vref / (32.0 * self.base.sense_resistor * 2f64.sqrt())
     }
 
-    fn calc_current(&self, run_current: f64) -> (bool, i64) {
+    pub fn calc_current(&self, run_current: f64) -> (bool, i64) {
         let mut vsense = true;
         let mut irun = self.calc_current_bits(run_current, true);
         if irun == 31 {
@@ -119,17 +119,17 @@ impl TMC2660CurrentHelper {
         );
     }
 
-    fn handle_printing(&self, print_time: f64) {
+    pub fn handle_printing(&self, print_time: f64) {
         let print_time = print_time - 0.100; // Schedule slightly before deadline
         self.schedule_update(self.base.req_run_current.get(), print_time);
     }
 
-    fn handle_ready(&self, print_time: f64) {
+    pub fn handle_ready(&self, print_time: f64) {
         let current = self.base.req_run_current.get() * self.idle_current_percentage as f64 / 100.0;
         self.schedule_update(current, print_time);
     }
 
-    fn update_current(&self, current: f64, print_time: Option<f64>) -> KResult<()> {
+    pub fn update_current(&self, current: f64, print_time: Option<f64>) -> KResult<()> {
         let b = &self.base;
         let (vsense, cs) = self.calc_current(current);
         let val = b.fields.set_field("cs", cs)?;
@@ -168,11 +168,11 @@ impl TmcCurrent for TMC2660CurrentHelper {
 
 // Helper code for working with TMC2660 devices via SPI
 pub struct McuTmc2660Spi {
-    printer: Rc<Printer>,
-    mutex: Rc<ReactorMutex>,
-    spi: Rc<McuSpi>,
-    name_to_reg: IndexMap<String, i64>,
-    fields: Rc<FieldHelper>,
+    pub printer: Rc<Printer>,
+    pub mutex: Rc<ReactorMutex>,
+    pub spi: Rc<McuSpi>,
+    pub name_to_reg: IndexMap<String, i64>,
+    pub fields: Rc<FieldHelper>,
 }
 
 impl McuTmc2660Spi {
@@ -304,5 +304,5 @@ pub fn load_config_prefix(config: &ConfigWrapper) -> KResult<PObj> {
     set("slpl", 0)?;
     set("diss2g", 0)?;
     set("ts2g", 3)?;
-    Ok(Rc::new(TmcDriver { fields, mcu_tmc, cmdhelper }))
+    Ok(Rc::new(TmcDriver { fields, mcu_tmc, cmdhelper, class: "TMC2660" }))
 }

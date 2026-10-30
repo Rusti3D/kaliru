@@ -14,19 +14,19 @@ use std::rc::Rc;
 const CMD_SET_DIGIPOT_HELP: &str = "Set digipot value";
 
 pub struct Mcp4018 {
-    i2c: Rc<McuI2c>,
-    scale: f64,
-    start_value: f64,
-    name: String,
+    pub i2c: Rc<McuI2c>,
+    pub scale: f64,
+    pub start_value: f64,
+    pub name: String,
 }
 
 impl Mcp4018 {
-    fn set_dac(&self, value: f64) -> KResult<()> {
+    pub fn set_dac(&self, value: f64) -> KResult<()> {
         let val = (value * 127.0 / self.scale + 0.5) as i64;
         self.i2c.i2c_write(&[byte(val)?], 0, 0)
     }
 
-    fn cmd_set_digipot(&self, gcmd: &GCodeCommand) -> KResult<()> {
+    pub fn cmd_set_digipot(&self, gcmd: &GCodeCommand) -> KResult<()> {
         let wiper = gcmd.get_float("WIPER", None, Lim::new().min(0.0).max(self.scale))?;
         self.set_dac(wiper)?;
         gcmd.respond_info(&format!("New value for DIGIPOT = {}, wiper = {:.2}", self.name, wiper), true);

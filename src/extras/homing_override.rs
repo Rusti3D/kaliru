@@ -16,16 +16,16 @@ use std::cell::{Cell, RefCell};
 use std::rc::Rc;
 
 pub struct HomingOverride {
-    printer: Rc<Printer>,
-    start_pos: [Option<f64>; 3],
-    axes: String,
-    template: Rc<Template>,
-    in_script: Cell<bool>,
-    prev_g28: RefCell<Option<Handler>>,
+    pub printer: Rc<Printer>,
+    pub start_pos: [Option<f64>; 3],
+    pub axes: String,
+    pub template: Rc<Template>,
+    pub in_script: Cell<bool>,
+    pub prev_g28: RefCell<Option<Handler>>,
 }
 
 impl HomingOverride {
-    fn new(config: &ConfigWrapper) -> KResult<Rc<Self>> {
+    pub fn new(config: &ConfigWrapper) -> KResult<Rc<Self>> {
         let printer = config.get_printer();
         let mut start_pos = [None; 3];
         for (i, a) in ["x", "y", "z"].iter().enumerate() {
@@ -58,7 +58,7 @@ impl HomingOverride {
         }
     }
 
-    fn cmd_g28(&self, gcmd: &GCodeCommand) -> KResult<()> {
+    pub fn cmd_g28(&self, gcmd: &GCodeCommand) -> KResult<()> {
         if self.in_script.get() {
             // Was called recursively - invoke the real G28 command
             return self.prev_g28(gcmd);

@@ -43,9 +43,9 @@ pub struct ReactorTimer {
 pub type Timer = Rc<ReactorTimer>;
 
 pub struct ReactorCompletion<T: Clone> {
-    reactor: Rc<Reactor>,
-    result: RefCell<Option<T>>,
-    waiting: RefCell<Vec<Option<Rc<ReactorGreenlet>>>>,
+    pub reactor: Rc<Reactor>,
+    pub result: RefCell<Option<T>>,
+    pub waiting: RefCell<Vec<Option<Rc<ReactorGreenlet>>>>,
 }
 
 impl<T: Clone> ReactorCompletion<T> {
@@ -102,10 +102,10 @@ pub struct ReactorGreenlet {
 }
 
 pub struct ReactorMutex {
-    reactor: Rc<Reactor>,
-    is_locked: Cell<bool>,
-    next_pending: Cell<bool>,
-    queue: RefCell<Vec<Option<Rc<ReactorGreenlet>>>>,
+    pub reactor: Rc<Reactor>,
+    pub is_locked: Cell<bool>,
+    pub next_pending: Cell<bool>,
+    pub queue: RefCell<Vec<Option<Rc<ReactorGreenlet>>>>,
 }
 
 fn same(a: &Option<Rc<ReactorGreenlet>>, b: &Option<Rc<ReactorGreenlet>>) -> bool {
@@ -155,7 +155,7 @@ impl ReactorMutex {
 
 /// assert_no_pause(): pauses are disallowed while this lives
 pub struct ReactorPreventPause {
-    reactor: Rc<Reactor>,
+    pub reactor: Rc<Reactor>,
 }
 
 impl Drop for ReactorPreventPause {
@@ -188,10 +188,10 @@ impl AsyncHandle {
 }
 
 pub struct Reactor {
-    process: Cell<bool>,
+    pub process: Cell<bool>,
     // Timers
-    timers: RefCell<Vec<Timer>>,
-    next_timer: Cell<f64>,
+    pub timers: RefCell<Vec<Timer>>,
+    pub next_timer: Cell<f64>,
     // Callbacks
     pipe_fds: Cell<Option<(RawFd, RawFd)>>,
     async_handle: AsyncHandle,
@@ -202,10 +202,10 @@ pub struct Reactor {
     read_mask: i16,
     write_mask: i16,
     // Greenlets
-    g_dispatch: RefCell<Option<Rc<ReactorGreenlet>>>,
-    greenlets: RefCell<Vec<Rc<ReactorGreenlet>>>,
-    all_greenlets: RefCell<Vec<Rc<ReactorGreenlet>>>,
-    prevent_pause_count: Cell<i32>,
+    pub g_dispatch: RefCell<Option<Rc<ReactorGreenlet>>>,
+    pub greenlets: RefCell<Vec<Rc<ReactorGreenlet>>>,
+    pub all_greenlets: RefCell<Vec<Rc<ReactorGreenlet>>>,
+    pub prevent_pause_count: Cell<i32>,
 }
 
 impl Reactor {
@@ -296,7 +296,7 @@ impl Reactor {
         }
     }
 
-    fn check_timers(&self, eventtime: f64, busy: bool) -> f64 {
+    pub fn check_timers(&self, eventtime: f64, busy: bool) -> f64 {
         if eventtime < self.next_timer.get() {
             if busy {
                 return 0.0;
@@ -393,7 +393,7 @@ impl Reactor {
         );
     }
 
-    fn got_pipe_signal(self: &Rc<Self>, _eventtime: f64) {
+    pub fn got_pipe_signal(self: &Rc<Self>, _eventtime: f64) {
         if let Some((r, _)) = self.pipe_fds.get() {
             let mut buf = [0u8; 4096];
             // SAFETY: buf is a live buffer of buf.len() bytes
@@ -407,7 +407,7 @@ impl Reactor {
         }
     }
 
-    fn setup_async_callbacks(self: &Rc<Self>) {
+    pub fn setup_async_callbacks(self: &Rc<Self>) {
         let mut fds = [0 as RawFd; 2];
         // (os.pipe(): non-inheritable)
         // SAFETY: fds is a live [c_int; 2]
@@ -421,7 +421,7 @@ impl Reactor {
     }
 
     // Greenlets
-    fn sys_pause(&self, waketime: f64) -> f64 {
+    pub fn sys_pause(&self, waketime: f64) -> f64 {
         // Pause using system sleep for when reactor not running
         let delay = waketime - self.monotonic();
         if delay > 0.0 {
@@ -471,7 +471,7 @@ impl Reactor {
         self.pause(self.monotonic() + milliseconds / 1000.0)
     }
 
-    fn end_greenlet(&self, g_old: Rc<ReactorGreenlet>) {
+    pub fn end_greenlet(&self, g_old: Rc<ReactorGreenlet>) {
         // Cache this greenlet for later use
         self.greenlets.borrow_mut().push(g_old.clone());
         let timer = g_old.timer.borrow_mut().take();
@@ -586,7 +586,7 @@ impl Reactor {
     }
 
     // Main loop
-    fn dispatch_loop(&self) {
+    pub fn dispatch_loop(&self) {
         let mut busy = true;
         let mut eventtime = self.monotonic();
         while self.process.get() {

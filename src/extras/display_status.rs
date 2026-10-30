@@ -19,14 +19,14 @@ pub const M73_TIMEOUT: f64 = 5.0;
 const CMD_SET_DISPLAY_TEXT_HELP: &str = "Set or clear the display message";
 
 pub struct DisplayStatus {
-    printer: Rc<Printer>,
-    expire_progress: Cell<f64>,
-    progress: Cell<Option<f64>>,
-    message: RefCell<Option<String>>,
+    pub printer: Rc<Printer>,
+    pub expire_progress: Cell<f64>,
+    pub progress: Cell<Option<f64>>,
+    pub message: RefCell<Option<String>>,
 }
 
 impl DisplayStatus {
-    fn new(config: &ConfigWrapper) -> KResult<Rc<Self>> {
+    pub fn new(config: &ConfigWrapper) -> KResult<Rc<Self>> {
         let printer = config.get_printer();
         let ds = Rc::new(DisplayStatus { printer: printer.clone(), expire_progress: Cell::new(0.0), progress: Cell::new(None), message: RefCell::new(None) });
         // Register commands
@@ -57,7 +57,7 @@ impl DisplayStatus {
         Ok(ds)
     }
 
-    fn cmd_m73(&self, gcmd: &GCodeCommand) -> KResult<()> {
+    pub fn cmd_m73(&self, gcmd: &GCodeCommand) -> KResult<()> {
         if let Some(progress) = gcmd.get_float_opt("P", Lim::new())? {
             let progress = progress / 100.0;
             self.progress.set(Some(py_min(1.0, py_max(0.0, progress))));

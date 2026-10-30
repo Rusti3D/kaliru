@@ -39,36 +39,36 @@ const CMD_MPC_CALIBRATE_HELP: &str = "Run MPC calibration";
 
 pub struct ControlMPC {
     pub profile: Profile,
-    heater: Rc<Heater>,
+    pub heater: Rc<Heater>,
     pub heater_max_power: f64,
-    const_block_heat_capacity: Cell<Option<f64>>,
-    const_ambient_transfer: Cell<Option<f64>>,
-    const_target_reach_time: f64,
-    const_heater_power: f64,
-    const_smoothing: f64,
-    const_sensor_responsiveness: Cell<Option<f64>>,
-    const_min_ambient_change: f64,
-    const_steady_state_rate: f64,
-    const_filament_diameter: Cell<f64>,
-    const_filament_density: Cell<f64>,
-    const_filament_heat_capacity: Cell<f64>,
-    const_maximum_retract: f64,
-    const_filament_cross_section_heat_capacity: Cell<f64>,
+    pub const_block_heat_capacity: Cell<Option<f64>>,
+    pub const_ambient_transfer: Cell<Option<f64>>,
+    pub const_target_reach_time: f64,
+    pub const_heater_power: f64,
+    pub const_smoothing: f64,
+    pub const_sensor_responsiveness: Cell<Option<f64>>,
+    pub const_min_ambient_change: f64,
+    pub const_steady_state_rate: f64,
+    pub const_filament_diameter: Cell<f64>,
+    pub const_filament_density: Cell<f64>,
+    pub const_filament_heat_capacity: Cell<f64>,
+    pub const_maximum_retract: f64,
+    pub const_filament_cross_section_heat_capacity: Cell<f64>,
     /// ("ambient",) / ("sensor",) / ("fixed", value)
-    filament_temp_src: RefCell<PyVal>,
+    pub filament_temp_src: RefCell<PyVal>,
     pub ambient_sensor: Option<PObj>,
     pub cooling_fan: Option<Rc<Fan>>,
-    const_fan_ambient_transfer: RefCell<Vec<f64>>,
-    want_ambient_refresh: Cell<bool>,
+    pub const_fan_ambient_transfer: RefCell<Vec<f64>>,
+    pub want_ambient_refresh: Cell<bool>,
     pub state_block_temp: Cell<f64>,
     pub state_sensor_temp: Cell<f64>,
     pub state_ambient_temp: Cell<f64>,
-    last_power: Cell<f64>,
-    last_loss_ambient: Cell<f64>,
-    last_loss_filament: Cell<f64>,
-    last_temp_time: Cell<f64>,
-    printer: Rc<Printer>,
-    toolhead: RefCell<Option<Rc<ToolHead>>>,
+    pub last_power: Cell<f64>,
+    pub last_loss_ambient: Cell<f64>,
+    pub last_loss_filament: Cell<f64>,
+    pub last_temp_time: Cell<f64>,
+    pub printer: Rc<Printer>,
+    pub toolhead: RefCell<Option<Rc<ToolHead>>>,
 }
 
 impl ControlMPC {
@@ -153,7 +153,7 @@ impl ControlMPC {
         Ok(c)
     }
 
-    fn cmd_mpc_set(&self, gcmd: &GCodeCommand) -> KResult<()> {
+    pub fn cmd_mpc_set(&self, gcmd: &GCodeCommand) -> KResult<()> {
         let f = |name: &str, cell: &Cell<f64>| -> KResult<()> {
             cell.set(gcmd.get_float(name, Some(cell.get()), Lim::new())?);
             Ok(())
@@ -207,7 +207,7 @@ impl ControlMPC {
         Ok(())
     }
 
-    fn cmd_mpc_calibrate(self: &Rc<Self>, gcmd: &GCodeCommand) -> KResult<()> {
+    pub fn cmd_mpc_calibrate(self: &Rc<Self>, gcmd: &GCodeCommand) -> KResult<()> {
         let cal = MpcCalibrate { printer: self.printer.clone(), heater: self.heater.clone(), orig_control: self.clone() };
         cal.run(gcmd)
     }
@@ -220,7 +220,7 @@ impl ControlMPC {
             && self.const_sensor_responsiveness.get().is_some()
     }
 
-    fn update_filament_const(&self) {
+    pub fn update_filament_const(&self) {
         let radius = self.const_filament_diameter.get() / 2.0;
         self.const_filament_cross_section_heat_capacity.set(
             (radius * radius) // mm^2
@@ -231,7 +231,7 @@ impl ControlMPC {
         );
     }
 
-    fn filament_temp(&self, read_time: f64, ambient_temp: f64) -> KResult<f64> {
+    pub fn filament_temp(&self, read_time: f64, ambient_temp: f64) -> KResult<f64> {
         let src = self.filament_temp_src.borrow().clone();
         let items = src.items().unwrap_or(&[]).to_vec();
         let kind = items.first().map(|v| v.str()).unwrap_or_default();
@@ -378,8 +378,8 @@ impl Control for ControlMPC {
         self.heater.set_pwm(read_time, duty)
     }
 
-    fn check_busy(&self, _eventtime: f64, smoothed_temp: f64, target_temp: f64) -> bool {
-        (target_temp - smoothed_temp).abs() > 1.0
+    fn check_busy(&self, _eventtime: f64, smoothed_temp: f64, target_temp: f64) -> KResult<bool> {
+        Ok((target_temp - smoothed_temp).abs() > 1.0)
     }
 
     fn get_profile(&self) -> Profile {
@@ -432,13 +432,13 @@ struct TransferRes {
 }
 
 pub struct MpcCalibrate {
-    printer: Rc<Printer>,
-    heater: Rc<Heater>,
-    orig_control: Rc<ControlMPC>,
+    pub printer: Rc<Printer>,
+    pub heater: Rc<Heater>,
+    pub orig_control: Rc<ControlMPC>,
 }
 
 impl MpcCalibrate {
-    fn run(&self, gcmd: &GCodeCommand) -> KResult<()> {
+    pub fn run(&self, gcmd: &GCodeCommand) -> KResult<()> {
         let use_analytic = gcmd.get_opt("USE_DELTA").is_some();
         let ambient_max_measure_time = gcmd.get_float("AMBIENT_MAX_MEASURE_TIME", Some(20.0), Lim::new().above(0.0))?;
         let ambient_measure_sample_time =
@@ -514,7 +514,7 @@ impl MpcCalibrate {
         }
     }
 
-    fn wait_stable(&self, cycles: i64) -> KResult<()> {
+    pub fn wait_stable(&self, cycles: i64) -> KResult<()> {
         let mut below_target = true;
         let mut above_target = 0;
         let mut on_target = 0;
@@ -547,7 +547,7 @@ impl MpcCalibrate {
         )
     }
 
-    fn wait_settle(&self, max_rate: f64) -> KResult<f64> {
+    pub fn wait_settle(&self, max_rate: f64) -> KResult<f64> {
         let mut samples: Vec<(f64, f64)> = vec![];
         self.printer.wait_while(
             |eventtime| {
@@ -570,7 +570,7 @@ impl MpcCalibrate {
         Ok(samples[samples.len() - 1].1)
     }
 
-    fn await_ambient(&self, gcmd: &GCodeCommand, _control: &Rc<TuningControl>, minimum_temp: f64) -> KResult<f64> {
+    pub fn await_ambient(&self, gcmd: &GCodeCommand, _control: &Rc<TuningControl>, minimum_temp: f64) -> KResult<f64> {
         self.heater.alter_target(1.0); // Turn on fan to increase settling speed
         if let Some(ambient_sensor) = &self.orig_control.ambient_sensor {
             // If we have an ambient sensor we won't waste time waiting for ambient.
@@ -603,7 +603,7 @@ impl MpcCalibrate {
         Ok(ambient_temp)
     }
 
-    fn heatup_test(&self, gcmd: &GCodeCommand, target_temp: f64, control: &Rc<TuningControl>) -> KResult<Vec<(f64, f64)>> {
+    pub fn heatup_test(&self, gcmd: &GCodeCommand, target_temp: f64, control: &Rc<TuningControl>) -> KResult<Vec<(f64, f64)>> {
         gcmd.respond_info(&format!("Performing heatup test, target is {:.1} degrees", target_temp), true);
         control.set_output(self.heater.get_max_power(), target_temp)?;
 
@@ -666,7 +666,7 @@ impl MpcCalibrate {
         Ok(TransferRes { target_temp, base_power: power_base, fan_powers })
     }
 
-    fn measure_power(&self, max_time: f64, sample_time: f64) -> KResult<f64> {
+    pub fn measure_power(&self, max_time: f64, sample_time: f64) -> KResult<f64> {
         let mut samples: Vec<(f64, f64)> = vec![];
         let mut time = 0.0;
         let mut last_time: Option<f64> = None;
@@ -706,7 +706,7 @@ impl MpcCalibrate {
         Ok(total_energy / total_time)
     }
 
-    fn fastest_rate(&self, samples: &[(f64, f64)]) -> [f64; 3] {
+    pub fn fastest_rate(&self, samples: &[(f64, f64)]) -> [f64; 3] {
         let mut best = [-1.0, 0.0, 0.0];
         let base_t = samples[0].0;
         for idx in 2..samples.len() {
@@ -816,19 +816,19 @@ impl MpcCalibrate {
 }
 
 pub struct TuningControl {
-    value: Cell<f64>,
-    target: Cell<Option<f64>>,
-    heater: Rc<Heater>,
-    log: RefCell<Vec<(f64, f64)>>,
-    logging: Cell<bool>,
+    pub value: Cell<f64>,
+    pub target: Cell<Option<f64>>,
+    pub heater: Rc<Heater>,
+    pub log: RefCell<Vec<(f64, f64)>>,
+    pub logging: Cell<bool>,
 }
 
 impl TuningControl {
-    fn new(heater: &Rc<Heater>) -> Self {
+    pub fn new(heater: &Rc<Heater>) -> Self {
         TuningControl { value: Cell::new(0.0), target: Cell::new(None), heater: heater.clone(), log: RefCell::new(vec![]), logging: Cell::new(false) }
     }
 
-    fn set_output(&self, value: f64, target: f64) -> KResult<()> {
+    pub fn set_output(&self, value: f64, target: f64) -> KResult<()> {
         self.value.set(value);
         self.target.set(Some(target));
         self.heater.set_temp(target)
@@ -845,8 +845,8 @@ impl Control for TuningControl {
         }
         self.heater.set_pwm(read_time, self.value.get())
     }
-    fn check_busy(&self, _eventtime: f64, _smoothed_temp: f64, _target_temp: f64) -> bool {
-        self.value.get() != 0.0 || self.target.get() != Some(0.0)
+    fn check_busy(&self, _eventtime: f64, _smoothed_temp: f64, _target_temp: f64) -> KResult<bool> {
+        Ok(self.value.get() != 0.0 || self.target.get() != Some(0.0))
     }
     fn get_profile(&self) -> Profile {
         let p: Profile = Rc::new(RefCell::new(IndexMap::default()));

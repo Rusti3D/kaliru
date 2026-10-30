@@ -42,7 +42,7 @@ fn globalscaler_error(name: &str, globalscaler: i64, cs: i64, cs_calculated: i64
 
 pub struct TMC5160CurrentHelper {
     base: BaseTMCCurrentHelper,
-    cs: Option<i64>,
+    pub cs: Option<i64>,
 }
 
 impl TMC5160CurrentHelper {
@@ -57,7 +57,7 @@ impl TMC5160CurrentHelper {
         Ok(h)
     }
 
-    fn calc_globalscaler(&self, current: f64) -> i64 {
+    pub fn calc_globalscaler(&self, current: f64) -> i64 {
         let cs = self.cs.unwrap_or(31);
         let sr = self.base.sense_resistor;
         let globalscaler = ((current * 32.0 * 256.0 * sr * 2f64.sqrt()) / ((cs + 1) as f64 * VREF)).floor() as i64;
@@ -75,14 +75,14 @@ impl TMC5160CurrentHelper {
         globalscaler
     }
 
-    fn calc_current_bits(&self, current: f64, globalscaler: i64) -> i64 {
+    pub fn calc_current_bits(&self, current: f64, globalscaler: i64) -> i64 {
         let globalscaler = if globalscaler == 0 { 256 } else { globalscaler };
         let cs = ((current * 256.0 * 32.0 * 2f64.sqrt() * self.base.sense_resistor) / (globalscaler as f64 * VREF) - 1.0 + 0.5).trunc()
             as i64;
         0.max(31.min(cs))
     }
 
-    fn calc_current(&self, run_current: f64, hold_current: f64) -> KResult<(i64, i64, i64)> {
+    pub fn calc_current(&self, run_current: f64, hold_current: f64) -> KResult<(i64, i64, i64)> {
         let gscaler = self.calc_globalscaler(run_current);
         let irun = match self.cs {
             None => self.calc_current_bits(run_current, gscaler),
@@ -95,7 +95,7 @@ impl TMC5160CurrentHelper {
         Ok((gscaler, irun, ihold))
     }
 
-    fn calc_current_from_field(&self, field_name: &str) -> f64 {
+    pub fn calc_current_from_field(&self, field_name: &str) -> f64 {
         let f = &self.base.fields;
         let mut globalscaler = f.get_field("globalscaler");
         if globalscaler == 0 {
@@ -211,5 +211,5 @@ pub fn load_config_prefix(config: &ConfigWrapper) -> KResult<PObj> {
     set("pwm_lim", 12)?;
     //   TPOWERDOWN
     set("tpowerdown", 10)?;
-    Ok(Rc::new(TmcDriver { fields, mcu_tmc, cmdhelper }))
+    Ok(Rc::new(TmcDriver { fields, mcu_tmc, cmdhelper, class: "TMC5160" }))
 }

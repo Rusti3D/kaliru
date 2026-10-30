@@ -65,19 +65,19 @@ impl Drop for SerialDev {
 
 pub struct SerialReader {
     id: usize,
-    reactor: Rc<Reactor>,
-    warn_prefix: String,
+    pub reactor: Rc<Reactor>,
+    pub warn_prefix: String,
     /// mcu.non_critical_disconnected
     pub non_critical_disconnected: Rc<Cell<bool>>,
-    sq_name: String,
+    pub sq_name: String,
     serial_dev: RefCell<Option<SerialDev>>,
     pub msgparser: RefCell<Rc<MessageParser>>,
     serialqueue: RefCell<Option<Arc<SerialQueue>>>,
-    default_cmd_queue: CommandQueue,
+    pub default_cmd_queue: CommandQueue,
     background_thread: RefCell<Option<std::thread::JoinHandle<()>>>,
     incoming: Arc<Mutex<VecDeque<Incoming>>>,
     handlers: RefCell<HashMap<(String, Option<i64>), ResponseHandler>>,
-    last_notify_id: Cell<u64>,
+    pub last_notify_id: Cell<u64>,
     pending_notifications: RefCell<IndexMap<u64, Rc<ReactorCompletion<Option<Params>>>>>,
     wait_ack_hook: RefCell<Option<WaitAckHook>>,
 }
@@ -516,7 +516,7 @@ impl SerialReader {
         }
     }
 
-    fn check_noncritical_disconnected(&self) -> KResult<()> {
+    pub fn check_noncritical_disconnected(&self) -> KResult<()> {
         if self.non_critical_disconnected.get() {
             return Err(error(format!("{}non-critical MCU is disconnected", self.warn_prefix)));
         }
@@ -600,7 +600,7 @@ impl SerialReader {
     }
 
     // Default message handlers
-    fn handle_unknown_init(&self, params: &Params) {
+    pub fn handle_unknown_init(&self, params: &Params) {
         let msglen = match params.get("#msg") {
             Some(Val::Bytes(b)) => b.len(),
             _ => 0,
@@ -613,7 +613,7 @@ impl SerialReader {
         ));
     }
 
-    fn handle_unknown(&self, params: &Params) {
+    pub fn handle_unknown(&self, params: &Params) {
         logging::warning(&format!(
             "{}Unknown message type {}: {}",
             self.warn_prefix,
@@ -622,7 +622,7 @@ impl SerialReader {
         ));
     }
 
-    fn handle_output(&self, params: &Params) {
+    pub fn handle_output(&self, params: &Params) {
         logging::info(&format!(
             "{}{}: {}",
             self.warn_prefix,
@@ -631,7 +631,7 @@ impl SerialReader {
         ));
     }
 
-    fn handle_default(&self, params: &Params) {
+    pub fn handle_default(&self, params: &Params) {
         if crate::extras::danger_options::get_danger_options().log_serial_reader_warnings {
             logging::warning(&format!("{} got {}", self.warn_prefix, params_repr_py(params)));
         }
@@ -666,9 +666,9 @@ fn constant_int_opt(mp: &MessageParser, name: &str) -> KResult<Option<i64>> {
 
 // Class to send a query command and return the received response
 pub struct SerialRetryCommand {
-    serial: Rc<SerialReader>,
-    name: String,
-    oid: Option<i64>,
+    pub serial: Rc<SerialReader>,
+    pub name: String,
+    pub oid: Option<i64>,
     last_params: Rc<RefCell<Option<Params>>>,
 }
 

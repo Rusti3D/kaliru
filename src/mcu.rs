@@ -66,10 +66,10 @@ pub fn ints(data: &[i64]) -> Vec<Val> {
 
 // Class to retry sending of a query command until a given response is received
 pub struct RetryAsyncCommand {
-    serial: Rc<SerialReader>,
-    name: String,
-    oid: Option<i64>,
-    reactor: Rc<Reactor>,
+    pub serial: Rc<SerialReader>,
+    pub name: String,
+    pub oid: Option<i64>,
+    pub reactor: Rc<Reactor>,
     completion: Rc<ReactorCompletion<Params>>,
     min_query_time: Rc<Cell<f64>>,
 }
@@ -128,15 +128,16 @@ impl RetryAsyncCommand {
 }
 
 // Wrapper around query commands
+#[derive(Clone)]
 pub struct CommandQueryWrapper {
-    serial: Rc<SerialReader>,
-    cmd: Rc<MessageFormat>,
-    response: String,
-    oid: Option<i64>,
+    pub serial: Rc<SerialReader>,
+    pub cmd: Rc<MessageFormat>,
+    pub response: String,
+    pub oid: Option<i64>,
     /// the error class serialhdl.error is re-raised as (None: unchanged)
-    error: Option<fn(String) -> KError>,
-    is_async: bool,
-    cmd_queue: CommandQueue,
+    pub error: Option<fn(String) -> KError>,
+    pub is_async: bool,
+    pub cmd_queue: CommandQueue,
 }
 
 impl CommandQueryWrapper {
@@ -157,7 +158,7 @@ impl CommandQueryWrapper {
         Ok(CommandQueryWrapper { serial: serial.clone(), cmd, response, oid, error, is_async, cmd_queue })
     }
 
-    fn do_send(&self, cmds: &[Vec<u8>], minclock: u64, reqclock: u64, retry: bool) -> KResult<Params> {
+    pub fn do_send(&self, cmds: &[Vec<u8>], minclock: u64, reqclock: u64, retry: bool) -> KResult<Params> {
         let reqclock = minclock.max(reqclock);
         let res = if self.is_async {
             let xh = RetryAsyncCommand::new(&self.serial, &self.response, self.oid);
@@ -191,13 +192,14 @@ impl CommandQueryWrapper {
 }
 
 // Wrapper around command sending
+#[derive(Clone)]
 pub struct CommandWrapper {
-    serial: Rc<SerialReader>,
-    cmd: Rc<MessageFormat>,
-    cmd_queue: CommandQueue,
-    msgtag: u32,
+    pub serial: Rc<SerialReader>,
+    pub cmd: Rc<MessageFormat>,
+    pub cmd_queue: CommandQueue,
+    pub msgtag: u32,
     // Can't use send_wait_ack when in debugging mode
-    debugoutput: bool,
+    pub debugoutput: bool,
 }
 
 impl CommandWrapper {
@@ -239,20 +241,20 @@ fn same_stepper(a: &StepperRef, b: &StepperRef) -> bool {
 }
 
 pub struct McuTrsync {
-    mcu: Rc<Mcu>,
-    trdispatch: Rc<Trdispatch>,
-    reactor: Rc<Reactor>,
-    steppers: RefCell<Vec<StepperRef>>,
-    trdispatch_mcu: RefCell<Option<TrdispatchMcu>>,
-    oid: i64,
-    cmd_queue: CommandQueue,
-    trsync_start_cmd: RefCell<Option<CommandWrapper>>,
-    trsync_set_timeout_cmd: RefCell<Option<CommandWrapper>>,
-    trsync_trigger_cmd: RefCell<Option<CommandWrapper>>,
-    trsync_query_cmd: RefCell<Option<CommandQueryWrapper>>,
-    stepper_stop_cmd: RefCell<Option<CommandWrapper>>,
-    trigger_completion: RefCell<Option<Rc<ReactorCompletion<bool>>>>,
-    home_end_clock: Cell<Option<i64>>,
+    pub mcu: Rc<Mcu>,
+    pub trdispatch: Rc<Trdispatch>,
+    pub reactor: Rc<Reactor>,
+    pub steppers: RefCell<Vec<StepperRef>>,
+    pub trdispatch_mcu: RefCell<Option<TrdispatchMcu>>,
+    pub oid: i64,
+    pub cmd_queue: CommandQueue,
+    pub trsync_start_cmd: RefCell<Option<CommandWrapper>>,
+    pub trsync_set_timeout_cmd: RefCell<Option<CommandWrapper>>,
+    pub trsync_trigger_cmd: RefCell<Option<CommandWrapper>>,
+    pub trsync_query_cmd: RefCell<Option<CommandQueryWrapper>>,
+    pub stepper_stop_cmd: RefCell<Option<CommandWrapper>>,
+    pub trigger_completion: RefCell<Option<Rc<ReactorCompletion<bool>>>>,
+    pub home_end_clock: Cell<Option<i64>>,
 }
 
 impl McuTrsync {
@@ -311,7 +313,7 @@ impl McuTrsync {
         self.steppers.borrow().clone()
     }
 
-    fn build_config(&self) -> KResult<()> {
+    pub fn build_config(&self) -> KResult<()> {
         let mcu = &self.mcu;
         let oid = self.oid;
         let cq = Some(self.cmd_queue.clone());
@@ -356,14 +358,14 @@ impl McuTrsync {
         Ok(())
     }
 
-    fn shutdown(&self) {
+    pub fn shutdown(&self) {
         let tc = self.trigger_completion.borrow_mut().take();
         if let Some(tc) = tc {
             tc.complete(false);
         }
     }
 
-    fn handle_trsync_state(&self, params: &Params) -> KResult<()> {
+    pub fn handle_trsync_state(&self, params: &Params) -> KResult<()> {
         if pint(params, "can_trigger") == 0 {
             let tc = self.trigger_completion.borrow_mut().take();
             if let Some(tc) = tc {
@@ -439,10 +441,10 @@ impl McuTrsync {
 }
 
 pub struct TriggerDispatch {
-    mcu: Rc<Mcu>,
-    trigger_completion: RefCell<Option<Rc<ReactorCompletion<bool>>>>,
-    trdispatch: Rc<Trdispatch>,
-    trsyncs: RefCell<Vec<Rc<McuTrsync>>>,
+    pub mcu: Rc<Mcu>,
+    pub trigger_completion: RefCell<Option<Rc<ReactorCompletion<bool>>>>,
+    pub trdispatch: Rc<Trdispatch>,
+    pub trsyncs: RefCell<Vec<Rc<McuTrsync>>>,
 }
 
 impl TriggerDispatch {
@@ -537,7 +539,7 @@ impl TriggerDispatch {
 
 /// an endstop as homing.py and stepper.py use it (MCU_endstop, probe and
 /// virtual endstops); python duck types these
-pub trait Endstop {
+pub trait Endstop: std::any::Any {
     fn get_mcu(&self) -> Rc<Mcu>;
     fn add_stepper(&self, stepper: &StepperRef) -> KResult<()>;
     fn get_steppers(&self) -> Vec<StepperRef>;
@@ -563,6 +565,10 @@ pub trait Endstop {
     /// that is not an MCU_endstop
     fn mcu_pin(&self) -> Option<String> {
         None
+    }
+    /// the Rust type's path (python plugins find the Kalico class by it)
+    fn type_name(&self) -> &'static str {
+        std::any::type_name::<Self>()
     }
 }
 
@@ -612,15 +618,15 @@ impl Endstop for McuEndstop {
 }
 
 pub struct McuEndstop {
-    mcu: Rc<Mcu>,
-    pin: String,
-    pullup: i64,
-    invert: i64,
-    oid: i64,
-    home_cmd: RefCell<Option<CommandWrapper>>,
-    query_cmd: RefCell<Option<CommandQueryWrapper>>,
-    rest_ticks: Cell<i64>,
-    dispatch: TriggerDispatch,
+    pub mcu: Rc<Mcu>,
+    pub pin: String,
+    pub pullup: i64,
+    pub invert: i64,
+    pub oid: i64,
+    pub home_cmd: RefCell<Option<CommandWrapper>>,
+    pub query_cmd: RefCell<Option<CommandQueryWrapper>>,
+    pub rest_ticks: Cell<i64>,
+    pub dispatch: Rc<TriggerDispatch>,
 }
 
 impl McuEndstop {
@@ -636,7 +642,7 @@ impl McuEndstop {
             home_cmd: RefCell::new(None),
             query_cmd: RefCell::new(None),
             rest_ticks: Cell::new(0),
-            dispatch: TriggerDispatch::new(mcu),
+            dispatch: Rc::new(TriggerDispatch::new(mcu)),
         });
         // python registers build_config before creating TriggerDispatch;
         // reorder the callbacks to match
@@ -657,7 +663,7 @@ impl McuEndstop {
         self.dispatch.get_steppers()
     }
 
-    fn build_config(&self) -> KResult<()> {
+    pub fn build_config(&self) -> KResult<()> {
         // Setup config
         self.mcu.add_config_cmd(&format!("config_endstop oid={} pin={} pull_up={}", self.oid, self.pin, self.pullup), false, false);
         self.mcu.add_config_cmd(
@@ -684,7 +690,7 @@ impl McuEndstop {
         Ok(())
     }
 
-    fn check_connected(&self) -> KResult<()> {
+    pub fn check_connected(&self) -> KResult<()> {
         if self.mcu.non_critical_disconnected.get() {
             return Err(KError::command(format!("Cannot use endstop on disconnected MCU '{}'", self.mcu.get_name())));
         }
@@ -743,7 +749,7 @@ impl McuEndstop {
         Ok(self.mcu.clock_to_print_time((next_clock - self.rest_ticks.get()) as f64))
     }
 
-    fn query(&self, data: &[i64], minclock: u64) -> KResult<Params> {
+    pub fn query(&self, data: &[i64], minclock: u64) -> KResult<Params> {
         match self.query_cmd.borrow().as_ref() {
             Some(cmd) => cmd.send(&ints(data), minclock, 0, true),
             None => Err(KError::Other("'NoneType' object has no attribute 'send'".into())),
@@ -762,15 +768,15 @@ impl McuEndstop {
 }
 
 pub struct McuDigitalOut {
-    mcu: Rc<Mcu>,
-    oid: Cell<Option<i64>>,
-    pin: String,
-    invert: i64,
-    start_value: Cell<i64>,
-    shutdown_value: Cell<i64>,
-    max_duration: Cell<f64>,
-    last_clock: Cell<i64>,
-    set_cmd: RefCell<Option<CommandWrapper>>,
+    pub mcu: Rc<Mcu>,
+    pub oid: Cell<Option<i64>>,
+    pub pin: String,
+    pub invert: i64,
+    pub start_value: Cell<i64>,
+    pub shutdown_value: Cell<i64>,
+    pub max_duration: Cell<f64>,
+    pub last_clock: Cell<i64>,
+    pub set_cmd: RefCell<Option<CommandWrapper>>,
 }
 
 impl McuDigitalOut {
@@ -805,7 +811,7 @@ impl McuDigitalOut {
         self.shutdown_value.set(shutdown_value as i64 ^ self.invert);
     }
 
-    fn build_config(&self) -> KResult<()> {
+    pub fn build_config(&self) -> KResult<()> {
         if self.max_duration.get() != 0. && self.start_value.get() != self.shutdown_value.get() {
             return Err(pins_error("Pin with max duration must have start value equal to shutdown value"));
         }
@@ -853,11 +859,15 @@ impl McuDigitalOut {
 
 /// a "digital_out" pin as its users see it: an McuDigitalOut, or another
 /// chip's pin (sx1509); python duck types these
-pub trait DigitalOutPin {
+pub trait DigitalOutPin: std::any::Any {
     fn get_mcu(&self) -> Rc<Mcu>;
     fn setup_max_duration(&self, max_duration: f64);
     fn setup_start_value(&self, start_value: bool, shutdown_value: bool);
     fn set_digital(&self, print_time: f64, value: bool) -> KResult<()>;
+    /// the Rust type's path (python plugins find the Kalico class by it)
+    fn type_name(&self) -> &'static str {
+        std::any::type_name::<Self>()
+    }
 }
 
 impl DigitalOutPin for McuDigitalOut {
@@ -877,12 +887,16 @@ impl DigitalOutPin for McuDigitalOut {
 
 /// a "pwm" pin as its users see it: an McuPwm, or another chip's pin
 /// (sx1509); python duck types these
-pub trait PwmPin {
+pub trait PwmPin: std::any::Any {
     fn get_mcu(&self) -> Rc<Mcu>;
     fn setup_max_duration(&self, max_duration: f64);
     fn setup_cycle_time(&self, cycle_time: f64, hardware_pwm: bool) -> KResult<()>;
     fn setup_start_value(&self, start_value: f64, shutdown_value: f64);
     fn set_pwm(&self, print_time: f64, value: f64) -> KResult<()>;
+    /// the Rust type's path (python plugins find the Kalico class by it)
+    fn type_name(&self) -> &'static str {
+        std::any::type_name::<Self>()
+    }
 }
 
 impl PwmPin for McuPwm {
@@ -905,18 +919,18 @@ impl PwmPin for McuPwm {
 }
 
 pub struct McuPwm {
-    mcu: Rc<Mcu>,
-    hardware_pwm: Cell<bool>,
-    cycle_time: Cell<f64>,
-    max_duration: Cell<f64>,
-    oid: Cell<Option<i64>>,
-    pin: String,
-    invert: i64,
-    start_value: Cell<f64>,
-    shutdown_value: Cell<f64>,
-    last_clock: Cell<i64>,
-    pwm_max: Cell<f64>,
-    set_cmd: RefCell<Option<CommandWrapper>>,
+    pub mcu: Rc<Mcu>,
+    pub hardware_pwm: Cell<bool>,
+    pub cycle_time: Cell<f64>,
+    pub max_duration: Cell<f64>,
+    pub oid: Cell<Option<i64>>,
+    pub pin: String,
+    pub invert: i64,
+    pub start_value: Cell<f64>,
+    pub shutdown_value: Cell<f64>,
+    pub last_clock: Cell<i64>,
+    pub pwm_max: Cell<f64>,
+    pub set_cmd: RefCell<Option<CommandWrapper>>,
 }
 
 impl McuPwm {
@@ -963,7 +977,7 @@ impl McuPwm {
         self.shutdown_value.set(py_max(0.0, py_min(1.0, shutdown_value)));
     }
 
-    fn build_config(&self) -> KResult<()> {
+    pub fn build_config(&self) -> KResult<()> {
         let mcu = &self.mcu;
         if self.max_duration.get() != 0. && self.start_value.get() != self.shutdown_value.get() {
             return Err(pins_error("Pin with max duration must have start value equal to shutdown value"));
@@ -1070,28 +1084,32 @@ fn py_min(a: f64, b: f64) -> f64 {
 pub type AdcCallback = Rc<dyn Fn(f64, f64) -> KResult<()>>;
 
 pub struct McuAdc {
-    mcu: Rc<Mcu>,
-    pin: String,
-    min_sample: Cell<f64>,
-    max_sample: Cell<f64>,
-    sample_time: Cell<f64>,
-    report_time: Cell<f64>,
-    sample_count: Cell<i64>,
-    range_check_count: Cell<i64>,
-    report_clock: Cell<i64>,
-    last_state: Cell<(f64, f64)>,
-    oid: Cell<Option<i64>>,
-    callback: RefCell<Option<AdcCallback>>,
-    inv_max_adc: Cell<f64>,
+    pub mcu: Rc<Mcu>,
+    pub pin: String,
+    pub min_sample: Cell<f64>,
+    pub max_sample: Cell<f64>,
+    pub sample_time: Cell<f64>,
+    pub report_time: Cell<f64>,
+    pub sample_count: Cell<i64>,
+    pub range_check_count: Cell<i64>,
+    pub report_clock: Cell<i64>,
+    pub last_state: Cell<(f64, f64)>,
+    pub oid: Cell<Option<i64>>,
+    pub callback: RefCell<Option<AdcCallback>>,
+    pub inv_max_adc: Cell<f64>,
 }
 
 /// an "adc" pin as its users see it: an McuAdc, or another chip's pin
 /// (adc_scaled); python duck types these
-pub trait AdcPin {
+pub trait AdcPin: std::any::Any {
     fn get_mcu(&self) -> Rc<Mcu>;
     fn setup_adc_sample(&self, sample_time: f64, sample_count: i64, minval: f64, maxval: f64, range_check_count: i64);
     fn setup_adc_callback(&self, report_time: f64, callback: AdcCallback);
     fn get_last_value(&self) -> (f64, f64);
+    /// the Rust type's path (python plugins find the Kalico class by it)
+    fn type_name(&self) -> &'static str {
+        std::any::type_name::<Self>()
+    }
 }
 
 impl AdcPin for McuAdc {
@@ -1188,7 +1206,7 @@ impl McuAdc {
         Ok(())
     }
 
-    fn handle_analog_in_state(&self, params: &Params) -> KResult<()> {
+    pub fn handle_analog_in_state(&self, params: &Params) -> KResult<()> {
         let last_value = pint(params, "value") as f64 * self.inv_max_adc.get();
         let next_clock = self.mcu.clock32_to_clock64(pint(params, "next_clock"));
         let last_read_clock = next_clock - self.report_clock.get();
@@ -1209,51 +1227,51 @@ impl McuAdc {
 pub type ConfigCallback = Rc<dyn Fn() -> KResult<()>>;
 
 // Support for restarting a micro-controller (MCURestartHelper)
-struct RestartHelper {
-    restart_method: RefCell<Option<String>>,
-    reset_cmd: RefCell<Option<CommandWrapper>>,
-    config_reset_cmd: RefCell<Option<CommandWrapper>>,
-    is_mcu_bridge: Cell<bool>,
+pub struct RestartHelper {
+    pub restart_method: RefCell<Option<String>>,
+    pub reset_cmd: RefCell<Option<CommandWrapper>>,
+    pub config_reset_cmd: RefCell<Option<CommandWrapper>>,
+    pub is_mcu_bridge: Cell<bool>,
 }
 
 // Low-level mcu connection management helper (MCUConnectHelper)
-struct ConnHelper {
-    baud: Cell<i64>,
-    serialport: RefCell<String>,
-    canbus_iface: RefCell<Option<String>>,
-    emergency_stop_cmd: RefCell<Option<CommandWrapper>>,
-    is_shutdown: Cell<bool>,
-    is_timeout: Cell<bool>,
-    shutdown_msg: RefCell<String>,
+pub struct ConnHelper {
+    pub baud: Cell<i64>,
+    pub serialport: RefCell<String>,
+    pub canbus_iface: RefCell<Option<String>>,
+    pub emergency_stop_cmd: RefCell<Option<CommandWrapper>>,
+    pub is_shutdown: Cell<bool>,
+    pub is_timeout: Cell<bool>,
+    pub shutdown_msg: RefCell<String>,
 }
 
 // Handle statistics reporting (MCUStatsHelper)
-struct StatsHelper {
-    mcu_freq: Cell<f64>,
-    get_status_info: RefCell<PyDict>,
-    stats_sumsq_base: Cell<f64>,
-    mcu_tick_avg: Cell<f64>,
-    mcu_tick_stddev: Cell<f64>,
-    mcu_tick_awake: Cell<f64>,
+pub struct StatsHelper {
+    pub mcu_freq: Cell<f64>,
+    pub get_status_info: RefCell<PyDict>,
+    pub stats_sumsq_base: Cell<f64>,
+    pub mcu_tick_avg: Cell<f64>,
+    pub mcu_tick_stddev: Cell<f64>,
+    pub mcu_tick_awake: Cell<f64>,
 }
 
 // Handle process of configuring an mcu (MCUConfigHelper)
 #[derive(Default)]
-struct ConfigHelper {
-    oid_count: Cell<i64>,
+pub struct ConfigHelper {
+    pub oid_count: Cell<i64>,
     config_callbacks: RefCell<Vec<ConfigCallback>>,
-    config_cmds: RefCell<Vec<String>>,
-    restart_cmds: RefCell<Vec<String>>,
-    init_cmds: RefCell<Vec<String>>,
-    mcu_freq: Cell<f64>,
-    reserved_move_slots: Cell<i64>,
-    config_crc: Cell<u32>,
+    pub config_cmds: RefCell<Vec<String>>,
+    pub restart_cmds: RefCell<Vec<String>>,
+    pub init_cmds: RefCell<Vec<String>>,
+    pub mcu_freq: Cell<f64>,
+    pub reserved_move_slots: Cell<i64>,
+    pub config_crc: Cell<u32>,
     // State restored when a non-critical mcu reconnects
-    cached_init_state: Cell<bool>,
-    oid_count_post_inits: Cell<i64>,
-    config_cmds_post_inits: RefCell<Vec<String>>,
-    init_cmds_post_inits: RefCell<Vec<String>>,
-    restart_cmds_post_inits: RefCell<Vec<String>>,
+    pub cached_init_state: Cell<bool>,
+    pub oid_count_post_inits: Cell<i64>,
+    pub config_cmds_post_inits: RefCell<Vec<String>>,
+    pub init_cmds_post_inits: RefCell<Vec<String>>,
+    pub restart_cmds_post_inits: RefCell<Vec<String>>,
 }
 
 /// get_config's response (a dict in file output mode)
@@ -1265,25 +1283,25 @@ struct ConfigParams {
 
 // Main MCU class
 pub struct Mcu {
-    me: Weak<Mcu>,
-    printer: Rc<Printer>,
-    gcode: Rc<GCodeDispatch>,
-    clocksync: Rc<ClockSync>,
-    reactor: Rc<Reactor>,
-    name: String,
-    serial: Rc<SerialReader>,
+    pub me: Weak<Mcu>,
+    pub printer: Rc<Printer>,
+    pub gcode: Rc<GCodeDispatch>,
+    pub clocksync: Rc<ClockSync>,
+    pub reactor: Rc<Reactor>,
+    pub name: String,
+    pub serial: Rc<SerialReader>,
     conn: ConnHelper,
     restart: RestartHelper,
     cfg: ConfigHelper,
     stats_h: StatsHelper,
     // noncritical mcus
     pub is_non_critical: Cell<bool>,
-    non_critical_recon_timer: RefCell<Option<Timer>>,
+    pub non_critical_recon_timer: RefCell<Option<Timer>>,
     pub non_critical_disconnected: Rc<Cell<bool>>,
-    reconnecting: Cell<bool>,
-    non_critical_reconnect_event_name: String,
-    non_critical_disconnect_event_name: String,
-    reconnect_interval: Cell<f64>,
+    pub reconnecting: Cell<bool>,
+    pub non_critical_reconnect_event_name: String,
+    pub non_critical_disconnect_event_name: String,
+    pub reconnect_interval: Cell<f64>,
 }
 
 /// msgparser.get_constant(name, None) (parser str)
@@ -1896,8 +1914,9 @@ impl Mcu {
         // Resolve pin names
         {
             let ppins = self.printer.lookup::<PinsObject>("pins")?;
-            let mut ppins = ppins.0.borrow_mut();
+            let ppins = ppins.0.borrow_mut();
             let pin_resolver = ppins.get_pin_resolver(&self.name)?;
+            let mut pin_resolver = pin_resolver.borrow_mut();
             for cmd in local_config_cmds.iter_mut() {
                 *cmd = pin_resolver.update_command(cmd)?;
             }
@@ -2050,8 +2069,9 @@ impl Mcu {
             )));
         }
         let ppins = self.printer.lookup::<PinsObject>("pins")?;
-        let mut ppins = ppins.0.borrow_mut();
+        let ppins = ppins.0.borrow_mut();
         let pin_resolver = ppins.get_pin_resolver(&self.name)?;
+        let mut pin_resolver = pin_resolver.borrow_mut();
         for (cname, value) in self.get_constants() {
             if let Some(reserve_name) = cname.strip_prefix("RESERVE_PINS_") {
                 for pin in py_str(&value).split(',') {
@@ -2150,7 +2170,7 @@ impl Mcu {
         }
     }
 
-    fn non_critical_recon_event(self: &Rc<Self>, eventtime: f64) -> f64 {
+    pub fn non_critical_recon_event(self: &Rc<Self>, eventtime: f64) -> f64 {
         match self.recon_mcu() {
             Ok(true) => {
                 self.gcode.respond_info(&format!("mcu: '{}' reconnected!", self.name), true);
@@ -2164,7 +2184,7 @@ impl Mcu {
         }
     }
 
-    fn recon_mcu(self: &Rc<Self>) -> KResult<bool> {
+    pub fn recon_mcu(self: &Rc<Self>) -> KResult<bool> {
         self.reconnecting.set(true);
         let res = (|| -> KResult<bool> {
             if !self.mcu_identify()? {
@@ -2195,14 +2215,14 @@ impl Mcu {
         Ok(true)
     }
 
-    fn abort_recon_attempt(&self) {
+    pub fn abort_recon_attempt(&self) {
         // Return to the disconnected state; the reconnect timer retries
         self.conn_disconnect();
         self.non_critical_disconnected.set(true);
         self.stats_set_status_info("non_critical_disconnected", PyVal::Bool(true));
     }
 
-    fn mcu_identify(&self) -> KResult<bool> {
+    pub fn mcu_identify(&self) -> KResult<bool> {
         if self.is_non_critical.get() && !self.conn_check_serial_exists()? {
             self.non_critical_disconnected.set(true);
             self.stats_set_status_info("non_critical_disconnected", PyVal::Bool(true));
@@ -2215,7 +2235,7 @@ impl Mcu {
         Ok(true)
     }
 
-    fn identify_helpers(self: &Rc<Self>) -> KResult<()> {
+    pub fn identify_helpers(self: &Rc<Self>) -> KResult<()> {
         // Same order as the "klippy:mcu_identify" handler registration
         self.conn_mcu_identify()?;
         self.restart_mcu_identify()?;

@@ -23,7 +23,7 @@ use crate::IndexMap;
 use std::cell::{Cell, RefCell};
 use std::rc::{Rc, Weak};
 
-fn params_to_normal_form(params: &IndexMap<String, f64>, offsets: (f64, f64, f64)) -> [f64; 4] {
+pub fn params_to_normal_form(params: &IndexMap<String, f64>, offsets: (f64, f64, f64)) -> [f64; 4] {
     let v = [offsets.0, offsets.1, params["z_adjust"]];
     let r = [1.0, 0.0, params["x_adjust"]];
     let s = [0.0, 1.0, params["y_adjust"]];
@@ -66,31 +66,31 @@ const AD_ADJUSTMENTS: [[f64; 3]; 7] = [
 ];
 
 pub struct ZTilt {
-    printer: Rc<Printer>,
-    section: String,
-    z_positions: RefCell<Vec<(f64, f64)>>,
+    pub printer: Rc<Printer>,
+    pub section: String,
+    pub z_positions: RefCell<Vec<(f64, f64)>>,
     retry_helper: RetryHelper,
-    probe_helper: RefCell<Option<Rc<ProbePointsHelper>>>,
-    z_offsets: RefCell<Option<Vec<f64>>>,
-    z_status: Rc<ZAdjustStatus>,
-    z_helper: Rc<ZAdjustHelper>,
-    num_probe_points: usize,
-    cal_helper: RefCell<Option<Rc<ProbePointsHelper>>>,
-    ad_helper: RefCell<Option<Rc<ProbePointsHelper>>>,
-    cal_conf_avg_len: i64,
-    ad_conf_delta: f64,
-    use_adjustments: bool,
+    pub probe_helper: RefCell<Option<Rc<ProbePointsHelper>>>,
+    pub z_offsets: RefCell<Option<Vec<f64>>>,
+    pub z_status: Rc<ZAdjustStatus>,
+    pub z_helper: Rc<ZAdjustHelper>,
+    pub num_probe_points: usize,
+    pub cal_helper: RefCell<Option<Rc<ProbePointsHelper>>>,
+    pub ad_helper: RefCell<Option<Rc<ProbePointsHelper>>>,
+    pub cal_conf_avg_len: i64,
+    pub ad_conf_delta: f64,
+    pub use_adjustments: bool,
     // calibrate / autodetect state
-    cal_avg_len: Cell<i64>,
-    cal_gcmd: RefCell<Option<GCodeCommand>>,
-    cal_runs: RefCell<Vec<Vec<f64>>>,
-    ad_delta: Cell<f64>,
-    ad_phase: Cell<usize>,
-    ad_params: RefCell<Vec<IndexMap<String, f64>>>,
-    ad_gcmd: RefCell<Option<GCodeCommand>>,
-    ad_runs: RefCell<Vec<Vec<Vec<f64>>>>,
-    ad_points: RefCell<Vec<Vec<f64>>>,
-    ad_error: Cell<Option<f64>>,
+    pub cal_avg_len: Cell<i64>,
+    pub cal_gcmd: RefCell<Option<GCodeCommand>>,
+    pub cal_runs: RefCell<Vec<Vec<f64>>>,
+    pub ad_delta: Cell<f64>,
+    pub ad_phase: Cell<usize>,
+    pub ad_params: RefCell<Vec<IndexMap<String, f64>>>,
+    pub ad_gcmd: RefCell<Option<GCodeCommand>>,
+    pub ad_runs: RefCell<Vec<Vec<Vec<f64>>>>,
+    pub ad_points: RefCell<Vec<Vec<f64>>>,
+    pub ad_error: Cell<Option<f64>>,
 }
 
 type Finalize = fn(&ZTilt, (f64, f64, f64), &[Vec<f64>]) -> KResult<FinalizeResult>;
@@ -104,7 +104,7 @@ fn finalize_cb(slot: &Rc<RefCell<Weak<ZTilt>>>, f: Finalize) -> crate::extras::p
 }
 
 impl ZTilt {
-    fn new(config: &ConfigWrapper) -> KResult<Rc<Self>> {
+    pub fn new(config: &ConfigWrapper) -> KResult<Rc<Self>> {
         let printer = config.get_printer();
         let section = config.get_name().to_string();
         let z_positions = get_pairs(config, "z_positions")?;
@@ -188,13 +188,13 @@ impl ZTilt {
         h.borrow().clone().expect("probe helper")
     }
 
-    fn cmd_z_tilt_adjust(&self, gcmd: &GCodeCommand) -> KResult<()> {
+    pub fn cmd_z_tilt_adjust(&self, gcmd: &GCodeCommand) -> KResult<()> {
         self.z_status.reset();
         self.retry_helper.start(gcmd)?;
         Self::helper(&self.probe_helper).start_probe(gcmd)
     }
 
-    fn perform_coordinate_descent(&self, offsets: (f64, f64, f64), positions: &[Vec<f64>]) -> IndexMap<String, f64> {
+    pub fn perform_coordinate_descent(&self, offsets: (f64, f64, f64), positions: &[Vec<f64>]) -> IndexMap<String, f64> {
         // Setup for coordinate descent analysis
         let z_offset = offsets.2;
         logging::info(&format!("Calculating bed tilt with: {}", positions_repr(positions)));
@@ -221,7 +221,7 @@ impl ZTilt {
         new_params
     }
 
-    fn apply_adjustments(&self, offsets: (f64, f64, f64), new_params: &IndexMap<String, f64>) -> KResult<Vec<f64>> {
+    pub fn apply_adjustments(&self, offsets: (f64, f64, f64), new_params: &IndexMap<String, f64>) -> KResult<Vec<f64>> {
         let z_offset = offsets.2;
         let speed = Self::helper(&self.probe_helper).get_lift_speed(None)?;
         let x_adjust = new_params["x_adjust"];
@@ -243,7 +243,7 @@ impl ZTilt {
         Ok(self.z_status.check_retry_result(self.retry_helper.check_retry(&zs)?))
     }
 
-    fn cmd_z_tilt_calibrate(&self, gcmd: &GCodeCommand) -> KResult<()> {
+    pub fn cmd_z_tilt_calibrate(&self, gcmd: &GCodeCommand) -> KResult<()> {
         self.cal_avg_len.set(gcmd.get_int("AVGLEN", Some(self.cal_conf_avg_len), Lim::new())?);
         *self.cal_gcmd.borrow_mut() = Some(gcmd.clone());
         self.cal_runs.borrow_mut().clear();
@@ -286,12 +286,12 @@ impl ZTilt {
         Ok(FinalizeResult::Done)
     }
 
-    fn ad_init(&self) {
+    pub fn ad_init(&self) {
         self.ad_phase.set(0);
         self.ad_params.borrow_mut().clear();
     }
 
-    fn cmd_z_tilt_autodetect(&self, gcmd: &GCodeCommand) -> KResult<()> {
+    pub fn cmd_z_tilt_autodetect(&self, gcmd: &GCodeCommand) -> KResult<()> {
         self.cal_avg_len.set(gcmd.get_int("AVGLEN", Some(self.cal_conf_avg_len), Lim::new())?);
         self.ad_delta.set(gcmd.get_float("DELTA", Some(self.ad_conf_delta), Lim::new().min(0.1))?);
         self.ad_init();
@@ -386,7 +386,7 @@ impl ZTilt {
         Ok(FinalizeResult::Retry)
     }
 
-    fn ad_finalize_done(&self, offsets: (f64, f64, f64)) -> KResult<()> {
+    pub fn ad_finalize_done(&self, offsets: (f64, f64, f64)) -> KResult<()> {
         let avlen = self.cal_avg_len.get() as usize;
         // calculate probe point z offsets
         let points = self.ad_points.borrow().clone();

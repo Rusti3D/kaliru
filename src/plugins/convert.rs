@@ -62,6 +62,11 @@ impl ToPy for PyVal {
         Ok(from_pyval(&self))
     }
 }
+impl ToPy for crate::pyval::PyDict {
+    fn to_py(self) -> KResult<PyRef> {
+        Ok(from_pyval(&PyVal::Dict(self)))
+    }
+}
 impl ToPy for &PyVal {
     fn to_py(self) -> KResult<PyRef> {
         Ok(from_pyval(self))
@@ -94,6 +99,16 @@ impl<A: ToPy, B: ToPy> ToPy for (A, B) {
 impl<A: ToPy, B: ToPy, C: ToPy> ToPy for (A, B, C) {
     fn to_py(self) -> KResult<PyRef> {
         Ok(py_tuple(vec![self.0.to_py()?, self.1.to_py()?, self.2.to_py()?]))
+    }
+}
+impl<A: ToPy, B: ToPy, C: ToPy, D: ToPy> ToPy for (A, B, C, D) {
+    fn to_py(self) -> KResult<PyRef> {
+        Ok(py_tuple(vec![self.0.to_py()?, self.1.to_py()?, self.2.to_py()?, self.3.to_py()?]))
+    }
+}
+impl<A: ToPy, B: ToPy, C: ToPy, D: ToPy, E: ToPy> ToPy for (A, B, C, D, E) {
+    fn to_py(self) -> KResult<PyRef> {
+        Ok(py_tuple(vec![self.0.to_py()?, self.1.to_py()?, self.2.to_py()?, self.3.to_py()?, self.4.to_py()?]))
     }
 }
 /// a kaliru object: its python object of the mirrored class
@@ -151,6 +166,15 @@ impl<T: FromPy> FromPy for Vec<T> {
         let n = unsafe { PyList_Size(list.as_ptr()) };
         // SAFETY: i < n: a live borrowed item, owned at once
         (0..n).map(|i| T::from_py(&unsafe { PyRef::borrowed(PyList_GetItem(list.as_ptr(), i)) })).collect()
+    }
+}
+impl<A: FromPy, B: FromPy, C: FromPy> FromPy for (A, B, C) {
+    fn from_py(o: &PyRef) -> KResult<Self> {
+        let v: Vec<PyRef> = Vec::from_py(o)?;
+        if v.len() != 3 {
+            return Err(KError::Py("ValueError".into(), format!("expected 3 values, got {}", v.len())));
+        }
+        Ok((A::from_py(&v[0])?, B::from_py(&v[1])?, C::from_py(&v[2])?))
     }
 }
 impl<A: FromPy, B: FromPy> FromPy for (A, B) {

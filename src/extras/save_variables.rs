@@ -21,7 +21,7 @@ use std::rc::Rc;
 const CMD_SAVE_VARIABLE_HELP: &str = "Save arbitrary variables to disk";
 
 pub struct SaveVariables {
-    filename: String,
+    pub filename: String,
     pub all_variables: RefCell<IndexMap<String, Value>>,
 }
 
@@ -31,7 +31,7 @@ fn new_parser() -> RawConfigParser {
 }
 
 impl SaveVariables {
-    fn new(config: &ConfigWrapper) -> KResult<Rc<Self>> {
+    pub fn new(config: &ConfigWrapper) -> KResult<Rc<Self>> {
         let printer = config.get_printer();
         let filename = expanduser(&config.get("filename", Dflt::Required)?);
         let s = Rc::new(SaveVariables { filename, all_variables: RefCell::new(IndexMap::default()) });
@@ -82,7 +82,7 @@ impl SaveVariables {
         }
     }
 
-    fn cmd_save_variable(&self, gcmd: &GCodeCommand) -> KResult<()> {
+    pub fn cmd_save_variable(&self, gcmd: &GCodeCommand) -> KResult<()> {
         let varname = gcmd.get("VARIABLE")?;
         let value = gcmd.get("VALUE")?;
         let value = match crate::pyliteral::literal_eval_json(&value) {

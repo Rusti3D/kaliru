@@ -72,32 +72,32 @@ fn lookup(table: &[(i64, i64)], key: i64) -> i64 {
     table.iter().find(|(k, _)| *k == key).map(|(_, v)| *v).unwrap_or(0)
 }
 
-fn channels_to_mask(channels: &[i64]) -> i64 {
+pub fn channels_to_mask(channels: &[i64]) -> i64 {
     channels.iter().fold(0, |mask, channel| mask | (1 << channel))
 }
 
 pub struct ADS131MxBase {
-    printer: Rc<Printer>,
-    reactor: Rc<Reactor>,
-    name: String,
-    sensor_type: &'static str,
-    channel_count: usize,
-    last_error_count: Cell<i64>,
-    consecutive_fails: Cell<i64>,
-    sps: i64,
-    gain: i64,
-    enable_global_chop: bool,
-    global_chop_delay: i64,
-    spi: Rc<McuSpi>,
-    mcu: Rc<Mcu>,
-    oid: i64,
-    data_ready_pin: String,
-    channels: Vec<i64>,
-    channel_mask: i64,
+    pub printer: Rc<Printer>,
+    pub reactor: Rc<Reactor>,
+    pub name: String,
+    pub sensor_type: &'static str,
+    pub channel_count: usize,
+    pub last_error_count: Cell<i64>,
+    pub consecutive_fails: Cell<i64>,
+    pub sps: i64,
+    pub gain: i64,
+    pub enable_global_chop: bool,
+    pub global_chop_delay: i64,
+    pub spi: Rc<McuSpi>,
+    pub mcu: Rc<Mcu>,
+    pub oid: i64,
+    pub data_ready_pin: String,
+    pub channels: Vec<i64>,
+    pub channel_mask: i64,
     ffreader: FixedFreqReader,
-    batch_bulk: RefCell<Option<Rc<BatchBulkHelper>>>,
-    attach_probe_cmd: RefCell<Option<CommandWrapper>>,
-    query_ads131m0x_cmd: RefCell<Option<CommandWrapper>>,
+    pub batch_bulk: RefCell<Option<Rc<BatchBulkHelper>>>,
+    pub attach_probe_cmd: RefCell<Option<CommandWrapper>>,
+    pub query_ads131m0x_cmd: RefCell<Option<CommandWrapper>>,
 }
 
 impl ADS131MxBase {
@@ -164,7 +164,7 @@ impl ADS131MxBase {
         Ok(s)
     }
 
-    fn build_config(&self) -> KResult<()> {
+    pub fn build_config(&self) -> KResult<()> {
         let cq = self.spi.get_command_queue();
         self.mcu.add_config_cmd(
             &format!(
@@ -186,7 +186,7 @@ impl ADS131MxBase {
     }
 
     // Measurement decoding
-    fn convert_samples(&self, samples: &[(f64, Vec<i64>)]) -> Vec<PyVal> {
+    pub fn convert_samples(&self, samples: &[(f64, Vec<i64>)]) -> Vec<PyVal> {
         let mut samples_out = vec![];
         for (ptime, channel_counts) in samples {
             let val = channel_counts[0];
@@ -205,7 +205,7 @@ impl ADS131MxBase {
         samples_out
     }
 
-    fn start_measurements(&self) -> KResult<()> {
+    pub fn start_measurements(&self) -> KResult<()> {
         self.last_error_count.set(0);
         self.consecutive_fails.set(0);
         self.reset_chip()?;
@@ -216,7 +216,7 @@ impl ADS131MxBase {
         self.ffreader.note_start()
     }
 
-    fn finish_measurements(&self) -> KResult<()> {
+    pub fn finish_measurements(&self) -> KResult<()> {
         if self.printer.is_shutdown() {
             return Ok(());
         }
@@ -226,7 +226,7 @@ impl ADS131MxBase {
         Ok(())
     }
 
-    fn process_batch(&self, _eventtime: f64) -> KResult<PyVal> {
+    pub fn process_batch(&self, _eventtime: f64) -> KResult<PyVal> {
         let samples = self.ffreader.pull_samples()?;
         let data = self.convert_samples(&samples);
         Ok(adc_batch(data, self.last_error_count.get(), self.ffreader.get_last_overflows()))
@@ -240,7 +240,7 @@ impl ADS131MxBase {
     }
 
     // Send a frame of 16-bit values as 24-bit words.
-    fn send_command(&self, cmd_16bit: i64) -> KResult<()> {
+    pub fn send_command(&self, cmd_16bit: i64) -> KResult<()> {
         let mut words = vec![cmd_16bit];
         words.extend(std::iter::repeat_n(NULL_CMD, 1 + self.channel_count));
         self.spi.spi_send_wait_ack(&Self::to_words(&words), 0, 0)
@@ -278,7 +278,7 @@ impl ADS131MxBase {
         cmd | ((addr & 0x3F) << 7) | ((count - 1) & 0x7F)
     }
 
-    fn read_reg(&self, addr: i64) -> KResult<i64> {
+    pub fn read_reg(&self, addr: i64) -> KResult<i64> {
         let msg_words = 2 + self.channel_count;
         let resp = self.transfer_frame(&[Self::build_register_command(RREG_CMD, addr, 1)])?;
         if resp.len() < msg_words + 1 {
@@ -288,13 +288,13 @@ impl ADS131MxBase {
     }
 
     // Write a single register.
-    fn write_reg(&self, addr: i64, value: i64) -> KResult<()> {
+    pub fn write_reg(&self, addr: i64, value: i64) -> KResult<()> {
         self.transfer_frame(&[Self::build_register_command(WREG_CMD, addr, 1), value])?;
         Ok(())
     }
 
     // Write a register and verify the value was set.
-    fn write_and_verify_reg(&self, addr: i64, value: i64) -> KResult<()> {
+    pub fn write_and_verify_reg(&self, addr: i64, value: i64) -> KResult<()> {
         self.write_reg(addr, value)?;
         let actual = self.read_reg(addr)?;
         if actual != value {
@@ -306,7 +306,7 @@ impl ADS131MxBase {
         Ok(())
     }
 
-    fn reset_chip(&self) -> KResult<()> {
+    pub fn reset_chip(&self) -> KResult<()> {
         self.send_command(RESET_CMD)?;
         self.reactor.delay_for_ms(20.0)?;
         let status = self.read_reg(STATUS_REG)?;
@@ -314,13 +314,13 @@ impl ADS131MxBase {
         Ok(())
     }
 
-    fn gain_register_value(&self) -> i64 {
+    pub fn gain_register_value(&self) -> i64 {
         // The gain setting for each channel is 3 bits, followed by a reserved
         // bits. Starting with Channel 0 is at the LSB.
         (0..self.channel_count).fold(0, |gain_val, channel| gain_val | (self.gain << (channel * 4)))
     }
 
-    fn setup_chip(&self) -> KResult<()> {
+    pub fn setup_chip(&self) -> KResult<()> {
         // MODE register (0x02): clear RESET bit (bit 10), set 24-bit word length (bits 9:8 = 01)
         // Reset default is 0x0510: RESET=1, WLENGTH=01, TIMEOUT=1
         let wlength_24 = 0b01 << 8;

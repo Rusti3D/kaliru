@@ -27,10 +27,13 @@ pub enum Mode {
 
 pub struct Limited {
     mode: Mode,
-    max_velocities: RefCell<[f64; 3]>,
-    max_accels: RefCell<[f64; 3]>,
-    xy_hypot_accel: Cell<f64>,
-    scale_per_axis: Cell<bool>,
+    // limited_cartesian: the toolhead's limits at config time
+    pub config_max_velocity: f64,
+    pub config_max_accel: f64,
+    pub max_velocities: RefCell<[f64; 3]>,
+    pub max_accels: RefCell<[f64; 3]>,
+    pub xy_hypot_accel: Cell<f64>,
+    pub scale_per_axis: Cell<bool>,
     // limited_corexy
     max_x_accel: Cell<f64>,
     max_y_accel: Cell<f64>,
@@ -54,6 +57,8 @@ impl Limited {
         let (max_velocity, max_accel) = toolhead.get_max_velocity();
         let mut l = Limited {
             mode,
+            config_max_velocity: max_velocity,
+            config_max_accel: max_accel,
             max_velocities: RefCell::new([0.0; 3]),
             max_accels: RefCell::new([0.0; 3]),
             xy_hypot_accel: Cell::new(0.0),

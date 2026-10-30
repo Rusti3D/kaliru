@@ -16,11 +16,11 @@ use std::cell::RefCell;
 use std::rc::{Rc, Weak};
 
 pub struct HomingHeaters {
-    printer: Rc<Printer>,
-    disable_heaters: RefCell<Option<Vec<String>>>,
-    flaky_steppers: Option<Vec<String>>,
-    pheaters: Rc<PrinterHeaters>,
-    target_save: RefCell<IndexMap<String, f64>>,
+    pub printer: Rc<Printer>,
+    pub disable_heaters: RefCell<Option<Vec<String>>>,
+    pub flaky_steppers: Option<Vec<String>>,
+    pub pheaters: Rc<PrinterHeaters>,
+    pub target_save: RefCell<IndexMap<String, f64>>,
 }
 
 /// repr() of the getlist() tuple of names
@@ -29,7 +29,7 @@ fn names_repr(v: &[String]) -> String {
 }
 
 impl HomingHeaters {
-    fn new(config: &ConfigWrapper) -> KResult<Rc<Self>> {
+    pub fn new(config: &ConfigWrapper) -> KResult<Rc<Self>> {
         let printer = config.get_printer();
         let disable_heaters = config.getlist("heaters", Dflt::None, ",", None)?;
         let flaky_steppers = config.getlist("steppers", Dflt::None, ",", None)?;
@@ -59,7 +59,7 @@ impl HomingHeaters {
         Ok(h)
     }
 
-    fn handle_connect(&self) -> KResult<()> {
+    pub fn handle_connect(&self) -> KResult<()> {
         // heaters to disable
         let all_heaters = self.pheaters.get_all_heaters();
         let disable = self.disable_heaters.borrow().clone();
@@ -87,7 +87,7 @@ impl HomingHeaters {
         steppers_being_homed.iter().any(|x| flaky.contains(x))
     }
 
-    fn handle_homing_move_begin(&self, hmove: &HomingMove) -> KResult<()> {
+    pub fn handle_homing_move_begin(&self, hmove: &HomingMove) -> KResult<()> {
         if !self.check_eligible(&hmove.get_mcu_endstops()) {
             return Ok(());
         }
@@ -100,7 +100,7 @@ impl HomingHeaters {
         Ok(())
     }
 
-    fn handle_homing_move_end(&self, hmove: &HomingMove) -> KResult<()> {
+    pub fn handle_homing_move_end(&self, hmove: &HomingMove) -> KResult<()> {
         if !self.check_eligible(&hmove.get_mcu_endstops()) {
             return Ok(());
         }

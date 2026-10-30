@@ -10,7 +10,77 @@ use crate::reactor::{FileHandler, Reactor, ReactorCompletion, ReactorMutex, Reac
 
 type PyCompletion = ReactorCompletion<PyRef>;
 
+/// ReactorPreventPause(reactor) as Kalico has it: __enter__ / __exit__
+/// count the pauses off (kaliru's own guard counts from creation to drop)
+pub struct PyPreventPause {
+    pub reactor: Rc<Reactor>,
+}
+
+/// completion.result: the result, else the class's sentinel
+fn completion_result(o: &PyRef) -> KResult<PyRef> {
+    if let Ok(c) = objects::unwrap_as::<ReactorCompletion<bool>>(o) {
+        return Ok(match *c.result.borrow() {
+            Some(v) => py_bool(v),
+            None => lookup("klippy.reactor", "ReactorCompletion")?.getattr("sentinel")?,
+        });
+    }
+    let c = objects::unwrap_as::<PyCompletion>(o)?;
+    let r = c.result.borrow().clone();
+    match r {
+        Some(v) => Ok(v),
+        None => lookup("klippy.reactor", "ReactorCompletion")?.getattr("sentinel"),
+    }
+}
+
 pub fn register(r: &mut Registry) {
+    objects::register_class::<PyPreventPause>("klippy.reactor", "ReactorPreventPause");
+    r.ctor("klippy.reactor.ReactorPreventPause.__init__", |a| {
+        let p: Rc<dyn Any> = Rc::new(PyPreventPause { reactor: objects::unwrap_as::<Reactor>(a.arg(0))? });
+        Ok(p)
+    });
+    r.method("klippy.reactor.ReactorPreventPause.__enter__", |a| {
+        let c = &a.this::<PyPreventPause>()?.reactor.prevent_pause_count;
+        c.set(c.get() + 1);
+        Ok(py_none())
+    });
+    r.method("klippy.reactor.ReactorPreventPause.__exit__", |a| {
+        let c = &a.this::<PyPreventPause>()?.reactor.prevent_pause_count;
+        c.set(c.get() - 1);
+        Ok(py_none())
+    });
+    r.attr("klippy.reactor.ReactorPreventPause.reactor", |o| objects::unwrap_as::<PyPreventPause>(o)?.reactor.clone().to_py(), None);
+    r.method("klippy.reactor.SelectReactor.assert_no_pause", |a| objects::wrap(Rc::new(PyPreventPause { reactor: a.this::<Reactor>()? })));
+    method!(r, "klippy.reactor.SelectReactor", Reactor, verify_can_pause(re) => re.verify_can_pause().map_err(|e| KError::Reactor(e.0)));
+    // _READ / _WRITE: the poll flags of each reactor class
+    r.attr("klippy.reactor.SelectReactor._READ", |_o| Ok(py_int(1)), None);
+    r.attr("klippy.reactor.SelectReactor._WRITE", |_o| Ok(py_int(2)), None);
+    r.attr("klippy.reactor.PollReactor._READ", |_o| Ok(py_int((libc::POLLIN | libc::POLLHUP) as i64)), None);
+    r.attr("klippy.reactor.PollReactor._WRITE", |_o| Ok(py_int(libc::POLLOUT as i64)), None);
+    r.attr("klippy.reactor.EPollReactor._READ", |_o| Ok(py_int((libc::EPOLLIN | libc::EPOLLHUP) as i64)), None);
+    r.attr("klippy.reactor.EPollReactor._WRITE", |_o| Ok(py_int(libc::EPOLLOUT as i64)), None);
+    // ReactorCompletion(reactor) / ReactorMutex(reactor, is_locked=False)
+    r.ctor("klippy.reactor.ReactorCompletion.__init__", |a| {
+        let c: Rc<dyn Any> = objects::unwrap_as::<Reactor>(a.arg(0))?.completion::<PyRef>();
+        Ok(c)
+    });
+    r.attr("klippy.reactor.ReactorCompletion.result", completion_result, None);
+    r.attr("klippy.reactor.ReactorCompletion.reactor", |o| {
+        if let Ok(c) = objects::unwrap_as::<ReactorCompletion<bool>>(o) {
+            return c.reactor.clone().to_py();
+        }
+        objects::unwrap_as::<PyCompletion>(o)?.reactor.clone().to_py()
+    }, None);
+    r.attr("klippy.reactor.ReactorCompletion.waiting", |o| {
+        let w = match objects::unwrap_as::<ReactorCompletion<bool>>(o) {
+            Ok(c) => c.waiting.borrow().clone(),
+            Err(_) => objects::unwrap_as::<PyCompletion>(o)?.waiting.borrow().clone(),
+        };
+        w.to_py()
+    }, None);
+    r.ctor("klippy.reactor.ReactorMutex.__init__", |a| {
+        let m: Rc<dyn Any> = objects::unwrap_as::<Reactor>(a.arg(0))?.mutex(a.bool(1)?);
+        Ok(m)
+    });
     r.method("klippy.reactor.SelectReactor.register_timer", register_timer);
     method!(r, "klippy.reactor.SelectReactor", Reactor, update_timer(re, t: Rc<ReactorTimer>, waketime: f64) => re.update_timer(&t, waketime));
     // timers.pop(timers.index(timer_handler)): ValueError for an unknown timer
@@ -28,9 +98,18 @@ pub fn register(r: &mut Registry) {
     r.method("klippy.reactor.SelectReactor.register_async_callback", register_async_callback);
     method!(r, "klippy.reactor.SelectReactor", Reactor, async_complete(re, c: Rc<PyCompletion>, result: PyRef) => re.async_complete(&c, result));
     method!(r, "klippy.reactor.SelectReactor", Reactor, mutex(re, is_locked: bool) => re.mutex(is_locked));
+    // (PollReactor / EPollReactor override these; kaliru's reactor is klippy.reactor.Reactor = PollReactor)
     r.method("klippy.reactor.SelectReactor.register_fd", register_fd);
     method!(r, "klippy.reactor.SelectReactor", Reactor, unregister_fd(re, h: Rc<crate::reactor::ReactorFileHandler>) => re.unregister_fd(&h));
     method!(r, "klippy.reactor.SelectReactor", Reactor, set_fd_wake(re, h: Rc<crate::reactor::ReactorFileHandler>, readable: bool, writeable: bool) =>
+        re.set_fd_wake(&h, readable, writeable));
+    r.method("klippy.reactor.PollReactor.register_fd", register_fd);
+    method!(r, "klippy.reactor.PollReactor", Reactor, unregister_fd(re, h: Rc<crate::reactor::ReactorFileHandler>) => re.unregister_fd(&h));
+    method!(r, "klippy.reactor.PollReactor", Reactor, set_fd_wake(re, h: Rc<crate::reactor::ReactorFileHandler>, readable: bool, writeable: bool) =>
+        re.set_fd_wake(&h, readable, writeable));
+    r.method("klippy.reactor.EPollReactor.register_fd", register_fd);
+    method!(r, "klippy.reactor.EPollReactor", Reactor, unregister_fd(re, h: Rc<crate::reactor::ReactorFileHandler>) => re.unregister_fd(&h));
+    method!(r, "klippy.reactor.EPollReactor", Reactor, set_fd_wake(re, h: Rc<crate::reactor::ReactorFileHandler>, readable: bool, writeable: bool) =>
         re.set_fd_wake(&h, readable, writeable));
     method!(r, "klippy.reactor.SelectReactor", Reactor, end(re) => re.end());
     // self.monotonic = chelper...get_monotonic (a function attribute)
@@ -41,10 +120,37 @@ pub fn register(r: &mut Registry) {
 
     r.attr("klippy.reactor.ReactorTimer.waketime", |o| Ok(py_float(objects::unwrap_as::<ReactorTimer>(o)?.waketime.get())), None);
 
-    method!(r, "klippy.reactor.ReactorCompletion", PyCompletion, test(c) => c.test());
-    method!(r, "klippy.reactor.ReactorCompletion", PyCompletion, complete(c, result: PyRef) => c.complete(result));
-    method!(r, "klippy.reactor.ReactorCompletion", PyCompletion, wait(c, waketime: f64, waketime_result: PyRef) =>
-        c.wait(waketime, Some(waketime_result)).map_err(|e| KError::Reactor(e.0)));
+    // a completion python made carries python objects; kaliru's own (a
+    // homing move's endstop triggers) a bool
+    type BoolCompletion = ReactorCompletion<bool>;
+    r.method("klippy.reactor.ReactorCompletion.test", |a| {
+        let o = a.slf.as_ref().expect("method");
+        if let Ok(c) = objects::unwrap_as::<BoolCompletion>(o) {
+            return Ok(py_bool(c.test()));
+        }
+        Ok(py_bool(objects::unwrap_as::<PyCompletion>(o)?.test()))
+    });
+    r.method("klippy.reactor.ReactorCompletion.complete", |a| {
+        let o = a.slf.as_ref().expect("method");
+        if let Ok(c) = objects::unwrap_as::<BoolCompletion>(o) {
+            c.complete(a.bool(0)?);
+            return Ok(py_none());
+        }
+        objects::unwrap_as::<PyCompletion>(o)?.complete(a.arg(0).clone());
+        Ok(py_none())
+    });
+    r.method("klippy.reactor.ReactorCompletion.wait", |a| {
+        let o = a.slf.as_ref().expect("method");
+        let waketime = a.f64(0)?;
+        if let Ok(c) = objects::unwrap_as::<BoolCompletion>(o) {
+            let wr = if a.arg(1).is_none() { None } else { Some(a.bool(1)?) };
+            return match c.wait(waketime, wr).map_err(|e| KError::Reactor(e.0))? {
+                Some(v) => Ok(py_bool(v)),
+                None => Ok(py_none()),
+            };
+        }
+        objects::unwrap_as::<PyCompletion>(o)?.wait(waketime, Some(a.arg(1).clone())).map_err(|e| KError::Reactor(e.0)).to_py()
+    });
 
     method!(r, "klippy.reactor.ReactorMutex", ReactorMutex, test(m) => m.test());
     method!(r, "klippy.reactor.ReactorMutex", ReactorMutex, __enter__(m) => m.lock().map_err(|e| KError::Reactor(e.0)));

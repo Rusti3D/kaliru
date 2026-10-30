@@ -12,27 +12,27 @@ use crate::toolhead::ToolHead;
 use std::cell::Cell;
 use std::rc::{Rc, Weak};
 
-struct NozzleCleanupOptions {
-    cfg_probe_speed: f64,
-    cfg_lift_speed: f64,
-    cfg_horizontal_speed: f64,
-    cfg_sample_retract_dist: f64,
-    cfg_samples: i64,
-    cfg_pattern_stepover: f64,
-    cfg_pattern_x: i64,
-    cfg_pattern_y: i64,
-    probe_speed: Cell<f64>,
-    lift_speed: Cell<f64>,
-    horizontal_speed: Cell<f64>,
-    sample_retract_dist: Cell<f64>,
-    samples: Cell<i64>,
-    pattern_stepover: Cell<f64>,
-    pattern_x: Cell<i64>,
-    pattern_y: Cell<i64>,
+pub struct NozzleCleanupOptions {
+    pub cfg_probe_speed: f64,
+    pub cfg_lift_speed: f64,
+    pub cfg_horizontal_speed: f64,
+    pub cfg_sample_retract_dist: f64,
+    pub cfg_samples: i64,
+    pub cfg_pattern_stepover: f64,
+    pub cfg_pattern_x: i64,
+    pub cfg_pattern_y: i64,
+    pub probe_speed: Cell<f64>,
+    pub lift_speed: Cell<f64>,
+    pub horizontal_speed: Cell<f64>,
+    pub sample_retract_dist: Cell<f64>,
+    pub samples: Cell<i64>,
+    pub pattern_stepover: Cell<f64>,
+    pub pattern_x: Cell<i64>,
+    pub pattern_y: Cell<i64>,
 }
 
 impl NozzleCleanupOptions {
-    fn new(probe: &PrinterProbe, config: &ConfigWrapper) -> KResult<Self> {
+    pub fn new(probe: &PrinterProbe, config: &ConfigWrapper) -> KResult<Self> {
         let cfg_probe_speed = config.getfloat("speed", probe.speed, Lim::new().above(0.0))?;
         let cfg_lift_speed = config.getfloat("lift_speed", probe.lift_speed, Lim::new().above(0.0))?;
         let cfg_horizontal_speed = config.getfloat("horizontal_speed", probe.speed, Lim::new().above(0.0))?;
@@ -64,7 +64,7 @@ impl NozzleCleanupOptions {
     }
 
     /// Update settings from a GCode Command instance
-    fn customize(&self, gcmd: &GCodeCommand) -> KResult<()> {
+    pub fn customize(&self, gcmd: &GCodeCommand) -> KResult<()> {
         self.probe_speed.set(gcmd.get_float("SPEED", Some(self.cfg_probe_speed), Lim::new().above(0.0))?);
         self.lift_speed.set(gcmd.get_float("LIFT_SPEED", Some(self.cfg_lift_speed), Lim::new().above(0.0))?);
         self.horizontal_speed.set(gcmd.get_float("HORIZONTAL_SPEED", Some(self.cfg_horizontal_speed), Lim::new().above(0.0))?);
@@ -77,7 +77,7 @@ impl NozzleCleanupOptions {
     }
 
     /// Generate serpentine pattern of cleanup positions
-    fn get_cleanup_positions(&self) -> Vec<(f64, f64)> {
+    pub fn get_cleanup_positions(&self) -> Vec<(f64, f64)> {
         let mut positions = vec![];
         let (px, py, step) = (self.pattern_x.get(), self.pattern_y.get(), self.pattern_stepover.get());
         let x_count = px.abs();
@@ -103,15 +103,15 @@ impl NozzleCleanupOptions {
 const CMD_NOZZLE_CLEANUP_HELP: &str = "Run nozzle cleanup";
 
 pub struct NozzleCleanup {
-    printer: Rc<Printer>,
-    probe: Rc<PrinterProbe>,
+    pub printer: Rc<Printer>,
+    pub probe: Rc<PrinterProbe>,
     options: NozzleCleanupOptions,
     _retry_policy: RetryPolicy,
     nozzle_scrubber: GcodeNozzleScrubber,
 }
 
 impl NozzleCleanup {
-    fn new(config: &ConfigWrapper) -> KResult<Rc<Self>> {
+    pub fn new(config: &ConfigWrapper) -> KResult<Rc<Self>> {
         let printer = config.get_printer();
         let gcode = printer.lookup::<GCodeDispatch>("gcode")?;
         let slot: Rc<std::cell::RefCell<Weak<NozzleCleanup>>> = Rc::new(std::cell::RefCell::new(Weak::new()));
@@ -139,22 +139,22 @@ impl NozzleCleanup {
         self.printer.lookup::<ToolHead>("toolhead")
     }
 
-    fn horizontal_move(&self, pos: (f64, f64)) -> KResult<()> {
+    pub fn horizontal_move(&self, pos: (f64, f64)) -> KResult<()> {
         self.toolhead()?.manual_move(&[Some(pos.0), Some(pos.1), None], self.options.horizontal_speed.get())
     }
 
-    fn probing_move(&self, gcmd: &GCodeCommand) -> KResult<bool> {
+    pub fn probing_move(&self, gcmd: &GCodeCommand) -> KResult<bool> {
         let (_result, is_good) = self.probe.probing_move(self.options.probe_speed.get(), gcmd)?;
         Ok(is_good.unwrap_or(false))
     }
 
-    fn retract_move(&self) -> KResult<()> {
+    pub fn retract_move(&self) -> KResult<()> {
         let toolhead = self.toolhead()?;
         let z_pos = toolhead.get_position()[2];
         toolhead.manual_move(&[None, None, Some(z_pos + self.options.sample_retract_dist.get())], self.options.lift_speed.get())
     }
 
-    fn cmd_nozzle_cleanup(&self, gcmd: &GCodeCommand) -> KResult<()> {
+    pub fn cmd_nozzle_cleanup(&self, gcmd: &GCodeCommand) -> KResult<()> {
         self.options.customize(gcmd)?;
         let positions = self.options.get_cleanup_positions();
         let origin_pos = self.toolhead()?.get_position();

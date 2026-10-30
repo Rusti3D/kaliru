@@ -119,90 +119,90 @@ enum Calib {
 
 pub struct TradRack {
     me: Weak<TradRack>,
-    printer: Rc<Printer>,
-    reactor: Rc<Reactor>,
-    spool_pull_speed: f64,
-    buffer_pull_speed: f64,
-    tr_toolhead: Rc<ToolHead>,
-    tr_kinematics: Rc<TradRackKinematics>,
-    sel_max_velocity: f64,
+    pub printer: Rc<Printer>,
+    pub reactor: Rc<Reactor>,
+    pub spool_pull_speed: f64,
+    pub buffer_pull_speed: f64,
+    pub tr_toolhead: Rc<ToolHead>,
+    pub tr_kinematics: Rc<TradRackKinematics>,
+    pub sel_max_velocity: f64,
     servo: TradRackServo,
     fil_driver_endstops: Vec<(EndstopRef, String)>,
     toolhead_fil_endstops: Vec<(EndstopRef, String)>,
-    selector_sensor: Rc<TradRackRunoutSensor>,
-    lane_count: i64,
+    pub selector_sensor: Rc<TradRackRunoutSensor>,
+    pub lane_count: i64,
     lane_position_manager: RefCell<TradRackLanePositionManager>,
-    lane_positions: RefCell<Vec<f64>>,
+    pub lane_positions: RefCell<Vec<f64>>,
     bowden_load_length_filter: RefCell<MovingAverageFilter>,
     bowden_unload_length_filter: RefCell<MovingAverageFilter>,
-    extruder_sync_manager: Rc<TradRackExtruderSyncManager>,
-    servo_down_angle: f64,
-    servo_up_angle: f64,
-    servo_wait: f64,
-    selector_unload_length: f64,
-    selector_unload_length_extra: f64,
-    eject_length: f64,
-    config_bowden_length: f64,
-    bowden_load_length: Cell<f64>,
-    bowden_unload_length: Cell<f64>,
-    extruder_load_length: f64,
-    hotend_load_length: Cell<f64>,
-    toolhead_unload_length: f64,
-    selector_sense_speed: f64,
-    selector_unload_speed: f64,
-    eject_speed: f64,
-    toolhead_sense_speed: f64,
-    extruder_load_speed: f64,
-    hotend_load_speed: f64,
-    toolhead_unload_speed: f64,
-    load_with_toolhead_sensor: bool,
-    unload_with_toolhead_sensor: bool,
-    fil_homing_retract_dist: f64,
-    target_toolhead_homing_dist: f64,
-    target_selector_homing_dist: f64,
-    fil_homing_lengths: [f64; 5],
-    sync_to_extruder: Cell<bool>,
-    user_wait_time: i64,
-    save_active_lane: bool,
-    keep_servo_down_after_lane_load: bool,
-    log_bowden_lengths: bool,
+    pub extruder_sync_manager: Rc<TradRackExtruderSyncManager>,
+    pub servo_down_angle: f64,
+    pub servo_up_angle: f64,
+    pub servo_wait: f64,
+    pub selector_unload_length: f64,
+    pub selector_unload_length_extra: f64,
+    pub eject_length: f64,
+    pub config_bowden_length: f64,
+    pub bowden_load_length: Cell<f64>,
+    pub bowden_unload_length: Cell<f64>,
+    pub extruder_load_length: f64,
+    pub hotend_load_length: Cell<f64>,
+    pub toolhead_unload_length: f64,
+    pub selector_sense_speed: f64,
+    pub selector_unload_speed: f64,
+    pub eject_speed: f64,
+    pub toolhead_sense_speed: f64,
+    pub extruder_load_speed: f64,
+    pub hotend_load_speed: f64,
+    pub toolhead_unload_speed: f64,
+    pub load_with_toolhead_sensor: bool,
+    pub unload_with_toolhead_sensor: bool,
+    pub fil_homing_retract_dist: f64,
+    pub target_toolhead_homing_dist: f64,
+    pub target_selector_homing_dist: f64,
+    pub fil_homing_lengths: [f64; 5],
+    pub sync_to_extruder: Cell<bool>,
+    pub user_wait_time: i64,
+    pub save_active_lane: bool,
+    pub keep_servo_down_after_lane_load: bool,
+    pub log_bowden_lengths: bool,
     // other variables
-    toolhead: RefCell<Option<Rc<ToolHead>>>,
-    curr_lane: Cell<Option<i64>>,
-    active_lane: Cell<Option<i64>>,
-    retry_lane: Cell<Option<i64>>,
-    next_lane: Cell<Option<i64>>,
-    next_tool: Cell<Option<i64>>,
-    servo_raised: Cell<Option<bool>>,
-    lanes_buffered: RefCell<Vec<bool>>,
-    bowden_load_calibrated: Cell<bool>,
-    bowden_unload_calibrated: Cell<bool>,
-    bowden_load_lengths_filename: String,
-    bowden_unload_lengths_filename: String,
-    ignore_next_unload_length: Cell<bool>,
-    last_heater_target: Cell<f64>,
+    pub toolhead: RefCell<Option<Rc<ToolHead>>>,
+    pub curr_lane: Cell<Option<i64>>,
+    pub active_lane: Cell<Option<i64>>,
+    pub retry_lane: Cell<Option<i64>>,
+    pub next_lane: Cell<Option<i64>>,
+    pub next_tool: Cell<Option<i64>>,
+    pub servo_raised: Cell<Option<bool>>,
+    pub lanes_buffered: RefCell<Vec<bool>>,
+    pub bowden_load_calibrated: Cell<bool>,
+    pub bowden_unload_calibrated: Cell<bool>,
+    pub bowden_load_lengths_filename: String,
+    pub bowden_unload_lengths_filename: String,
+    pub ignore_next_unload_length: Cell<bool>,
+    pub last_heater_target: Cell<f64>,
     tr_next_generator: Cell<Option<Calib>>,
-    selector_pos_uncertain: Cell<bool>,
+    pub selector_pos_uncertain: Cell<bool>,
     /// save_variables.allVariables as of klippy:connect (python keeps that
     /// dict; SAVE_VARIABLE replaces save_variables' own)
     variables: RefCell<Option<IndexMap<String, Value>>>,
     resume_stack: RefCell<VecDeque<Resume>>,
     // tool mapping
-    lanes_dead: RefCell<Vec<bool>>,
-    tool_map: RefCell<Vec<i64>>,
-    default_lanes: RefCell<Vec<Option<i64>>>,
+    pub lanes_dead: RefCell<Vec<bool>>,
+    pub tool_map: RefCell<Vec<i64>>,
+    pub default_lanes: RefCell<Vec<Option<i64>>>,
     // runout variables
-    runout_lane: Cell<Option<i64>>,
-    runout_steps_done: Cell<i64>,
-    replacement_lane: Cell<Option<i64>>,
+    pub runout_lane: Cell<Option<i64>>,
+    pub runout_steps_done: Cell<i64>,
+    pub replacement_lane: Cell<Option<i64>>,
     // custom user macros
-    pre_unload_macro: Rc<Template>,
-    post_unload_macro: Rc<Template>,
-    pre_load_macro: Rc<Template>,
-    post_load_macro: Rc<Template>,
-    pause_macro: Rc<Template>,
-    resume_macro: Rc<Template>,
-    gcode: Rc<GCodeDispatch>,
+    pub pre_unload_macro: Rc<Template>,
+    pub post_unload_macro: Rc<Template>,
+    pub pre_load_macro: Rc<Template>,
+    pub post_load_macro: Rc<Template>,
+    pub pause_macro: Rc<Template>,
+    pub resume_macro: Rc<Template>,
+    pub gcode: Rc<GCodeDispatch>,
 }
 
 macro_rules! help {
@@ -236,7 +236,7 @@ help!(CMD_TR_PRINT_TOOL_MAP_HELP, "Print tool assignment for each lane");
 help!(CMD_TR_PRINT_TOOL_GROUPS_HELP, "Print lanes assigned to each tool");
 
 impl TradRack {
-    fn new(config: &ConfigWrapper) -> KResult<Rc<Self>> {
+    pub fn new(config: &ConfigWrapper) -> KResult<Rc<Self>> {
         let printer = config.get_printer();
         let reactor = printer.get_reactor();
         let slot: Rc<RefCell<Weak<TradRack>>> = Rc::new(RefCell::new(Weak::new()));
@@ -516,7 +516,7 @@ impl TradRack {
         self.toolhead.borrow().clone().ok_or_else(|| KError::Other("'NoneType' object has no attribute 'wait_moves'".into()))
     }
 
-    fn handle_connect(&self) -> KResult<()> {
+    pub fn handle_connect(&self) -> KResult<()> {
         *self.toolhead.borrow_mut() = Some(self.printer.lookup::<ToolHead>("toolhead")?);
         let save_variables = self.printer.lookup_object_opt("save_variables").and_then(crate::printer::downcast_rc::<SaveVariables>);
         let Some(save_variables) = save_variables else {
@@ -526,7 +526,7 @@ impl TradRack {
         Ok(())
     }
 
-    fn handle_ready(&self) -> KResult<()> {
+    pub fn handle_ready(&self) -> KResult<()> {
         self.load_saved_state()
     }
 
@@ -538,7 +538,7 @@ impl TradRack {
         self.gcode.run_script_from_command(&format!("SAVE_VARIABLE VARIABLE={} VALUE=\"{}\"", name, value))
     }
 
-    fn load_saved_state(&self) -> KResult<()> {
+    pub fn load_saved_state(&self) -> KResult<()> {
         // load bowden lengths if the user has not changed the config value
         let prev_config_bowden_length = self.var(VARS_CONFIG_BOWDEN_LENGTH);
         let prev_truthy = prev_config_bowden_length.as_ref().map(|v| v.truthy()).unwrap_or(false);
@@ -574,7 +574,7 @@ impl TradRack {
         Ok(())
     }
 
-    fn handle_runout(&self, _eventtime: f64) -> KResult<()> {
+    pub fn handle_runout(&self, _eventtime: f64) -> KResult<()> {
         // send pause command
         let pause_resume = self.printer.lookup::<crate::extras::pause_resume::PauseResume>("pause_resume")?;
         pause_resume.send_pause_command()?;
@@ -599,7 +599,7 @@ impl TradRack {
 
     // gcode commands
 
-    fn cmd_tr_home(&self, _gcmd: &GCodeCommand) -> KResult<()> {
+    pub fn cmd_tr_home(&self, _gcmd: &GCodeCommand) -> KResult<()> {
         // check for filament in the selector
         if self.query_selector_sensor()? {
             return Err(KError::command("Cannot home with filament in selector"));
@@ -632,11 +632,11 @@ impl TradRack {
         Ok(())
     }
 
-    fn cmd_tr_go_to_lane(&self, gcmd: &GCodeCommand) -> KResult<()> {
+    pub fn cmd_tr_go_to_lane(&self, gcmd: &GCodeCommand) -> KResult<()> {
         self.go_to_lane(gcmd.get_int_opt("LANE", Lim::new())?)
     }
 
-    fn cmd_tr_load_lane(&self, gcmd: &GCodeCommand) -> KResult<()> {
+    pub fn cmd_tr_load_lane(&self, gcmd: &GCodeCommand) -> KResult<()> {
         let lane = gcmd.get_int_opt("LANE", Lim::new())?;
         self.load_lane(lane, gcmd.get_int("RESET_SPEED", Some(1), Lim::new())? != 0, true)?;
         let lane = lane.ok_or_else(|| KError::Other("list indices must be integers or slices, not NoneType".into()))?;
@@ -648,7 +648,7 @@ impl TradRack {
         self.cmd_tr_load_toolhead(gcmd, None)
     }
 
-    fn cmd_tr_load_toolhead(&self, gcmd: &GCodeCommand, tool_override: Option<i64>) -> KResult<()> {
+    pub fn cmd_tr_load_toolhead(&self, gcmd: &GCodeCommand, tool_override: Option<i64>) -> KResult<()> {
         let start_lane = self.active_lane.get();
         let mut lane = gcmd.get_int_opt("LANE", Lim::new())?;
         let tool = match tool_override {
@@ -722,7 +722,7 @@ impl TradRack {
         }
     }
 
-    fn cmd_tr_unload_toolhead(&self, gcmd: &GCodeCommand) -> KResult<()> {
+    pub fn cmd_tr_unload_toolhead(&self, gcmd: &GCodeCommand) -> KResult<()> {
         // unload toolhead
         let r = (|| {
             let min_temp = gcmd.get_float("MIN_TEMP", Some(0.0), Lim::new().min(0.0))?;
@@ -742,7 +742,7 @@ impl TradRack {
         fin
     }
 
-    fn cmd_tr_servo_down(&self, gcmd: &GCodeCommand) -> KResult<()> {
+    pub fn cmd_tr_servo_down(&self, gcmd: &GCodeCommand) -> KResult<()> {
         // check that the selector is at a lane
         if gcmd.get_int("FORCE", Some(0), Lim::new())? == 0 && !self.can_lower_servo()? {
             return Err(KError::command("Selector must be moved to a lane before lowering the servo"));
@@ -751,12 +751,12 @@ impl TradRack {
         self.lower_servo(false)
     }
 
-    fn cmd_tr_servo_up(&self, _gcmd: &GCodeCommand) -> KResult<()> {
+    pub fn cmd_tr_servo_up(&self, _gcmd: &GCodeCommand) -> KResult<()> {
         // raise servo
         self.raise_servo(false, true, true, None)
     }
 
-    fn cmd_tr_servo_test(&self, gcmd: &GCodeCommand) -> KResult<()> {
+    pub fn cmd_tr_servo_test(&self, gcmd: &GCodeCommand) -> KResult<()> {
         // get commanded and raw angles
         let cmd_angle = gcmd.get_float("ANGLE", Some((self.servo_up_angle - self.servo_down_angle).abs()), Lim::new())?;
         let up = self.servo_up_angle > self.servo_down_angle;
@@ -787,7 +787,7 @@ impl TradRack {
         self.servo.set_servo(None, Some(raw_angle), None)
     }
 
-    fn cmd_tr_set_active_lane(&self, gcmd: &GCodeCommand) -> KResult<()> {
+    pub fn cmd_tr_set_active_lane(&self, gcmd: &GCodeCommand) -> KResult<()> {
         // get lane
         let lane = gcmd.get_int_opt("LANE", Lim::new())?;
 
@@ -839,7 +839,7 @@ impl TradRack {
         crate::events::TradRackForcedActiveLane::emit(&self.printer)
     }
 
-    fn cmd_tr_reset_active_lane(&self, _gcmd: &GCodeCommand) -> KResult<()> {
+    pub fn cmd_tr_reset_active_lane(&self, _gcmd: &GCodeCommand) -> KResult<()> {
         self.set_active_lane(None)?;
         self.raise_servo(false, true, true, None)?;
         self.extruder_sync_manager.unsync()?;
@@ -847,7 +847,7 @@ impl TradRack {
         crate::events::TradRackResetActiveLane::emit(&self.printer)
     }
 
-    fn cmd_tr_resume(&self, _gcmd: &GCodeCommand) -> KResult<()> {
+    pub fn cmd_tr_resume(&self, _gcmd: &GCodeCommand) -> KResult<()> {
         let mut resume_msg = None;
 
         // loop through all resumes in the stack
@@ -888,7 +888,7 @@ impl TradRack {
         self.send_resume(resume_msg.as_deref())
     }
 
-    fn cmd_tr_locate_selector(&self, gcmd: &GCodeCommand) -> KResult<()> {
+    pub fn cmd_tr_locate_selector(&self, gcmd: &GCodeCommand) -> KResult<()> {
         if self.query_selector_sensor()? {
             if self.active_lane.get().is_none() && self.save_active_lane {
                 // set active lane if a valid lane was saved
@@ -970,7 +970,7 @@ impl TradRack {
         self.cmd_tr_home(&g)
     }
 
-    fn cmd_tr_calibrate_selector(&self, _gcmd: &GCodeCommand) -> KResult<()> {
+    pub fn cmd_tr_calibrate_selector(&self, _gcmd: &GCodeCommand) -> KResult<()> {
         self.tr_next_generator.set(Some(Calib::AtLane0));
         // next(generator): runs to the first yield
         if let Err(e) = self.prompt_selector_calibration(0) {
@@ -980,7 +980,7 @@ impl TradRack {
         Ok(())
     }
 
-    fn cmd_tr_next(&self, _gcmd: &GCodeCommand) -> KResult<()> {
+    pub fn cmd_tr_next(&self, _gcmd: &GCodeCommand) -> KResult<()> {
         let Some(state) = self.tr_next_generator.get() else {
             return Err(KError::command("TR_NEXT command is inactive"));
         };
@@ -1002,7 +1002,7 @@ impl TradRack {
         }
     }
 
-    fn cmd_tr_set_hotend_load_length(&self, gcmd: &GCodeCommand) -> KResult<()> {
+    pub fn cmd_tr_set_hotend_load_length(&self, gcmd: &GCodeCommand) -> KResult<()> {
         let value = match gcmd.get_float_opt("VALUE", Lim::new().min(0.0))? {
             Some(v) => v,
             None => {
@@ -1017,7 +1017,7 @@ impl TradRack {
         Ok(())
     }
 
-    fn cmd_tr_discard_bowden_lengths(&self, gcmd: &GCodeCommand) -> KResult<()> {
+    pub fn cmd_tr_discard_bowden_lengths(&self, gcmd: &GCodeCommand) -> KResult<()> {
         let mode = gcmd.get_or("MODE", "ALL").to_uppercase();
         if !["ALL", "LOAD", "UNLOAD"].contains(&mode.as_str()) {
             return Err(gcmd.error(format!("Invalid MODE: {}", mode)));
@@ -1037,19 +1037,19 @@ impl TradRack {
         Ok(())
     }
 
-    fn cmd_tr_sync_to_extruder(&self, _gcmd: &GCodeCommand) -> KResult<()> {
+    pub fn cmd_tr_sync_to_extruder(&self, _gcmd: &GCodeCommand) -> KResult<()> {
         self.toolhead()?.wait_moves()?;
         self.sync_to_extruder.set(true);
         self.restore_extruder_sync()
     }
 
-    fn cmd_tr_unsync_from_extruder(&self, _gcmd: &GCodeCommand) -> KResult<()> {
+    pub fn cmd_tr_unsync_from_extruder(&self, _gcmd: &GCodeCommand) -> KResult<()> {
         self.toolhead()?.wait_moves()?;
         self.sync_to_extruder.set(false);
         self.restore_extruder_sync()
     }
 
-    fn cmd_tr_assign_lane(&self, gcmd: &GCodeCommand) -> KResult<()> {
+    pub fn cmd_tr_assign_lane(&self, gcmd: &GCodeCommand) -> KResult<()> {
         let lane = gcmd.get_int_opt("LANE", Lim::new())?;
         let tool = gcmd.get_int_opt("TOOL", Lim::new())?;
         // check lane and tool
@@ -1066,7 +1066,7 @@ impl TradRack {
         Ok(())
     }
 
-    fn cmd_tr_set_default_lane(&self, gcmd: &GCodeCommand) -> KResult<()> {
+    pub fn cmd_tr_set_default_lane(&self, gcmd: &GCodeCommand) -> KResult<()> {
         let lane = gcmd.get_int_opt("LANE", Lim::new())?;
         let tool = gcmd.get_int_opt("TOOL", Lim::new())?;
         // check lane
@@ -1084,12 +1084,12 @@ impl TradRack {
         Ok(())
     }
 
-    fn cmd_tr_reset_tool_map(&self, _gcmd: &GCodeCommand) -> KResult<()> {
+    pub fn cmd_tr_reset_tool_map(&self, _gcmd: &GCodeCommand) -> KResult<()> {
         self.reset_tool_map();
         Ok(())
     }
 
-    fn cmd_tr_print_tool_map(&self, gcmd: &GCodeCommand) -> KResult<()> {
+    pub fn cmd_tr_print_tool_map(&self, gcmd: &GCodeCommand) -> KResult<()> {
         let num_chars = (self.lane_count - 1).to_string().len();
         let mut lane_msg = "|Lane: |".to_string();
         let mut tool_msg = "|Tool: |".to_string();
@@ -1104,7 +1104,7 @@ impl TradRack {
         Ok(())
     }
 
-    fn cmd_tr_print_tool_groups(&self, gcmd: &GCodeCommand) -> KResult<()> {
+    pub fn cmd_tr_print_tool_groups(&self, gcmd: &GCodeCommand) -> KResult<()> {
         let n = self.lane_count as usize;
         let mut tool_groups: Vec<Vec<i64>> = vec![vec![]; n];
         let tool_map = self.tool_map.borrow();
@@ -1125,7 +1125,7 @@ impl TradRack {
 
     // helper functions
 
-    fn lower_servo(&self, toolhead_dwell: bool) -> KResult<()> {
+    pub fn lower_servo(&self, toolhead_dwell: bool) -> KResult<()> {
         self.tr_toolhead.wait_moves()?;
         self.servo.set_servo(None, Some(self.servo_down_angle), None)?;
         if self.servo_raised.get() != Some(false) {
@@ -1138,7 +1138,7 @@ impl TradRack {
         Ok(())
     }
 
-    fn raise_servo(&self, toolhead_dwell: bool, tr_toolhead_dwell: bool, wait_moves: bool, print_time: Option<f64>) -> KResult<()> {
+    pub fn raise_servo(&self, toolhead_dwell: bool, tr_toolhead_dwell: bool, wait_moves: bool, print_time: Option<f64>) -> KResult<()> {
         if wait_moves {
             self.tr_toolhead.wait_moves()?;
         }
@@ -1155,45 +1155,45 @@ impl TradRack {
         Ok(())
     }
 
-    fn is_selector_homed(&self) -> KResult<bool> {
+    pub fn is_selector_homed(&self) -> KResult<bool> {
         let status = self.tr_toolhead.get_kinematics().get_status(self.reactor.monotonic());
         Ok(matches!(status.get("homed_axes"), Some(PyVal::Str(s)) if s.contains('x')))
     }
 
-    fn query_selector_sensor(&self) -> KResult<bool> {
+    pub fn query_selector_sensor(&self) -> KResult<bool> {
         let move_time = self.tr_toolhead.get_last_move_time()?;
         Ok(self.fil_driver_endstops[0].0.query_endstop(move_time)? != 0)
     }
 
-    fn query_toolhead_sensor(&self) -> KResult<Option<bool>> {
+    pub fn query_toolhead_sensor(&self) -> KResult<Option<bool>> {
         let Some((es, _)) = self.toolhead_fil_endstops.first() else { return Ok(None) };
         let move_time = self.tr_toolhead.get_last_move_time()?;
         Ok(Some(es.query_endstop(move_time)? != 0))
     }
 
-    fn check_lane_valid(&self, lane: Option<i64>) -> KResult<i64> {
+    pub fn check_lane_valid(&self, lane: Option<i64>) -> KResult<i64> {
         match lane {
             Some(l) if l < self.lane_count && l >= 0 => Ok(l),
             _ => Err(KError::command("Invalid LANE")),
         }
     }
 
-    fn check_tool_valid(&self, tool: Option<i64>) -> KResult<i64> {
+    pub fn check_tool_valid(&self, tool: Option<i64>) -> KResult<i64> {
         self.check_lane_valid(tool).map_err(|_| KError::command("Invalid TOOL"))
     }
 
-    fn check_selector_homed(&self) -> KResult<()> {
+    pub fn check_selector_homed(&self) -> KResult<()> {
         if !self.is_selector_homed()? {
             return Err(not_homed_error("Must home selector first"));
         }
         Ok(())
     }
 
-    fn can_lower_servo(&self) -> KResult<bool> {
+    pub fn can_lower_servo(&self) -> KResult<bool> {
         Ok((self.is_selector_homed()? && self.curr_lane.get().is_some()) || self.query_selector_sensor()?)
     }
 
-    fn is_next_toolchange_done(&self) -> bool {
+    pub fn is_next_toolchange_done(&self) -> bool {
         // return True if there is no pending toolchange
         let Some(next_lane) = self.next_lane.get() else { return true };
         // check if an active lane is set
@@ -1211,11 +1211,11 @@ impl TradRack {
         false
     }
 
-    fn reset_fil_driver(&self) -> KResult<()> {
+    pub fn reset_fil_driver(&self) -> KResult<()> {
         self.extruder_sync_manager.reset_fil_driver()
     }
 
-    fn restore_extruder_sync(&self) -> KResult<()> {
+    pub fn restore_extruder_sync(&self) -> KResult<()> {
         if self.sync_to_extruder.get() && self.active_lane.get().is_some() {
             self.extruder_sync_manager.sync_fil_driver_to_extruder()?;
             self.lower_servo(true)
@@ -1226,7 +1226,7 @@ impl TradRack {
         }
     }
 
-    fn go_to_lane(&self, lane: Option<i64>) -> KResult<()> {
+    pub fn go_to_lane(&self, lane: Option<i64>) -> KResult<()> {
         // check if homed
         self.check_selector_homed()?;
 
@@ -1255,7 +1255,7 @@ impl TradRack {
         Ok(())
     }
 
-    fn load_lane(&self, lane: Option<i64>, reset_speed: bool, user_load: bool) -> KResult<()> {
+    pub fn load_lane(&self, lane: Option<i64>, reset_speed: bool, user_load: bool) -> KResult<()> {
         // check lane
         let lane = self.check_lane_valid(lane)?;
 
@@ -1296,7 +1296,7 @@ impl TradRack {
         self.toolhead()?.get_extruder().get_heater()
     }
 
-    fn wait_for_heater_temp(&self, min_temp: f64, exact_temp: f64) -> KResult<Option<f64>> {
+    pub fn wait_for_heater_temp(&self, min_temp: f64, exact_temp: f64) -> KResult<Option<f64>> {
         // get current and target temps
         let heater = self.extruder_heater()?;
         let (smoothed_temp, target_temp) = heater.get_temp(self.reactor.monotonic());
@@ -1326,7 +1326,7 @@ impl TradRack {
         Ok(Some(target_temp))
     }
 
-    fn save_heater_target(&self, target_temp: Option<f64>) -> KResult<()> {
+    pub fn save_heater_target(&self, target_temp: Option<f64>) -> KResult<()> {
         let target_temp = match target_temp {
             Some(t) => t,
             None => self.extruder_heater()?.get_temp(self.reactor.monotonic()).1,
@@ -1336,7 +1336,7 @@ impl TradRack {
         Ok(())
     }
 
-    fn note_heater_temps_for_redundant_toolchange(&self, min_temp: f64, exact_temp: f64) -> KResult<()> {
+    pub fn note_heater_temps_for_redundant_toolchange(&self, min_temp: f64, exact_temp: f64) -> KResult<()> {
         let min_extrude_temp = self.extruder_heater()?.min_extrude_temp.get();
         if exact_temp >= min_extrude_temp {
             self.save_heater_target(Some(exact_temp))?;
@@ -1347,7 +1347,7 @@ impl TradRack {
     }
 
     #[allow(clippy::too_many_arguments)]
-    fn load_toolhead(
+    pub fn load_toolhead(
         &self,
         lane: Option<i64>,
         tool: Option<i64>,
@@ -1612,7 +1612,7 @@ impl TradRack {
         HomingMove::new(&self.printer, endstops.to_vec(), Some(th))
     }
 
-    fn load_selector(&self, lane: i64, tool: Option<i64>, user_load: bool) -> KResult<i64> {
+    pub fn load_selector(&self, lane: i64, tool: Option<i64>, user_load: bool) -> KResult<i64> {
         match self.do_load_selector(lane, user_load) {
             Ok(()) => Ok(lane),
             Err(e) if e.is_command_error() => match tool {
@@ -1629,7 +1629,7 @@ impl TradRack {
         }
     }
 
-    fn do_load_selector(&self, lane: i64, user_load: bool) -> KResult<()> {
+    pub fn do_load_selector(&self, lane: i64, user_load: bool) -> KResult<()> {
         // move selector
         self.go_to_lane(Some(lane))?;
 
@@ -1660,7 +1660,7 @@ impl TradRack {
         }
     }
 
-    fn unload_selector(&self, base_length: Option<f64>, mark_calibrated: bool, eject: bool) -> KResult<()> {
+    pub fn unload_selector(&self, base_length: Option<f64>, mark_calibrated: bool, eject: bool) -> KResult<()> {
         // check for filament in selector
         if !self.query_selector_sensor()? {
             self.gcode.respond_info("No filament detected. Attempting to load selector", true);
@@ -1735,7 +1735,7 @@ impl TradRack {
         self.raise_servo(false, true, true, None)
     }
 
-    fn unload_toolhead(&self, min_temp: f64, exact_temp: f64, force_unload: bool, sync: bool, eject: bool) -> KResult<()> {
+    pub fn unload_toolhead(&self, min_temp: f64, exact_temp: f64, force_unload: bool, sync: bool, eject: bool) -> KResult<()> {
         let selector_sensor_state = self.query_selector_sensor()?;
         let toolhead_sensor_state = self.query_toolhead_sensor()?;
 
@@ -1864,7 +1864,7 @@ impl TradRack {
         })
     }
 
-    fn send_pause(&self) -> KResult<()> {
+    pub fn send_pause(&self) -> KResult<()> {
         if self.is_paused()? {
             return Ok(());
         }
@@ -1881,7 +1881,7 @@ impl TradRack {
         Ok(())
     }
 
-    fn send_resume(&self, resume_msg: Option<&str>) -> KResult<()> {
+    pub fn send_resume(&self, resume_msg: Option<&str>) -> KResult<()> {
         if !self.is_paused()? {
             return Ok(());
         }
@@ -1891,7 +1891,7 @@ impl TradRack {
         self.resume_macro.run_gcode_from_command(None)
     }
 
-    fn set_active_lane(&self, lane: Option<i64>) -> KResult<()> {
+    pub fn set_active_lane(&self, lane: Option<i64>) -> KResult<()> {
         self.active_lane.set(lane);
         if self.save_active_lane {
             self.save_variable(VARS_ACTIVE_LANE, &opt_str(lane))?;
@@ -1899,12 +1899,12 @@ impl TradRack {
         Ok(())
     }
 
-    fn reset_tool_map(&self) {
+    pub fn reset_tool_map(&self) {
         *self.tool_map.borrow_mut() = (0..self.lane_count).collect();
         *self.default_lanes.borrow_mut() = (0..self.lane_count).map(Some).collect();
     }
 
-    fn find_replacement_lane(&self, runout_lane: i64, check_runout_lane: bool) -> KResult<Option<i64>> {
+    pub fn find_replacement_lane(&self, runout_lane: i64, check_runout_lane: bool) -> KResult<Option<i64>> {
         let tool = self.tool_map.borrow()[runout_lane as usize];
         let mut pre_dead_lanes = vec![];
 
@@ -1954,7 +1954,7 @@ impl TradRack {
         Ok(None)
     }
 
-    fn set_default_lane(&self, tool: i64, lane: Option<i64>) {
+    pub fn set_default_lane(&self, tool: i64, lane: Option<i64>) {
         // set lane that was passed in
         if let Some(lane) = lane {
             self.assign_lane(lane, tool);
@@ -1966,12 +1966,12 @@ impl TradRack {
         self.default_lanes.borrow_mut()[tool as usize] = found;
     }
 
-    fn make_lane_default(&self, lane: i64) {
+    pub fn make_lane_default(&self, lane: i64) {
         let tool = self.tool_map.borrow()[lane as usize];
         self.default_lanes.borrow_mut()[tool as usize] = Some(lane);
     }
 
-    fn assign_lane(&self, lane: i64, tool: i64) {
+    pub fn assign_lane(&self, lane: i64, tool: i64) {
         let prev_tool = self.tool_map.borrow()[lane as usize];
 
         // assign lane to tool
@@ -1988,11 +1988,11 @@ impl TradRack {
         }
     }
 
-    fn get_assigned_lanes(&self, tool: i64) -> Vec<i64> {
+    pub fn get_assigned_lanes(&self, tool: i64) -> Vec<i64> {
         self.tool_map.borrow().iter().enumerate().filter(|(_, t)| **t == tool).map(|(l, _)| l as i64).collect()
     }
 
-    fn runout_replace_filament(&self) -> KResult<bool> {
+    pub fn runout_replace_filament(&self) -> KResult<bool> {
         let mut check_runout_lane = true;
 
         // unload
@@ -2045,7 +2045,7 @@ impl TradRack {
         Ok(true)
     }
 
-    fn write_bowden_length_data(&self, filename: &str, length: f64, old_set_length: f64, new_set_length: f64, samples: usize) -> KResult<()> {
+    pub fn write_bowden_length_data(&self, filename: &str, length: f64, old_set_length: f64, new_set_length: f64, samples: usize) -> KResult<()> {
         use std::io::Write;
         let r = (|| -> std::io::Result<()> {
             let mut f = std::fs::OpenOptions::new().append(true).create(true).read(true).open(filename)?;
@@ -2064,7 +2064,7 @@ impl TradRack {
         })
     }
 
-    fn save_bowden_length(&self, mode: &str, new_set_length: f64, samples: usize) -> KResult<()> {
+    pub fn save_bowden_length(&self, mode: &str, new_set_length: f64, samples: usize) -> KResult<()> {
         let length_stats = format!("{{'new_set_length': {}, 'sample_count': {}}}", py_float_repr(new_set_length), samples);
         let var = if mode == "load" { VARS_CALIB_BOWDEN_LOAD_LENGTH } else { VARS_CALIB_BOWDEN_UNLOAD_LENGTH };
         self.save_variable(var, &length_stats)
@@ -2133,7 +2133,7 @@ impl TradRack {
         }
     }
 
-    fn prompt_selector_calibration(&self, lane: i64) -> KResult<()> {
+    pub fn prompt_selector_calibration(&self, lane: i64) -> KResult<()> {
         // go to lane
         if !self.is_selector_homed()? {
             self.home()?;
@@ -2171,7 +2171,7 @@ impl TradRack {
         Ok(())
     }
 
-    fn measure_selector_to_endstop(&self, max_travel: f64) -> KResult<f64> {
+    pub fn measure_selector_to_endstop(&self, max_travel: f64) -> KResult<f64> {
         // set selector position
         let print_time = self.tr_toolhead.get_last_move_time()?;
         let mut pos = self.tr_toolhead.get_position();
@@ -2242,7 +2242,7 @@ impl TradRack {
         }
     }
 
-    fn resume_load_toolhead(&self) -> KResult<(bool, Option<String>)> {
+    pub fn resume_load_toolhead(&self) -> KResult<(bool, Option<String>)> {
         if !self.is_next_toolchange_done() {
             let mut selector_already_loaded = false;
 
@@ -2280,7 +2280,7 @@ impl TradRack {
         self.send_pause()
     }
 
-    fn unload_toolhead_and_resume(&self) -> KResult<()> {
+    pub fn unload_toolhead_and_resume(&self) -> KResult<()> {
         if self.is_paused()? {
             self.gcode.respond_info("Unloading toolhead", true);
             let g = self.gcode.create_gcode_command("TR_UNLOAD_TOOLHEAD", "TR_UNLOAD_TOOLHEAD", IndexMap::default());
@@ -2291,7 +2291,7 @@ impl TradRack {
         Ok(())
     }
 
-    fn resume_act_locate_selector(&self) -> KResult<()> {
+    pub fn resume_act_locate_selector(&self) -> KResult<()> {
         if !self.is_selector_homed()? {
             self.home()?;
         }
@@ -2374,15 +2374,15 @@ fn new_tr_toolhead(
 }
 
 pub struct TradRackKinematics {
-    printer: Rc<Printer>,
-    rails: [Rc<PrinterRail>; 2],
-    sel_max_velocity: f64,
-    sel_max_accel: f64,
-    fil_max_velocity: f64,
-    fil_max_accel: f64,
-    limits: RefCell<[(f64, f64); 2]>,
-    selector_min: f64,
-    selector_max: f64,
+    pub printer: Rc<Printer>,
+    pub rails: [Rc<PrinterRail>; 2],
+    pub sel_max_velocity: f64,
+    pub sel_max_accel: f64,
+    pub fil_max_velocity: f64,
+    pub fil_max_accel: f64,
+    pub limits: RefCell<[(f64, f64); 2]>,
+    pub selector_min: f64,
+    pub selector_max: f64,
     is_extruder_synced: Rc<dyn Fn() -> bool>,
 }
 
@@ -2433,7 +2433,7 @@ impl TradRackKinematics {
         self.rails[1].clone()
     }
 
-    fn home_axis(&self, homing_state: &Rc<Homing>, axis: usize, rail: &Rc<PrinterRail>) -> KResult<()> {
+    pub fn home_axis(&self, homing_state: &Rc<Homing>, axis: usize, rail: &Rc<PrinterRail>) -> KResult<()> {
         // Determine movement
         let (position_min, position_max) = rail.get_range();
         let hi = rail.get_homing_info();
@@ -2450,7 +2450,7 @@ impl TradRackKinematics {
         tr_home_rails(homing_state, &[r], &forcepos, &homepos)
     }
 
-    fn check_endstops(&self, mv: &Move) -> KResult<()> {
+    pub fn check_endstops(&self, mv: &Move) -> KResult<()> {
         let end_pos = &mv.end_pos;
         let limits = self.limits.borrow();
         for i in 0..2 {
@@ -2617,13 +2617,13 @@ fn tr_home_rails(homing: &Rc<Homing>, rails: &[RailRef], forcepos: &[Option<f64>
 // Helpers
 // ----------------------------------------------------------------------
 
-struct TradRackServo {
-    servo: Rc<PrinterServo>,
-    toolhead: Rc<ToolHead>,
+pub struct TradRackServo {
+    pub servo: Rc<PrinterServo>,
+    pub toolhead: Rc<ToolHead>,
 }
 
 impl TradRackServo {
-    fn set_servo(&self, width: Option<f64>, angle: Option<f64>, print_time: Option<f64>) -> KResult<()> {
+    pub fn set_servo(&self, width: Option<f64>, angle: Option<f64>, print_time: Option<f64>) -> KResult<()> {
         let print_time = match print_time {
             Some(t) => t,
             None => self.toolhead.get_last_move_time()?,
@@ -2635,21 +2635,21 @@ impl TradRackServo {
         self.servo.send_async_request(value, Some(print_time))
     }
 
-    fn get_max_angle(&self) -> f64 {
+    pub fn get_max_angle(&self) -> f64 {
         self.servo.max_angle()
     }
 }
 
-struct TradRackLanePositionManager {
-    lane_count: i64,
-    lane_spacing: f64,
-    lane_spacing_mods: Vec<f64>,
-    lane_spacing_mod_internal: f64,
-    lane_offsets: Vec<f64>,
+pub struct TradRackLanePositionManager {
+    pub lane_count: i64,
+    pub lane_spacing: f64,
+    pub lane_spacing_mods: Vec<f64>,
+    pub lane_spacing_mod_internal: f64,
+    pub lane_offsets: Vec<f64>,
 }
 
 impl TradRackLanePositionManager {
-    fn new(lane_count: i64, config: &ConfigWrapper) -> KResult<Self> {
+    pub fn new(lane_count: i64, config: &ConfigWrapper) -> KResult<Self> {
         let lane_spacing = config.getfloat("lane_spacing", Dflt::Required, Lim::new().above(0.0))?;
         let mut lane_spacing_mods = vec![];
         let mut lane_spacing_mod_internal = 0.0;
@@ -2663,7 +2663,7 @@ impl TradRackLanePositionManager {
         Ok(TradRackLanePositionManager { lane_count, lane_spacing, lane_spacing_mods, lane_spacing_mod_internal, lane_offsets })
     }
 
-    fn get_lane_positions(&self) -> Vec<f64> {
+    pub fn get_lane_positions(&self) -> Vec<f64> {
         let mut lane_positions = vec![];
         let mut curr_pos = 0.0;
         for i in 0..self.lane_count as usize {
@@ -2696,18 +2696,18 @@ enum SyncState {
 }
 
 pub struct TradRackExtruderSyncManager {
-    printer: Rc<Printer>,
-    toolhead: RefCell<Option<Rc<ToolHead>>>,
-    tr_toolhead: Rc<ToolHead>,
-    fil_driver_rail: Rc<PrinterRail>,
+    pub printer: Rc<Printer>,
+    pub toolhead: RefCell<Option<Rc<ToolHead>>>,
+    pub tr_toolhead: Rc<ToolHead>,
+    pub fil_driver_rail: Rc<PrinterRail>,
     sync_state: Cell<Option<SyncState>>,
-    prev_sks: RefCell<Vec<Option<SkRef>>>,
-    prev_trapq: RefCell<Option<TrapQRef>>,
-    prev_rotation_dists: RefCell<Vec<f64>>,
+    pub prev_sks: RefCell<Vec<Option<SkRef>>>,
+    pub prev_trapq: RefCell<Option<TrapQRef>>,
+    pub prev_rotation_dists: RefCell<Vec<f64>>,
 }
 
 impl TradRackExtruderSyncManager {
-    fn new(printer: &Rc<Printer>, tr_toolhead: &Rc<ToolHead>, fil_driver_rail: Rc<PrinterRail>) -> Rc<Self> {
+    pub fn new(printer: &Rc<Printer>, tr_toolhead: &Rc<ToolHead>, fil_driver_rail: Rc<PrinterRail>) -> Rc<Self> {
         let m = Rc::new(TradRackExtruderSyncManager {
             printer: printer.clone(),
             toolhead: RefCell::new(None),
@@ -2740,13 +2740,13 @@ impl TradRackExtruderSyncManager {
         Err(KError::Other("'DummyExtruder' object has no attribute 'extruder_stepper'".into()))
     }
 
-    fn get_extruder_mcu_steppers(&self) -> KResult<Vec<Rc<McuStepper>>> {
+    pub fn get_extruder_mcu_steppers(&self) -> KResult<Vec<Rc<McuStepper>>> {
         let extruder = self.extruder()?;
         let es = extruder.extruder_stepper.clone().ok_or_else(|| KError::Other("'NoneType' object has no attribute 'stepper'".into()))?;
         Ok(vec![es.stepper.clone()])
     }
 
-    fn reset_fil_driver(&self) -> KResult<()> {
+    pub fn reset_fil_driver(&self) -> KResult<()> {
         self.tr_toolhead.get_last_move_time()?;
         let mut pos = self.tr_toolhead.get_position();
         pos[1] = 0.0;
@@ -2796,16 +2796,16 @@ impl TradRackExtruderSyncManager {
         Ok(())
     }
 
-    fn sync_extruder_to_fil_driver(&self) -> KResult<()> {
+    pub fn sync_extruder_to_fil_driver(&self) -> KResult<()> {
         self.sync(SyncState::ExtruderToFilDriver)
     }
 
-    fn sync_fil_driver_to_extruder(&self) -> KResult<()> {
+    pub fn sync_fil_driver_to_extruder(&self) -> KResult<()> {
         self.sync(SyncState::FilDriverToExtruder)?;
         crate::events::TradRackSyncedToExtruder::emit(&self.printer)
     }
 
-    fn unsync(&self) -> KResult<()> {
+    pub fn unsync(&self) -> KResult<()> {
         let Some(state) = self.sync_state.get() else { return Ok(()) };
 
         self.toolhead()?.flush_step_generation()?;
@@ -2831,15 +2831,15 @@ impl TradRackExtruderSyncManager {
         Ok(())
     }
 
-    fn is_extruder_synced(&self) -> bool {
+    pub fn is_extruder_synced(&self) -> bool {
         self.sync_state.get() == Some(SyncState::ExtruderToFilDriver)
     }
 
-    fn is_fil_driver_synced(&self) -> bool {
+    pub fn is_fil_driver_synced(&self) -> bool {
         self.sync_state.get() == Some(SyncState::FilDriverToExtruder)
     }
 
-    fn set_fil_driver_multiplier(&self, multiplier: f64) -> KResult<()> {
+    pub fn set_fil_driver_multiplier(&self, multiplier: f64) -> KResult<()> {
         if !self.is_fil_driver_synced() {
             return Err(KError::Other("Cannot set stepper multiplier when filament driver is not synced to extruder".into()));
         }
@@ -2872,14 +2872,14 @@ impl RunIfNoActivity {
     }
 }
 
-struct MovingAverageFilter {
-    max_entries: usize,
+pub struct MovingAverageFilter {
+    pub max_entries: usize,
     queue: VecDeque<f64>,
-    total: f64,
+    pub total: f64,
 }
 
 impl MovingAverageFilter {
-    fn new(max_entries: usize) -> Self {
+    pub fn new(max_entries: usize) -> Self {
         MovingAverageFilter { max_entries, queue: VecDeque::new(), total: 0.0 }
     }
 
@@ -2897,14 +2897,14 @@ impl MovingAverageFilter {
         self.total = 0.0;
     }
 
-    fn get_entry_count(&self) -> usize {
+    pub fn get_entry_count(&self) -> usize {
         self.queue.len()
     }
 }
 
 pub struct TradRackRunoutSensor {
-    printer: Rc<Printer>,
-    reactor: Rc<Reactor>,
+    pub printer: Rc<Printer>,
+    pub reactor: Rc<Reactor>,
     runout_callback: Rc<dyn Fn(f64) -> KResult<()>>,
     active: Cell<bool>,
 }
@@ -2937,7 +2937,7 @@ impl TradRackRunoutSensor {
         Ok(s)
     }
 
-    fn sensor_callback(&self, eventtime: f64, state: bool) -> KResult<()> {
+    pub fn sensor_callback(&self, eventtime: f64, state: bool) -> KResult<()> {
         if self.active.get() && !state {
             let idle_timeout = self.printer.lookup_object("idle_timeout")?;
             let printing = match idle_timeout.get_status(eventtime) {
@@ -2960,7 +2960,7 @@ impl TradRackRunoutSensor {
         Ok(())
     }
 
-    fn set_active(&self, active: bool) {
+    pub fn set_active(&self, active: bool) {
         self.active.set(active);
     }
 }

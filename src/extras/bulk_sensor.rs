@@ -28,15 +28,15 @@ pub type ClientCallback = Rc<dyn Fn(&PyVal) -> bool>;
 // Helper to process accumulated messages in periodic batches
 pub struct BatchBulkHelper {
     me: Weak<BatchBulkHelper>,
-    printer: Rc<Printer>,
+    pub printer: Rc<Printer>,
     batch_cb: BatchCallback,
     start_cb: Option<StartStopCallback>,
     stop_cb: Option<StartStopCallback>,
     pub(crate) is_started: Cell<bool>,
-    batch_interval: f64,
-    batch_timer: RefCell<Option<Timer>>,
+    pub batch_interval: f64,
+    pub batch_timer: RefCell<Option<Timer>>,
     client_cbs: RefCell<Vec<ClientCallback>>,
-    webhooks_start_resp: RefCell<PyVal>,
+    pub webhooks_start_resp: RefCell<PyVal>,
 }
 
 impl BatchBulkHelper {
@@ -62,7 +62,7 @@ impl BatchBulkHelper {
     }
 
     // Periodic batch processing
-    fn start(&self) -> KResult<()> {
+    pub fn start(&self) -> KResult<()> {
         if self.is_started.get() {
             return Ok(());
         }
@@ -92,7 +92,7 @@ impl BatchBulkHelper {
         Ok(())
     }
 
-    fn stop(&self) {
+    pub fn stop(&self) {
         self.client_cbs.borrow_mut().clear();
         if let Some(t) = self.batch_timer.borrow_mut().take() {
             self.printer.get_reactor().unregister_timer(&t);
@@ -115,7 +115,7 @@ impl BatchBulkHelper {
         }
     }
 
-    fn proc_batch(&self, eventtime: f64) -> f64 {
+    pub fn proc_batch(&self, eventtime: f64) -> f64 {
         let msg = match (self.batch_cb)(eventtime) {
             Ok(m) => m,
             Err(e) => {
@@ -154,7 +154,7 @@ impl BatchBulkHelper {
     }
 
     // Webhooks registration
-    fn add_api_client(&self, web_request: &WebRequest) -> KResult<()> {
+    pub fn add_api_client(&self, web_request: &WebRequest) -> KResult<()> {
         let whbatch = BatchWebhooksClient::new(web_request)?;
         self.add_client(Rc::new(move |msg| whbatch.handle_batch(msg)))?;
         web_request.send(self.webhooks_start_resp.borrow().clone())
@@ -186,8 +186,8 @@ impl BatchBulkHelper {
 
 // A webhooks wrapper for use by BatchBulkHelper
 pub struct BatchWebhooksClient {
-    cconn: Option<Rc<ClientConnection>>,
-    template: PyVal,
+    pub cconn: Option<Rc<ClientConnection>>,
+    pub template: PyVal,
 }
 
 impl BatchWebhooksClient {
@@ -262,15 +262,15 @@ impl BulkDataQueue {
 
 // Helper class for chip clock synchronization via linear regression
 pub struct ClockSyncRegression {
-    mcu: Rc<Mcu>,
-    chip_clock_smooth: f64,
-    decay: f64,
-    last_chip_clock: Cell<f64>,
-    last_exp_mcu_clock: Cell<f64>,
-    mcu_clock_avg: Cell<f64>,
-    mcu_clock_variance: Cell<f64>,
-    chip_clock_avg: Cell<f64>,
-    chip_clock_covariance: Cell<f64>,
+    pub mcu: Rc<Mcu>,
+    pub chip_clock_smooth: f64,
+    pub decay: f64,
+    pub last_chip_clock: Cell<f64>,
+    pub last_exp_mcu_clock: Cell<f64>,
+    pub mcu_clock_avg: Cell<f64>,
+    pub mcu_clock_variance: Cell<f64>,
+    pub chip_clock_avg: Cell<f64>,
+    pub chip_clock_covariance: Cell<f64>,
 }
 
 impl ClockSyncRegression {
@@ -401,17 +401,17 @@ pub type RawSample = (f64, Vec<i64>);
 // Read sensor_bulk_data and calculate timestamps for devices that take
 // samples at a fixed frequency (and produce fixed data size samples).
 pub struct FixedFreqReader {
-    mcu: Rc<Mcu>,
+    pub mcu: Rc<Mcu>,
     clock_sync: ClockSyncRegression,
     unpack: SampleFormat,
-    bytes_per_sample: usize,
-    samples_per_block: usize,
-    last_sequence: Cell<i64>,
-    max_query_duration: Cell<i64>,
-    last_overflows: Cell<i64>,
+    pub bytes_per_sample: usize,
+    pub samples_per_block: usize,
+    pub last_sequence: Cell<i64>,
+    pub max_query_duration: Cell<i64>,
+    pub last_overflows: Cell<i64>,
     bulk_queue: RefCell<Option<BulkDataQueue>>,
-    oid: Cell<Option<i64>>,
-    query_status_cmd: RefCell<Option<CommandQueryWrapper>>,
+    pub oid: Cell<Option<i64>>,
+    pub query_status_cmd: RefCell<Option<CommandQueryWrapper>>,
 }
 
 impl FixedFreqReader {
@@ -452,7 +452,7 @@ impl FixedFreqReader {
         self.last_overflows.get()
     }
 
-    fn clear_duration_filter(&self) {
+    pub fn clear_duration_filter(&self) {
         self.max_query_duration.set(1 << 31);
     }
 
@@ -482,7 +482,7 @@ impl FixedFreqReader {
         Ok(())
     }
 
-    fn update_clock(&self, is_reset: bool) -> KResult<()> {
+    pub fn update_clock(&self, is_reset: bool) -> KResult<()> {
         let params = {
             let cmd = self.query_status_cmd.borrow();
             let cmd = cmd.as_ref().ok_or_else(|| KError::Other("'NoneType' object has no attribute 'send'".into()))?;

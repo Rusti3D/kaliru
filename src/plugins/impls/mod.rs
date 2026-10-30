@@ -3,20 +3,32 @@
 // (native::Registry); argument order is Kalico's signature with its
 // defaults filled in by the generated python.
 mod accel;
+mod bed_mesh;
 mod buttons;
+mod bus;
+mod chelper;
 mod classes;
 mod configfile;
 mod extras_misc;
 mod extras_state;
 mod extruder;
 mod filament_switch_sensor;
+mod generated;
 mod gcode;
 mod heaters;
-mod mcu;
+mod homing;
+mod kinematics;
+pub(crate) mod mcu;
+mod motion_queuing;
+mod msgproto;
 mod pins;
 mod printer;
+mod probe;
 mod reactor;
+mod stepper;
+mod tmc;
 pub(crate) mod toolhead;
+mod traits;
 mod webhooks;
 
 use crate::plugins::gil::Gil;
@@ -32,9 +44,13 @@ use std::rc::{Rc, Weak};
 
 pub fn register(r: &mut Registry) {
     printer::register(r);
+    probe::register(r);
     accel::register(r);
+    bed_mesh::register(r);
     classes::register(r);
     buttons::register(r);
+    bus::register(r);
+    chelper::register(r);
     extras_misc::register(r);
     extras_state::register(r);
     extruder::register(r);
@@ -42,11 +58,19 @@ pub fn register(r: &mut Registry) {
     filament_switch_sensor::register(r);
     gcode::register(r);
     heaters::register(r);
+    homing::register(r);
     mcu::register(r);
+    motion_queuing::register(r);
+    msgproto::register(r);
     pins::register(r);
     reactor::register(r);
+    stepper::register(r);
+    tmc::register(r);
     toolhead::register(r);
+    kinematics::register(r);
+    traits::register(r);
     webhooks::register(r);
+    generated::register(r);
 }
 
 /// get_status / stats / get_temp of any printer object (kaliru's
@@ -77,14 +101,16 @@ pub fn generic_methods(name: &str) -> Option<super::native::Method> {
             }
         })
     } else {
-        None
+        traits::generic(name)
     }
 }
+
+pub use traits::generic_attr;
 
 fn pobj_of(a: &super::native::Args) -> KResult<PObj> {
     let slf = a.slf.as_ref().expect("method without self");
     // a kinematics object: its own get_status
-    if let Ok(k) = objects::unwrap_as::<toolhead::KinRef>(slf) {
+    if let Some(k) = objects::unwrap_view::<dyn crate::kinematics::Kinematics>(slf) {
         return Ok(Rc::new(KinStatus(k)));
     }
     objects::bound_pobj(slf).ok_or_else(|| KError::Py("NotImplementedError".into(), "kaliru: not a printer object".into()))
@@ -108,15 +134,23 @@ pub fn report_unhandled(e: &KError) {
     }
 }
 
+/// Whether a python object's class is a mirrored Kalico class itself, not
+/// a plugin's subclass of one (whose methods may override kaliru's: such an
+/// object is called through as python)
+pub fn is_mirror_instance(o: &PyRef) -> KResult<bool> {
+    let cls = lookup("builtins", "type")?.call(&[o])?;
+    cls.getattr("__dict__")?.call_method("get", &[&py_str("__kaliru_mirror__"), &py_bool(false)])?.is_true()
+}
+
 /// get_status of a kinematics object, through the printer object interface
-struct KinStatus(Rc<toolhead::KinRef>);
+struct KinStatus(Rc<dyn crate::kinematics::Kinematics>);
 
 impl crate::printer::PrinterObject for KinStatus {
     fn has_status(&self) -> bool {
         true
     }
     fn get_status(&self, eventtime: f64) -> Option<PyVal> {
-        Some(PyVal::Dict(self.0 .0.get_status(eventtime)))
+        Some(PyVal::Dict(self.0.get_status(eventtime)))
     }
 }
 
@@ -157,6 +191,22 @@ pub fn any_to_py(a: &dyn Any) -> KResult<PyRef> {
     }
     if let Some(v) = a.downcast_ref::<Option<String>>() {
         return Ok(v.as_deref().map(py_str).unwrap_or_else(py_none));
+    }
+    // the objects kaliru's events carry (events.rs)
+    if let Some(v) = a.downcast_ref::<Rc<crate::stepper::McuStepper>>() {
+        return objects::wrap(v.clone());
+    }
+    if let Some(v) = a.downcast_ref::<Rc<crate::extras::homing::Homing>>() {
+        return objects::wrap(v.clone());
+    }
+    if let Some(v) = a.downcast_ref::<Rc<crate::extras::homing::HomingMove>>() {
+        return objects::wrap(v.clone());
+    }
+    if let Some(v) = a.downcast_ref::<Vec<crate::stepper::RailRef>>() {
+        return Ok(py_list(v.iter().map(|r| toolhead::rail_to_py(r.clone())).collect::<KResult<Vec<_>>>()?));
+    }
+    if let Some(v) = a.downcast_ref::<Rc<crate::extras::load_cell::load_cell::LoadCell>>() {
+        return objects::wrap(v.clone());
     }
     Err(KError::Py("TypeError".into(), format!("kaliru: event argument of type {:?} is not mirrored yet", a.type_id())))
 }

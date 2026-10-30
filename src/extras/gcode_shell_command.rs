@@ -17,18 +17,18 @@ use std::rc::Rc;
 const CMD_RUN_SHELL_COMMAND_HELP: &str = "Run a linux shell command";
 
 pub struct ShellCommand {
-    name: String,
-    printer: Rc<Printer>,
-    gcode: Rc<GCodeDispatch>,
-    command: Vec<String>,
-    timeout: f64,
-    verbose: bool,
+    pub name: String,
+    pub printer: Rc<Printer>,
+    pub gcode: Rc<GCodeDispatch>,
+    pub command: Vec<String>,
+    pub timeout: f64,
+    pub verbose: bool,
     proc_fd: Cell<Option<RawFd>>,
-    partial_output: RefCell<String>,
+    pub partial_output: RefCell<String>,
 }
 
 impl ShellCommand {
-    fn new(config: &ConfigWrapper) -> KResult<Rc<Self>> {
+    pub fn new(config: &ConfigWrapper) -> KResult<Rc<Self>> {
         let name = config.get_name().split_whitespace().last().unwrap_or("").to_string();
         let printer = config.get_printer();
         let gcode = printer.lookup::<GCodeDispatch>("gcode")?;
@@ -58,7 +58,7 @@ impl ShellCommand {
         Ok(sc)
     }
 
-    fn process_output(&self, _eventtime: f64) {
+    pub fn process_output(&self, _eventtime: f64) {
         let Some(fd) = self.proc_fd.get() else { return };
         let mut buf = [0u8; 4096];
         // SAFETY: reading the pipe this command owns
@@ -78,7 +78,7 @@ impl ShellCommand {
         self.gcode.respond_info(&data, true);
     }
 
-    fn cmd_run_shell_command(self: &Rc<Self>, gcmd: &GCodeCommand) -> KResult<()> {
+    pub fn cmd_run_shell_command(self: &Rc<Self>, gcmd: &GCodeCommand) -> KResult<()> {
         let gcode_params = gcmd.get_or("PARAMS", "");
         let gcode_params: Vec<String> = py_shlex_split(&gcode_params, "")
             .map_err(KError::Other)?

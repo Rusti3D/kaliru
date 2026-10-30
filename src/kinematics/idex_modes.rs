@@ -33,11 +33,11 @@ struct SavedState {
 }
 
 pub struct DualCarriages {
-    printer: Rc<Printer>,
+    pub printer: Rc<Printer>,
     pub axis: usize,
-    dc: [Rc<DualCarriagesRail>; 2],
+    pub dc: [Rc<DualCarriagesRail>; 2],
     saved_states: RefCell<IndexMap<String, SavedState>>,
-    safe_dist: f64,
+    pub safe_dist: f64,
 }
 
 fn mode_of(s: &str) -> &'static str {
@@ -122,7 +122,7 @@ impl DualCarriages {
         self.printer.lookup::<ToolHead>("toolhead")
     }
 
-    fn toggle_active_dc_rail(&self, index: usize) -> KResult<()> {
+    pub fn toggle_active_dc_rail(&self, index: usize) -> KResult<()> {
         let toolhead = self.toolhead()?;
         toolhead.flush_step_generation()?;
         let pos = toolhead.get_position();
@@ -159,7 +159,7 @@ impl DualCarriages {
         self.toggle_active_dc_rail(0)
     }
 
-    fn get_kin_range(&self, toolhead: &ToolHead, mode: &str) -> (f64, f64) {
+    pub fn get_kin_range(&self, toolhead: &ToolHead, mode: &str) -> (f64, f64) {
         let pos = toolhead.get_position();
         let axes_pos: Vec<f64> = self.dc.iter().map(|dc| dc.get_axis_position(&pos)).collect();
         let (dc0_rail, dc1_rail) = (self.dc[0].get_rail(), self.dc[1].get_rail());
@@ -209,7 +209,7 @@ impl DualCarriages {
         (range_min, range_max)
     }
 
-    fn get_dc_order(&self, first: usize, second: usize) -> i64 {
+    pub fn get_dc_order(&self, first: usize, second: usize) -> i64 {
         if first == second {
             return 0;
         }
@@ -247,7 +247,7 @@ impl DualCarriages {
         Ok(())
     }
 
-    fn handle_ready(&self) {
+    pub fn handle_ready(&self) {
         // Apply the transform later during Klipper initialization to make sure
         // that input shaping can pick up the correct stepper kinematic flags.
         for dc in &self.dc {
@@ -255,7 +255,7 @@ impl DualCarriages {
         }
     }
 
-    fn cmd_set_dual_carriage(&self, gcmd: &GCodeCommand) -> KResult<()> {
+    pub fn cmd_set_dual_carriage(&self, gcmd: &GCodeCommand) -> KResult<()> {
         let index = gcmd.get_int("CARRIAGE", None, Lim::new().min(0).max(1))? as usize;
         let mode = gcmd.get_or("MODE", PRIMARY).to_uppercase();
         if !VALID_MODES.contains(&mode.as_str()) {
@@ -280,7 +280,7 @@ impl DualCarriages {
         self.activate_dc_mode(index, mode)
     }
 
-    fn cmd_save_dual_carriage_state(&self, gcmd: &GCodeCommand) -> KResult<()> {
+    pub fn cmd_save_dual_carriage_state(&self, gcmd: &GCodeCommand) -> KResult<()> {
         let state_name = gcmd.get_or("NAME", "default");
         let pos = self.toolhead()?.get_position();
         let state = SavedState {
@@ -291,7 +291,7 @@ impl DualCarriages {
         Ok(())
     }
 
-    fn cmd_restore_dual_carriage_state(&self, gcmd: &GCodeCommand) -> KResult<()> {
+    pub fn cmd_restore_dual_carriage_state(&self, gcmd: &GCodeCommand) -> KResult<()> {
         let state_name = gcmd.get_or("NAME", "default");
         let (saved_modes, saved_positions) = match self.saved_states.borrow().get(&state_name) {
             Some(s) => (s.carriage_modes.clone(), s.axes_positions.clone()),
@@ -357,12 +357,12 @@ impl PrinterObject for DualCarriages {
 const ENC_AXES: [char; 2] = ['x', 'y'];
 
 pub struct DualCarriagesRail {
-    rail: Rc<PrinterRail>,
-    axis: usize,
+    pub rail: Rc<PrinterRail>,
+    pub axis: usize,
     pub mode: Cell<&'static str>,
-    offset: Cell<f64>,
-    scale: Cell<f64>,
-    dc_stepper_kinematics: Vec<SkRef>,
+    pub offset: Cell<f64>,
+    pub scale: Cell<f64>,
+    pub dc_stepper_kinematics: Vec<SkRef>,
 }
 
 impl DualCarriagesRail {

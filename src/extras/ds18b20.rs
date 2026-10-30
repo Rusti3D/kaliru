@@ -21,14 +21,14 @@ const DS18_MIN_REPORT_TIME: f64 = 1.0;
 const DS18_MAX_CONSECUTIVE_ERRORS: i64 = 4;
 
 pub struct DS18B20 {
-    sensor_id: Vec<u8>,
-    min_temp: Cell<f64>,
-    max_temp: Cell<f64>,
-    report_clock: Cell<i64>,
-    report_time: f64,
-    mcu: Rc<Mcu>,
-    oid: i64,
-    callback: RefCell<Option<TempCallback>>,
+    pub sensor_id: Vec<u8>,
+    pub min_temp: Cell<f64>,
+    pub max_temp: Cell<f64>,
+    pub report_clock: Cell<i64>,
+    pub report_time: f64,
+    pub mcu: Rc<Mcu>,
+    pub oid: i64,
+    pub callback: RefCell<Option<TempCallback>>,
 }
 
 fn int_of(p: &Params, k: &str) -> i64 {
@@ -39,7 +39,7 @@ fn int_of(p: &Params, k: &str) -> i64 {
 }
 
 impl DS18B20 {
-    fn new(config: &ConfigWrapper) -> KResult<Rc<Self>> {
+    pub fn new(config: &ConfigWrapper) -> KResult<Rc<Self>> {
         let printer = config.get_printer();
         let sensor_id = config.get("serial_no", Dflt::Required)?.into_bytes();
         let report_time = config.getfloat("ds18_report_time", DS18_REPORT_TIME, Lim::new().min(DS18_MIN_REPORT_TIME))?;
@@ -62,7 +62,7 @@ impl DS18B20 {
         Ok(s)
     }
 
-    fn build_config(&self) -> KResult<()> {
+    pub fn build_config(&self) -> KResult<()> {
         let sid: String = self.sensor_id.iter().map(|x| format!("{:02x}", x)).collect();
         self.mcu.add_config_cmd(
             &format!(
@@ -93,7 +93,7 @@ impl DS18B20 {
         Ok(())
     }
 
-    fn handle_ds18b20_response(&self, params: &Params) -> KResult<()> {
+    pub fn handle_ds18b20_response(&self, params: &Params) -> KResult<()> {
         let temp = int_of(params, "value") as f64 / 1000.0;
         let fault = int_of(params, "fault");
         if fault != 0 {
@@ -118,12 +118,13 @@ impl TempSensor for DS18B20 {
         Ok(())
     }
 
-    fn setup_callback(&self, cb: TempCallback) {
+    fn setup_callback(&self, cb: TempCallback) -> KResult<()> {
         *self.callback.borrow_mut() = Some(cb);
+        Ok(())
     }
 
-    fn get_report_time_delta(&self) -> f64 {
-        self.report_time
+    fn get_report_time_delta(&self) -> KResult<f64> {
+        Ok(self.report_time)
     }
 
 }

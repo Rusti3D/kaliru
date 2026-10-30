@@ -24,30 +24,30 @@ const CMD_SET_Z_THERMAL_ADJUST_HELP: &str = "Set/query Z Thermal Adjust paramete
 
 pub struct ZThermalAdjuster {
     me: Weak<ZThermalAdjuster>,
-    printer: Rc<Printer>,
-    temp_coeff: Cell<f64>,
-    off_above_z: f64,
-    max_z_adjust_mm: f64,
-    inv_smooth_time: f64,
-    sensor: Rc<dyn TempSensor>,
-    last_temp: Cell<f64>,
-    measured_min: Cell<f64>,
-    measured_max: Cell<f64>,
-    smoothed_temp: Cell<f64>,
-    last_temp_time: Cell<f64>,
-    ref_temperature: Cell<f64>,
-    ref_temp_override: Cell<bool>,
+    pub printer: Rc<Printer>,
+    pub temp_coeff: Cell<f64>,
+    pub off_above_z: f64,
+    pub max_z_adjust_mm: f64,
+    pub inv_smooth_time: f64,
+    pub sensor: Rc<dyn TempSensor>,
+    pub last_temp: Cell<f64>,
+    pub measured_min: Cell<f64>,
+    pub measured_max: Cell<f64>,
+    pub smoothed_temp: Cell<f64>,
+    pub last_temp_time: Cell<f64>,
+    pub ref_temperature: Cell<f64>,
+    pub ref_temp_override: Cell<bool>,
     // Z transformation
-    z_adjust_mm: Cell<f64>,
-    adjust_enable: Cell<bool>,
-    last_position: RefCell<Vec<f64>>,
-    next_transform: RefCell<Option<MoveTransformRef>>,
-    z_step_dist: Cell<f64>,
-    component: Option<String>,
+    pub z_adjust_mm: Cell<f64>,
+    pub adjust_enable: Cell<bool>,
+    pub last_position: RefCell<Vec<f64>>,
+    pub next_transform: RefCell<Option<MoveTransformRef>>,
+    pub z_step_dist: Cell<f64>,
+    pub component: Option<String>,
 }
 
 impl ZThermalAdjuster {
-    fn new(config: &ConfigWrapper) -> KResult<Rc<Self>> {
+    pub fn new(config: &ConfigWrapper) -> KResult<Rc<Self>> {
         let printer = config.get_printer();
         let gcode = printer.lookup::<GCodeDispatch>("gcode")?;
 
@@ -87,7 +87,7 @@ impl ZThermalAdjuster {
         sensor.setup_callback(Rc::new(move |read_time, temp| match sl.borrow().upgrade() {
             Some(z) => z.init_temperature_callback(read_time, temp),
             None => Ok(()),
-        }));
+        }))?;
 
         // Register gcode commands
         let full_name = config.get_name().to_string();
@@ -135,7 +135,7 @@ impl ZThermalAdjuster {
     }
 
     // Called after all printer objects are instantiated
-    fn handle_connect(&self) -> KResult<()> {
+    pub fn handle_connect(&self) -> KResult<()> {
         let toolhead = self.printer.lookup::<ToolHead>("toolhead")?;
         let gcode_move = self.printer.lookup::<GCodeMove>("gcode_move")?;
 
@@ -155,7 +155,7 @@ impl ZThermalAdjuster {
     }
 
     // Z adjustment calculation
-    fn calc_adjust(&self, pos: &[f64]) -> Vec<f64> {
+    pub fn calc_adjust(&self, pos: &[f64]) -> Vec<f64> {
         if pos[2] < self.off_above_z {
             let delta_t = self.smoothed_temp.get() - self.ref_temperature.get();
 
@@ -181,7 +181,7 @@ impl ZThermalAdjuster {
     }
 
     // Remove Z adjustment
-    fn calc_unadjust(&self, pos: &[f64]) -> Vec<f64> {
+    pub fn calc_unadjust(&self, pos: &[f64]) -> Vec<f64> {
         let unadjusted_z = pos[2] - self.z_adjust_mm.get();
         let mut out = vec![pos[0], pos[1], unadjusted_z];
         out.extend_from_slice(&pos[3..]);
@@ -193,7 +193,7 @@ impl ZThermalAdjuster {
     }
 
     // Initialize Z adjust thermistor ref temp
-    fn init_temperature_callback(&self, _read_time: f64, temp: f64) -> KResult<()> {
+    pub fn init_temperature_callback(&self, _read_time: f64, temp: f64) -> KResult<()> {
         self.ref_temperature.set(temp);
         let w = self.me.clone();
         self.sensor.setup_callback(Rc::new(move |read_time, temp| {
@@ -201,12 +201,12 @@ impl ZThermalAdjuster {
                 z.temperature_callback(read_time, temp);
             }
             Ok(())
-        }));
+        }))?;
         Ok(())
     }
 
     // Called everytime the Z adjust thermistor is read
-    fn temperature_callback(&self, read_time: f64, temp: f64) {
+    pub fn temperature_callback(&self, read_time: f64, temp: f64) {
         let time_diff = read_time - self.last_temp_time.get();
         self.last_temp.set(temp);
         self.last_temp_time.set(read_time);
@@ -217,7 +217,7 @@ impl ZThermalAdjuster {
         self.measured_max.set(py_max(self.measured_max.get(), self.smoothed_temp.get()));
     }
 
-    fn cmd_set_z_thermal_adjust(&self, gcmd: &GCodeCommand) -> KResult<()> {
+    pub fn cmd_set_z_thermal_adjust(&self, gcmd: &GCodeCommand) -> KResult<()> {
         let enable = gcmd.get_int_opt("ENABLE", Lim::new().min(0.0).max(1.0))?;
         let coeff = gcmd.get_float_opt("TEMP_COEFF", Lim::new().min(-1.0).max(1.0))?;
         let ref_temp = gcmd.get_float_opt("REF_TEMP", Lim::new().min(KELVIN_TO_CELSIUS))?;

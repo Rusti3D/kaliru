@@ -15,7 +15,7 @@ use std::rc::Rc;
 const MAX_INT32: i64 = 1 << 31;
 const MIN_INT32: i64 = -(1 << 31) - 1;
 
-fn assert_is_int32(value: i64, error: String) -> KResult<i64> {
+pub fn assert_is_int32(value: i64, error: String) -> KResult<i64> {
     if !(MIN_INT32..=MAX_INT32).contains(&value) {
         return Err(KError::Py("OverflowError".into(), error));
     }
@@ -44,8 +44,8 @@ fn design_error(msg: String) -> KError {
 // Design a SOS filter from high-level parameters
 #[derive(Default)]
 pub struct DigitalFilter {
-    filter_sections: Vec<[f64; 6]>,
-    initial_state: Vec<[f64; 2]>,
+    pub filter_sections: Vec<[f64; 6]>,
+    pub initial_state: Vec<[f64; 2]>,
 }
 
 impl DigitalFilter {
@@ -99,10 +99,10 @@ impl DigitalFilter {
 // static data, config etc.
 #[derive(Clone, Debug, PartialEq)]
 pub struct FixedPointSosFilter {
-    coeff_int_bits: i64,
-    value_int_bits: i64,
-    filter: Vec<[i64; 5]>,
-    state: Vec<[i64; 2]>,
+    pub coeff_int_bits: i64,
+    pub value_int_bits: i64,
+    pub filter: Vec<[i64; 5]>,
+    pub state: Vec<[i64; 2]>,
 }
 
 impl FixedPointSosFilter {
@@ -186,11 +186,11 @@ impl SosCmd {
 
 // Control an `sos_filter` object on the MCU
 pub struct SosFilter {
-    mcu: Rc<Mcu>,
-    cmd_queue: CommandQueue,
-    oid: i64,
+    pub mcu: Rc<Mcu>,
+    pub cmd_queue: CommandQueue,
+    pub oid: i64,
     filter: RefCell<FixedPointSosFilter>,
-    max_sections: usize,
+    pub max_sections: usize,
     cmd_set_section: SosCmd,
     cmd_config_state: SosCmd,
     cmd_activate: SosCmd,
@@ -219,7 +219,7 @@ impl SosFilter {
         f
     }
 
-    fn build_config(&self) -> KResult<()> {
+    pub fn build_config(&self) -> KResult<()> {
         for cmd in [&self.cmd_set_section, &self.cmd_config_state, &self.cmd_activate] {
             *cmd.cmd.borrow_mut() = Some(self.mcu.lookup_command(cmd.mcu_fmt, Some(self.cmd_queue.clone()))?);
         }
@@ -247,7 +247,7 @@ impl SosFilter {
         c.send(&args.iter().map(|v| Val::Int(*v)).collect::<Vec<_>>(), 0, 0)
     }
 
-    fn set_filter_sections(&self, is_init: bool) -> KResult<()> {
+    pub fn set_filter_sections(&self, is_init: bool) -> KResult<()> {
         let sections = self.filter.borrow().get_filter_sections().to_vec();
         for (i, s) in sections.iter().enumerate() {
             let line = format!(
@@ -259,7 +259,7 @@ impl SosFilter {
         Ok(())
     }
 
-    fn set_filter_state(&self, is_init: bool) -> KResult<()> {
+    pub fn set_filter_state(&self, is_init: bool) -> KResult<()> {
         let states = self.filter.borrow().get_initial_state().to_vec();
         for (i, s) in states.iter().enumerate() {
             let line = format!("sos_filter_set_state oid={} section_idx={} state0={} state1={}", self.oid, i, s[0], s[1]);
@@ -268,7 +268,7 @@ impl SosFilter {
         Ok(())
     }
 
-    fn activate_filter(&self, is_init: bool) -> KResult<()> {
+    pub fn activate_filter(&self, is_init: bool) -> KResult<()> {
         let (n, bits) = {
             let f = self.filter.borrow();
             (f.get_num_sections() as i64, f.get_coeff_int_bits())
@@ -278,7 +278,7 @@ impl SosFilter {
     }
 
     // configure the filter sections on the mcu
-    fn configure_filter(&self, is_init: bool) -> KResult<()> {
+    pub fn configure_filter(&self, is_init: bool) -> KResult<()> {
         let num_sections = self.filter.borrow().get_num_sections();
         if num_sections > self.max_sections {
             return Err(KError::Py("ValueError".into(), format!("Too many filter sections: {}, The max is {}", num_sections, self.max_sections)));

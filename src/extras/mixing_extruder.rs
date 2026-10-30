@@ -22,7 +22,7 @@ const EXTRUSION_FACTOR_THRESHOLD: f64 = 0.01;
 
 // Remove scales which are to close to zero to be used as
 // recipocal of the rotation_distance. Rescale others to compensate.
-fn normalize_mixing(mixing: &[f64]) -> Vec<f64> {
+pub fn normalize_mixing(mixing: &[f64]) -> Vec<f64> {
     let normalized: Vec<f64> = mixing.iter().map(|m| if *m < EXTRUSION_FACTOR_THRESHOLD { 0.0 } else { *m }).collect();
     let s = py_sum(normalized.iter().copied());
     normalized.iter().map(|m| m / s).collect()
@@ -32,7 +32,7 @@ fn zero_division() -> KError {
     KError::Other("float division by zero".into())
 }
 
-fn mixing_preset(idx: i64, steppers_count: usize) -> KResult<Vec<f64>> {
+pub fn mixing_preset(idx: i64, steppers_count: usize) -> KResult<Vec<f64>> {
     let n = steppers_count as i64;
     if idx == 0 {
         return Ok(vec![1.0 / n as f64; steppers_count]);
@@ -83,29 +83,29 @@ const CMD_SET_MIXING_EXTRUDER_GRADIENT_HELP: &str = "Configure gradient mixing";
 
 pub struct MixingExtruder {
     me: Weak<MixingExtruder>,
-    printer: Rc<Printer>,
-    activated: Cell<bool>,
-    name: String,
-    stepper_names: Vec<String>,
-    extruder_steppers: RefCell<Vec<(Rc<ExtruderStepper>, Rc<McuStepper>)>>,
-    rotation_distances: RefCell<Vec<f64>>,
-    trapqs: RefCell<Vec<Option<TrapQRef>>>,
-    extruder_name: String,
-    mixing: RefCell<Vec<f64>>,
+    pub printer: Rc<Printer>,
+    pub activated: Cell<bool>,
+    pub name: String,
+    pub stepper_names: Vec<String>,
+    pub extruder_steppers: RefCell<Vec<(Rc<ExtruderStepper>, Rc<McuStepper>)>>,
+    pub rotation_distances: RefCell<Vec<f64>>,
+    pub trapqs: RefCell<Vec<Option<TrapQRef>>>,
+    pub extruder_name: String,
+    pub mixing: RefCell<Vec<f64>>,
     /// self._active_mixing; None while it is the same list as self._mixing
-    active_mixing: RefCell<Option<Vec<f64>>>,
-    enabled: Cell<bool>,
+    pub active_mixing: RefCell<Option<Vec<f64>>>,
+    pub enabled: Cell<bool>,
     // GradientMixingExtruder
-    gradient_enabled: Cell<bool>,
+    pub gradient_enabled: Cell<bool>,
     gradients: RefCell<Vec<Gradient>>,
-    gradient_method: RefCell<String>,
-    gradient_vector: Cell<(f64, f64, f64)>,
-    gcode_move: Rc<GCodeMove>,
-    normal_transform: RefCell<Option<MoveTransformRef>>,
+    pub gradient_method: RefCell<String>,
+    pub gradient_vector: Cell<(f64, f64, f64)>,
+    pub gcode_move: Rc<GCodeMove>,
+    pub normal_transform: RefCell<Option<MoveTransformRef>>,
 }
 
 impl MixingExtruder {
-    fn new(config: &ConfigWrapper) -> KResult<Rc<Self>> {
+    pub fn new(config: &ConfigWrapper) -> KResult<Rc<Self>> {
         let printer = config.get_printer();
         let stepper_names: Vec<String> =
             config.get("steppers", "")?.split(',').filter(|e| !e.is_empty()).map(|e| py_strip(e).to_string()).collect();
@@ -173,7 +173,7 @@ impl MixingExtruder {
         &self.name
     }
 
-    fn handle_connect(&self) -> KResult<()> {
+    pub fn handle_connect(&self) -> KResult<()> {
         if self.activated.get() {
             return Ok(());
         }
@@ -203,14 +203,14 @@ impl MixingExtruder {
         self.extruder_steppers.borrow().iter().map(|(_, s)| s.get_mcu_position(None).to_string()).collect::<Vec<_>>().join(",")
     }
 
-    fn init_mixing(&self) -> KResult<()> {
+    pub fn init_mixing(&self) -> KResult<()> {
         for (es, _) in self.extruder_steppers.borrow().iter() {
             es.sync_to_extruder(&self.extruder_name)?;
         }
         Ok(())
     }
 
-    fn restore_extruder(&self) -> KResult<()> {
+    pub fn restore_extruder(&self) -> KResult<()> {
         self.printer.lookup::<ToolHead>("toolhead")?.flush_step_generation()?;
         let rds = self.rotation_distances.borrow();
         let tqs = self.trapqs.borrow();
@@ -221,7 +221,7 @@ impl MixingExtruder {
         Ok(())
     }
 
-    fn apply_mixing(&self, mixing: Option<Vec<f64>>) -> KResult<()> {
+    pub fn apply_mixing(&self, mixing: Option<Vec<f64>>) -> KResult<()> {
         let has_mixing = mixing.as_ref().map(|m| !m.is_empty()).unwrap_or(false);
         if has_mixing && !self.enabled.get() {
             self.init_mixing()?;
@@ -248,7 +248,7 @@ impl MixingExtruder {
         Ok(())
     }
 
-    fn cmd_set_mixing_extruder(&self, gcmd: &GCodeCommand) -> KResult<()> {
+    pub fn cmd_set_mixing_extruder(&self, gcmd: &GCodeCommand) -> KResult<()> {
         let truthy = |k: &str| gcmd.get_opt(k).map(|v| !v.is_empty()).unwrap_or(false);
         if truthy("FACTORS") || truthy("PRESET") || truthy("ENABLE") {
             let factors = gcmd.get_opt("FACTORS");
@@ -306,7 +306,7 @@ impl MixingExtruder {
 
     // GradientMixingExtruder
 
-    fn enable_gradient(&self) -> KResult<()> {
+    pub fn enable_gradient(&self) -> KResult<()> {
         if self.normal_transform.borrow().is_some() {
             return Ok(());
         }
@@ -321,7 +321,7 @@ impl MixingExtruder {
         self.apply_mixing(Some(g))
     }
 
-    fn disable_gradient(&self) -> KResult<()> {
+    pub fn disable_gradient(&self) -> KResult<()> {
         let nt = self.normal_transform.borrow_mut().take();
         if let Some(nt) = nt {
             self.gcode_move.set_move_transform(nt, true)?;
@@ -339,7 +339,7 @@ impl MixingExtruder {
         }
     }
 
-    fn get_gradient(&self, pos: &[f64]) -> KResult<Vec<f64>> {
+    pub fn get_gradient(&self, pos: &[f64]) -> KResult<Vec<f64>> {
         let mut mixing = self.mixing.borrow().clone();
         let vec = self.gradient_vector.get();
         let gv = [vec.0, vec.1, vec.2];
@@ -378,7 +378,7 @@ impl MixingExtruder {
         Ok(mixing)
     }
 
-    fn check_scales(&self, gcmd: &GCodeCommand, s: &str) -> KResult<Vec<f64>> {
+    pub fn check_scales(&self, gcmd: &GCodeCommand, s: &str) -> KResult<Vec<f64>> {
         let scales: Vec<String> = s.replace(',', ":").split(':').map(|x| x.to_string()).collect();
         if scales.len() != self.mixing.borrow().len() {
             return Err(gcmd.error("Could not configure gradient: invalid scales"));
@@ -386,7 +386,7 @@ impl MixingExtruder {
         scales.iter().map(|x| py_float(x).ok_or_else(|| gcmd.error("Could not configure gradient: could not parse scales"))).collect()
     }
 
-    fn cmd_set_mixing_extruder_gradient(&self, gcmd: &GCodeCommand) -> KResult<()> {
+    pub fn cmd_set_mixing_extruder_gradient(&self, gcmd: &GCodeCommand) -> KResult<()> {
         let get = |k: &str| gcmd.get_opt(k).unwrap_or_default();
         if !get("START_FACTORS").is_empty() {
             let mut start_scales = self.check_scales(gcmd, &gcmd.get("START_FACTORS")?)?;

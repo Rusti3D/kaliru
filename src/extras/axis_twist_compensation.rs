@@ -27,25 +27,25 @@ fn float_lists(config: &ConfigWrapper, option: &str) -> KResult<Vec<f64>> {
 }
 
 pub struct AxisTwistCompensation {
-    horizontal_move_z: f64,
-    speed: f64,
-    calibrate_start_x: f64,
-    calibrate_end_x: f64,
-    calibrate_y: f64,
-    z_compensations: RefCell<Vec<f64>>,
-    compensation_start_x: Cell<Option<f64>>,
-    compensation_end_x: Cell<Option<f64>>,
-    calibrate_start_y: Option<f64>,
-    calibrate_end_y: Option<f64>,
-    calibrate_x: Option<f64>,
-    compensation_start_y: Cell<Option<f64>>,
-    compensation_end_y: Cell<Option<f64>>,
-    zy_compensations: RefCell<Vec<f64>>,
-    calibrater: RefCell<Option<Rc<Calibrater>>>,
+    pub horizontal_move_z: f64,
+    pub speed: f64,
+    pub calibrate_start_x: f64,
+    pub calibrate_end_x: f64,
+    pub calibrate_y: f64,
+    pub z_compensations: RefCell<Vec<f64>>,
+    pub compensation_start_x: Cell<Option<f64>>,
+    pub compensation_end_x: Cell<Option<f64>>,
+    pub calibrate_start_y: Option<f64>,
+    pub calibrate_end_y: Option<f64>,
+    pub calibrate_x: Option<f64>,
+    pub compensation_start_y: Cell<Option<f64>>,
+    pub compensation_end_y: Cell<Option<f64>>,
+    pub zy_compensations: RefCell<Vec<f64>>,
+    pub calibrater: RefCell<Option<Rc<Calibrater>>>,
 }
 
 impl AxisTwistCompensation {
-    fn new(config: &ConfigWrapper) -> KResult<Rc<Self>> {
+    pub fn new(config: &ConfigWrapper) -> KResult<Rc<Self>> {
         // get values from [axis_twist_compensation] section in printer .cfg
         let horizontal_move_z = config.getfloat("horizontal_move_z", DEFAULT_HORIZONTAL_MOVE_Z, Lim::new())?;
         let speed = config.getfloat("speed", DEFAULT_SPEED, Lim::new())?;
@@ -123,7 +123,7 @@ impl AxisTwistCompensation {
         lerp(interpolate_t, z_compensations[interpolate_i], z_compensations[interpolate_i + 1])
     }
 
-    fn clear_compensations(&self, axis: Option<&str>) {
+    pub fn clear_compensations(&self, axis: Option<&str>) {
         match axis {
             None => {
                 self.z_compensations.borrow_mut().clear();
@@ -146,26 +146,26 @@ const CMD_AXIS_TWIST_COMPENSATION_CALIBRATE_HELP: &str = "\n    Performs the x t
 
 pub struct Calibrater {
     me: Weak<Calibrater>,
-    compensation: Weak<AxisTwistCompensation>,
-    printer: Rc<Printer>,
-    gcode: Rc<GCodeDispatch>,
-    probe: RefCell<Option<Rc<PrinterProbe>>>,
-    lift_speed: Cell<f64>,
-    speed: f64,
-    horizontal_move_z: f64,
-    x_start_point: (Option<f64>, Option<f64>),
-    x_end_point: (Option<f64>, Option<f64>),
-    y_start_point: (Option<f64>, Option<f64>),
-    y_end_point: (Option<f64>, Option<f64>),
-    results: RefCell<Vec<f64>>,
-    current_point_index: Cell<usize>,
-    current_measured_z: Cell<f64>,
-    current_axis: RefCell<String>,
-    configname: String,
+    pub compensation: Weak<AxisTwistCompensation>,
+    pub printer: Rc<Printer>,
+    pub gcode: Rc<GCodeDispatch>,
+    pub probe: RefCell<Option<Rc<PrinterProbe>>>,
+    pub lift_speed: Cell<f64>,
+    pub speed: f64,
+    pub horizontal_move_z: f64,
+    pub x_start_point: (Option<f64>, Option<f64>),
+    pub x_end_point: (Option<f64>, Option<f64>),
+    pub y_start_point: (Option<f64>, Option<f64>),
+    pub y_end_point: (Option<f64>, Option<f64>),
+    pub results: RefCell<Vec<f64>>,
+    pub current_point_index: Cell<usize>,
+    pub current_measured_z: Cell<f64>,
+    pub current_axis: RefCell<String>,
+    pub configname: String,
 }
 
 impl Calibrater {
-    fn new(compensation: &Rc<AxisTwistCompensation>, config: &ConfigWrapper) -> KResult<Rc<Self>> {
+    pub fn new(compensation: &Rc<AxisTwistCompensation>, config: &ConfigWrapper) -> KResult<Rc<Self>> {
         let printer = config.get_printer();
         let gcode = printer.lookup::<GCodeDispatch>("gcode")?;
         let c = Rc::new_cyclic(|me| Calibrater {
@@ -206,7 +206,7 @@ impl Calibrater {
         self.compensation.upgrade().ok_or_else(|| KError::Other("axis_twist_compensation gone".into()))
     }
 
-    fn cmd_axis_twist_compensation_calibrate(&self, gcmd: &GCodeCommand) -> KResult<()> {
+    pub fn cmd_axis_twist_compensation_calibrate(&self, gcmd: &GCodeCommand) -> KResult<()> {
         let plist = probe_list_get_list(&self.printer)?;
         let probe = plist.get_command_probe(gcmd, None, None)?.as_ref().and_then(as_printer_probe);
         let probe = probe.ok_or_else(|| KError::Other("'NoneType' object has no attribute 'get_lift_speed'".into()))?;
@@ -333,7 +333,7 @@ impl Calibrater {
         }
     }
 
-    fn finalize_calibration(&self, gcmd: &GCodeCommand) -> KResult<()> {
+    pub fn finalize_calibration(&self, gcmd: &GCodeCommand) -> KResult<()> {
         // finalize the calibration process
         // calculate average of results
         let results = self.results.borrow().clone();

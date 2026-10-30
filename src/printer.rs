@@ -129,8 +129,9 @@ pub struct PrinterModule {
     pub register_components: Option<fn(&SubsystemComponentCollection) -> KResult<()>>,
 }
 
+#[derive(Default)]
 pub struct SubsystemComponentCollection {
-    subsystems: RefCell<IndexMap<String, IndexMap<String, Rc<dyn Any>>>>,
+    pub subsystems: RefCell<IndexMap<String, IndexMap<String, Rc<dyn Any>>>>,
 }
 
 impl SubsystemComponentCollection {
@@ -158,8 +159,8 @@ pub struct Printer {
     pub reactor: Rc<Reactor>,
     state_message: RefCell<String>,
     in_shutdown_state: Cell<bool>,
-    run_result: RefCell<Option<String>>,
-    event_handlers: RefCell<IndexMap<String, Vec<EventCallback>>>,
+    pub run_result: RefCell<Option<String>>,
+    pub event_handlers: RefCell<IndexMap<String, Vec<EventCallback>>>,
     pub components: SubsystemComponentCollection,
     objects: RefCell<IndexMap<String, PObj>>,
     /// the PrinterConfig ("configfile" object)
@@ -178,7 +179,7 @@ pub struct ConfigFileObject {
 }
 
 impl ConfigFileObject {
-    fn cmd_save_config(&self, printer: &Printer, gcmd: &crate::gcode::GCodeCommand) -> KResult<()> {
+    pub fn cmd_save_config(&self, printer: &Printer, gcmd: &crate::gcode::GCodeCommand) -> KResult<()> {
         let autosave_includes = crate::extras::danger_options::get_danger_options().autosave_includes;
         let saved = self.pconfig.borrow_mut().save_config(autosave_includes).map_err(KError::command)?;
         if !saved {
@@ -265,7 +266,7 @@ impl Printer {
         self.in_shutdown_state.get()
     }
 
-    fn set_state(&self, msg: &str) {
+    pub fn set_state(&self, msg: &str) {
         let cur = self.state_message.borrow().clone();
         if cur == MESSAGE_READY || cur == MESSAGE_STARTUP {
             *self.state_message.borrow_mut() = msg.to_string();
@@ -388,7 +389,7 @@ impl Printer {
         Ok(Some(obj))
     }
 
-    fn read_config(self: &Rc<Self>) -> KResult<()> {
+    pub fn read_config(self: &Rc<Self>) -> KResult<()> {
         let config_file = self.start_arg("config_file").map(|v| v.str()).unwrap_or_default();
         let pobj = Rc::new(ConfigFileObject { pconfig: RefCell::new(PrinterConfig::new(config_file.as_str())) });
         self.objects.borrow_mut().insert("configfile".into(), pobj.clone());
@@ -452,7 +453,7 @@ impl Printer {
         Ok(())
     }
 
-    fn connect(self: &Rc<Self>, _eventtime: f64) {
+    pub fn connect(self: &Rc<Self>, _eventtime: f64) {
         let res = (|| -> KResult<bool> {
             self.read_config()?;
             crate::events::KlippyMcuIdentify::emit(self)?;

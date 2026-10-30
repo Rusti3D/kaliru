@@ -86,9 +86,9 @@ impl Io {
 }
 
 // Helper code for toggling a reset pin on startup
-struct ResetHelper {
+pub struct ResetHelper {
     printer: Rc<Printer>,
-    mcu_reset: Option<Rc<McuBusDigitalOut>>,
+    pub mcu_reset: Option<Rc<McuBusDigitalOut>>,
 }
 
 impl ResetHelper {
@@ -103,7 +103,7 @@ impl ResetHelper {
         Ok(ResetHelper { printer: printer.clone(), mcu_reset })
     }
 
-    fn init(&self) -> KResult<()> {
+    pub fn init(&self) -> KResult<()> {
         let Some(mcu_reset) = &self.mcu_reset else { return Ok(()) };
         let mcu = mcu_reset.get_mcu();
         let curtime = self.printer.get_reactor().monotonic();
@@ -119,22 +119,22 @@ impl ResetHelper {
     }
 }
 
-enum Chip {
+pub enum Chip {
     UC1701 { contrast: i64 },
     SSD1306 { contrast: i64, vcomh: i64, invert: bool },
 }
 
 pub struct DisplayBase {
     io: Io,
-    mcu: Rc<Mcu>,
-    x_offset: i64,
+    pub mcu: Rc<Mcu>,
+    pub x_offset: i64,
     /// all_framebuffers: the 8 vram pages and the data on the display
-    vram: RefCell<Vec<(Vec<u8>, Vec<u8>)>>,
+    pub vram: RefCell<Vec<(Vec<u8>, Vec<u8>)>>,
     // Cache fonts and icons in display byte order
-    font: Vec<(Vec<u8>, Vec<u8>)>,
-    icons: RefCell<IndexMap<String, (Vec<u8>, Vec<u8>)>>,
+    pub font: Vec<(Vec<u8>, Vec<u8>)>,
+    pub icons: RefCell<IndexMap<String, (Vec<u8>, Vec<u8>)>>,
     reset: ResetHelper,
-    chip: Chip,
+    pub chip: Chip,
 }
 
 impl DisplayBase {

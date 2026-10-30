@@ -25,41 +25,41 @@ const ADC_SAMPLE_COUNT: i64 = 15;
 
 pub struct HallFilamentWidthSensor {
     me: Weak<HallFilamentWidthSensor>,
-    printer: Rc<Printer>,
-    reactor: Rc<Reactor>,
+    pub printer: Rc<Printer>,
+    pub reactor: Rc<Reactor>,
     mcu: RefCell<Option<Rc<Mcu>>>,
-    dia1: f64,
-    dia2: f64,
-    rawdia1: i64,
-    rawdia2: i64,
+    pub dia1: f64,
+    pub dia2: f64,
+    pub rawdia1: i64,
+    pub rawdia2: i64,
     measurement_interval_mm: i64,
-    nominal_filament_dia: f64,
-    measurement_delay: f64,
-    max_diameter: f64,
-    min_diameter: f64,
-    diameter: Cell<f64>,
-    is_active: Cell<bool>,
-    runout_dia_min: f64,
-    runout_dia_max: f64,
-    is_log: Cell<bool>,
-    use_current_dia_while_delay: bool,
-    check_on_print_start: Cell<bool>,
+    pub nominal_filament_dia: f64,
+    pub measurement_delay: f64,
+    pub max_diameter: f64,
+    pub min_diameter: f64,
+    pub diameter: Cell<f64>,
+    pub is_active: Cell<bool>,
+    pub runout_dia_min: f64,
+    pub runout_dia_max: f64,
+    pub is_log: Cell<bool>,
+    pub use_current_dia_while_delay: bool,
+    pub check_on_print_start: Cell<bool>,
     // filament array [position, filamentWidth]
-    filament_array: RefCell<Vec<(f64, f64)>>,
+    pub filament_array: RefCell<Vec<(f64, f64)>>,
     last_reading: Cell<i64>,
     last_reading2: Cell<i64>,
     first_extruder_update_position: Cell<f64>,
-    filament_width: Cell<f64>,
-    toolhead: RefCell<Option<Rc<ToolHead>>>,
+    pub filament_width: Cell<f64>,
+    pub toolhead: RefCell<Option<Rc<ToolHead>>>,
     _mcu_adc: Rc<dyn AdcPin>,
     _mcu_adc2: Rc<dyn AdcPin>,
-    extrude_factor_update_timer: RefCell<Option<Timer>>,
-    gcode: Rc<GCodeDispatch>,
-    runout_helper: RefCell<Option<Rc<RunoutHelper>>>,
+    pub extrude_factor_update_timer: RefCell<Option<Timer>>,
+    pub gcode: Rc<GCodeDispatch>,
+    pub runout_helper: RefCell<Option<Rc<RunoutHelper>>>,
 }
 
 impl HallFilamentWidthSensor {
-    fn new(config: &ConfigWrapper) -> KResult<Rc<Self>> {
+    pub fn new(config: &ConfigWrapper) -> KResult<Rc<Self>> {
         let printer = config.get_printer();
         let gcode_macro = load_gcode_macro(config)?;
         let reactor = printer.get_reactor();
@@ -210,7 +210,7 @@ impl HallFilamentWidthSensor {
     }
 
     // Initialization
-    fn handle_ready(&self) -> KResult<()> {
+    pub fn handle_ready(&self) -> KResult<()> {
         // Load printer objects
         *self.toolhead.borrow_mut() = Some(self.printer.lookup::<ToolHead>("toolhead")?);
         *self.mcu.borrow_mut() = Some(self.printer.lookup::<Mcu>("mcu")?);
@@ -242,7 +242,7 @@ impl HallFilamentWidthSensor {
         self.diameter.set((5.0 * self.diameter.get() + diameter_new) / 6.0);
     }
 
-    fn update_filament_array(&self, last_epos: f64) {
+    pub fn update_filament_array(&self, last_epos: f64) {
         let mut fa = self.filament_array.borrow_mut();
         // Fill array
         if let Some(last) = fa.last() {
@@ -262,7 +262,7 @@ impl HallFilamentWidthSensor {
         }
     }
 
-    fn extrude_factor_update_event(&self, eventtime: f64) -> f64 {
+    pub fn extrude_factor_update_event(&self, eventtime: f64) -> f64 {
         if let Err(e) = self.extrude_factor_update(eventtime) {
             logging::exception_err("filament width update", &e);
         }
@@ -312,7 +312,7 @@ impl HallFilamentWidthSensor {
         Ok(())
     }
 
-    fn cmd_m407(&self, gcmd: &GCodeCommand) -> KResult<()> {
+    pub fn cmd_m407(&self, gcmd: &GCodeCommand) -> KResult<()> {
         let d = self.diameter.get();
         let response = if d > 0.0 { format!("Filament dia (measured mm): {}", py_float_repr(d)) } else { "Filament NOT present".to_string() };
         gcmd.respond_info(&response, true);
@@ -326,7 +326,7 @@ impl HallFilamentWidthSensor {
         self.gcode.run_script_from_command("M221 S100")
     }
 
-    fn cmd_m405(&self, gcmd: &GCodeCommand) -> KResult<()> {
+    pub fn cmd_m405(&self, gcmd: &GCodeCommand) -> KResult<()> {
         let mut response = "Filament width sensor Turned On";
         if self.is_active.get() {
             response = "Filament width sensor is already On";
@@ -341,7 +341,7 @@ impl HallFilamentWidthSensor {
         Ok(())
     }
 
-    fn cmd_m406(&self, gcmd: &GCodeCommand) -> KResult<()> {
+    pub fn cmd_m406(&self, gcmd: &GCodeCommand) -> KResult<()> {
         let mut response = "Filament width sensor Turned Off";
         if !self.is_active.get() {
             response = "Filament width sensor is already Off";
@@ -360,25 +360,25 @@ impl HallFilamentWidthSensor {
         Ok(())
     }
 
-    fn cmd_get_raw_values(&self, gcmd: &GCodeCommand) -> KResult<()> {
+    pub fn cmd_get_raw_values(&self, gcmd: &GCodeCommand) -> KResult<()> {
         let (a, b) = (self.last_reading.get(), self.last_reading2.get());
         gcmd.respond_info(&format!("ADC1= {} ADC2={} RAW={}", a, b, a + b), true);
         Ok(())
     }
 
-    fn cmd_log_enable(&self, gcmd: &GCodeCommand) -> KResult<()> {
+    pub fn cmd_log_enable(&self, gcmd: &GCodeCommand) -> KResult<()> {
         self.is_log.set(true);
         gcmd.respond_info("Filament width logging Turned On", true);
         Ok(())
     }
 
-    fn cmd_log_disable(&self, gcmd: &GCodeCommand) -> KResult<()> {
+    pub fn cmd_log_disable(&self, gcmd: &GCodeCommand) -> KResult<()> {
         self.is_log.set(false);
         gcmd.respond_info("Filament width logging Turned Off", true);
         Ok(())
     }
 
-    fn get_sensor_status(&self) -> String {
+    pub fn get_sensor_status(&self) -> String {
         let rh = self.runout_helper();
         let tf = |b: bool| if b { "true" } else { "false" };
         format!(

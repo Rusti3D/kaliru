@@ -22,7 +22,7 @@ use std::collections::VecDeque;
 use std::rc::{Rc, Weak};
 
 /// sum(data) / len(data) of float data
-fn avg(data: &[f64]) -> f64 {
+pub fn avg(data: &[f64]) -> f64 {
     py_sum(data.iter().copied()) / data.len() as f64
 }
 
@@ -31,7 +31,7 @@ fn avg_int(data: &[i64]) -> f64 {
     data.iter().sum::<i64>() as f64 / data.len() as f64
 }
 
-fn has_flag(gcmd: &GCodeCommand, name: &str) -> bool {
+pub fn has_flag(gcmd: &GCodeCommand, name: &str) -> bool {
     let v = gcmd.get_or(name, "False").trim().to_lowercase();
     v == "1" || v == "true"
 }
@@ -170,9 +170,9 @@ const CMD_LOAD_CELL_READ_HELP: &str = "Take a reading from the load cell";
 const CMD_LOAD_CELL_DIAGNOSTIC_HELP: &str = "Check the health of the load cell";
 
 // Class for handling gcode commands related to load cells
-struct LoadCellCommandHelper {
-    printer: Rc<Printer>,
-    load_cell: Weak<LoadCell>,
+pub struct LoadCellCommandHelper {
+    pub printer: Rc<Printer>,
+    pub load_cell: Weak<LoadCell>,
 }
 
 impl LoadCellCommandHelper {
@@ -187,7 +187,7 @@ impl LoadCellCommandHelper {
         Ok(())
     }
 
-    fn register_commands(self: &Rc<Self>, name: Option<&str>) -> KResult<()> {
+    pub fn register_commands(self: &Rc<Self>, name: Option<&str>) -> KResult<()> {
         // Register commands
         let gcode = self.printer.lookup::<GCodeDispatch>("gcode")?;
         type LCmd = fn(&LoadCellCommandHelper, &Rc<LoadCell>, &GCodeCommand) -> KResult<()>;
@@ -315,12 +315,12 @@ const CMD_TARE_HELP: &str = "Tare the load cell";
 const CMD_CALIBRATE_HELP: &str = "Enter the load cell value in grams";
 
 // Class to guide the user through calibrating a load cell
-struct LoadCellGuidedCalibrationHelper {
-    gcode: Rc<GCodeDispatch>,
-    load_cell: Rc<LoadCell>,
-    tare_counts: RefCell<Option<Vec<i64>>>,
-    counts_per_gram: Cell<Option<f64>>,
-    tare_percent: Cell<f64>,
+pub struct LoadCellGuidedCalibrationHelper {
+    pub gcode: Rc<GCodeDispatch>,
+    pub load_cell: Rc<LoadCell>,
+    pub tare_counts: RefCell<Option<Vec<i64>>>,
+    pub counts_per_gram: Cell<Option<f64>>,
+    pub tare_percent: Cell<f64>,
 }
 
 impl LoadCellGuidedCalibrationHelper {
@@ -341,7 +341,7 @@ impl LoadCellGuidedCalibrationHelper {
         Ok(())
     }
 
-    fn verify_no_active_calibration(&self) -> KResult<()> {
+    pub fn verify_no_active_calibration(&self) -> KResult<()> {
         let dummy: crate::gcode::Handler = Rc::new(|_| Ok(()));
         if let Err(e) = self.gcode.register_command("TARE", Some(dummy), false, None) {
             if matches!(e.base(), KError::Config(_)) {
@@ -353,7 +353,7 @@ impl LoadCellGuidedCalibrationHelper {
         Ok(())
     }
 
-    fn register_commands(self: &Rc<Self>) -> KResult<()> {
+    pub fn register_commands(self: &Rc<Self>) -> KResult<()> {
         self.verify_no_active_calibration()?;
         type GCmd = fn(&LoadCellGuidedCalibrationHelper, &GCodeCommand) -> KResult<()>;
         let cmds: [(&str, GCmd, &str); 4] = [
@@ -370,7 +370,7 @@ impl LoadCellGuidedCalibrationHelper {
     }
 
     // convert the delta of counts to a counts/gram metric
-    fn counts_per_gram(&self, grams: f64, cal_counts: &[i64]) -> f64 {
+    pub fn counts_per_gram(&self, grams: f64, cal_counts: &[i64]) -> f64 {
         let tare_sum: i64 = self.tare_counts.borrow().as_ref().map(|t| t.iter().sum()).unwrap_or(0);
         let cal_sum: i64 = cal_counts.iter().sum();
         (tare_sum - cal_sum).abs() as f64 / grams
@@ -378,13 +378,13 @@ impl LoadCellGuidedCalibrationHelper {
 
     // calculate max force that the load cell can register
     // given tare bias, at saturation in kilograms
-    fn capacity_kg(&self, counts_per_gram: f64) -> f64 {
+    pub fn capacity_kg(&self, counts_per_gram: f64) -> f64 {
         let (_, range_max) = self.load_cell.saturation_range();
         let tare_sum: i64 = self.tare_counts.borrow().as_ref().map(|t| t.iter().sum()).unwrap_or(0);
         ((range_max - tare_sum.abs()) as f64 / counts_per_gram).trunc() / 1000.0
     }
 
-    fn finalize(&self, save_results: bool) -> KResult<()> {
+    pub fn finalize(&self, save_results: bool) -> KResult<()> {
         for name in ["ABORT", "ACCEPT", "TARE", "CALIBRATE"] {
             self.gcode.register_command(name, None, false, None)?;
         }
@@ -410,15 +410,15 @@ impl LoadCellGuidedCalibrationHelper {
         self.load_cell.tare(&tare_counts)
     }
 
-    fn cmd_abort(&self, _gcmd: &GCodeCommand) -> KResult<()> {
+    pub fn cmd_abort(&self, _gcmd: &GCodeCommand) -> KResult<()> {
         self.finalize(false)
     }
 
-    fn cmd_accept(&self, _gcmd: &GCodeCommand) -> KResult<()> {
+    pub fn cmd_accept(&self, _gcmd: &GCodeCommand) -> KResult<()> {
         self.finalize(true)
     }
 
-    fn cmd_tare(&self, gcmd: &GCodeCommand) -> KResult<()> {
+    pub fn cmd_tare(&self, gcmd: &GCodeCommand) -> KResult<()> {
         self.counts_per_gram.set(None); // require re-calibration on tare
         let reporter = ForceReporter::new(gcmd, &self.load_cell)?;
         *self.tare_counts.borrow_mut() = Some(reporter.channel_counts.clone());
@@ -432,7 +432,7 @@ impl LoadCellGuidedCalibrationHelper {
         Ok(())
     }
 
-    fn cmd_calibrate(&self, gcmd: &GCodeCommand) -> KResult<()> {
+    pub fn cmd_calibrate(&self, gcmd: &GCodeCommand) -> KResult<()> {
         let Some(tare_counts) = self.tare_counts.borrow().clone() else {
             gcmd.respond_info("You must use TARE first.", true);
             return Ok(());
@@ -489,21 +489,21 @@ pub type CollectErrors = Option<(i64, i64)>;
 // can collect a minimum n samples or collect until a specific print_time
 pub struct LoadCellSampleCollector {
     me: Weak<LoadCellSampleCollector>,
-    load_cell: Weak<LoadCell>,
-    reactor: Rc<Reactor>,
-    mcu: Rc<Mcu>,
-    min_time: Cell<f64>,
-    max_time: Cell<f64>,
-    min_count: Cell<f64>,
-    is_started: Cell<bool>,
-    completion: RefCell<Option<Rc<ReactorCompletion<bool>>>>,
+    pub load_cell: Weak<LoadCell>,
+    pub reactor: Rc<Reactor>,
+    pub mcu: Rc<Mcu>,
+    pub min_time: Cell<f64>,
+    pub max_time: Cell<f64>,
+    pub min_count: Cell<f64>,
+    pub is_started: Cell<bool>,
+    pub completion: RefCell<Option<Rc<ReactorCompletion<bool>>>>,
     samples: RefCell<Vec<ForceSample>>,
-    errors: Cell<i64>,
-    overflows: Cell<i64>,
+    pub errors: Cell<i64>,
+    pub overflows: Cell<i64>,
 }
 
 impl LoadCellSampleCollector {
-    fn new(printer: &Rc<Printer>, load_cell: &Rc<LoadCell>) -> Rc<Self> {
+    pub fn new(printer: &Rc<Printer>, load_cell: &Rc<LoadCell>) -> Rc<Self> {
         Rc::new_cyclic(|me| LoadCellSampleCollector {
             me: me.clone(),
             load_cell: Rc::downgrade(load_cell),
@@ -521,14 +521,14 @@ impl LoadCellSampleCollector {
     }
 
     // move from the started to stopped state and trigger the completion
-    fn complete(&self) {
+    pub fn complete(&self) {
         self.is_started.set(false);
         if let Some(c) = self.completion.borrow_mut().take() {
             c.complete(true);
         }
     }
 
-    fn on_samples(&self, msg: &ForceMsg) -> bool {
+    pub fn on_samples(&self, msg: &ForceMsg) -> bool {
         if !self.is_started.get() {
             return false; // already stopped, ignore
         }
@@ -629,14 +629,14 @@ impl LoadCellSampleCollector {
 // Printer class that controls the load cell
 const MIN_COUNTS_PER_GRAM: f64 = 1.0;
 
-struct ForceFormatter {
+pub struct ForceFormatter {
     counts: i64,
     percent: f64,
     force: Option<f64>,
 }
 
 impl ForceFormatter {
-    fn format(&self, show_force: bool, show_counts: bool) -> String {
+    pub fn format(&self, show_force: bool, show_counts: bool) -> String {
         let mut parts: Vec<String> = vec![];
         if show_force {
             match self.force {
@@ -716,21 +716,21 @@ impl<'a> ForceReporter<'a> {
 
 pub struct LoadCell {
     me: Weak<LoadCell>,
-    printer: Rc<Printer>,
-    config_name: String,
+    pub printer: Rc<Printer>,
+    pub config_name: String,
     pub name: String,
     pub sensor: Rc<dyn BulkAdcSensor>,
-    channel_count: usize,
+    pub channel_count: usize,
     buffer_size: usize,
     force_buffer: RefCell<VecDeque<f64>>,
     channel_force_buffers: RefCell<Vec<VecDeque<f64>>>,
-    reference_tare_counts_per_channel: RefCell<Option<Vec<i64>>>,
-    reference_tare_counts: Cell<Option<i64>>,
-    tare_counts_per_channel: RefCell<Option<Vec<i64>>>,
-    tare_counts: Cell<Option<i64>>,
-    tare_force: Cell<Option<f64>>,
-    counts_per_gram: Cell<Option<f64>>,
-    invert: f64,
+    pub reference_tare_counts_per_channel: RefCell<Option<Vec<i64>>>,
+    pub reference_tare_counts: Cell<Option<i64>>,
+    pub tare_counts_per_channel: RefCell<Option<Vec<i64>>>,
+    pub tare_counts: Cell<Option<i64>>,
+    pub tare_force: Cell<Option<f64>>,
+    pub counts_per_gram: Cell<Option<f64>>,
+    pub invert: f64,
     clients: Rc<ApiClientHelper>,
 }
 
@@ -806,7 +806,7 @@ impl LoadCell {
         Ok(())
     }
 
-    fn handle_ready(&self) {
+    pub fn handle_ready(&self) {
         let w = self.me.clone();
         self.printer.get_reactor().register_callback(
             move |_eventtime| {
@@ -821,7 +821,7 @@ impl LoadCell {
     }
 
     // convert raw counts to grams and broadcast to clients
-    fn sensor_data_event(&self, msg: &PyVal) -> bool {
+    pub fn sensor_data_event(&self, msg: &PyVal) -> bool {
         let PyVal::Dict(d) = msg else { return false };
         let errors = d.get("errors").cloned().unwrap_or(PyVal::None);
         let overflows = d.get("overflows").cloned().unwrap_or(PyVal::None);
@@ -973,7 +973,7 @@ impl LoadCell {
     }
 
     // Provide ongoing force tracking/averaging for status updates
-    fn track_force(&self, msg: &ForceMsg) -> bool {
+    pub fn track_force(&self, msg: &ForceMsg) -> bool {
         if !(self.is_calibrated() && self.is_tared()) {
             return true;
         }
@@ -996,7 +996,7 @@ impl LoadCell {
         true
     }
 
-    fn force_g(&self) -> Option<PyDict> {
+    pub fn force_g(&self) -> Option<PyDict> {
         let fb = self.force_buffer.borrow();
         if self.is_calibrated() && self.is_tared() && !fb.is_empty() {
             let mut channel_force = vec![];

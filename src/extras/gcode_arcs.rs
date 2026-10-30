@@ -35,10 +35,10 @@ pub const Z_AXIS: usize = 2;
 pub const E_AXIS: usize = 3;
 
 pub struct ArcSupport {
-    mm_per_arc_segment: f64,
-    gcode_move: Rc<GCodeMove>,
-    gcode: Rc<GCodeDispatch>,
-    plane: Cell<i32>,
+    pub mm_per_arc_segment: f64,
+    pub gcode_move: Rc<GCodeMove>,
+    pub gcode: Rc<GCodeDispatch>,
+    pub plane: Cell<i32>,
 }
 
 fn coord4(v: Option<&PyVal>) -> Vec<f64> {
@@ -51,7 +51,7 @@ fn coord4(v: Option<&PyVal>) -> Vec<f64> {
 }
 
 impl ArcSupport {
-    fn new(config: &ConfigWrapper) -> KResult<Rc<Self>> {
+    pub fn new(config: &ConfigWrapper) -> KResult<Rc<Self>> {
         let printer = config.get_printer();
         let mm_per_arc_segment = config.getfloat("resolution", 1.0, Lim::new().above(0.0))?;
         let gcode_move = printer
@@ -80,7 +80,7 @@ impl ArcSupport {
         Ok(a)
     }
 
-    fn cmd_inner(&self, gcmd: &GCodeCommand, clockwise: bool) -> KResult<()> {
+    pub fn cmd_inner(&self, gcmd: &GCodeCommand, clockwise: bool) -> KResult<()> {
         let gcodestatus = match PrinterObject::get_status(&*self.gcode_move, 0.0) {
             Some(PyVal::Dict(d)) => d,
             _ => IndexMap::default(),

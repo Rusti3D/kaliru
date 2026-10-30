@@ -58,15 +58,15 @@ fn xy(c: &Coord) -> Point {
 }
 
 // Helper class to handle polling pins for probe attachment states
-struct PinPollingHelper {
-    printer: Rc<Printer>,
-    query_endstop: EndstopRef,
-    last_verify_time: Cell<f64>,
-    last_verify_state: Cell<Option<bool>>,
+pub struct PinPollingHelper {
+    pub printer: Rc<Printer>,
+    pub query_endstop: EndstopRef,
+    pub last_verify_time: Cell<f64>,
+    pub last_verify_state: Cell<Option<bool>>,
 }
 
 impl PinPollingHelper {
-    fn new(config: &ConfigWrapper, endstop: EndstopRef) -> Rc<Self> {
+    pub fn new(config: &ConfigWrapper, endstop: EndstopRef) -> Rc<Self> {
         Rc::new(PinPollingHelper {
             printer: config.get_printer(),
             query_endstop: endstop,
@@ -75,7 +75,7 @@ impl PinPollingHelper {
         })
     }
 
-    fn query_pin(&self, curtime: f64) -> KResult<bool> {
+    pub fn query_pin(&self, curtime: f64) -> KResult<bool> {
         if curtime > self.last_verify_time.get() + PROBE_VERIFY_DELAY || self.last_verify_state.get().is_none() {
             self.last_verify_time.set(curtime);
             let toolhead = self.printer.lookup::<ToolHead>("toolhead")?;
@@ -100,12 +100,12 @@ impl PinQuery {
 }
 
 // Helper class to verify probe attachment status
-struct ProbeState {
-    printer: Rc<Printer>,
+pub struct ProbeState {
+    pub printer: Rc<Printer>,
     probe_sense_pin: PinQuery,
     dock_sense_pin: Option<PinQuery>,
-    last_verify_time: Cell<f64>,
-    last_verify_state: Cell<i64>,
+    pub last_verify_time: Cell<f64>,
+    pub last_verify_state: Cell<i64>,
 }
 
 impl ProbeState {
@@ -168,17 +168,17 @@ impl ProbeState {
         Ok(s)
     }
 
-    fn handle_ready(&self) {
+    pub fn handle_ready(&self) {
         self.last_verify_time.set(0.0);
         self.last_verify_state.set(PROBE_UNKNOWN);
     }
 
-    fn get_probe_state(&self) -> KResult<i64> {
+    pub fn get_probe_state(&self) -> KResult<i64> {
         let curtime = self.printer.get_reactor().monotonic();
         self.get_probe_state_with_time(curtime)
     }
 
-    fn get_probe_state_with_time(&self, curtime: f64) -> KResult<i64> {
+    pub fn get_probe_state_with_time(&self, curtime: f64) -> KResult<i64> {
         if self.last_verify_state.get() == PROBE_UNKNOWN || curtime > self.last_verify_time.get() + PROBE_VERIFY_DELAY {
             self.last_verify_time.set(curtime);
             self.last_verify_state.set(PROBE_UNKNOWN);
@@ -227,42 +227,51 @@ const CMD_MOVE_AVOIDING_DOCK_HELP: &str = "Move to X Y avoiding dock safe area";
 
 pub struct DockableProbe {
     me: Weak<DockableProbe>,
-    printer: Rc<Printer>,
-    gcode: Rc<GCodeDispatch>,
-    position_endstop: f64,
-    speed: f64,
-    lift_speed: f64,
-    dock_retries: i64,
+    pub printer: Rc<Printer>,
+    pub gcode: Rc<GCodeDispatch>,
+    pub position_endstop: f64,
+    pub speed: f64,
+    pub lift_speed: f64,
+    pub dock_retries: i64,
     pub detach_dockable_before_z_home: bool,
-    auto_attach_detach: Cell<bool>,
-    restore_toolhead: bool,
-    travel_speed: f64,
-    attach_speed: f64,
-    detach_speed: f64,
-    approach_position: Coord,
-    detach_position: Coord,
-    extract_position: Coord,
-    insert_position: Coord,
-    dock_position: Coord,
-    z_hop: f64,
-    dock_requires_z: bool,
-    safe_dock_distance: f64,
-    safe_points: Vec<Point>,
-    activate_gcode: Rc<Template>,
-    deactivate_gcode: Rc<Template>,
-    pre_attach_gcode: Rc<Template>,
-    post_attach_gcode: Rc<Template>,
-    pre_detach_gcode: Rc<Template>,
-    post_detach_gcode: Rc<Template>,
-    mcu_endstop: Rc<McuEndstop>,
-    finish_home_complete: RefCell<Option<Rc<ReactorCompletion<bool>>>>,
-    wait_trigger_complete: RefCell<Option<Rc<ReactorCompletion<()>>>>,
-    last_z: Cell<f64>,
-    multi: Cell<Multi>,
-    last_homed: RefCell<String>,
-    pstate: Rc<ProbeState>,
-    last_probe_state: Cell<i64>,
-    toolhead: RefCell<Option<Rc<ToolHead>>>,
+    pub auto_attach_detach: Cell<bool>,
+    pub restore_toolhead: bool,
+    pub travel_speed: f64,
+    pub attach_speed: f64,
+    pub detach_speed: f64,
+    pub name: String,
+    pub x_offset: f64,
+    pub y_offset: f64,
+    pub sample_retract_dist: f64,
+    pub approach_position: Coord,
+    pub detach_position: Coord,
+    pub extract_position: Coord,
+    pub insert_position: Coord,
+    pub dock_position: Coord,
+    pub safe_position: Coord,
+    pub approach_distance: f64,
+    pub detach_distance: f64,
+    pub insert_distance: f64,
+    pub z_hop: f64,
+    pub dock_requires_z: bool,
+    pub safe_dock_distance: f64,
+    pub safe_points: Vec<Point>,
+    pub activate_gcode: Rc<Template>,
+    pub deactivate_gcode: Rc<Template>,
+    pub pre_attach_gcode: Rc<Template>,
+    pub post_attach_gcode: Rc<Template>,
+    pub pre_detach_gcode: Rc<Template>,
+    pub post_detach_gcode: Rc<Template>,
+    pub mcu_endstop: Rc<McuEndstop>,
+    pub finish_home_complete: RefCell<Option<Rc<ReactorCompletion<bool>>>>,
+    pub wait_trigger_complete: RefCell<Option<Rc<ReactorCompletion<()>>>>,
+    pub last_z: Cell<f64>,
+    pub multi: Cell<Multi>,
+    /// homed_axes at the last _align_z (None before)
+    pub last_homed: RefCell<Option<String>>,
+    pub pstate: Rc<ProbeState>,
+    pub last_probe_state: Cell<i64>,
+    pub toolhead: RefCell<Option<Rc<ToolHead>>>,
 }
 
 /// _parse_coord(config, name, default=None, expected_dims=3)
@@ -338,15 +347,15 @@ fn get_closest_point(target_point: Point, points: &[Point]) -> Option<Point> {
 }
 
 impl DockableProbe {
-    fn new(config: &ConfigWrapper) -> KResult<Rc<Self>> {
+    pub fn new(config: &ConfigWrapper) -> KResult<Rc<Self>> {
         let printer = config.get_printer();
         let gcode = printer.lookup::<GCodeDispatch>("gcode")?;
         let name = config.get_name().to_string();
 
         // Configuration Options
         let position_endstop = config.getfloat("z_offset", Dflt::Required, Lim::new())?;
-        config.getfloat("x_offset", 0.0, Lim::new())?;
-        config.getfloat("y_offset", 0.0, Lim::new())?;
+        let x_offset = config.getfloat("x_offset", 0.0, Lim::new())?;
+        let y_offset = config.getfloat("y_offset", 0.0, Lim::new())?;
         let speed = config.getfloat("speed", 5.0, Lim::new().above(0.0))?;
         let lift_speed = config.getfloat("lift_speed", speed, Lim::new().above(0.0))?;
         let dock_retries = config.getint("dock_retries", 0, Lim::new())?;
@@ -355,7 +364,7 @@ impl DockableProbe {
         let travel_speed = config.getfloat("travel_speed", speed, Lim::new().above(0.0))?;
         let attach_speed = config.getfloat("attach_speed", travel_speed, Lim::new().above(0.0))?;
         let detach_speed = config.getfloat("detach_speed", travel_speed, Lim::new().above(0.0))?;
-        config.getfloat("sample_retract_dist", 2.0, Lim::new().above(0.0))?;
+        let sample_retract_dist = config.getfloat("sample_retract_dist", 2.0, Lim::new().above(0.0))?;
         let detach_dockable_before_z_home = config.getboolean("detach_dockable_before_z_home", false)?;
 
         // Positions (approach, detach, etc)
@@ -414,11 +423,19 @@ impl DockableProbe {
             travel_speed,
             attach_speed,
             detach_speed,
+            name: name.clone(),
+            x_offset,
+            y_offset,
+            sample_retract_dist,
             approach_position,
             detach_position,
             extract_position: extract_position.unwrap_or(approach_position),
             insert_position,
             dock_position,
+            safe_position,
+            approach_distance,
+            detach_distance,
+            insert_distance,
             z_hop,
             dock_requires_z,
             safe_dock_distance,
@@ -435,7 +452,7 @@ impl DockableProbe {
             // State
             last_z: Cell::new(-9999.0),
             multi: Cell::new(Multi::Off),
-            last_homed: RefCell::new(String::new()),
+            last_homed: RefCell::new(None),
             pstate,
             last_probe_state: Cell::new(PROBE_UNKNOWN),
             toolhead: RefCell::new(None),
@@ -482,7 +499,7 @@ impl DockableProbe {
         Ok(p)
     }
 
-    fn handle_config(&self) -> KResult<()> {
+    pub fn handle_config(&self) -> KResult<()> {
         let kin = self.printer.lookup::<ToolHead>("toolhead")?.get_kinematics();
         for stepper in kin.get_steppers() {
             if stepper.is_active_axis('z') {
@@ -492,7 +509,7 @@ impl DockableProbe {
         Ok(())
     }
 
-    fn handle_connect(&self) -> KResult<()> {
+    pub fn handle_connect(&self) -> KResult<()> {
         let toolhead = self.printer.lookup::<ToolHead>("toolhead")?;
         *self.toolhead.borrow_mut() = Some(toolhead.clone());
         let me: EndstopRef = self.me.upgrade().expect("dockable_probe");
@@ -520,7 +537,7 @@ impl DockableProbe {
 
     // GCode Commands
 
-    fn cmd_query_dockable_probe(&self, gcmd: &GCodeCommand) -> KResult<()> {
+    pub fn cmd_query_dockable_probe(&self, gcmd: &GCodeCommand) -> KResult<()> {
         self.last_probe_state.set(self.get_probe_state()?);
         let state = match self.last_probe_state.get() {
             PROBE_ATTACHED => "ATTACHED",
@@ -531,36 +548,36 @@ impl DockableProbe {
         Ok(())
     }
 
-    fn cmd_move_to_approach_probe(&self, _gcmd: &GCodeCommand) -> KResult<()> {
+    pub fn cmd_move_to_approach_probe(&self, _gcmd: &GCodeCommand) -> KResult<()> {
         self.align_z()?;
         self.move_avoiding_dock(xy(&self.approach_position), self.travel_speed)?;
         self.th()?.manual_move(&[None, None, self.approach_position[2]], self.speed)
     }
 
-    fn cmd_move_to_dock_probe(&self, _gcmd: &GCodeCommand) -> KResult<()> {
+    pub fn cmd_move_to_dock_probe(&self, _gcmd: &GCodeCommand) -> KResult<()> {
         let th = self.th()?;
         th.manual_move(&[None, None, self.dock_position[2]], self.speed)?;
         th.manual_move(&[self.dock_position[0], self.dock_position[1], None], self.attach_speed)
     }
 
-    fn cmd_move_to_extract_probe(&self, _gcmd: &GCodeCommand) -> KResult<()> {
+    pub fn cmd_move_to_extract_probe(&self, _gcmd: &GCodeCommand) -> KResult<()> {
         let th = self.th()?;
         th.manual_move(&[None, None, self.extract_position[2]], self.speed)?;
         th.manual_move(&[self.extract_position[0], self.extract_position[1], None], self.attach_speed)
     }
 
-    fn cmd_move_to_insert_probe(&self, _gcmd: &GCodeCommand) -> KResult<()> {
+    pub fn cmd_move_to_insert_probe(&self, _gcmd: &GCodeCommand) -> KResult<()> {
         self.move_avoiding_dock(xy(&self.insert_position), self.travel_speed)?;
         self.th()?.manual_move(&[None, None, self.insert_position[2]], self.speed)
     }
 
-    fn cmd_move_to_detach_probe(&self, _gcmd: &GCodeCommand) -> KResult<()> {
+    pub fn cmd_move_to_detach_probe(&self, _gcmd: &GCodeCommand) -> KResult<()> {
         let th = self.th()?;
         th.manual_move(&[None, None, self.detach_position[2]], self.lift_speed)?;
         th.manual_move(&[self.detach_position[0], self.detach_position[1], None], self.detach_speed)
     }
 
-    fn cmd_set_dockable_probe(&self, gcmd: &GCodeCommand) -> KResult<()> {
+    pub fn cmd_set_dockable_probe(&self, gcmd: &GCodeCommand) -> KResult<()> {
         let Some(auto) = gcmd.get_opt("AUTO_ATTACH_DETACH") else { return Ok(()) };
         let v = auto
             .trim()
@@ -570,17 +587,17 @@ impl DockableProbe {
         Ok(())
     }
 
-    fn cmd_attach_probe(&self, _gcmd: &GCodeCommand) -> KResult<()> {
+    pub fn cmd_attach_probe(&self, _gcmd: &GCodeCommand) -> KResult<()> {
         let return_pos = self.th()?.get_position();
         self.attach_probe(Some(&return_pos), false)
     }
 
-    fn cmd_detach_probe(&self, _gcmd: &GCodeCommand) -> KResult<()> {
+    pub fn cmd_detach_probe(&self, _gcmd: &GCodeCommand) -> KResult<()> {
         let return_pos = self.th()?.get_position();
         self.detach_probe(Some(&return_pos))
     }
 
-    fn cmd_move_avoiding_dock(&self, gcmd: &GCodeCommand) -> KResult<()> {
+    pub fn cmd_move_avoiding_dock(&self, gcmd: &GCodeCommand) -> KResult<()> {
         let pos = self.th()?.get_position();
         let x = gcmd.get_float("X", Some(pos[0]), Lim::new())?;
         let y = gcmd.get_float("Y", Some(pos[1]), Lim::new())?;
@@ -588,7 +605,7 @@ impl DockableProbe {
         self.move_avoiding_dock((x, y), speed)
     }
 
-    fn attach_probe(&self, return_pos: Option<&[f64]>, always_restore_toolhead: bool) -> KResult<()> {
+    pub fn attach_probe(&self, return_pos: Option<&[f64]>, always_restore_toolhead: bool) -> KResult<()> {
         self.lower_probe()?;
 
         let mut retry = 0;
@@ -658,7 +675,7 @@ impl DockableProbe {
         self.raise_probe()
     }
 
-    fn auto_detach_probe(&self, return_pos: Option<&[f64]>) -> KResult<()> {
+    pub fn auto_detach_probe(&self, return_pos: Option<&[f64]>) -> KResult<()> {
         if self.get_probe_state()? == PROBE_DOCKED {
             return Ok(());
         }
@@ -668,7 +685,7 @@ impl DockableProbe {
         Ok(())
     }
 
-    fn auto_attach_probe(&self, return_pos: Option<&[f64]>, always_restore_toolhead: bool) -> KResult<()> {
+    pub fn auto_attach_probe(&self, return_pos: Option<&[f64]>, always_restore_toolhead: bool) -> KResult<()> {
         if self.get_probe_state()? == PROBE_ATTACHED {
             return Ok(());
         }
@@ -794,21 +811,21 @@ impl DockableProbe {
     }
 
     // Align z axis to prevent crashes
-    fn align_z(&self) -> KResult<()> {
+    pub fn align_z(&self) -> KResult<()> {
         let th = self.th()?;
         let curtime = self.printer.get_reactor().monotonic();
         let homed_axes = match PrinterObject::get_status(&*th, curtime) {
             Some(PyVal::Dict(d)) => d.get("homed_axes").map(|v| v.str()).unwrap_or_default(),
             _ => String::new(),
         };
-        *self.last_homed.borrow_mut() = homed_axes;
+        *self.last_homed.borrow_mut() = Some(homed_axes);
 
         if self.dock_requires_z {
             self.align_z_required()?;
         }
 
         if self.z_hop > 0.0 {
-            if self.last_homed.borrow().contains('z') {
+            if self.homed_z() {
                 let tpos = th.get_position();
                 if tpos[2] < self.z_hop {
                     th.manual_move(&[None, None, Some(self.z_hop)], self.lift_speed)?;
@@ -820,15 +837,19 @@ impl DockableProbe {
         Ok(())
     }
 
-    fn align_z_required(&self) -> KResult<()> {
-        if !self.last_homed.borrow().contains('z') {
+    fn homed_z(&self) -> bool {
+        self.last_homed.borrow().as_deref().unwrap_or_default().contains('z')
+    }
+
+    pub fn align_z_required(&self) -> KResult<()> {
+        if !self.homed_z() {
             return Err(KError::command("Cannot attach/detach probe, must home Z axis first"));
         }
         self.th()?.manual_move(&[None, None, self.approach_position[2]], self.lift_speed)
     }
 
     // Hop z and return to un-homed state
-    fn force_z_hop(&self) -> KResult<()> {
+    pub fn force_z_hop(&self) -> KResult<()> {
         let th = self.th()?;
         let this_z = th.get_position()[2];
         if self.last_z.get() == this_z {
@@ -855,11 +876,11 @@ impl DockableProbe {
         Ok(())
     }
 
-    fn raise_probe(&self) -> KResult<()> {
+    pub fn raise_probe(&self) -> KResult<()> {
         self.run_script(&self.deactivate_gcode, "deactivate_gcode")
     }
 
-    fn lower_probe(&self) -> KResult<()> {
+    pub fn lower_probe(&self) -> KResult<()> {
         self.run_script(&self.activate_gcode, "activate_gcode")
     }
 

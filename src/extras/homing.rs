@@ -67,6 +67,7 @@ pub fn multi_complete(printer: &Printer, completions: &[Rc<ReactorCompletion<boo
 }
 
 // Tracking of stepper positions during a homing/probing move
+#[derive(Clone)]
 pub struct StepperPosition {
     pub stepper: Rc<McuStepper>,
     pub endstop_name: String,
@@ -78,7 +79,7 @@ pub struct StepperPosition {
 }
 
 impl StepperPosition {
-    fn new(stepper: &Rc<McuStepper>, endstop_name: &str) -> Self {
+    pub fn new(stepper: &Rc<McuStepper>, endstop_name: &str) -> Self {
         let start_pos = stepper.get_mcu_position(None);
         StepperPosition {
             stepper: stepper.clone(),
@@ -91,12 +92,12 @@ impl StepperPosition {
         }
     }
 
-    fn note_home_end(&mut self, trigger_time: f64) {
+    pub fn note_home_end(&mut self, trigger_time: f64) {
         self.halt_pos = Some(self.stepper.get_mcu_position(None));
         self.trig_pos = Some(self.stepper.get_past_mcu_position(trigger_time));
     }
 
-    fn verify_no_probe_skew(&self) {
+    pub fn verify_no_probe_skew(&self) {
         let new_start_pos = self.stepper.get_mcu_position(Some(self.start_cmd_pos));
         if new_start_pos != self.start_pos {
             logging::warning(&format!(
@@ -120,7 +121,7 @@ impl StepperPosition {
 // Implementation of homing/probing moves
 /// the toolhead a homing move drives: the toolhead, or a manual_stepper
 /// (python duck types toolhead.get_kinematics() on both)
-pub trait HomingToolhead {
+pub trait HomingToolhead: std::any::Any {
     fn get_position(&self) -> Vec<f64>;
     fn set_position(&self, newpos: &[f64], homing_axes: &str) -> KResult<()>;
     fn flush_step_generation(&self) -> KResult<()>;
@@ -150,7 +151,7 @@ impl HomingToolhead for ToolHead {
         ToolHead::dwell(self, delay)
     }
     fn drip_move(&self, newpos: &[f64], speed: f64, drip_completion: &Rc<crate::reactor::ReactorCompletion<bool>>) -> KResult<()> {
-        ToolHead::drip_move(self, newpos, speed, drip_completion)
+        ToolHead::drip_move(self, newpos, speed, &**drip_completion)
     }
     fn kin_steppers(&self) -> Vec<Rc<McuStepper>> {
         self.get_kinematics().get_steppers()
@@ -161,9 +162,9 @@ impl HomingToolhead for ToolHead {
 }
 
 pub struct HomingMove {
-    printer: Rc<Printer>,
-    endstops: Vec<(EndstopRef, String)>,
-    toolhead: Rc<dyn HomingToolhead>,
+    pub printer: Rc<Printer>,
+    pub endstops: Vec<(EndstopRef, String)>,
+    pub toolhead: Rc<dyn HomingToolhead>,
     pub stepper_positions: RefCell<Vec<StepperPosition>>,
     pub distance_elapsed: RefCell<Vec<f64>>,
 }
@@ -187,7 +188,7 @@ impl HomingMove {
         self.endstops.iter().map(|(es, _)| es.clone()).collect()
     }
 
-    fn calc_endstop_rate(&self, mcu_endstop: &EndstopRef, movepos: &[f64], speed: f64) -> KResult<f64> {
+    pub fn calc_endstop_rate(&self, mcu_endstop: &EndstopRef, movepos: &[f64], speed: f64) -> KResult<f64> {
         let startpos = self.toolhead.get_position();
         let axes_d: Vec<f64> = movepos.iter().zip(&startpos).map(|(mp, sp)| mp - sp).collect();
         let move_d = crate::pyfmt::py_sum(axes_d[..3].iter().map(|d| d * d)).sqrt();
@@ -389,12 +390,12 @@ fn dict_eq(a: &IndexMap<String, i64>, b: &IndexMap<String, i64>) -> bool {
 
 // State tracking of homing requests
 pub struct Homing {
-    printer: Rc<Printer>,
-    toolhead: Rc<ToolHead>,
-    changed_axes: RefCell<Vec<usize>>,
-    trigger_mcu_pos: RefCell<IndexMap<String, i64>>,
-    adjust_pos: RefCell<IndexMap<String, f64>>,
-    saved_accel: Cell<Option<f64>>,
+    pub printer: Rc<Printer>,
+    pub toolhead: Rc<ToolHead>,
+    pub changed_axes: RefCell<Vec<usize>>,
+    pub trigger_mcu_pos: RefCell<IndexMap<String, i64>>,
+    pub adjust_pos: RefCell<IndexMap<String, f64>>,
+    pub saved_accel: Cell<Option<f64>>,
 }
 
 impl Homing {
@@ -480,7 +481,7 @@ impl Homing {
         self.toolhead.set_position(&self.fill_coord(pos), "")
     }
 
-    fn set_homing_accel(&self, accel: Option<f64>, pre_homing: bool) {
+    pub fn set_homing_accel(&self, accel: Option<f64>, pre_homing: bool) {
         let Some(accel) = accel else { return };
         if pre_homing {
             if self.saved_accel.get().is_none() {
@@ -492,7 +493,7 @@ impl Homing {
         }
     }
 
-    fn set_homing_current(&self, homing_axes: &str, pre_homing: bool) -> KResult<()> {
+    pub fn set_homing_current(&self, homing_axes: &str, pre_homing: bool) -> KResult<()> {
         let print_time = self.toolhead.get_last_move_time()?;
         // python collects a set(); insertion order here
         let mut affected_rails: Vec<RailRef> = vec![];
@@ -520,7 +521,7 @@ impl Homing {
         Ok(())
     }
 
-    fn reset_endstop_states(&self, endstops: &[(EndstopRef, String)]) -> KResult<()> {
+    pub fn reset_endstop_states(&self, endstops: &[(EndstopRef, String)]) -> KResult<()> {
         // re-querying a tmc endstop seems to reset the state
         // otherwise it triggers almost immediately upon second home
         // this seems to be an adequate substitute for a 2 second dwell.
@@ -639,11 +640,11 @@ impl Homing {
 }
 
 pub struct PrinterHoming {
-    printer: Rc<Printer>,
+    pub printer: Rc<Printer>,
 }
 
 impl PrinterHoming {
-    fn new(config: &ConfigWrapper) -> KResult<Rc<Self>> {
+    pub fn new(config: &ConfigWrapper) -> KResult<Rc<Self>> {
         let printer = config.get_printer();
         let ph = Rc::new(PrinterHoming { printer: printer.clone() });
         // Register g-code commands
@@ -692,7 +693,7 @@ impl PrinterHoming {
         Ok(epos)
     }
 
-    fn cmd_g28(&self, gcmd: &GCodeCommand) -> KResult<()> {
+    pub fn cmd_g28(&self, gcmd: &GCodeCommand) -> KResult<()> {
         // Move to origin
         let mut axes = vec![];
         for (pos, axis) in ["X", "Y", "Z"].iter().enumerate() {

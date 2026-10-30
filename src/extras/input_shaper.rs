@@ -23,10 +23,10 @@ fn find_shaper(name: &str) -> Option<fn(f64, f64) -> (Vec<f64>, Vec<f64>)> {
 }
 
 pub struct InputShaperParams {
-    axis: &'static str,
-    shaper_type: RefCell<String>,
-    damping_ratio: Cell<f64>,
-    shaper_freq: Cell<f64>,
+    pub axis: &'static str,
+    pub shaper_type: RefCell<String>,
+    pub damping_ratio: Cell<f64>,
+    pub shaper_freq: Cell<f64>,
 }
 
 impl InputShaperParams {
@@ -46,7 +46,7 @@ impl InputShaperParams {
         })
     }
 
-    fn update(&self, gcmd: &GCodeCommand) -> KResult<()> {
+    pub fn update(&self, gcmd: &GCodeCommand) -> KResult<()> {
         let axis = self.axis.to_uppercase();
         self.damping_ratio.set(gcmd.get_float(
             &format!("DAMPING_RATIO_{}", axis),
@@ -65,7 +65,7 @@ impl InputShaperParams {
         Ok(())
     }
 
-    fn get_shaper(&self) -> (i32, Vec<f64>, Vec<f64>) {
+    pub fn get_shaper(&self) -> (i32, Vec<f64>, Vec<f64>) {
         let (a, t) = if self.shaper_freq.get() == 0.0 {
             get_none_shaper()
         } else {
@@ -83,18 +83,18 @@ impl InputShaperParams {
     }
 }
 
-type ShaperState = (i32, Vec<f64>, Vec<f64>);
+pub type ShaperState = (i32, Vec<f64>, Vec<f64>);
 
 pub struct AxisInputShaper {
-    axis: &'static str,
-    params: InputShaperParams,
-    state: RefCell<ShaperState>,
-    saved: RefCell<Option<ShaperState>>,
+    pub axis: &'static str,
+    pub params: Rc<InputShaperParams>,
+    pub state: RefCell<ShaperState>,
+    pub saved: RefCell<Option<ShaperState>>,
 }
 
 impl AxisInputShaper {
     fn new(axis: &'static str, config: &ConfigWrapper) -> KResult<Self> {
-        let params = InputShaperParams::new(axis, config)?;
+        let params = Rc::new(InputShaperParams::new(axis, config)?);
         let state = params.get_shaper();
         Ok(AxisInputShaper { axis, params, state: RefCell::new(state), saved: RefCell::new(None) })
     }
@@ -103,13 +103,13 @@ impl AxisInputShaper {
         format!("shaper_{}", self.axis)
     }
 
-    fn update(&self, gcmd: &GCodeCommand) -> KResult<()> {
+    pub fn update(&self, gcmd: &GCodeCommand) -> KResult<()> {
         self.params.update(gcmd)?;
         *self.state.borrow_mut() = self.params.get_shaper();
         Ok(())
     }
 
-    fn set_shaper_kinematics(&self, sk: &SkRef) -> bool {
+    pub fn set_shaper_kinematics(&self, sk: &SkRef) -> bool {
         let axis = self.axis.chars().next().unwrap();
         let (n, a, t) = self.state.borrow().clone();
         let success = input_shaper_set_shaper_params(sk, axis, n, &a, &t) == 0;
@@ -121,7 +121,7 @@ impl AxisInputShaper {
         success
     }
 
-    fn disable_shaping(&self) {
+    pub fn disable_shaping(&self) {
         let st = self.state.borrow().clone();
         if self.saved.borrow().is_none() && st.0 != 0 {
             *self.saved.borrow_mut() = Some(st);
@@ -130,7 +130,7 @@ impl AxisInputShaper {
         *self.state.borrow_mut() = (a.len() as i32, a, t);
     }
 
-    fn enable_shaping(&self) {
+    pub fn enable_shaping(&self) {
         let Some(saved) = self.saved.borrow_mut().take() else {
             // Input shaper was not disabled
             return;
@@ -138,7 +138,7 @@ impl AxisInputShaper {
         *self.state.borrow_mut() = saved;
     }
 
-    fn report(&self, gcmd: &GCodeCommand) {
+    pub fn report(&self, gcmd: &GCodeCommand) {
         let info: Vec<String> = self.params.get_status().iter().map(|(key, value)| format!("{}_{}:{}", key, self.axis, value)).collect();
         gcmd.respond_info(&info.join(" "), true);
     }
@@ -147,15 +147,15 @@ impl AxisInputShaper {
 const CMD_SET_INPUT_SHAPER_HELP: &str = "Set cartesian parameters for input shaper";
 
 pub struct InputShaper {
-    printer: Rc<Printer>,
-    toolhead: RefCell<Option<Rc<ToolHead>>>,
-    shapers: Vec<AxisInputShaper>,
-    input_shaper_stepper_kinematics: RefCell<Vec<SkRef>>,
-    orig_stepper_kinematics: RefCell<Vec<SkRef>>,
+    pub printer: Rc<Printer>,
+    pub toolhead: RefCell<Option<Rc<ToolHead>>>,
+    shapers: Vec<Rc<AxisInputShaper>>,
+    pub input_shaper_stepper_kinematics: RefCell<Vec<SkRef>>,
+    pub orig_stepper_kinematics: RefCell<Vec<SkRef>>,
 }
 
 impl InputShaper {
-    fn new(config: &ConfigWrapper) -> KResult<Rc<Self>> {
+    pub fn new(config: &ConfigWrapper) -> KResult<Rc<Self>> {
         let printer = config.get_printer();
         // klippy:connect is registered before the shapers read the config
         let slot: Rc<RefCell<std::rc::Weak<InputShaper>>> = Rc::new(RefCell::new(std::rc::Weak::new()));
@@ -164,7 +164,7 @@ impl InputShaper {
             Some(is) => is.connect(),
             None => Ok(()),
         });
-        let shapers = vec![AxisInputShaper::new("x", config)?, AxisInputShaper::new("y", config)?];
+        let shapers = vec![Rc::new(AxisInputShaper::new("x", config)?), Rc::new(AxisInputShaper::new("y", config)?)];
         let is = Rc::new(InputShaper {
             printer: printer.clone(),
             toolhead: RefCell::new(None),
@@ -180,17 +180,17 @@ impl InputShaper {
         Ok(is)
     }
 
-    pub fn get_shapers(&self) -> &[AxisInputShaper] {
+    pub fn get_shapers(&self) -> &[Rc<AxisInputShaper>] {
         &self.shapers
     }
 
-    fn connect(&self) -> KResult<()> {
+    pub fn connect(&self) -> KResult<()> {
         *self.toolhead.borrow_mut() = Some(self.printer.lookup::<ToolHead>("toolhead")?);
         // Configure initial values
         self.update_input_shaping(true)
     }
 
-    fn get_input_shaper_stepper_kinematics(&self, stepper: &Rc<McuStepper>) -> Option<SkRef> {
+    pub fn get_input_shaper_stepper_kinematics(&self, stepper: &Rc<McuStepper>) -> Option<SkRef> {
         // Lookup stepper kinematics
         let sk = stepper.get_stepper_kinematics()?;
         if self.orig_stepper_kinematics.borrow().iter().any(|s| Rc::ptr_eq(s, &sk)) {
@@ -235,7 +235,7 @@ impl InputShaper {
     }
 
     /// _update_input_shaping(error): config errors at connect time
-    fn update_input_shaping(&self, config_error: bool) -> KResult<()> {
+    pub fn update_input_shaping(&self, config_error: bool) -> KResult<()> {
         let toolhead = self.toolhead()?;
         toolhead.flush_step_generation()?;
         let kin = toolhead.get_kinematics();

@@ -42,7 +42,7 @@ fn command(name: &str) -> f64 {
 }
 
 #[derive(Clone, Copy, PartialEq)]
-enum Multi {
+pub enum Multi {
     Off,
     First,
     On,
@@ -54,23 +54,23 @@ const CMD_BLTOUCH_STORE_HELP: &str = "Store an output mode in the BLTouch EEPROM
 // BLTouch "endstop" wrapper
 pub struct BLTouchEndstopWrapper {
     me: Weak<BLTouchEndstopWrapper>,
-    printer: Rc<Printer>,
-    position_endstop: f64,
-    stow_on_each_sample: bool,
-    probe_touch_mode: bool,
-    mcu_pwm: Rc<dyn PwmPin>,
-    next_cmd_time: Cell<f64>,
-    action_end_time: Cell<f64>,
-    finish_home_complete: RefCell<Option<Rc<ReactorCompletion<bool>>>>,
-    wait_trigger_complete: RefCell<Option<Rc<ReactorCompletion<()>>>>,
-    mcu_endstop: Rc<McuEndstop>,
-    output_mode: Option<String>,
-    next_test_time: Cell<f64>,
-    pin_up_not_triggered: bool,
-    pin_up_touch_triggered: bool,
-    pin_move_time: f64,
-    gcode: Rc<GCodeDispatch>,
-    multi: Cell<Multi>,
+    pub printer: Rc<Printer>,
+    pub position_endstop: f64,
+    pub stow_on_each_sample: bool,
+    pub probe_touch_mode: bool,
+    pub mcu_pwm: Rc<dyn PwmPin>,
+    pub next_cmd_time: Cell<f64>,
+    pub action_end_time: Cell<f64>,
+    pub finish_home_complete: RefCell<Option<Rc<ReactorCompletion<bool>>>>,
+    pub wait_trigger_complete: RefCell<Option<Rc<ReactorCompletion<()>>>>,
+    pub mcu_endstop: Rc<McuEndstop>,
+    pub output_mode: Option<String>,
+    pub next_test_time: Cell<f64>,
+    pub pin_up_not_triggered: bool,
+    pub pin_up_touch_triggered: bool,
+    pub pin_move_time: f64,
+    pub gcode: Rc<GCodeDispatch>,
+    pub multi: Cell<Multi>,
     // the danger_options overrides of the module constants
     endstop_rest_time: f64,
     endstop_sample_time: f64,
@@ -151,7 +151,7 @@ impl BLTouchEndstopWrapper {
         Ok(b)
     }
 
-    fn handle_mcu_identify(&self) -> KResult<()> {
+    pub fn handle_mcu_identify(&self) -> KResult<()> {
         let kin = self.printer.lookup::<ToolHead>("toolhead")?.get_kinematics();
         for stepper in kin.get_steppers() {
             if stepper.is_active_axis('z') {
@@ -161,7 +161,7 @@ impl BLTouchEndstopWrapper {
         Ok(())
     }
 
-    fn handle_connect(&self) -> KResult<()> {
+    pub fn handle_connect(&self) -> KResult<()> {
         self.sync_mcu_print_time();
         self.next_cmd_time.set(self.next_cmd_time.get() + 0.200);
         self.set_output_mode(self.output_mode.as_deref())?;
@@ -174,13 +174,13 @@ impl BLTouchEndstopWrapper {
         }
     }
 
-    fn sync_mcu_print_time(&self) {
+    pub fn sync_mcu_print_time(&self) {
         let curtime = self.printer.get_reactor().monotonic();
         let est_time = self.mcu_pwm.get_mcu().estimated_print_time(curtime);
         self.next_cmd_time.set(py_max(self.next_cmd_time.get(), est_time + MIN_CMD_TIME));
     }
 
-    fn sync_print_time(&self) -> KResult<()> {
+    pub fn sync_print_time(&self) -> KResult<()> {
         let toolhead = self.printer.lookup::<ToolHead>("toolhead")?;
         let print_time = toolhead.get_last_move_time()?;
         if self.next_cmd_time.get() > print_time {
@@ -191,7 +191,7 @@ impl BLTouchEndstopWrapper {
         Ok(())
     }
 
-    fn send_cmd(&self, cmd: &str, duration: f64) -> KResult<()> {
+    pub fn send_cmd(&self, cmd: &str, duration: f64) -> KResult<()> {
         // Translate duration to ticks to avoid any secondary mcu clock skew
         let mcu = self.mcu_pwm.get_mcu();
         let mut cmd_clock = mcu.print_time_to_clock(self.next_cmd_time.get());
@@ -207,7 +207,7 @@ impl BLTouchEndstopWrapper {
         Ok(())
     }
 
-    fn verify_state(&self, triggered: bool) -> KResult<bool> {
+    pub fn verify_state(&self, triggered: bool) -> KResult<bool> {
         // Perform endstop check to verify bltouch reports desired state
         Endstop::home_start(
             &*self.mcu_endstop,
@@ -224,7 +224,7 @@ impl BLTouchEndstopWrapper {
         }
     }
 
-    fn raise_probe(&self) -> KResult<()> {
+    pub fn raise_probe(&self) -> KResult<()> {
         self.sync_mcu_print_time();
         if !self.pin_up_not_triggered {
             self.send_cmd("reset", MIN_CMD_TIME)?;
@@ -232,7 +232,7 @@ impl BLTouchEndstopWrapper {
         self.send_cmd("pin_up", self.pin_move_time)
     }
 
-    fn verify_raise_probe(&self) -> KResult<()> {
+    pub fn verify_raise_probe(&self) -> KResult<()> {
         if !self.pin_up_not_triggered {
             // No way to verify raise attempt
             return Ok(());
@@ -255,7 +255,7 @@ impl BLTouchEndstopWrapper {
         Ok(())
     }
 
-    fn lower_probe(&self) -> KResult<()> {
+    pub fn lower_probe(&self) -> KResult<()> {
         self.test_sensor()?;
         self.sync_print_time()?;
         self.send_cmd("pin_down", self.pin_move_time)?;
@@ -265,7 +265,7 @@ impl BLTouchEndstopWrapper {
         Ok(())
     }
 
-    fn test_sensor(&self) -> KResult<()> {
+    pub fn test_sensor(&self) -> KResult<()> {
         if !self.pin_up_touch_triggered {
             // Nothing to test
             return Ok(());
@@ -309,7 +309,7 @@ impl BLTouchEndstopWrapper {
         Ok(())
     }
 
-    fn set_output_mode(&self, mode: Option<&str>) -> KResult<()> {
+    pub fn set_output_mode(&self, mode: Option<&str>) -> KResult<()> {
         // If this is inadvertently/purposely issued for a
         // BLTOUCH pre V3.0 and clones:
         //   No reaction at all.
@@ -327,7 +327,7 @@ impl BLTouchEndstopWrapper {
         Ok(())
     }
 
-    fn store_output_mode(&self, mode: &str) -> KResult<()> {
+    pub fn store_output_mode(&self, mode: &str) -> KResult<()> {
         // If this command is inadvertently/purposely issued for a
         // BLTOUCH pre V3.0 and clones:
         //   No reaction at all to this sequence apart from a pin-down/pin-up
@@ -347,7 +347,7 @@ impl BLTouchEndstopWrapper {
         self.send_cmd("pin_up", MIN_CMD_TIME)
     }
 
-    fn cmd_bltouch_debug(&self, gcmd: &GCodeCommand) -> KResult<()> {
+    pub fn cmd_bltouch_debug(&self, gcmd: &GCodeCommand) -> KResult<()> {
         let cmd = gcmd.get_opt("COMMAND");
         let Some(cmd) = cmd.filter(|c| COMMANDS.iter().any(|(n, _)| n == c)) else {
             let mut names: Vec<&str> = COMMANDS.iter().map(|(n, _)| *n).collect();
@@ -361,7 +361,7 @@ impl BLTouchEndstopWrapper {
         self.sync_print_time()
     }
 
-    fn cmd_bltouch_store(&self, gcmd: &GCodeCommand) -> KResult<()> {
+    pub fn cmd_bltouch_store(&self, gcmd: &GCodeCommand) -> KResult<()> {
         let cmd = gcmd.get_opt("MODE");
         let Some(cmd) = cmd.filter(|c| c == "5V" || c == "OD") else {
             gcmd.respond_info("BLTouch output modes: 5V, OD", true);

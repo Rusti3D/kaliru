@@ -63,22 +63,22 @@ const SCALE: f64 = 0.000244140625 * FREEFALL_ACCEL;
 
 // Printer class that controls MPU9250 chip
 pub struct MPU9250 {
-    printer: Rc<Printer>,
+    pub printer: Rc<Printer>,
     cmd_helper: RefCell<Option<Rc<AccelCommandHelper>>>,
     axes_map: AxisMap,
-    data_rate: i64,
-    i2c: Rc<McuI2c>,
-    mcu: Rc<Mcu>,
-    oid: i64,
-    query_mpu9250_cmd: RefCell<Option<CommandWrapper>>,
+    pub data_rate: i64,
+    pub i2c: Rc<McuI2c>,
+    pub mcu: Rc<Mcu>,
+    pub oid: i64,
+    pub query_mpu9250_cmd: RefCell<Option<CommandWrapper>>,
     ffreader: FixedFreqReader,
-    last_error_count: Cell<i64>,
-    batch_bulk: RefCell<Option<Rc<BatchBulkHelper>>>,
+    pub last_error_count: Cell<i64>,
+    pub batch_bulk: RefCell<Option<Rc<BatchBulkHelper>>>,
     pub name: String,
 }
 
 impl MPU9250 {
-    fn new(config: &ConfigWrapper) -> KResult<Rc<Self>> {
+    pub fn new(config: &ConfigWrapper) -> KResult<Rc<Self>> {
         let printer = config.get_printer();
         // AccelCommandHelper(config, self): the chip is set once built
         let cmd_helper = AccelCommandHelper::new(config)?;
@@ -142,7 +142,7 @@ impl MPU9250 {
         Ok(m)
     }
 
-    fn build_config(&self) -> KResult<()> {
+    pub fn build_config(&self) -> KResult<()> {
         let cmdqueue = self.i2c.get_command_queue();
         self.mcu.add_config_cmd(&format!("config_mpu9250 oid={} i2c_oid={}", self.oid, self.i2c.get_oid()), false, false);
         self.mcu.add_config_cmd(&format!("query_mpu9250 oid={} rest_ticks=0", self.oid), false, true);
@@ -150,7 +150,7 @@ impl MPU9250 {
         self.ffreader.setup_query_command("query_mpu9250_status oid=%c", self.oid, Some(cmdqueue))
     }
 
-    fn check_connected(&self) -> KResult<()> {
+    pub fn check_connected(&self) -> KResult<()> {
         if self.mcu.non_critical_disconnected.get() {
             return Err(KError::command(format!(
                 "MPU: {} could not connect because mcu: {} is non_critical_disconnected!",
@@ -179,7 +179,7 @@ impl MPU9250 {
     }
 
     // Start, stop, and process message batches
-    fn start_measurements(&self) -> KResult<()> {
+    pub fn start_measurements(&self) -> KResult<()> {
         // In case of miswiring, testing MPU9250 device ID prevents treating
         // noise or wrong signal as a correctly initialized device
         let dev_id = self.read_reg(REG_DEVID)?;
@@ -221,7 +221,7 @@ impl MPU9250 {
         Ok(())
     }
 
-    fn finish_measurements(&self) -> KResult<()> {
+    pub fn finish_measurements(&self) -> KResult<()> {
         // Halt bulk reading
         self.set_reg(REG_FIFO_EN, SET_DISABLE_FIFO)?;
         self.query_cmd()?.send_wait_ack(&[Val::Int(self.oid), Val::Int(0)], 0, 0)?;
@@ -231,7 +231,7 @@ impl MPU9250 {
         self.set_reg(REG_PWR_MGMT_2, SET_PWR_MGMT_2_OFF)
     }
 
-    fn process_batch(&self, _eventtime: f64) -> KResult<PyVal> {
+    pub fn process_batch(&self, _eventtime: f64) -> KResult<PyVal> {
         let samples = self.ffreader.pull_samples()?;
         let samples = self.convert_samples(&samples);
         Ok(batch_msg(&samples, self.last_error_count.get(), self.ffreader.get_last_overflows()))

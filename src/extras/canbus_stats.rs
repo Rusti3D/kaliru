@@ -25,16 +25,16 @@ struct Status {
 
 pub struct PrinterCANBusStats {
     me: Weak<PrinterCANBusStats>,
-    printer: Rc<Printer>,
-    reactor: Rc<Reactor>,
-    name: String,
-    mcu: RefCell<Option<Rc<Mcu>>>,
-    get_canbus_status_cmd: RefCell<Option<CommandQueryWrapper>>,
+    pub printer: Rc<Printer>,
+    pub reactor: Rc<Reactor>,
+    pub name: String,
+    pub mcu: RefCell<Option<Rc<Mcu>>>,
+    pub get_canbus_status_cmd: RefCell<Option<CommandQueryWrapper>>,
     status: RefCell<Status>,
 }
 
 impl PrinterCANBusStats {
-    fn new(config: &ConfigWrapper) -> KResult<Rc<Self>> {
+    pub fn new(config: &ConfigWrapper) -> KResult<Rc<Self>> {
         let printer = config.get_printer();
         let s = Rc::new_cyclic(|me| PrinterCANBusStats {
             me: me.clone(),
@@ -60,7 +60,7 @@ impl PrinterCANBusStats {
         Ok(s)
     }
 
-    fn handle_shutdown(&self) {
+    pub fn handle_shutdown(&self) {
         let mut status = self.status.borrow_mut();
         if status.bus_state.is_some() {
             // Clear bus_state on shutdown to note that the values may be stale
@@ -68,7 +68,7 @@ impl PrinterCANBusStats {
         }
     }
 
-    fn handle_connect(&self) -> KResult<()> {
+    pub fn handle_connect(&self) -> KResult<()> {
         // Lookup mcu
         let mut mcu_name = self.name.clone();
         if mcu_name != "mcu" {
@@ -111,7 +111,7 @@ impl PrinterCANBusStats {
         Ok(())
     }
 
-    fn handle_usb_canbus_state(&self, params: &Params) {
+    pub fn handle_usb_canbus_state(&self, params: &Params) {
         let discard = params.get("discard").and_then(|v| v.as_int()).unwrap_or(0);
         if discard != 0 {
             logging::warning(&format!("USB CANBUS bridge '{}' is discarding!", self.name));
@@ -120,7 +120,7 @@ impl PrinterCANBusStats {
         }
     }
 
-    fn query_event(&self, _eventtime: f64) -> f64 {
+    pub fn query_event(&self, _eventtime: f64) -> f64 {
         let prev = self.status.borrow().clone();
 
         // skip querying disconnected MCU and maintain previous status

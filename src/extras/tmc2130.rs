@@ -62,20 +62,20 @@ impl TMC2130CurrentHelper {
         Ok(h)
     }
 
-    fn calc_current_bits(&self, current: f64, vsense: bool) -> i64 {
+    pub fn calc_current_bits(&self, current: f64, vsense: bool) -> i64 {
         let sense_resistor = self.base.sense_resistor + 0.020;
         let vref = if vsense { 0.18 } else { 0.32 };
         let cs = (32.0 * sense_resistor * current * 2f64.sqrt() / vref + 0.5).trunc() as i64 - 1;
         0.max(31.min(cs))
     }
 
-    fn calc_current_from_bits(&self, cs: i64, vsense: bool) -> f64 {
+    pub fn calc_current_from_bits(&self, cs: i64, vsense: bool) -> f64 {
         let sense_resistor = self.base.sense_resistor + 0.020;
         let vref = if vsense { 0.18 } else { 0.32 };
         (cs + 1) as f64 * vref / (32.0 * sense_resistor * 2f64.sqrt())
     }
 
-    fn calc_current(&self, run_current: f64, hold_current: f64) -> (bool, i64, i64) {
+    pub fn calc_current(&self, run_current: f64, hold_current: f64) -> (bool, i64, i64) {
         let mut vsense = true;
         let mut irun = self.calc_current_bits(run_current, true);
         if irun == 31 {
@@ -127,15 +127,15 @@ impl TmcCurrent for TMC2130CurrentHelper {
 // ----------------------------------------------------------------------
 
 pub struct McuTmcSpiChain {
-    printer: Rc<Printer>,
-    chain_len: i64,
-    mutex: Rc<ReactorMutex>,
-    spi: Rc<McuSpi>,
-    taken_chain_positions: RefCell<Vec<i64>>,
+    pub printer: Rc<Printer>,
+    pub chain_len: i64,
+    pub mutex: Rc<ReactorMutex>,
+    pub spi: Rc<McuSpi>,
+    pub taken_chain_positions: RefCell<Vec<i64>>,
 }
 
 impl McuTmcSpiChain {
-    fn new(config: &ConfigWrapper, chain_len: i64) -> KResult<Rc<Self>> {
+    pub fn new(config: &ConfigWrapper, chain_len: i64) -> KResult<Rc<Self>> {
         let printer = config.get_printer();
         let mutex = printer.get_reactor().mutex(false);
         let share = if chain_len > 1 { Some("tmc_spi_cs") } else { None };
@@ -143,7 +143,7 @@ impl McuTmcSpiChain {
         Ok(Rc::new(McuTmcSpiChain { printer, chain_len, mutex, spi, taken_chain_positions: RefCell::new(vec![]) }))
     }
 
-    fn build_cmd(&self, data: &[u8], chain_pos: i64) -> Vec<u8> {
+    pub fn build_cmd(&self, data: &[u8], chain_pos: i64) -> Vec<u8> {
         let mut cmd = vec![0u8; ((self.chain_len - chain_pos) * 5) as usize];
         cmd.extend_from_slice(data);
         cmd.extend(std::iter::repeat_n(0u8, ((chain_pos - 1) * 5) as usize));
@@ -183,7 +183,7 @@ impl McuTmcSpiChain {
         Ok(RawRead { data: Self::word(&pr)?, receive_time, spi_status: Some(pr[0] as i64) })
     }
 
-    fn reg_write(&self, reg: i64, val: i64, chain_pos: i64, print_time: Option<f64>) -> KResult<i64> {
+    pub fn reg_write(&self, reg: i64, val: i64, chain_pos: i64, print_time: Option<f64>) -> KResult<i64> {
         let mut minclock = 0;
         if let Some(pt) = print_time {
             minclock = self.spi.get_mcu().print_time_to_clock(pt);
@@ -202,7 +202,7 @@ impl McuTmcSpiChain {
 }
 
 // Helper to setup an spi daisy chain bus from settings in a config section
-fn lookup_tmc_spi_chain(config: &ConfigWrapper) -> KResult<(Rc<McuTmcSpiChain>, i64)> {
+pub fn lookup_tmc_spi_chain(config: &ConfigWrapper) -> KResult<(Rc<McuTmcSpiChain>, i64)> {
     let Some(chain_len) = config.getint_opt("chain_length", Lim::new().min(2))? else {
         // Simple, non daisy chained SPI connection
         return Ok((McuTmcSpiChain::new(config, 1)?, 1));
@@ -235,12 +235,12 @@ fn lookup_tmc_spi_chain(config: &ConfigWrapper) -> KResult<(Rc<McuTmcSpiChain>, 
 
 // Helper code for working with TMC devices via SPI
 pub struct McuTmcSpi {
-    name: String,
-    tmc_spi: Rc<McuTmcSpiChain>,
-    chain_pos: i64,
-    name_to_reg: IndexMap<String, i64>,
-    fields: Rc<FieldHelper>,
-    tmc_frequency: f64,
+    pub name: String,
+    pub tmc_spi: Rc<McuTmcSpiChain>,
+    pub chain_pos: i64,
+    pub name_to_reg: IndexMap<String, i64>,
+    pub fields: Rc<FieldHelper>,
+    pub tmc_frequency: f64,
 }
 
 impl McuTmcSpi {
@@ -350,5 +350,5 @@ pub fn load_config_prefix(config: &ConfigWrapper) -> KResult<PObj> {
     set("freewheel", 0)?;
     // TPOWERDOWN
     set("tpowerdown", 0)?;
-    Ok(Rc::new(TmcDriver { fields, mcu_tmc, cmdhelper }))
+    Ok(Rc::new(TmcDriver { fields, mcu_tmc, cmdhelper, class: "TMC2130" }))
 }

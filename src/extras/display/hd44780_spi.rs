@@ -18,13 +18,13 @@ use crate::IndexMap;
 use std::rc::Rc;
 
 pub struct HD44780Spi {
-    printer: Rc<Printer>,
-    hd44780_protocol_init: bool,
-    spi: Rc<McuSpi>,
-    mcu: Rc<Mcu>,
-    data_mask: u8,
-    command_mask: u8,
-    enable_mask: u8,
+    pub printer: Rc<Printer>,
+    pub hd44780_protocol_init: bool,
+    pub spi: Rc<McuSpi>,
+    pub mcu: Rc<Mcu>,
+    pub data_mask: u8,
+    pub command_mask: u8,
+    pub enable_mask: u8,
     fb: TextFramebuffers,
 }
 
@@ -48,7 +48,7 @@ pub fn new_hd44780_spi(config: &ConfigWrapper) -> KResult<Rc<dyn LcdChip>> {
 }
 
 impl HD44780Spi {
-    fn send_4_bits(&self, cmd: i64, is_data: bool, minclock: u64) -> KResult<()> {
+    pub fn send_4_bits(&self, cmd: i64, is_data: bool, minclock: u64) -> KResult<()> {
         let mask = if is_data { self.data_mask } else { self.command_mask };
         let c = (cmd & 0xF0) as u8;
         self.spi.spi_send(&[c | mask], minclock, 0)?;
@@ -56,7 +56,7 @@ impl HD44780Spi {
         self.spi.spi_send(&[c | mask], minclock, 0)
     }
 
-    fn send(&self, cmds: &[u8], is_data: bool, minclock: u64) -> KResult<()> {
+    pub fn send(&self, cmds: &[u8], is_data: bool, minclock: u64) -> KResult<()> {
         for &data in cmds {
             self.send_4_bits(data as i64, is_data, minclock)?;
             self.send_4_bits((data as i64) << 4, is_data, minclock)?;

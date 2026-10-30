@@ -21,20 +21,20 @@ const TRINAMIC_DRIVERS: [&str; 7] = ["tmc2130", "tmc2208", "tmc2209", "tmc2240",
 
 // Calculate the trigger phase of a stepper motor
 pub struct PhaseCalc {
-    printer: Rc<Printer>,
-    name: String,
-    phases: Cell<Option<i64>>,
-    tmc_module: RefCell<Option<Rc<TmcDriver>>>,
+    pub printer: Rc<Printer>,
+    pub name: String,
+    pub phases: Cell<Option<i64>>,
+    pub tmc_module: RefCell<Option<Rc<TmcDriver>>>,
     // Statistics tracking for ENDSTOP_PHASE_CALIBRATE
-    phase_history: RefCell<Option<Vec<i64>>>,
-    last_phase: Cell<Option<i64>>,
-    last_mcu_position: Cell<Option<i64>>,
-    is_primary: Cell<bool>,
-    stats_only: Cell<bool>,
+    pub phase_history: RefCell<Option<Vec<i64>>>,
+    pub last_phase: Cell<Option<i64>>,
+    pub last_mcu_position: Cell<Option<i64>>,
+    pub is_primary: Cell<bool>,
+    pub stats_only: Cell<bool>,
 }
 
 impl PhaseCalc {
-    fn new(printer: &Rc<Printer>, name: &str, phases: Option<i64>) -> Rc<Self> {
+    pub fn new(printer: &Rc<Printer>, name: &str, phases: Option<i64>) -> Rc<Self> {
         Rc::new(PhaseCalc {
             printer: printer.clone(),
             name: name.to_string(),
@@ -48,7 +48,7 @@ impl PhaseCalc {
         })
     }
 
-    fn lookup_tmc(&self) {
+    pub fn lookup_tmc(&self) {
         for driver in TRINAMIC_DRIVERS {
             let driver_name = format!("{} {}", driver, self.name);
             if let Some(module) = self.printer.lookup_object_opt(&driver_name).and_then(downcast_rc::<TmcDriver>) {
@@ -65,7 +65,7 @@ impl PhaseCalc {
         }
     }
 
-    fn convert_phase(&self, driver_phase: i64, driver_phases: i64) -> i64 {
+    pub fn convert_phase(&self, driver_phase: i64, driver_phases: i64) -> i64 {
         let phases = self.phases.get().unwrap_or(0);
         ((driver_phase as f64 / driver_phases as f64 * phases as f64 + 0.5).trunc() as i64).rem_euclid(phases)
     }
@@ -95,17 +95,17 @@ impl PhaseCalc {
 
 // Adjusted endstop trigger positions
 pub struct EndstopPhase {
-    name: String,
-    step_dist: f64,
-    phases: i64,
-    phase_calc: Rc<PhaseCalc>,
-    endstop_phase: Cell<Option<i64>>,
-    endstop_align_zero: bool,
-    endstop_phase_accuracy: i64,
+    pub name: String,
+    pub step_dist: f64,
+    pub phases: i64,
+    pub phase_calc: Rc<PhaseCalc>,
+    pub endstop_phase: Cell<Option<i64>>,
+    pub endstop_align_zero: bool,
+    pub endstop_phase_accuracy: i64,
 }
 
 impl EndstopPhase {
-    fn new(config: &ConfigWrapper) -> KResult<Rc<Self>> {
+    pub fn new(config: &ConfigWrapper) -> KResult<Rc<Self>> {
         let printer = config.get_printer();
         let name = config.get_name().split_whitespace().nth(1).unwrap_or("").to_string();
         // Obtain step_distance and microsteps from stepper config section
@@ -164,7 +164,7 @@ impl EndstopPhase {
         Ok(e)
     }
 
-    fn align_endstop(&self, rail: &RailRef) -> f64 {
+    pub fn align_endstop(&self, rail: &RailRef) -> f64 {
         let Some(endstop_phase) = self.endstop_phase.get() else { return 0.0 };
         if !self.endstop_align_zero {
             return 0.0;
@@ -194,7 +194,7 @@ impl EndstopPhase {
         Ok(delta as f64 * self.step_dist)
     }
 
-    fn handle_home_rails_end(&self, homing_state: &Rc<Homing>, rails: &[RailRef]) -> KResult<()> {
+    pub fn handle_home_rails_end(&self, homing_state: &Rc<Homing>, rails: &[RailRef]) -> KResult<()> {
         for rail in rails {
             let stepper = rail.get_steppers()[0].clone();
             if stepper.get_name(false) == self.name {
@@ -214,15 +214,15 @@ impl PrinterObject for EndstopPhase {
 
 // Support for ENDSTOP_PHASE_CALIBRATE command
 pub struct EndstopPhases {
-    printer: Rc<Printer>,
-    tracking: RefCell<IndexMap<String, Rc<PhaseCalc>>>,
-    gcode: Rc<GCodeDispatch>,
+    pub printer: Rc<Printer>,
+    pub tracking: RefCell<IndexMap<String, Rc<PhaseCalc>>>,
+    pub gcode: Rc<GCodeDispatch>,
 }
 
 const CMD_ENDSTOP_PHASE_CALIBRATE_HELP: &str = "Calibrate stepper phase";
 
 impl EndstopPhases {
-    fn new(config: &ConfigWrapper) -> KResult<Rc<Self>> {
+    pub fn new(config: &ConfigWrapper) -> KResult<Rc<Self>> {
         let printer = config.get_printer();
         let gcode = printer.lookup::<GCodeDispatch>("gcode")?;
         let e = Rc::new(EndstopPhases { printer: printer.clone(), tracking: RefCell::new(IndexMap::default()), gcode: gcode.clone() });
@@ -245,7 +245,7 @@ impl EndstopPhases {
         Ok(e)
     }
 
-    fn update_stepper(&self, stepper_name: &str, trig_mcu_pos: i64, is_primary: bool) -> KResult<()> {
+    pub fn update_stepper(&self, stepper_name: &str, trig_mcu_pos: i64, is_primary: bool) -> KResult<()> {
         let existing = self.tracking.borrow().get(stepper_name).cloned();
         let phase_calc = match existing {
             Some(pc) => pc,
@@ -278,7 +278,7 @@ impl EndstopPhases {
         Ok(())
     }
 
-    fn handle_home_rails_end(&self, homing_state: &Rc<Homing>, rails: &[RailRef]) -> KResult<()> {
+    pub fn handle_home_rails_end(&self, homing_state: &Rc<Homing>, rails: &[RailRef]) -> KResult<()> {
         for rail in rails {
             let mut is_primary = true;
             for stepper in rail.get_steppers() {
@@ -291,7 +291,7 @@ impl EndstopPhases {
         Ok(())
     }
 
-    fn cmd_endstop_phase_calibrate(&self, gcmd: &GCodeCommand) -> KResult<()> {
+    pub fn cmd_endstop_phase_calibrate(&self, gcmd: &GCodeCommand) -> KResult<()> {
         let Some(stepper_name) = gcmd.get_opt("STEPPER") else {
             self.report_stats();
             return Ok(());
@@ -318,7 +318,7 @@ impl EndstopPhases {
         Ok(())
     }
 
-    fn generate_stats(&self, stepper_name: &str, phase_calc: &PhaseCalc) -> (i64, i64) {
+    pub fn generate_stats(&self, stepper_name: &str, phase_calc: &PhaseCalc) -> (i64, i64) {
         let phase_history = phase_calc.phase_history.borrow().clone().unwrap_or_default();
         let wph: Vec<i64> = phase_history.iter().chain(phase_history.iter()).copied().collect();
         let phases = phase_history.len() as i64;
@@ -343,7 +343,7 @@ impl EndstopPhases {
         (best_phase, phases)
     }
 
-    fn report_stats(&self) {
+    pub fn report_stats(&self) {
         if self.tracking.borrow().is_empty() {
             self.gcode.respond_info("No steppers found. (Be sure to home at least once.)", true);
             return;

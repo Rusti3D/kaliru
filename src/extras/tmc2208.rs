@@ -83,5 +83,5 @@ pub fn load_config_prefix(config: &ConfigWrapper) -> KResult<PObj> {
     tmc_stealthchop_helper(config, &mcu_tmc)?;
     // Allow other registers to be set from the config
     set_uart_config_fields(&fields, config, false)?;
-    Ok(Rc::new(TmcDriver { fields, mcu_tmc, cmdhelper }))
+    Ok(Rc::new(TmcDriver { fields, mcu_tmc, cmdhelper, class: "TMC2208" }))
 }

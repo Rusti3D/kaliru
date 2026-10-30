@@ -13,15 +13,15 @@ use crate::printer::{PObj, PrinterObject};
 use std::rc::Rc;
 
 pub struct PrinterClockOutputPin {
-    name: String,
-    mcu: Rc<Mcu>,
-    pin: String,
-    invert: bool,
-    frequency: f64,
+    pub name: String,
+    pub mcu: Rc<Mcu>,
+    pub pin: String,
+    pub invert: bool,
+    pub frequency: f64,
 }
 
 impl PrinterClockOutputPin {
-    fn build_config(&self) -> KResult<()> {
+    pub fn build_config(&self) -> KResult<()> {
         self.mcu.lookup_command("stm32_timer_output pin=%u cycle_ticks=%u on_ticks=%hu", None)?;
         let mcu_freq = self.mcu.seconds_to_clock(1.0);
         let cycle_ticks = crate::jinja::value::float_divmod(mcu_freq as f64, self.frequency).0 as i64;

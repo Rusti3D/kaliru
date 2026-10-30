@@ -22,11 +22,11 @@ use std::rc::Rc;
 const CMD_PID_CALIBRATE_HELP: &str = "Run PID calibration test";
 
 pub struct PIDCalibrate {
-    printer: Rc<Printer>,
+    pub printer: Rc<Printer>,
 }
 
 impl PIDCalibrate {
-    fn new(config: &ConfigWrapper) -> KResult<Rc<Self>> {
+    pub fn new(config: &ConfigWrapper) -> KResult<Rc<Self>> {
         let printer = config.get_printer();
         let pc = Rc::new(PIDCalibrate { printer: printer.clone() });
         let gcode = printer.lookup::<GCodeDispatch>("gcode")?;
@@ -54,7 +54,7 @@ impl PIDCalibrate {
         let control = heater.get_control();
         let calibrate = if let Some(dual) = control.downcast_ref::<ControlDualLoopPID>() {
             if calibrate_secondary {
-                let delta = dual.inner_target_temp - target;
+                let delta = dual.inner_target_temp.get() - target;
                 if delta <= 15.0 {
                     gcmd.respond_raw(&format!(
                         "!! Target calibration temperature of {}°C is <= 15°C below `inner_target_temp`.",
@@ -66,11 +66,11 @@ impl PIDCalibrate {
                 gcmd.respond_info(
                     &format!(
                         "Calibrating secondary pid loop around {:.1}C. The inner sensor temperature will oscillate above and below this target during calibration; this is expected.",
-                        dual.inner_target_temp
+                        dual.inner_target_temp.get()
                     ),
                     true,
                 );
-                ControlAutoTune::new(heater, dual.inner_target_temp, tolerance, calibrate_secondary)?
+                ControlAutoTune::new(heater, dual.inner_target_temp.get(), tolerance, calibrate_secondary)?
             } else {
                 gcmd.respond_info(&format!("Calibrating primary pid loop (target={:.1})", target), true);
                 let calibrate = ControlAutoTune::new(heater, target, tolerance, calibrate_secondary)?;
@@ -106,7 +106,7 @@ impl PIDCalibrate {
             calibrate.write_file(&fname)?;
         }
 
-        if calibrate.check_busy(0.0, 0.0, 0.0) {
+        if calibrate.check_busy(0.0, 0.0, 0.0)? {
             return Err(gcmd.error("pid_calibrate interrupted"));
         }
         // Log and report results
@@ -121,7 +121,7 @@ impl PIDCalibrate {
         Ok((kp, ki, kd, old_control))
     }
 
-    fn cmd_pid_calibrate(&self, gcmd: &GCodeCommand) -> KResult<()> {
+    pub fn cmd_pid_calibrate(&self, gcmd: &GCodeCommand) -> KResult<()> {
         let heater_name = gcmd.get("HEATER")?;
         let target = gcmd.get_float("TARGET", None, Lim::new())?;
         let write_file = gcmd.get_int("WRITE_FILE", Some(0), Lim::new())?;
@@ -209,26 +209,26 @@ pub const TUNE_PID_SAMPLES: usize = 3;
 pub const TUNE_PID_MAX_PEAKS: usize = 60;
 
 pub struct ControlAutoTune {
-    heater: Rc<Heater>,
-    heater_max_power: f64,
-    gcode: Rc<GCodeDispatch>,
-    powers: RefCell<Vec<f64>>,
-    times: RefCell<Vec<f64>>,
-    target: f64,
-    tolerance: f64,
-    temp_high: f64,
+    pub heater: Rc<Heater>,
+    pub heater_max_power: f64,
+    pub gcode: Rc<GCodeDispatch>,
+    pub powers: RefCell<Vec<f64>>,
+    pub times: RefCell<Vec<f64>>,
+    pub target: f64,
+    pub tolerance: f64,
+    pub temp_high: f64,
     pub temp_low: f64,
-    heating: Cell<bool>,
-    peak: Cell<f64>,
-    peak_times: RefCell<Vec<f64>>,
-    peaks: RefCell<Vec<(f64, f64)>>,
-    target_crossed: Cell<bool>,
-    done: Cell<bool>,
-    started: Cell<bool>,
-    errored: Cell<bool>,
-    data: RefCell<Vec<(f64, f64, f64, f64)>>,
+    pub heating: Cell<bool>,
+    pub peak: Cell<f64>,
+    pub peak_times: RefCell<Vec<f64>>,
+    pub peaks: RefCell<Vec<(f64, f64)>>,
+    pub target_crossed: Cell<bool>,
+    pub done: Cell<bool>,
+    pub started: Cell<bool>,
+    pub errored: Cell<bool>,
+    pub data: RefCell<Vec<(f64, f64, f64, f64)>>,
     control: ControlRef,
-    calibrate_secondary: bool,
+    pub calibrate_secondary: bool,
 }
 
 fn index_error() -> KError {
@@ -236,7 +236,7 @@ fn index_error() -> KError {
 }
 
 impl ControlAutoTune {
-    fn new(heater: &Rc<Heater>, target: f64, tolerance: f64, calibrate_secondary: bool) -> KResult<Self> {
+    pub fn new(heater: &Rc<Heater>, target: f64, tolerance: f64, calibrate_secondary: bool) -> KResult<Self> {
         let heater_max_power = heater.get_max_power();
         Ok(ControlAutoTune {
             heater: heater.clone(),
@@ -262,7 +262,7 @@ impl ControlAutoTune {
         })
     }
 
-    fn check_peak(&self, time: f64, temp: f64) {
+    pub fn check_peak(&self, time: f64, temp: f64) {
         // deal with duplicate temps
         if temp == self.peak.get() {
             self.peak_times.borrow_mut().push(time);
@@ -279,7 +279,7 @@ impl ControlAutoTune {
         }
     }
 
-    fn store_peak(&self) -> KResult<()> {
+    pub fn store_peak(&self) -> KResult<()> {
         let pt = std::mem::take(&mut *self.peak_times.borrow_mut());
         if pt.is_empty() {
             return Err(KError::Other("float division by zero".into()));
@@ -290,7 +290,7 @@ impl ControlAutoTune {
         Ok(())
     }
 
-    fn log_info(&self) -> KResult<()> {
+    pub fn log_info(&self) -> KResult<()> {
         // provide some useful info to the user
         let sample = self.powers.borrow().len();
         let pwm = *self.powers.borrow().last().unwrap();
@@ -310,7 +310,7 @@ impl ControlAutoTune {
     }
 
     /// get_sample_tolerance(); None is python's False
-    fn get_sample_tolerance(&self) -> Option<f64> {
+    pub fn get_sample_tolerance(&self) -> Option<f64> {
         let powers = self.powers.borrow();
         if powers.len() < TUNE_PID_SAMPLES + 1 {
             return None;
@@ -321,14 +321,14 @@ impl ControlAutoTune {
         Some(max - min)
     }
 
-    fn converged(&self) -> bool {
+    pub fn converged(&self) -> bool {
         match self.get_sample_tolerance() {
             None => false,
             Some(t) => t <= self.tolerance,
         }
     }
 
-    fn set_power(&self) {
+    pub fn set_power(&self) {
         let peaks = self.peaks.borrow();
         let peak_low = peaks[peaks.len() - 2].1;
         let peak_high = peaks[peaks.len() - 1].1;
@@ -342,7 +342,7 @@ impl ControlAutoTune {
         self.powers.borrow_mut().push(mid * 2.0);
     }
 
-    fn finish(&self, time: f64) -> KResult<()> {
+    pub fn finish(&self, time: f64) -> KResult<()> {
         self.heater.set_pwm(time, 0.0)?;
         self.heater.alter_target(0.0);
         self.done.set(true);
@@ -350,7 +350,7 @@ impl ControlAutoTune {
         Ok(())
     }
 
-    fn write_file(&self, filename: &str) -> KResult<()> {
+    pub fn write_file(&self, filename: &str) -> KResult<()> {
         let mut out = String::from("time, temp, pwm, target\n");
         let data: Vec<String> = self
             .data
@@ -382,7 +382,7 @@ impl ControlAutoTune {
         std::fs::write(filename, out).map_err(|e| KError::os(&e, filename))
     }
 
-    fn calc_pid(&self) -> KResult<(f64, f64, f64)> {
+    pub fn calc_pid(&self) -> KResult<(f64, f64, f64)> {
         let peaks = self.peaks.borrow();
         let times = self.times.borrow();
         let neg = |v: usize, len: usize| len.checked_sub(v).ok_or_else(index_error);
@@ -500,7 +500,7 @@ impl Control for ControlAutoTune {
             match self.control.downcast_ref::<ControlDualLoopPID>() {
                 Some(dual) if !self.calibrate_secondary => {
                     let pid = &dual.secondary_pid;
-                    let secondary_target_temp = dual.inner_target_temp;
+                    let secondary_target_temp = dual.inner_target_temp.get();
                     let secondary_temp = secondary_temp.ok_or_else(|| {
                         KError::Other("unsupported operand type(s) for -: 'NoneType' and 'float'".into())
                     })?;
@@ -515,11 +515,11 @@ impl Control for ControlAutoTune {
         }
     }
 
-    fn check_busy(&self, eventtime: f64, smoothed_temp: f64, target_temp: f64) -> bool {
+    fn check_busy(&self, eventtime: f64, smoothed_temp: f64, target_temp: f64) -> KResult<bool> {
         if eventtime == 0.0 && smoothed_temp == 0.0 && target_temp == 0.0 {
-            return self.errored.get();
+            return Ok(self.errored.get());
         }
-        !self.done.get()
+        Ok(!self.done.get())
     }
 
     fn update_smooth_time(&self) -> KResult<()> {

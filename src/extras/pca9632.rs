@@ -31,14 +31,14 @@ const PCA9632_LED2: u8 = 0x04;
 const PCA9632_LED3: u8 = 0x06;
 
 pub struct PCA9632 {
-    i2c: Rc<McuI2c>,
-    color_map: Vec<usize>,
+    pub i2c: Rc<McuI2c>,
+    pub color_map: Vec<usize>,
     prev_regs: RefCell<IndexMap<u8, u8>>,
     pub(crate) led_helper: RefCell<Option<Rc<LEDHelper>>>,
 }
 
 impl PCA9632 {
-    fn new(config: &ConfigWrapper) -> KResult<Rc<Self>> {
+    pub fn new(config: &ConfigWrapper) -> KResult<Rc<Self>> {
         let printer = config.get_printer();
         let i2c = mcu_i2c_from_config(config, Some(98), 100000)?;
         let color_order = config.get("color_order", "RGBW")?;
@@ -64,7 +64,7 @@ impl PCA9632 {
         Ok(p)
     }
 
-    fn reg_write(&self, reg: u8, val: u8, minclock: u64) -> KResult<()> {
+    pub fn reg_write(&self, reg: u8, val: u8, minclock: u64) -> KResult<()> {
         if self.prev_regs.borrow().get(&reg) == Some(&val) {
             return Ok(());
         }
@@ -72,7 +72,7 @@ impl PCA9632 {
         self.i2c.i2c_write(&[reg, val], minclock, BACKGROUND_PRIORITY_CLOCK)
     }
 
-    fn handle_connect(&self) -> KResult<()> {
+    pub fn handle_connect(&self) -> KResult<()> {
         // Configure MODE1
         self.reg_write(PCA9632_MODE1, 0x00, 0)?;
         // Configure MODE2 (DIMMING, INVERT, CHANGE ON STOP,TOTEM)
@@ -81,7 +81,7 @@ impl PCA9632 {
         self.update_leds(&state, None)
     }
 
-    fn update_leds(&self, led_state: &[Color], print_time: Option<f64>) -> KResult<()> {
+    pub fn update_leds(&self, led_state: &[Color], print_time: Option<f64>) -> KResult<()> {
         let mut minclock = 0;
         if let Some(pt) = print_time {
             minclock = self.i2c.get_mcu().print_time_to_clock(pt) as u64;

@@ -78,11 +78,11 @@ pub fn batch_msg(samples: &[[f64; 4]], errors: i64, overflows: i64) -> PyVal {
 
 // Helper class to obtain measurements
 pub struct AccelQueryHelper {
-    printer: Rc<Printer>,
-    is_finished: Cell<bool>,
-    request_start_time: f64,
-    request_end_time: Cell<f64>,
-    msgs: RefCell<Vec<PyVal>>,
+    pub printer: Rc<Printer>,
+    pub is_finished: Cell<bool>,
+    pub request_start_time: f64,
+    pub request_end_time: Cell<f64>,
+    pub msgs: RefCell<Vec<PyVal>>,
     samples: RefCell<Vec<AccelMeasurement>>,
 }
 
@@ -213,11 +213,11 @@ const CMD_ACCELEROMETER_DEBUG_WRITE_HELP: &str = "Set register (for debugging)";
 
 // Helper class for G-Code commands
 pub struct AccelCommandHelper {
-    printer: Rc<Printer>,
+    pub printer: Rc<Printer>,
     chip: RefCell<Weak<dyn AccelChip>>,
-    bg_client: RefCell<Option<Rc<AccelQueryHelper>>>,
-    base_name: String,
-    name: String,
+    pub bg_client: RefCell<Option<Rc<AccelQueryHelper>>>,
+    pub base_name: String,
+    pub name: String,
 }
 
 impl AccelCommandHelper {
@@ -239,7 +239,7 @@ impl AccelCommandHelper {
         Ok(h)
     }
 
-    fn register_commands(self: &Rc<Self>, name: Option<&str>) -> KResult<()> {
+    pub fn register_commands(self: &Rc<Self>, name: Option<&str>) -> KResult<()> {
         // Register commands
         let gcode = self.printer.lookup::<GCodeDispatch>("gcode")?;
         type ACmd = fn(&AccelCommandHelper, &GCodeCommand) -> KResult<()>;
@@ -269,7 +269,7 @@ impl AccelCommandHelper {
         self.chip.borrow().upgrade().ok_or_else(|| KError::Other("accelerometer chip is gone".into()))
     }
 
-    fn cmd_accelerometer_measure(&self, gcmd: &GCodeCommand) -> KResult<()> {
+    pub fn cmd_accelerometer_measure(&self, gcmd: &GCodeCommand) -> KResult<()> {
         let Some(bg_client) = self.bg_client.borrow().clone() else {
             // Start measurements
             *self.bg_client.borrow_mut() = Some(self.chip()?.start_internal_client()?);
@@ -295,7 +295,7 @@ impl AccelCommandHelper {
         Ok(())
     }
 
-    fn cmd_accelerometer_query(&self, gcmd: &GCodeCommand) -> KResult<()> {
+    pub fn cmd_accelerometer_query(&self, gcmd: &GCodeCommand) -> KResult<()> {
         let mut num_samples = gcmd.get_int("SAMPLES", Some(1), Lim::new())?;
         let mut samples: Vec<AccelMeasurement> = vec![];
         while num_samples > 0 {
@@ -333,14 +333,14 @@ impl AccelCommandHelper {
         Ok(gcmd.get_parsed(name, None, py_int_base0, |v| *v as f64, &Lim::new().min(0.0).max(maxval))?.unwrap_or(0))
     }
 
-    fn cmd_accelerometer_debug_read(&self, gcmd: &GCodeCommand) -> KResult<()> {
+    pub fn cmd_accelerometer_debug_read(&self, gcmd: &GCodeCommand) -> KResult<()> {
         let reg = Self::get_reg_param(gcmd, "REG", 127.0)?;
         let val = self.chip()?.read_reg(reg)?;
         gcmd.respond_info(&format!("Accelerometer REG[0x{:x}] = 0x{:x}", reg, val), true);
         Ok(())
     }
 
-    fn cmd_accelerometer_debug_write(&self, gcmd: &GCodeCommand) -> KResult<()> {
+    pub fn cmd_accelerometer_debug_write(&self, gcmd: &GCodeCommand) -> KResult<()> {
         let reg = Self::get_reg_param(gcmd, "REG", 127.0)?;
         let val = Self::get_reg_param(gcmd, "VAL", 255.0)?;
         self.chip()?.set_reg(reg, val)
@@ -386,22 +386,22 @@ pub const BATCH_UPDATES: f64 = 0.100;
 
 // Printer class that controls ADXL345 chip
 pub struct ADXL345 {
-    printer: Rc<Printer>,
+    pub printer: Rc<Printer>,
     _cmd_helper: RefCell<Option<Rc<AccelCommandHelper>>>,
     axes_map: AxisMap,
-    data_rate: i64,
-    spi: Rc<McuSpi>,
-    mcu: Rc<Mcu>,
-    oid: i64,
-    query_adxl345_cmd: RefCell<Option<CommandWrapper>>,
+    pub data_rate: i64,
+    pub spi: Rc<McuSpi>,
+    pub mcu: Rc<Mcu>,
+    pub oid: i64,
+    pub query_adxl345_cmd: RefCell<Option<CommandWrapper>>,
     ffreader: FixedFreqReader,
-    last_error_count: Cell<i64>,
+    pub last_error_count: Cell<i64>,
     pub(crate) batch_bulk: RefCell<Option<Rc<BatchBulkHelper>>>,
     pub name: String,
 }
 
 impl ADXL345 {
-    fn new(config: &ConfigWrapper) -> KResult<Rc<Self>> {
+    pub fn new(config: &ConfigWrapper) -> KResult<Rc<Self>> {
         let printer = config.get_printer();
         let slot: Rc<RefCell<Weak<ADXL345>>> = Rc::new(RefCell::new(Weak::new()));
         // AccelCommandHelper(config, self): the chip is set once built
@@ -467,13 +467,13 @@ impl ADXL345 {
         Ok(a)
     }
 
-    fn build_config(&self) -> KResult<()> {
+    pub fn build_config(&self) -> KResult<()> {
         let cmdqueue = self.spi.get_command_queue();
         *self.query_adxl345_cmd.borrow_mut() = Some(self.mcu.lookup_command("query_adxl345 oid=%c rest_ticks=%u", Some(cmdqueue.clone()))?);
         self.ffreader.setup_query_command("query_adxl345_status oid=%c", self.oid, Some(cmdqueue))
     }
 
-    fn check_connected(&self) -> KResult<()> {
+    pub fn check_connected(&self) -> KResult<()> {
         if self.mcu.non_critical_disconnected.get() {
             return Err(KError::command(format!(
                 "ADXL: {} could not connect because mcu: {} is non_critical_disconnected!",
@@ -510,7 +510,7 @@ impl ADXL345 {
     }
 
     // Start, stop, and process message batches
-    fn start_measurements(&self) -> KResult<()> {
+    pub fn start_measurements(&self) -> KResult<()> {
         // In case of miswiring, testing ADXL345 device ID prevents treating
         // noise or wrong signal as a correctly initialized device
         let dev_id = self.read_reg(REG_DEVID as i64)?;
@@ -538,7 +538,7 @@ impl ADXL345 {
         Ok(())
     }
 
-    fn finish_measurements(&self) -> KResult<()> {
+    pub fn finish_measurements(&self) -> KResult<()> {
         // Halt bulk reading
         self.set_reg(REG_POWER_CTL as i64, 0x00)?;
         self.query_cmd()?.send_wait_ack(&[Val::Int(self.oid), Val::Int(0)], 0, 0)?;
@@ -547,7 +547,7 @@ impl ADXL345 {
         Ok(())
     }
 
-    fn process_batch(&self, _eventtime: f64) -> KResult<PyVal> {
+    pub fn process_batch(&self, _eventtime: f64) -> KResult<PyVal> {
         let samples = self.ffreader.pull_samples()?;
         let samples = self.convert_samples(&samples);
         Ok(batch_msg(&samples, self.last_error_count.get(), self.ffreader.get_last_overflows()))

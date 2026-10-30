@@ -26,7 +26,7 @@ const NOOP_CMD: u8 = 0x0;
 const RESET_STATE: [u8; 4] = [0x0, 0x0, 0x0, 0x0];
 
 // turn bytearrays into pretty hex strings: [0xff, 0x1]
-fn hexify(byte_array: &[u8]) -> String {
+pub fn hexify(byte_array: &[u8]) -> String {
     format!("[{}]", byte_array.iter().map(|b| format!("{:#x}", b)).collect::<Vec<_>>().join(", "))
 }
 
@@ -34,27 +34,27 @@ const SPS_NORMAL: [(&str, i64); 7] = [("20", 20), ("45", 45), ("90", 90), ("175"
 const SPS_TURBO: [(&str, i64); 7] = [("40", 40), ("90", 90), ("180", 180), ("350", 350), ("660", 660), ("1200", 1200), ("2000", 2000)];
 
 pub struct ADS1220 {
-    printer: Rc<Printer>,
-    name: String,
-    last_error_count: Cell<i64>,
-    consecutive_fails: Cell<i64>,
-    gain: i64,
-    sps: i64,
-    is_turbo: bool,
-    mux: i64,
-    pga_bypass: bool,
-    vref: i64,
-    spi: Rc<McuSpi>,
-    mcu: Rc<Mcu>,
-    oid: i64,
+    pub printer: Rc<Printer>,
+    pub name: String,
+    pub last_error_count: Cell<i64>,
+    pub consecutive_fails: Cell<i64>,
+    pub gain: i64,
+    pub sps: i64,
+    pub is_turbo: bool,
+    pub mux: i64,
+    pub pga_bypass: bool,
+    pub vref: i64,
+    pub spi: Rc<McuSpi>,
+    pub mcu: Rc<Mcu>,
+    pub oid: i64,
     ffreader: FixedFreqReader,
-    batch_bulk: RefCell<Option<Rc<BatchBulkHelper>>>,
-    attach_probe_cmd: RefCell<Option<CommandWrapper>>,
-    query_ads1220_cmd: RefCell<Option<CommandWrapper>>,
+    pub batch_bulk: RefCell<Option<Rc<BatchBulkHelper>>>,
+    pub attach_probe_cmd: RefCell<Option<CommandWrapper>>,
+    pub query_ads1220_cmd: RefCell<Option<CommandWrapper>>,
 }
 
 impl ADS1220 {
-    fn new(config: &ConfigWrapper) -> KResult<Rc<Self>> {
+    pub fn new(config: &ConfigWrapper) -> KResult<Rc<Self>> {
         let printer = config.get_printer();
         let name = config.get_name().split_whitespace().last().unwrap_or_default().to_string();
         // Chip options
@@ -150,7 +150,7 @@ impl ADS1220 {
         Ok(s)
     }
 
-    fn build_config(&self) -> KResult<()> {
+    pub fn build_config(&self) -> KResult<()> {
         let cmdqueue = self.spi.get_command_queue();
         *self.query_ads1220_cmd.borrow_mut() = Some(self.mcu.lookup_command("query_ads1220 oid=%c rest_ticks=%u", Some(cmdqueue.clone()))?);
         *self.attach_probe_cmd.borrow_mut() =
@@ -159,12 +159,12 @@ impl ADS1220 {
     }
 
     // Measurement decoding
-    fn convert_samples(&self, samples: &[(f64, Vec<i64>)]) -> Vec<PyVal> {
+    pub fn convert_samples(&self, samples: &[(f64, Vec<i64>)]) -> Vec<PyVal> {
         samples.iter().map(|(ptime, f)| adc_row(*ptime, f[0])).collect()
     }
 
     // Start, stop, and process message batches
-    fn start_measurements(&self) -> KResult<()> {
+    pub fn start_measurements(&self) -> KResult<()> {
         self.last_error_count.set(0);
         self.consecutive_fails.set(0);
         // Start bulk reading
@@ -177,7 +177,7 @@ impl ADS1220 {
         self.ffreader.note_start()
     }
 
-    fn finish_measurements(&self) -> KResult<()> {
+    pub fn finish_measurements(&self) -> KResult<()> {
         // don't use serial connection after shutdown
         if self.printer.is_shutdown() {
             return Ok(());
@@ -189,13 +189,13 @@ impl ADS1220 {
         Ok(())
     }
 
-    fn process_batch(&self, _eventtime: f64) -> KResult<PyVal> {
+    pub fn process_batch(&self, _eventtime: f64) -> KResult<PyVal> {
         let samples = self.ffreader.pull_samples()?;
         let samples = self.convert_samples(&samples);
         Ok(adc_batch(samples, self.last_error_count.get(), self.ffreader.get_last_overflows()))
     }
 
-    fn reset_chip(&self) -> KResult<()> {
+    pub fn reset_chip(&self) -> KResult<()> {
         // the reset command takes 50us to complete
         self.send_command(RESET_CMD)?;
         // read startup register state and validate
@@ -210,7 +210,7 @@ impl ADS1220 {
         Ok(())
     }
 
-    fn setup_chip(&self) -> KResult<()> {
+    pub fn setup_chip(&self) -> KResult<()> {
         let continuous = 0x1; // enable continuous conversions
         let mode = if self.is_turbo { 0x2 } else { 0x0 }; // turbo mode
         let sps_list: &[(&str, i64)] = if self.is_turbo { &SPS_TURBO } else { &SPS_NORMAL };
@@ -230,7 +230,7 @@ impl ADS1220 {
         self.send_command(START_SYNC_CMD)
     }
 
-    fn read_reg(&self, reg: u8, byte_count: usize) -> KResult<Vec<u8>> {
+    pub fn read_reg(&self, reg: u8, byte_count: usize) -> KResult<Vec<u8>> {
         let mut read_command = vec![RREG_CMD | (reg << 2) | (byte_count as u8 - 1)];
         read_command.extend(std::iter::repeat_n(NOOP_CMD, byte_count));
         let params = self.spi.spi_transfer(&read_command, 0, 0)?;
@@ -240,11 +240,11 @@ impl ADS1220 {
         }
     }
 
-    fn send_command(&self, cmd: u8) -> KResult<()> {
+    pub fn send_command(&self, cmd: u8) -> KResult<()> {
         self.spi.spi_send(&[cmd], 0, 0)
     }
 
-    fn write_reg(&self, reg: u8, register_bytes: &[u8]) -> KResult<()> {
+    pub fn write_reg(&self, reg: u8, register_bytes: &[u8]) -> KResult<()> {
         let mut write_command = vec![WREG_CMD | (reg << 2) | (register_bytes.len() as u8 - 1)];
         write_command.extend_from_slice(register_bytes);
         self.spi.spi_send(&write_command, 0, 0)?;

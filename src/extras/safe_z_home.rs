@@ -13,15 +13,15 @@ use std::cell::RefCell;
 use std::rc::Rc;
 
 pub struct SafeZHoming {
-    printer: Rc<Printer>,
+    pub printer: Rc<Printer>,
     pub home_x_pos: f64,
     pub home_y_pos: f64,
-    z_hop: f64,
-    z_hop_speed: f64,
-    speed: f64,
-    move_to_previous: bool,
-    home_y_before_x: bool,
-    gcode: Rc<GCodeDispatch>,
+    pub z_hop: f64,
+    pub z_hop_speed: f64,
+    pub speed: f64,
+    pub move_to_previous: bool,
+    pub home_y_before_x: bool,
+    pub gcode: Rc<GCodeDispatch>,
     prev_g28: RefCell<Option<Handler>>,
 }
 
@@ -30,7 +30,7 @@ fn homed_axes(toolhead: &ToolHead, curtime: f64) -> String {
 }
 
 impl SafeZHoming {
-    fn new(config: &ConfigWrapper) -> KResult<Rc<Self>> {
+    pub fn new(config: &ConfigWrapper) -> KResult<Rc<Self>> {
         let printer = config.get_printer();
         let xy = config.getfloatlist("home_xy_position", Dflt::Required, ",", Some(2))?.unwrap_or_default();
         let z_hop = config.getfloat("z_hop", 0.0, Lim::new())?;
@@ -74,7 +74,7 @@ impl SafeZHoming {
         }
     }
 
-    fn cmd_g28(&self, gcmd: &GCodeCommand) -> KResult<()> {
+    pub fn cmd_g28(&self, gcmd: &GCodeCommand) -> KResult<()> {
         let toolhead = self.printer.lookup::<ToolHead>("toolhead")?;
 
         // Perform Z Hop if necessary

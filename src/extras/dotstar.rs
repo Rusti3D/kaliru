@@ -17,13 +17,13 @@ use std::rc::{Rc, Weak};
 const BACKGROUND_PRIORITY_CLOCK: u64 = 0x7FFFFFFF00000000;
 
 pub struct PrinterDotstar {
-    spi: Rc<McuSpi>,
+    pub spi: Rc<McuSpi>,
     pub(crate) led_helper: RefCell<Option<Rc<LEDHelper>>>,
     prev_data: RefCell<Option<Vec<Color>>>,
 }
 
 impl PrinterDotstar {
-    fn new(config: &ConfigWrapper) -> KResult<Rc<Self>> {
+    pub fn new(config: &ConfigWrapper) -> KResult<Rc<Self>> {
         let printer = config.get_printer();
         // Configure a software spi bus
         let ppins = printer.lookup::<PinsObject>("pins")?;
@@ -61,7 +61,7 @@ impl PrinterDotstar {
         Ok(d)
     }
 
-    fn update_leds(&self, led_state: &[Color], print_time: Option<f64>) -> KResult<()> {
+    pub fn update_leds(&self, led_state: &[Color], print_time: Option<f64>) -> KResult<()> {
         if self.prev_data.borrow().as_deref() == Some(led_state) {
             return Ok(());
         }

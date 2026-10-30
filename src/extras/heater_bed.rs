@@ -12,12 +12,12 @@ use crate::pyval::PyVal;
 use std::rc::Rc;
 
 pub struct PrinterHeaterBed {
-    printer: Rc<Printer>,
+    pub printer: Rc<Printer>,
     pub heater: Rc<Heater>,
 }
 
 impl PrinterHeaterBed {
-    fn new(config: &ConfigWrapper) -> KResult<Rc<Self>> {
+    pub fn new(config: &ConfigWrapper) -> KResult<Rc<Self>> {
         let printer = config.get_printer();
         let pheaters = load_heaters(config)?;
         let heater = pheaters.setup_heater(config, Some("B"))?;
@@ -31,7 +31,7 @@ impl PrinterHeaterBed {
         Ok(hb)
     }
 
-    fn cmd_m140(&self, gcmd: &GCodeCommand, wait: bool) -> KResult<()> {
+    pub fn cmd_m140(&self, gcmd: &GCodeCommand, wait: bool) -> KResult<()> {
         // Set Bed Temperature
         let temp = gcmd.get_float("S", Some(0.0), Lim::new())?;
         let pheaters = self.printer.lookup::<PrinterHeaters>("heaters")?;
