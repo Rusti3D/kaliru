@@ -7,43 +7,43 @@ MIN_ANGLE = 5.0
 class DeltesianKinematics(_k.Object):
     __kaliru_mirror__ = True
     def __init__(self, toolhead, config):
-        _k.new(self, 6266, toolhead, config)
+        _k.new(self, 6282, toolhead, config)
     def get_steppers(self):
-        return _k.call(self, 6267)
+        return _k.call(self, 6283)
     def _actuator_to_cartesian(self, sp):
-        return _k.call(self, 6268, sp)
+        return _k.call(self, 6284, sp)
     def _pillars_z_max(self, x):
-        return _k.call(self, 6269, x)
+        return _k.call(self, 6285, x)
     def calc_position(self, stepper_positions):
-        return _k.call(self, 6270, stepper_positions)
+        return _k.call(self, 6286, stepper_positions)
     def set_position(self, newpos, homing_axes):
-        return _k.call(self, 6271, newpos, homing_axes)
+        return _k.call(self, 6287, newpos, homing_axes)
     def note_z_not_homed(self):
-        return _k.call(self, 6272)
+        return _k.call(self, 6288)
     def clear_homing_state(self, clear_axes):
-        return _k.call(self, 6273, clear_axes)
+        return _k.call(self, 6289, clear_axes)
     def home(self, homing_state):
-        return _k.call(self, 6274, homing_state)
+        return _k.call(self, 6290, homing_state)
     def check_move(self, move):
-        return _k.call(self, 6275, move)
+        return _k.call(self, 6291, move)
     def get_status(self, eventtime):
-        return _k.call(self, 6276, eventtime)
-    _abs_endstop = _k.Attr(6277, '_abs_endstop')
-    arm2 = _k.Attr(6278, 'arm2')
-    arm_x = _k.Attr(6279, 'arm_x')
-    axes_max = _k.Attr(6280, 'axes_max')
-    axes_min = _k.Attr(6281, 'axes_min')
-    home_z = _k.Attr(6282, 'home_z')
-    homed_axis = _k.Attr(6283, 'homed_axis')
-    limits = _k.Attr(6284, 'limits')
-    max_z_accel = _k.Attr(6285, 'max_z_accel')
-    max_z_velocity = _k.Attr(6286, 'max_z_velocity')
-    rails = _k.Attr(6287, 'rails')
-    slow_x2 = _k.Attr(6288, 'slow_x2')
-    very_slow_x2 = _k.Attr(6289, 'very_slow_x2')
+        return _k.call(self, 6292, eventtime)
+    _abs_endstop = _k.Attr(6293, '_abs_endstop')
+    arm2 = _k.Attr(6294, 'arm2')
+    arm_x = _k.Attr(6295, 'arm_x')
+    axes_max = _k.Attr(6296, 'axes_max')
+    axes_min = _k.Attr(6297, 'axes_min')
+    home_z = _k.Attr(6298, 'home_z')
+    homed_axis = _k.Attr(6299, 'homed_axis')
+    limits = _k.Attr(6300, 'limits')
+    max_z_accel = _k.Attr(6301, 'max_z_accel')
+    max_z_velocity = _k.Attr(6302, 'max_z_velocity')
+    rails = _k.Attr(6303, 'rails')
+    slow_x2 = _k.Attr(6304, 'slow_x2')
+    very_slow_x2 = _k.Attr(6305, 'very_slow_x2')
 
 def load_kinematics(toolhead, config):
-    return _k.fcall(6290, toolhead, config)
+    return _k.fcall(6306, toolhead, config)
 
 
 __getattr__ = _k.module_getattr(__name__)

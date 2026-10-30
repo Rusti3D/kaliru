@@ -4,7 +4,7 @@
 use super::*;
 use crate::extras::load_cell::load_cell::{ApiClientHelper, ForceMsg, ForceSample, LoadCell, LoadCellSampleCollector};
 use crate::plugins::callable::py_function;
-use crate::plugins::convert::ToPy;
+use crate::plugins::convert::{FromPy, ToPy};
 
 fn msg_to_py(m: &ForceMsg) -> PyRef {
     use crate::extras::load_cell::load_cell::ApiMsg;
@@ -44,7 +44,36 @@ fn collected(r: (Vec<ForceSample>, Option<(i64, i64)>)) -> KResult<PyRef> {
     Ok(py_tuple(vec![py_list(rows), errors]))
 }
 
+/// samples[:] = rows (the sensors' static _convert_samples rewrite the list
+/// they are given)
+fn rewrite_samples(list: &PyRef, rows: Vec<PyVal>) -> KResult<()> {
+    list.call_method("clear", &[])?;
+    for row in rows {
+        list.call_method("append", &[&from_pyval(&row)])?;
+    }
+    Ok(())
+}
+
 pub fn register(r: &mut Registry) {
+    // _convert_samples(samples): the converted rows in place; the batch's
+    // errors returned (ADS1220: None)
+    r.method("klippy.extras.load_cell.ads1220.ADS1220._convert_samples", |a| {
+        let samples: Vec<(f64, Vec<i64>)> = FromPy::from_py(a.arg(0))?;
+        rewrite_samples(a.arg(0), crate::extras::load_cell::ads1220::ADS1220::convert_samples(&samples))?;
+        Ok(py_none())
+    });
+    r.method("klippy.extras.load_cell.cs1237.CS1237._convert_samples", |a| {
+        let samples: Vec<(f64, Vec<i64>)> = FromPy::from_py(a.arg(0))?;
+        let (rows, batch_errors) = crate::extras::load_cell::cs1237::CS1237::convert_samples(&samples);
+        rewrite_samples(a.arg(0), rows)?;
+        Ok(py_int(batch_errors))
+    });
+    r.method("klippy.extras.load_cell.hx71x.HX71xBase._convert_samples", |a| {
+        let samples: Vec<(f64, Vec<i64>)> = FromPy::from_py(a.arg(0))?;
+        let (rows, batch_errors) = crate::extras::load_cell::hx71x::HX71xBase::convert_samples(&samples);
+        rewrite_samples(a.arg(0), rows)?;
+        Ok(py_int(batch_errors))
+    });
     type H = ApiClientHelper;
     r.method("klippy.extras.load_cell.load_cell.ApiClientHelper.send", |a| {
         a.this::<H>()?.send(&msg_from_py(a.arg(0))?);

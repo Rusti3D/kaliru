@@ -6,7 +6,7 @@ import os
 import termios
 
 def fix_sigint():
-    return _k.fcall(7384)
+    return _k.fcall(7407)
 
 def set_nonblock(fd):
     fcntl.fcntl(
@@ -22,16 +22,16 @@ def clear_hupcl(fd):
         pass
 
 def create_pty(ptyname):
-    return _k.fcall(7387, ptyname)
+    return _k.fcall(7410, ptyname)
 
 def dump_file_stats(build_dir, filename):
-    return _k.fcall(7388, build_dir, filename)
+    return _k.fcall(7411, build_dir, filename)
 
 def dump_mcu_build():
-    return _k.fcall(7389)
+    return _k.fcall(7412)
 
 def get_cpu_info():
-    return _k.fcall(7390)
+    return _k.fcall(7413)
 
 def get_version_from_file(klippy_src):
     try:
@@ -42,10 +42,10 @@ def get_version_from_file(klippy_src):
     return "?"
 
 def _get_repo_info(gitdir):
-    return _k.fcall(7392, gitdir)
+    return _k.fcall(7415, gitdir)
 
 def get_git_version(from_file=True):
-    return _k.fcall(7393, from_file)
+    return _k.fcall(7416, from_file)
 
 fix_sigint()
 

@@ -206,10 +206,10 @@ impl ICM20948 {
     }
 
     pub fn process_batch(&self, _eventtime: f64) -> KResult<PyVal> {
-        let samples = self.ffreader.pull_samples()?;
+        let (samples, _) = self.ffreader.pull_samples()?;
         // Measurement decoding
         let samples: Vec<[f64; 4]> = samples.iter().map(|(ptime, f)| convert_sample(&self.axes_map, *ptime, [f[0], f[1], f[2]])).collect();
-        Ok(batch_msg(&samples, self.last_error_count.get(), self.ffreader.get_last_overflows()))
+        Ok(batch_msg(&samples, self.last_error_count.get(), self.ffreader.get_total_overflows()))
     }
 }
 

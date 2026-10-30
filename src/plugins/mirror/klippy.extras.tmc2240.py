@@ -51,41 +51,41 @@ GLOBALSCALER_ERROR = "[tmc2240 %s]\nGLOBALSCALER(%d) calculation out of bounds.\
 class TMC2240CurrentHelper(tmc.BaseTMCCurrentHelper):
     __kaliru_mirror__ = True
     def __init__(self, config, mcu_tmc):
-        _k.new(self, 5262, config, mcu_tmc)
+        _k.new(self, 5278, config, mcu_tmc)
     def _get_ifs_rms(self, current_range=None):
-        return _k.call(self, 5263, current_range)
+        return _k.call(self, 5279, current_range)
     def _calc_current_range(self, current):
-        return _k.call(self, 5264, current)
+        return _k.call(self, 5280, current)
     def _calc_globalscaler(self, current):
-        return _k.call(self, 5265, current)
+        return _k.call(self, 5281, current)
     def _calc_current_bits(self, current, globalscaler):
-        return _k.call(self, 5266, current, globalscaler)
+        return _k.call(self, 5282, current, globalscaler)
     def _calc_current(self, run_current, hold_current):
-        return _k.call(self, 5267, run_current, hold_current)
+        return _k.call(self, 5283, run_current, hold_current)
     def _calc_current_from_field(self, field_name):
-        return _k.call(self, 5268, field_name)
+        return _k.call(self, 5284, field_name)
     def get_current(self):
-        return _k.call(self, 5269)
+        return _k.call(self, 5285)
     def apply_current(self, print_time):
-        return _k.call(self, 5270, print_time)
-    Rref = _k.Attr(5271, 'Rref')
-    cs = _k.Attr(5272, 'cs')
-    current_range = _k.Attr(5273, 'current_range')
+        return _k.call(self, 5286, print_time)
+    Rref = _k.Attr(5287, 'Rref')
+    cs = _k.Attr(5288, 'cs')
+    current_range = _k.Attr(5289, 'current_range')
 
 def _adc_to_celsius(adc_value):
-    return _k.fcall(5274, adc_value)
+    return _k.fcall(5290, adc_value)
 
 class TMC2240(_k.Object):
     __kaliru_mirror__ = True
     def __init__(self, config):
-        _k.new(self, 5275, config)
-    fields = _k.Attr(5276, 'fields')
-    get_phase_offset = _k.Attr(5277, 'get_phase_offset')
-    get_status = _k.Attr(5278, 'get_status')
-    mcu_tmc = _k.Attr(5279, 'mcu_tmc')
+        _k.new(self, 5291, config)
+    fields = _k.Attr(5292, 'fields')
+    get_phase_offset = _k.Attr(5293, 'get_phase_offset')
+    get_status = _k.Attr(5294, 'get_status')
+    mcu_tmc = _k.Attr(5295, 'mcu_tmc')
 
 def load_config_prefix(config):
-    return _k.fcall(5280, config)
+    return _k.fcall(5296, config)
 
 
 __getattr__ = _k.module_getattr(__name__)

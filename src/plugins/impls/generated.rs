@@ -1450,9 +1450,9 @@ pub fn register(r: &mut Registry) {
         let o: Rc<dyn Any> = Rc::new(crate::extras::bulk_sensor::FixedFreqReader::new(&p0, p1, &p2));
         Ok(o)
     });
-    r.method("klippy.extras.bulk_sensor.FixedFreqReader.get_last_overflows", |a| {
+    r.method("klippy.extras.bulk_sensor.FixedFreqReader.get_total_overflows", |a| {
         let s = a.this::<crate::extras::bulk_sensor::FixedFreqReader>()?;
-        s.get_last_overflows().to_py()
+        s.get_total_overflows().to_py()
     });
     r.method("klippy.extras.bulk_sensor.FixedFreqReader._clear_duration_filter", |a| {
         let s = a.this::<crate::extras::bulk_sensor::FixedFreqReader>()?;
@@ -1471,11 +1471,15 @@ pub fn register(r: &mut Registry) {
         let p0: bool = FromPy::from_py(a.arg(0))?;
         s.update_clock(p0).to_py()
     });
-    r.attr("klippy.extras.bulk_sensor.FixedFreqReader.bytes_per_sample", |o| objects::unwrap_as::<crate::extras::bulk_sensor::FixedFreqReader>(o)?.bytes_per_sample.clone().to_py(), None);
-    r.attr("klippy.extras.bulk_sensor.FixedFreqReader.last_overflows", |o| objects::unwrap_as::<crate::extras::bulk_sensor::FixedFreqReader>(o)?.last_overflows.get().to_py(), Some(|o, v| {
-        objects::unwrap_as::<crate::extras::bulk_sensor::FixedFreqReader>(o)?.last_overflows.set(FromPy::from_py(v)?);
+    r.attr("klippy.extras.bulk_sensor.FixedFreqReader._batch_overflows", |o| objects::unwrap_as::<crate::extras::bulk_sensor::FixedFreqReader>(o)?._batch_overflows.get().to_py(), Some(|o, v| {
+        objects::unwrap_as::<crate::extras::bulk_sensor::FixedFreqReader>(o)?._batch_overflows.set(FromPy::from_py(v)?);
         Ok(())
     }));
+    r.attr("klippy.extras.bulk_sensor.FixedFreqReader._total_overflows", |o| objects::unwrap_as::<crate::extras::bulk_sensor::FixedFreqReader>(o)?._total_overflows.get().to_py(), Some(|o, v| {
+        objects::unwrap_as::<crate::extras::bulk_sensor::FixedFreqReader>(o)?._total_overflows.set(FromPy::from_py(v)?);
+        Ok(())
+    }));
+    r.attr("klippy.extras.bulk_sensor.FixedFreqReader.bytes_per_sample", |o| objects::unwrap_as::<crate::extras::bulk_sensor::FixedFreqReader>(o)?.bytes_per_sample.clone().to_py(), None);
     r.attr("klippy.extras.bulk_sensor.FixedFreqReader.last_sequence", |o| objects::unwrap_as::<crate::extras::bulk_sensor::FixedFreqReader>(o)?.last_sequence.get().to_py(), Some(|o, v| {
         objects::unwrap_as::<crate::extras::bulk_sensor::FixedFreqReader>(o)?.last_sequence.set(FromPy::from_py(v)?);
         Ok(())
@@ -4971,11 +4975,6 @@ pub fn register(r: &mut Registry) {
         let s = a.this::<crate::extras::load_cell::ads1220::ADS1220>()?;
         s.build_config().to_py()
     });
-    r.method("klippy.extras.load_cell.ads1220.ADS1220._convert_samples", |a| {
-        let s = a.this::<crate::extras::load_cell::ads1220::ADS1220>()?;
-        let p0: Vec<(f64, Vec<i64>)> = FromPy::from_py(a.arg(0))?;
-        s.convert_samples(&p0).to_py()
-    });
     r.method("klippy.extras.load_cell.ads1220.ADS1220._start_measurements", |a| {
         let s = a.this::<crate::extras::load_cell::ads1220::ADS1220>()?;
         s.start_measurements().to_py()
@@ -5027,10 +5026,6 @@ pub fn register(r: &mut Registry) {
     r.attr("klippy.extras.load_cell.ads1220.ADS1220.ffreader", |o| objects::unwrap_as::<crate::extras::load_cell::ads1220::ADS1220>(o)?.ffreader.clone().to_py(), None);
     r.attr("klippy.extras.load_cell.ads1220.ADS1220.gain", |o| objects::unwrap_as::<crate::extras::load_cell::ads1220::ADS1220>(o)?.gain.clone().to_py(), None);
     r.attr("klippy.extras.load_cell.ads1220.ADS1220.is_turbo", |o| objects::unwrap_as::<crate::extras::load_cell::ads1220::ADS1220>(o)?.is_turbo.clone().to_py(), None);
-    r.attr("klippy.extras.load_cell.ads1220.ADS1220.last_error_count", |o| objects::unwrap_as::<crate::extras::load_cell::ads1220::ADS1220>(o)?.last_error_count.get().to_py(), Some(|o, v| {
-        objects::unwrap_as::<crate::extras::load_cell::ads1220::ADS1220>(o)?.last_error_count.set(FromPy::from_py(v)?);
-        Ok(())
-    }));
     r.attr("klippy.extras.load_cell.ads1220.ADS1220.mcu", |o| objects::unwrap_as::<crate::extras::load_cell::ads1220::ADS1220>(o)?.mcu.clone().to_py(), None);
     r.attr("klippy.extras.load_cell.ads1220.ADS1220.mux", |o| objects::unwrap_as::<crate::extras::load_cell::ads1220::ADS1220>(o)?.mux.clone().to_py(), None);
     r.attr("klippy.extras.load_cell.ads1220.ADS1220.name", |o| objects::unwrap_as::<crate::extras::load_cell::ads1220::ADS1220>(o)?.name.clone().to_py(), None);
@@ -5117,13 +5112,13 @@ pub fn register(r: &mut Registry) {
     }));
     r.attr("klippy.extras.load_cell.ads131m0x.ADS131MxBase.data_ready_pin", |o| objects::unwrap_as::<crate::extras::load_cell::ads131m0x::ADS131MxBase>(o)?.data_ready_pin.clone().to_py(), None);
     r.attr("klippy.extras.load_cell.ads131m0x.ADS131MxBase.enable_global_chop", |o| objects::unwrap_as::<crate::extras::load_cell::ads131m0x::ADS131MxBase>(o)?.enable_global_chop.clone().to_py(), None);
+    r.attr("klippy.extras.load_cell.ads131m0x.ADS131MxBase.error_count", |o| objects::unwrap_as::<crate::extras::load_cell::ads131m0x::ADS131MxBase>(o)?.error_count.get().to_py(), Some(|o, v| {
+        objects::unwrap_as::<crate::extras::load_cell::ads131m0x::ADS131MxBase>(o)?.error_count.set(FromPy::from_py(v)?);
+        Ok(())
+    }));
     r.attr("klippy.extras.load_cell.ads131m0x.ADS131MxBase.ffreader", |o| objects::unwrap_as::<crate::extras::load_cell::ads131m0x::ADS131MxBase>(o)?.ffreader.clone().to_py(), None);
     r.attr("klippy.extras.load_cell.ads131m0x.ADS131MxBase.gain", |o| objects::unwrap_as::<crate::extras::load_cell::ads131m0x::ADS131MxBase>(o)?.gain.clone().to_py(), None);
     r.attr("klippy.extras.load_cell.ads131m0x.ADS131MxBase.global_chop_delay", |o| objects::unwrap_as::<crate::extras::load_cell::ads131m0x::ADS131MxBase>(o)?.global_chop_delay.clone().to_py(), None);
-    r.attr("klippy.extras.load_cell.ads131m0x.ADS131MxBase.last_error_count", |o| objects::unwrap_as::<crate::extras::load_cell::ads131m0x::ADS131MxBase>(o)?.last_error_count.get().to_py(), Some(|o, v| {
-        objects::unwrap_as::<crate::extras::load_cell::ads131m0x::ADS131MxBase>(o)?.last_error_count.set(FromPy::from_py(v)?);
-        Ok(())
-    }));
     r.attr("klippy.extras.load_cell.ads131m0x.ADS131MxBase.mcu", |o| objects::unwrap_as::<crate::extras::load_cell::ads131m0x::ADS131MxBase>(o)?.mcu.clone().to_py(), None);
     r.attr("klippy.extras.load_cell.ads131m0x.ADS131MxBase.name", |o| objects::unwrap_as::<crate::extras::load_cell::ads131m0x::ADS131MxBase>(o)?.name.clone().to_py(), None);
     r.attr("klippy.extras.load_cell.ads131m0x.ADS131MxBase.oid", |o| objects::unwrap_as::<crate::extras::load_cell::ads131m0x::ADS131MxBase>(o)?.oid.clone().to_py(), None);
@@ -5149,11 +5144,6 @@ pub fn register(r: &mut Registry) {
         let p0 = a.arg(0).as_i64()? as i64;
         s.lookup_sensor_error(p0).to_py()
     });
-    r.method("klippy.extras.load_cell.cs1237.CS1237._convert_samples", |a| {
-        let s = a.this::<crate::extras::load_cell::cs1237::CS1237>()?;
-        let p0: Vec<(f64, Vec<i64>)> = FromPy::from_py(a.arg(0))?;
-        s.convert_samples(&p0).to_py()
-    });
     r.method("klippy.extras.load_cell.cs1237.CS1237._start_measurements", |a| {
         let s = a.this::<crate::extras::load_cell::cs1237::CS1237>()?;
         s.start_measurements().to_py()
@@ -5174,11 +5164,11 @@ pub fn register(r: &mut Registry) {
     }));
     r.attr("klippy.extras.load_cell.cs1237.CS1237.chip_config", |o| objects::unwrap_as::<crate::extras::load_cell::cs1237::CS1237>(o)?.chip_config.clone().to_py(), None);
     r.attr("klippy.extras.load_cell.cs1237.CS1237.dout_pin", |o| objects::unwrap_as::<crate::extras::load_cell::cs1237::CS1237>(o)?.dout_pin.clone().to_py(), None);
-    r.attr("klippy.extras.load_cell.cs1237.CS1237.ffreader", |o| objects::unwrap_as::<crate::extras::load_cell::cs1237::CS1237>(o)?.ffreader.clone().to_py(), None);
-    r.attr("klippy.extras.load_cell.cs1237.CS1237.last_error_count", |o| objects::unwrap_as::<crate::extras::load_cell::cs1237::CS1237>(o)?.last_error_count.get().to_py(), Some(|o, v| {
-        objects::unwrap_as::<crate::extras::load_cell::cs1237::CS1237>(o)?.last_error_count.set(FromPy::from_py(v)?);
+    r.attr("klippy.extras.load_cell.cs1237.CS1237.error_count", |o| objects::unwrap_as::<crate::extras::load_cell::cs1237::CS1237>(o)?.error_count.get().to_py(), Some(|o, v| {
+        objects::unwrap_as::<crate::extras::load_cell::cs1237::CS1237>(o)?.error_count.set(FromPy::from_py(v)?);
         Ok(())
     }));
+    r.attr("klippy.extras.load_cell.cs1237.CS1237.ffreader", |o| objects::unwrap_as::<crate::extras::load_cell::cs1237::CS1237>(o)?.ffreader.clone().to_py(), None);
     r.attr("klippy.extras.load_cell.cs1237.CS1237.mcu", |o| objects::unwrap_as::<crate::extras::load_cell::cs1237::CS1237>(o)?.mcu.clone().to_py(), None);
     r.attr("klippy.extras.load_cell.cs1237.CS1237.name", |o| objects::unwrap_as::<crate::extras::load_cell::cs1237::CS1237>(o)?.name.clone().to_py(), None);
     r.attr("klippy.extras.load_cell.cs1237.CS1237.oid", |o| objects::unwrap_as::<crate::extras::load_cell::cs1237::CS1237>(o)?.oid.clone().to_py(), None);
@@ -5192,11 +5182,6 @@ pub fn register(r: &mut Registry) {
     r.method("klippy.extras.load_cell.hx71x.HX71xBase._build_config", |a| {
         let s = a.this::<crate::extras::load_cell::hx71x::HX71xBase>()?;
         s.build_config().to_py()
-    });
-    r.method("klippy.extras.load_cell.hx71x.HX71xBase._convert_samples", |a| {
-        let s = a.this::<crate::extras::load_cell::hx71x::HX71xBase>()?;
-        let p0: Vec<(f64, Vec<i64>)> = FromPy::from_py(a.arg(0))?;
-        s.convert_samples(&p0).to_py()
     });
     r.method("klippy.extras.load_cell.hx71x.HX71xBase._start_measurements", |a| {
         let s = a.this::<crate::extras::load_cell::hx71x::HX71xBase>()?;
@@ -5221,12 +5206,12 @@ pub fn register(r: &mut Registry) {
         Ok(())
     }));
     r.attr("klippy.extras.load_cell.hx71x.HX71xBase.dout_pin", |o| objects::unwrap_as::<crate::extras::load_cell::hx71x::HX71xBase>(o)?.dout_pin.clone().to_py(), None);
-    r.attr("klippy.extras.load_cell.hx71x.HX71xBase.ffreader", |o| objects::unwrap_as::<crate::extras::load_cell::hx71x::HX71xBase>(o)?.ffreader.clone().to_py(), None);
-    r.attr("klippy.extras.load_cell.hx71x.HX71xBase.gain_channel", |o| objects::unwrap_as::<crate::extras::load_cell::hx71x::HX71xBase>(o)?.gain_channel.clone().to_py(), None);
-    r.attr("klippy.extras.load_cell.hx71x.HX71xBase.last_error_count", |o| objects::unwrap_as::<crate::extras::load_cell::hx71x::HX71xBase>(o)?.last_error_count.get().to_py(), Some(|o, v| {
-        objects::unwrap_as::<crate::extras::load_cell::hx71x::HX71xBase>(o)?.last_error_count.set(FromPy::from_py(v)?);
+    r.attr("klippy.extras.load_cell.hx71x.HX71xBase.error_count", |o| objects::unwrap_as::<crate::extras::load_cell::hx71x::HX71xBase>(o)?.error_count.get().to_py(), Some(|o, v| {
+        objects::unwrap_as::<crate::extras::load_cell::hx71x::HX71xBase>(o)?.error_count.set(FromPy::from_py(v)?);
         Ok(())
     }));
+    r.attr("klippy.extras.load_cell.hx71x.HX71xBase.ffreader", |o| objects::unwrap_as::<crate::extras::load_cell::hx71x::HX71xBase>(o)?.ffreader.clone().to_py(), None);
+    r.attr("klippy.extras.load_cell.hx71x.HX71xBase.gain_channel", |o| objects::unwrap_as::<crate::extras::load_cell::hx71x::HX71xBase>(o)?.gain_channel.clone().to_py(), None);
     r.attr("klippy.extras.load_cell.hx71x.HX71xBase.mcu", |o| objects::unwrap_as::<crate::extras::load_cell::hx71x::HX71xBase>(o)?.mcu.clone().to_py(), None);
     r.attr("klippy.extras.load_cell.hx71x.HX71xBase.name", |o| objects::unwrap_as::<crate::extras::load_cell::hx71x::HX71xBase>(o)?.name.clone().to_py(), None);
     r.attr("klippy.extras.load_cell.hx71x.HX71xBase.oid", |o| objects::unwrap_as::<crate::extras::load_cell::hx71x::HX71xBase>(o)?.oid.clone().to_py(), None);
@@ -9203,6 +9188,17 @@ pub fn register(r: &mut Registry) {
     r.attr("klippy.extras.tmc.TMCVirtualPinHelper.mcu_endstop", |o| (match objects::unwrap_as::<crate::extras::tmc::TMCVirtualPinHelper>(o)?.mcu_endstop.borrow().clone() { Some(v) => super::pins::endstop_to_py(&v), None => Ok(py_none()) }), None);
     r.attr("klippy.extras.tmc.TMCVirtualPinHelper.mcu_tmc", |o| super::tmc::mcu_tmc_to_py(&objects::unwrap_as::<crate::extras::tmc::TMCVirtualPinHelper>(o)?.mcu_tmc.clone()), None);
     r.attr("klippy.extras.tmc.TMCVirtualPinHelper.printer", |o| objects::unwrap_as::<crate::extras::tmc::TMCVirtualPinHelper>(o)?.printer.clone().to_py(), None);
+    r.method("klippy.extras.tmc.TMCSpiEndstop._build_config", |a| {
+        let s = a.this::<crate::extras::tmc::TMCSpiEndstop>()?;
+        s.build_config().to_py()
+    });
+    r.attr("klippy.extras.tmc.TMCSpiEndstop._home_cmd", |o| (match objects::unwrap_as::<crate::extras::tmc::TMCSpiEndstop>(o)?.home_cmd.borrow().clone() { Some(v) => objects::wrap(Rc::new(v)), None => Ok(py_none()) }), None);
+    r.attr("klippy.extras.tmc.TMCSpiEndstop._mcu", |o| objects::unwrap_as::<crate::extras::tmc::TMCSpiEndstop>(o)?.mcu.clone().to_py(), None);
+    r.attr("klippy.extras.tmc.TMCSpiEndstop._mcu_tmc", |o| super::tmc::mcu_tmc_to_py(&objects::unwrap_as::<crate::extras::tmc::TMCSpiEndstop>(o)?.mcu_tmc.clone()), None);
+    r.attr("klippy.extras.tmc.TMCSpiEndstop._mutex", |o| objects::unwrap_as::<crate::extras::tmc::TMCSpiEndstop>(o)?.mutex.clone().to_py(), None);
+    r.attr("klippy.extras.tmc.TMCSpiEndstop._oid", |o| objects::unwrap_as::<crate::extras::tmc::TMCSpiEndstop>(o)?.oid.clone().to_py(), None);
+    r.attr("klippy.extras.tmc.TMCSpiEndstop._printer", |o| objects::unwrap_as::<crate::extras::tmc::TMCSpiEndstop>(o)?.printer.clone().to_py(), None);
+    r.attr("klippy.extras.tmc.TMCSpiEndstop._query_cmd", |o| (match objects::unwrap_as::<crate::extras::tmc::TMCSpiEndstop>(o)?.query_cmd.borrow().clone() { Some(v) => objects::wrap(Rc::new(v)), None => Ok(py_none()) }), None);
     r.ctor("klippy.extras.tmc.BaseTMCCurrentHelper.__init__", |a| {
         let p0 = super::configfile::config_from_py(a.arg(0))?;
         let p1 = super::tmc::mcu_tmc_from_py(a.arg(1))?;
@@ -11716,6 +11712,10 @@ pub fn register(r: &mut Registry) {
         let p3 = a.arg(3).as_i64()? as u64;
         s.set_clock_est(p0, p1, p2, p3).to_py()
     });
+    r.method("klippy.serialhdl.SerialReader.abort_wait_acks", |a| {
+        let s = a.this::<crate::serialhdl::SerialReader>()?;
+        s.abort_wait_acks().to_py()
+    });
     r.method("klippy.serialhdl.SerialReader.disconnect", |a| {
         let s = a.this::<crate::serialhdl::SerialReader>()?;
         s.disconnect().to_py()
@@ -11793,6 +11793,10 @@ pub fn register(r: &mut Registry) {
         let p0 = super::mcu::params_from_py(a.arg(0))?;
         s.handle_default(&p0).to_py()
     });
+    r.attr("klippy.serialhdl.SerialReader.can_wait_acks", |o| objects::unwrap_as::<crate::serialhdl::SerialReader>(o)?.can_wait_acks.get().to_py(), Some(|o, v| {
+        objects::unwrap_as::<crate::serialhdl::SerialReader>(o)?.can_wait_acks.set(FromPy::from_py(v)?);
+        Ok(())
+    }));
     r.attr("klippy.serialhdl.SerialReader.default_cmd_queue", |o| super::mcu::cq_to_py(objects::unwrap_as::<crate::serialhdl::SerialReader>(o)?.default_cmd_queue.clone()), None);
     r.attr("klippy.serialhdl.SerialReader.last_notify_id", |o| objects::unwrap_as::<crate::serialhdl::SerialReader>(o)?.last_notify_id.get().to_py(), Some(|o, v| {
         objects::unwrap_as::<crate::serialhdl::SerialReader>(o)?.last_notify_id.set(FromPy::from_py(v)?);

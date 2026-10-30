@@ -13,20 +13,20 @@ LCD_chips = {'st7920': st7920.ST7920, 'emulated_st7920': st7920.EmulatedST7920, 
 class DisplayTemplate(_k.Object):
     __kaliru_mirror__ = True
     def __init__(self, config):
-        _k.new(self, 1120, config)
+        _k.new(self, 1121, config)
     def get_params(self):
-        return _k.call(self, 1121)
+        return _k.call(self, 1122)
     def render(self, context, **kwargs):
-        return _k.call(self, 1122, context, kwargs)
-    name = _k.Attr(1123, 'name')
-    params = _k.Attr(1124, 'params')
-    printer = _k.Attr(1125, 'printer')
-    template = _k.Attr(1126, 'template')
+        return _k.call(self, 1123, context, kwargs)
+    name = _k.Attr(1124, 'name')
+    params = _k.Attr(1125, 'params')
+    printer = _k.Attr(1126, 'printer')
+    template = _k.Attr(1127, 'template')
 
 class DisplayGroup(_k.Object):
     __kaliru_mirror__ = True
     def __init__(self, config, name, data_configs):
-        _k.new(self, 1127, config, name, data_configs)
+        _k.new(self, 1128, config, name, data_configs)
     def show(self, display, templates, eventtime):
         context = self.data_items[0][2].create_template_context(eventtime)
         context["draw_progress_bar"] = display.draw_progress_bar
@@ -39,26 +39,26 @@ class DisplayGroup(_k.Object):
             text = template.render(context)
             display.draw_text(row, col, text.replace("\n", ""), eventtime)
         context.clear()
-    data_items = _k.Attr(1129, 'data_items')
+    data_items = _k.Attr(1130, 'data_items')
 
 class PrinterDisplayTemplate(_k.Object):
     __kaliru_mirror__ = True
     def __init__(self, config):
-        _k.new(self, 1130, config)
+        _k.new(self, 1131, config)
     def get_display_templates(self):
-        return _k.call(self, 1131)
-    def get_display_data_groups(self):
         return _k.call(self, 1132)
-    def get_display_glyphs(self):
+    def get_display_data_groups(self):
         return _k.call(self, 1133)
+    def get_display_glyphs(self):
+        return _k.call(self, 1134)
     def _parse_glyph(self, config, glyph_name, data, width, height):
-        return _k.call(self, 1134, config, glyph_name, data, width, height)
+        return _k.call(self, 1135, config, glyph_name, data, width, height)
     def load_config(self, config):
-        return _k.call(self, 1135, config)
-    display_data_groups = _k.Attr(1136, 'display_data_groups')
-    display_glyphs = _k.Attr(1137, 'display_glyphs')
-    display_templates = _k.Attr(1138, 'display_templates')
-    printer = _k.Attr(1139, 'printer')
+        return _k.call(self, 1136, config)
+    display_data_groups = _k.Attr(1137, 'display_data_groups')
+    display_glyphs = _k.Attr(1138, 'display_glyphs')
+    display_templates = _k.Attr(1139, 'display_templates')
+    printer = _k.Attr(1140, 'printer')
 
 def lookup_display_templates(config):
     printer = config.get_printer()
@@ -71,37 +71,37 @@ def lookup_display_templates(config):
 class PrinterLCD(_k.Object):
     __kaliru_mirror__ = True
     def __init__(self, config):
-        _k.new(self, 1141, config)
+        _k.new(self, 1142, config)
     def get_dimensions(self):
-        return _k.call(self, 1142)
+        return _k.call(self, 1143)
     def handle_reconnect(self):
         self.lcd_chip.init()
     def handle_ready(self):
-        return _k.call(self, 1144)
+        return _k.call(self, 1145)
     def screen_update_event(self, eventtime):
-        return _k.call(self, 1145, eventtime)
+        return _k.call(self, 1146, eventtime)
     def request_redraw(self):
-        return _k.call(self, 1146)
+        return _k.call(self, 1147)
     def draw_text(self, row, col, mixed_text, eventtime):
-        return _k.call(self, 1147, row, col, mixed_text, eventtime)
+        return _k.call(self, 1148, row, col, mixed_text, eventtime)
     def draw_progress_bar(self, row, col, width, value):
-        return _k.call(self, 1148, row, col, width, value)
+        return _k.call(self, 1149, row, col, width, value)
     cmd_SET_DISPLAY_GROUP_help = 'Set the active display group'
     def cmd_SET_DISPLAY_GROUP(self, gcmd):
-        return _k.call(self, 1149, gcmd)
-    display_data_groups = _k.Attr(1150, 'display_data_groups')
-    display_templates = _k.Attr(1151, 'display_templates')
-    lcd_chip = _k.Attr(1152, 'lcd_chip')
-    menu = _k.Attr(1153, 'menu')
-    printer = _k.Attr(1154, 'printer')
-    reactor = _k.Attr(1155, 'reactor')
-    redraw_request_pending = _k.Attr(1156, 'redraw_request_pending')
-    redraw_time = _k.Attr(1157, 'redraw_time')
-    screen_update_timer = _k.Attr(1158, 'screen_update_timer')
-    show_data_group = _k.Attr(1159, 'show_data_group')
+        return _k.call(self, 1150, gcmd)
+    display_data_groups = _k.Attr(1151, 'display_data_groups')
+    display_templates = _k.Attr(1152, 'display_templates')
+    lcd_chip = _k.Attr(1153, 'lcd_chip')
+    menu = _k.Attr(1154, 'menu')
+    printer = _k.Attr(1155, 'printer')
+    reactor = _k.Attr(1156, 'reactor')
+    redraw_request_pending = _k.Attr(1157, 'redraw_request_pending')
+    redraw_time = _k.Attr(1158, 'redraw_time')
+    screen_update_timer = _k.Attr(1159, 'screen_update_timer')
+    show_data_group = _k.Attr(1160, 'show_data_group')
 
 def load_config(config):
-    return _k.fcall(1160, config)
+    return _k.fcall(1161, config)
 
 
 __getattr__ = _k.module_getattr(__name__)

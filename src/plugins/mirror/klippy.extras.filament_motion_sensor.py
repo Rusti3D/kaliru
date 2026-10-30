@@ -6,47 +6,47 @@ CHECK_RUNOUT_TIMEOUT = 0.25
 class EncoderSensor(_k.Object):
     __kaliru_mirror__ = True
     def __init__(self, config):
-        _k.new(self, 1807, config)
+        _k.new(self, 1808, config)
     def _update_filament_runout_pos(self, eventtime=None):
-        return _k.call(self, 1808, eventtime)
+        return _k.call(self, 1809, eventtime)
     def _handle_ready(self):
-        return _k.call(self, 1809)
+        return _k.call(self, 1810)
     def _handle_printing(self, print_time):
-        return _k.call(self, 1810, print_time)
-    def _handle_not_printing(self, print_time):
         return _k.call(self, 1811, print_time)
+    def _handle_not_printing(self, print_time):
+        return _k.call(self, 1812, print_time)
     def get_extruder_pos(self, eventtime=None):
-        return _k.call(self, 1812, eventtime)
-    def _extruder_pos_update_event(self, eventtime):
         return _k.call(self, 1813, eventtime)
+    def _extruder_pos_update_event(self, eventtime):
+        return _k.call(self, 1814, eventtime)
     def encoder_event(self, eventtime, state):
-        return _k.call(self, 1814, eventtime, state)
+        return _k.call(self, 1815, eventtime, state)
     def get_sensor_status(self):
-        return _k.call(self, 1815)
+        return _k.call(self, 1816)
     def sensor_get_status(self, eventtime):
-        return _k.call(self, 1816, eventtime)
+        return _k.call(self, 1817, eventtime)
     def get_info(self, gcmd):
-        return _k.call(self, 1817, gcmd)
+        return _k.call(self, 1818, gcmd)
     def reset_needed(self, enable=None, always_fire_events=None):
-        return _k.call(self, 1818, enable, always_fire_events)
+        return _k.call(self, 1819, enable, always_fire_events)
     def set_filament_sensor(self, gcmd):
-        return _k.call(self, 1819, gcmd)
+        return _k.call(self, 1820, gcmd)
     def reset(self):
-        return _k.call(self, 1820)
-    _extruder_pos_update_timer = _k.Attr(1821, '_extruder_pos_update_timer')
-    detection_length = _k.Attr(1822, 'detection_length')
-    estimated_print_time = _k.Attr(1823, 'estimated_print_time')
-    extruder = _k.Attr(1824, 'extruder')
-    extruder_name = _k.Attr(1825, 'extruder_name')
-    filament_runout_pos = _k.Attr(1826, 'filament_runout_pos')
-    gcode = _k.Attr(1827, 'gcode')
-    get_status = _k.Attr(1828, 'get_status')
-    printer = _k.Attr(1829, 'printer')
-    reactor = _k.Attr(1830, 'reactor')
-    runout_helper = _k.Attr(1831, 'runout_helper')
+        return _k.call(self, 1821)
+    _extruder_pos_update_timer = _k.Attr(1822, '_extruder_pos_update_timer')
+    detection_length = _k.Attr(1823, 'detection_length')
+    estimated_print_time = _k.Attr(1824, 'estimated_print_time')
+    extruder = _k.Attr(1825, 'extruder')
+    extruder_name = _k.Attr(1826, 'extruder_name')
+    filament_runout_pos = _k.Attr(1827, 'filament_runout_pos')
+    gcode = _k.Attr(1828, 'gcode')
+    get_status = _k.Attr(1829, 'get_status')
+    printer = _k.Attr(1830, 'printer')
+    reactor = _k.Attr(1831, 'reactor')
+    runout_helper = _k.Attr(1832, 'runout_helper')
 
 def load_config_prefix(config):
-    return _k.fcall(1832, config)
+    return _k.fcall(1833, config)
 
 
 __getattr__ = _k.module_getattr(__name__)

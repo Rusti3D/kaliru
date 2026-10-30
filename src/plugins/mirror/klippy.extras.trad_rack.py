@@ -20,428 +20,428 @@ class TradRack(_k.Object):
     VARS_ACTIVE_LANE = 'tr_active_lane'
     GCODE_STATE_TOOLCHANGE = 'TR_TOOLCHANGE_STATE'
     def __init__(self, config):
-        _k.new(self, 5469, config)
+        _k.new(self, 5485, config)
     def handle_connect(self):
-        return _k.call(self, 5470)
+        return _k.call(self, 5486)
     def handle_ready(self):
-        return _k.call(self, 5471)
+        return _k.call(self, 5487)
     def _load_saved_state(self):
-        return _k.call(self, 5472)
+        return _k.call(self, 5488)
     def handle_runout(self, eventtime):
-        return _k.call(self, 5473, eventtime)
+        return _k.call(self, 5489, eventtime)
     cmd_TR_HOME_help = "Home Trad Rack's selector"
     def cmd_TR_HOME(self, gcmd):
-        return _k.call(self, 5474, gcmd)
+        return _k.call(self, 5490, gcmd)
     cmd_TR_GO_TO_LANE_help = "Move Trad Rack's selector to a filament lane"
     def cmd_TR_GO_TO_LANE(self, gcmd):
-        return _k.call(self, 5475, gcmd)
+        return _k.call(self, 5491, gcmd)
     cmd_TR_LOAD_LANE_help = 'Load filament from the spool into Trad Rack in the specified lane'
     def cmd_TR_LOAD_LANE(self, gcmd):
-        return _k.call(self, 5476, gcmd)
+        return _k.call(self, 5492, gcmd)
     cmd_TR_LOAD_TOOLHEAD_help = 'Load filament from Trad Rack into the toolhead'
     def cmd_TR_LOAD_TOOLHEAD(self, gcmd, tool_override=None):
-        return _k.call(self, 5477, gcmd, tool_override)
+        return _k.call(self, 5493, gcmd, tool_override)
     cmd_TR_UNLOAD_TOOLHEAD_help = 'Unload filament from the toolhead'
     def cmd_TR_UNLOAD_TOOLHEAD(self, gcmd):
-        return _k.call(self, 5478, gcmd)
+        return _k.call(self, 5494, gcmd)
     cmd_TR_SERVO_DOWN_help = 'Lower the servo'
     def cmd_TR_SERVO_DOWN(self, gcmd):
-        return _k.call(self, 5479, gcmd)
+        return _k.call(self, 5495, gcmd)
     cmd_TR_SERVO_UP_help = 'Raise the servo'
     def cmd_TR_SERVO_UP(self, gcmd):
-        return _k.call(self, 5480, gcmd)
+        return _k.call(self, 5496, gcmd)
     cmd_TR_SERVO_TEST_help = "Test an angle for Trad Rack's servo relative to servo_down_angle"
     def cmd_TR_SERVO_TEST(self, gcmd):
-        return _k.call(self, 5481, gcmd)
+        return _k.call(self, 5497, gcmd)
     cmd_TR_SET_ACTIVE_LANE_help = 'Set lane number that is currently loaded in the toolhead'
     def cmd_TR_SET_ACTIVE_LANE(self, gcmd):
-        return _k.call(self, 5482, gcmd)
+        return _k.call(self, 5498, gcmd)
     cmd_TR_RESET_ACTIVE_LANE_help = 'Resets active lane to None to indicate the toolhead is not loaded'
     def cmd_TR_RESET_ACTIVE_LANE(self, gcmd):
-        return _k.call(self, 5483, gcmd)
+        return _k.call(self, 5499, gcmd)
     cmd_TR_RESUME_help = 'Completes necessary actions for Trad Rack to recover and resumes the print'
     def cmd_TR_RESUME(self, gcmd):
-        return _k.call(self, 5484, gcmd)
+        return _k.call(self, 5500, gcmd)
     cmd_TR_LOCATE_SELECTOR_help = "Ensures the position of Trad Rack's selector is known so that it is ready for a print"
     def cmd_TR_LOCATE_SELECTOR(self, gcmd):
-        return _k.call(self, 5485, gcmd)
+        return _k.call(self, 5501, gcmd)
     cmd_TR_CALIBRATE_SELECTOR_help = "Calibrate lane_spacing and the selector's min, endstop, and max positions"
     def cmd_TR_CALIBRATE_SELECTOR(self, gcmd):
-        return _k.call(self, 5486, gcmd)
+        return _k.call(self, 5502, gcmd)
     cmd_TR_NEXT_help = 'You will be prompted to use this command if Trad Rack requires user confirmation'
     def cmd_TR_NEXT(self, gcmd):
-        return _k.call(self, 5487, gcmd)
+        return _k.call(self, 5503, gcmd)
     cmd_TR_SET_HOTEND_LOAD_LENGTH_help = 'Sets hotend_load_length. Does not persist across restarts.'
     def cmd_TR_SET_HOTEND_LOAD_LENGTH(self, gcmd):
-        return _k.call(self, 5488, gcmd)
+        return _k.call(self, 5504, gcmd)
     cmd_TR_DISCARD_BOWDEN_LENGTHS_help = 'Discards saved bowden lengths and reverts them to the bowden_length config value'
     def cmd_TR_DISCARD_BOWDEN_LENGTHS(self, gcmd):
-        return _k.call(self, 5489, gcmd)
+        return _k.call(self, 5505, gcmd)
     cmd_TR_SYNC_TO_EXTRUDER_help = "Sync Trad Rack's filament driver to the extruder"
     def cmd_TR_SYNC_TO_EXTRUDER(self, gcmd):
-        return _k.call(self, 5490, gcmd)
+        return _k.call(self, 5506, gcmd)
     cmd_TR_UNSYNC_FROM_EXTRUDER_help = "Unsync Trad Rack's filament driver from the extruder"
     def cmd_TR_UNSYNC_FROM_EXTRUDER(self, gcmd):
-        return _k.call(self, 5491, gcmd)
+        return _k.call(self, 5507, gcmd)
     cmd_TR_ASSIGN_LANE_help = 'Assign a lane to a tool'
     def cmd_TR_ASSIGN_LANE(self, gcmd):
-        return _k.call(self, 5492, gcmd)
+        return _k.call(self, 5508, gcmd)
     cmd_TR_SET_DEFAULT_LANE_help = 'Set the default lane for a tool'
     def cmd_TR_SET_DEFAULT_LANE(self, gcmd):
-        return _k.call(self, 5493, gcmd)
+        return _k.call(self, 5509, gcmd)
     cmd_TR_RESET_TOOL_MAP_help = 'Reset tools assigned to each lane'
     def cmd_TR_RESET_TOOL_MAP(self, gcmd):
-        return _k.call(self, 5494, gcmd)
+        return _k.call(self, 5510, gcmd)
     cmd_TR_PRINT_TOOL_MAP_help = 'Print tool assignment for each lane'
     def cmd_TR_PRINT_TOOL_MAP(self, gcmd):
-        return _k.call(self, 5495, gcmd)
+        return _k.call(self, 5511, gcmd)
     cmd_TR_PRINT_TOOL_GROUPS_help = 'Print lanes assigned to each tool'
     def cmd_TR_PRINT_TOOL_GROUPS(self, gcmd):
-        return _k.call(self, 5496, gcmd)
+        return _k.call(self, 5512, gcmd)
     def _lower_servo(self, toolhead_dwell=False):
-        return _k.call(self, 5497, toolhead_dwell)
+        return _k.call(self, 5513, toolhead_dwell)
     def _raise_servo(self, toolhead_dwell=False, tr_toolhead_dwell=True, wait_moves=True, print_time=None):
-        return _k.call(self, 5498, toolhead_dwell, tr_toolhead_dwell, wait_moves, print_time)
+        return _k.call(self, 5514, toolhead_dwell, tr_toolhead_dwell, wait_moves, print_time)
     def _is_selector_homed(self):
-        return _k.call(self, 5499)
+        return _k.call(self, 5515)
     def _query_selector_sensor(self):
-        return _k.call(self, 5500)
+        return _k.call(self, 5516)
     def _query_toolhead_sensor(self):
-        return _k.call(self, 5501)
+        return _k.call(self, 5517)
     def _check_lane_valid(self, lane):
-        return _k.call(self, 5502, lane)
+        return _k.call(self, 5518, lane)
     def _check_tool_valid(self, tool):
-        return _k.call(self, 5503, tool)
+        return _k.call(self, 5519, tool)
     def _check_selector_homed(self):
-        return _k.call(self, 5504)
+        return _k.call(self, 5520)
     def _can_lower_servo(self):
-        return _k.call(self, 5505)
+        return _k.call(self, 5521)
     def _is_next_toolchange_done(self):
-        return _k.call(self, 5506)
-    def _reset_fil_driver(self):
-        return _k.call(self, 5507)
-    def _restore_extruder_sync(self):
-        return _k.call(self, 5508)
-    def _go_to_lane(self, lane):
-        return _k.call(self, 5509, lane)
-    def _load_lane(self, lane, reset_speed=False, user_load=False):
-        return _k.call(self, 5510, lane, reset_speed, user_load)
-    def _wait_for_heater_temp(self, min_temp=0.0, exact_temp=0.0):
-        return _k.call(self, 5511, min_temp, exact_temp)
-    def _save_heater_target(self, target_temp=None):
-        return _k.call(self, 5512, target_temp)
-    def _note_heater_temps_for_redundant_toolchange(self, min_temp=0.0, exact_temp=0.0):
-        return _k.call(self, 5513, min_temp, exact_temp)
-    def _load_toolhead(self, lane, tool=None, min_temp=0.0, exact_temp=0.0, selector_already_loaded=False, bowden_length=None, extruder_load_length=None, hotend_load_length=None):
-        return _k.call(self, 5514, lane, tool, min_temp, exact_temp, selector_already_loaded, bowden_length, extruder_load_length, hotend_load_length)
-    def _load_selector(self, lane, tool=None, user_load=False):
-        return _k.call(self, 5515, lane, tool, user_load)
-    def _do_load_selector(self, lane, user_load=False):
-        return _k.call(self, 5516, lane, user_load)
-    def _unload_selector(self, base_length=None, mark_calibrated=False, eject=False):
-        return _k.call(self, 5517, base_length, mark_calibrated, eject)
-    def _unload_toolhead(self, min_temp=0.0, exact_temp=0.0, force_unload=False, sync=False, eject=False):
-        return _k.call(self, 5518, min_temp, exact_temp, force_unload, sync, eject)
-    def _send_pause(self):
-        return _k.call(self, 5519)
-    def _send_resume(self, resume_msg=None):
-        return _k.call(self, 5520, resume_msg)
-    def _set_active_lane(self, lane):
-        return _k.call(self, 5521, lane)
-    def _reset_tool_map(self):
         return _k.call(self, 5522)
-    def _find_replacement_lane(self, runout_lane, check_runout_lane=True):
-        return _k.call(self, 5523, runout_lane, check_runout_lane)
-    def _set_default_lane(self, tool, lane=None):
-        return _k.call(self, 5524, tool, lane)
-    def _make_lane_default(self, lane):
+    def _reset_fil_driver(self):
+        return _k.call(self, 5523)
+    def _restore_extruder_sync(self):
+        return _k.call(self, 5524)
+    def _go_to_lane(self, lane):
         return _k.call(self, 5525, lane)
-    def _assign_lane(self, lane, tool):
-        return _k.call(self, 5526, lane, tool)
-    def _get_assigned_lanes(self, tool):
-        return _k.call(self, 5527, tool)
-    def _runout_replace_filament(self):
-        return _k.call(self, 5528)
-    def _write_bowden_length_data(self, filename, length, old_set_length, new_set_length, samples):
-        return _k.call(self, 5529, filename, length, old_set_length, new_set_length, samples)
-    def _save_bowden_length(self, mode, new_set_length, samples):
-        return _k.call(self, 5530, mode, new_set_length, samples)
-    def _calibrate_selector(self):
-        return _k.call(self, 5531)
-    def _prompt_selector_calibration(self, lane):
-        return _k.call(self, 5532, lane)
-    def _measure_selector_to_endstop(self, max_travel):
-        return _k.call(self, 5533, max_travel)
-    def _resume_load_toolhead(self):
-        return _k.call(self, 5534)
-    def _resume_check_condition(self, condition, action=None, resume_msg="Resuming print", fail_msg="Condition not met to resume"):
-        return _k.call(self, 5535, condition, action, resume_msg, fail_msg)
-    def _resume_runout(self):
-        return _k.call(self, 5536)
-    def _set_up_resume_and_pause(self, resume_type, resume_kwargs):
-        return _k.call(self, 5537, resume_type, resume_kwargs)
-    def _unload_toolhead_and_resume(self):
+    def _load_lane(self, lane, reset_speed=False, user_load=False):
+        return _k.call(self, 5526, lane, reset_speed, user_load)
+    def _wait_for_heater_temp(self, min_temp=0.0, exact_temp=0.0):
+        return _k.call(self, 5527, min_temp, exact_temp)
+    def _save_heater_target(self, target_temp=None):
+        return _k.call(self, 5528, target_temp)
+    def _note_heater_temps_for_redundant_toolchange(self, min_temp=0.0, exact_temp=0.0):
+        return _k.call(self, 5529, min_temp, exact_temp)
+    def _load_toolhead(self, lane, tool=None, min_temp=0.0, exact_temp=0.0, selector_already_loaded=False, bowden_length=None, extruder_load_length=None, hotend_load_length=None):
+        return _k.call(self, 5530, lane, tool, min_temp, exact_temp, selector_already_loaded, bowden_length, extruder_load_length, hotend_load_length)
+    def _load_selector(self, lane, tool=None, user_load=False):
+        return _k.call(self, 5531, lane, tool, user_load)
+    def _do_load_selector(self, lane, user_load=False):
+        return _k.call(self, 5532, lane, user_load)
+    def _unload_selector(self, base_length=None, mark_calibrated=False, eject=False):
+        return _k.call(self, 5533, base_length, mark_calibrated, eject)
+    def _unload_toolhead(self, min_temp=0.0, exact_temp=0.0, force_unload=False, sync=False, eject=False):
+        return _k.call(self, 5534, min_temp, exact_temp, force_unload, sync, eject)
+    def _send_pause(self):
+        return _k.call(self, 5535)
+    def _send_resume(self, resume_msg=None):
+        return _k.call(self, 5536, resume_msg)
+    def _set_active_lane(self, lane):
+        return _k.call(self, 5537, lane)
+    def _reset_tool_map(self):
         return _k.call(self, 5538)
+    def _find_replacement_lane(self, runout_lane, check_runout_lane=True):
+        return _k.call(self, 5539, runout_lane, check_runout_lane)
+    def _set_default_lane(self, tool, lane=None):
+        return _k.call(self, 5540, tool, lane)
+    def _make_lane_default(self, lane):
+        return _k.call(self, 5541, lane)
+    def _assign_lane(self, lane, tool):
+        return _k.call(self, 5542, lane, tool)
+    def _get_assigned_lanes(self, tool):
+        return _k.call(self, 5543, tool)
+    def _runout_replace_filament(self):
+        return _k.call(self, 5544)
+    def _write_bowden_length_data(self, filename, length, old_set_length, new_set_length, samples):
+        return _k.call(self, 5545, filename, length, old_set_length, new_set_length, samples)
+    def _save_bowden_length(self, mode, new_set_length, samples):
+        return _k.call(self, 5546, mode, new_set_length, samples)
+    def _calibrate_selector(self):
+        return _k.call(self, 5547)
+    def _prompt_selector_calibration(self, lane):
+        return _k.call(self, 5548, lane)
+    def _measure_selector_to_endstop(self, max_travel):
+        return _k.call(self, 5549, max_travel)
+    def _resume_load_toolhead(self):
+        return _k.call(self, 5550)
+    def _resume_check_condition(self, condition, action=None, resume_msg="Resuming print", fail_msg="Condition not met to resume"):
+        return _k.call(self, 5551, condition, action, resume_msg, fail_msg)
+    def _resume_runout(self):
+        return _k.call(self, 5552)
+    def _set_up_resume_and_pause(self, resume_type, resume_kwargs):
+        return _k.call(self, 5553, resume_type, resume_kwargs)
+    def _unload_toolhead_and_resume(self):
+        return _k.call(self, 5554)
     def _resume_act_locate_selector(self):
-        return _k.call(self, 5539)
+        return _k.call(self, 5555)
     def set_fil_driver_multiplier(self, multiplier):
-        return _k.call(self, 5540, multiplier)
+        return _k.call(self, 5556, multiplier)
     def is_fil_driver_synced(self):
-        return _k.call(self, 5541)
+        return _k.call(self, 5557)
     def get_status(self, eventtime):
-        return _k.call(self, 5542, eventtime)
-    active_lane = _k.Attr(5543, 'active_lane')
-    bowden_load_calibrated = _k.Attr(5544, 'bowden_load_calibrated')
-    bowden_load_length = _k.Attr(5545, 'bowden_load_length')
-    bowden_load_length_filter = _k.Attr(5546, 'bowden_load_length_filter')
-    bowden_load_lengths_filename = _k.Attr(5547, 'bowden_load_lengths_filename')
-    bowden_unload_calibrated = _k.Attr(5548, 'bowden_unload_calibrated')
-    bowden_unload_length = _k.Attr(5549, 'bowden_unload_length')
-    bowden_unload_length_filter = _k.Attr(5550, 'bowden_unload_length_filter')
-    bowden_unload_lengths_filename = _k.Attr(5551, 'bowden_unload_lengths_filename')
-    buffer_pull_speed = _k.Attr(5552, 'buffer_pull_speed')
-    config_bowden_length = _k.Attr(5553, 'config_bowden_length')
-    curr_lane = _k.Attr(5554, 'curr_lane')
-    default_lanes = _k.Attr(5555, 'default_lanes')
-    eject_length = _k.Attr(5556, 'eject_length')
-    eject_speed = _k.Attr(5557, 'eject_speed')
-    extruder_load_length = _k.Attr(5558, 'extruder_load_length')
-    extruder_load_speed = _k.Attr(5559, 'extruder_load_speed')
-    extruder_sync_manager = _k.Attr(5560, 'extruder_sync_manager')
-    fil_driver_endstops = _k.Attr(5561, 'fil_driver_endstops')
-    fil_homing_lengths = _k.Attr(5562, 'fil_homing_lengths')
-    fil_homing_retract_dist = _k.Attr(5563, 'fil_homing_retract_dist')
-    gcode = _k.Attr(5564, 'gcode')
-    hotend_load_length = _k.Attr(5565, 'hotend_load_length')
-    hotend_load_speed = _k.Attr(5566, 'hotend_load_speed')
-    ignore_next_unload_length = _k.Attr(5567, 'ignore_next_unload_length')
-    keep_servo_down_after_lane_load = _k.Attr(5568, 'keep_servo_down_after_lane_load')
-    lane_count = _k.Attr(5569, 'lane_count')
-    lane_position_manager = _k.Attr(5570, 'lane_position_manager')
-    lane_positions = _k.Attr(5571, 'lane_positions')
-    lanes_buffered = _k.Attr(5572, 'lanes_buffered')
-    lanes_dead = _k.Attr(5573, 'lanes_dead')
-    last_heater_target = _k.Attr(5574, 'last_heater_target')
-    load_with_toolhead_sensor = _k.Attr(5575, 'load_with_toolhead_sensor')
-    log_bowden_lengths = _k.Attr(5576, 'log_bowden_lengths')
-    next_lane = _k.Attr(5577, 'next_lane')
-    next_tool = _k.Attr(5578, 'next_tool')
-    pause_macro = _k.Attr(5579, 'pause_macro')
-    post_load_macro = _k.Attr(5580, 'post_load_macro')
-    post_unload_macro = _k.Attr(5581, 'post_unload_macro')
-    pre_load_macro = _k.Attr(5582, 'pre_load_macro')
-    pre_unload_macro = _k.Attr(5583, 'pre_unload_macro')
-    printer = _k.Attr(5584, 'printer')
-    reactor = _k.Attr(5585, 'reactor')
-    replacement_lane = _k.Attr(5586, 'replacement_lane')
-    resume_callbacks = _k.Attr(5587, 'resume_callbacks')
-    resume_macro = _k.Attr(5588, 'resume_macro')
-    resume_stack = _k.Attr(5589, 'resume_stack')
-    retry_lane = _k.Attr(5590, 'retry_lane')
-    runout_lane = _k.Attr(5591, 'runout_lane')
-    runout_steps_done = _k.Attr(5592, 'runout_steps_done')
-    save_active_lane = _k.Attr(5593, 'save_active_lane')
-    sel_max_velocity = _k.Attr(5594, 'sel_max_velocity')
-    selector_endstops = _k.Attr(5595, 'selector_endstops')
-    selector_pos_uncertain = _k.Attr(5596, 'selector_pos_uncertain')
-    selector_sense_speed = _k.Attr(5597, 'selector_sense_speed')
-    selector_sensor = _k.Attr(5598, 'selector_sensor')
-    selector_unload_length = _k.Attr(5599, 'selector_unload_length')
-    selector_unload_length_extra = _k.Attr(5600, 'selector_unload_length_extra')
-    selector_unload_speed = _k.Attr(5601, 'selector_unload_speed')
-    servo = _k.Attr(5602, 'servo')
-    servo_down_angle = _k.Attr(5603, 'servo_down_angle')
-    servo_raised = _k.Attr(5604, 'servo_raised')
-    servo_up_angle = _k.Attr(5605, 'servo_up_angle')
-    servo_wait = _k.Attr(5606, 'servo_wait')
-    spool_pull_speed = _k.Attr(5607, 'spool_pull_speed')
-    sync_to_extruder = _k.Attr(5608, 'sync_to_extruder')
-    target_selector_homing_dist = _k.Attr(5609, 'target_selector_homing_dist')
-    target_toolhead_homing_dist = _k.Attr(5610, 'target_toolhead_homing_dist')
-    tool_map = _k.Attr(5611, 'tool_map')
-    toolhead = _k.Attr(5612, 'toolhead')
-    toolhead_fil_endstops = _k.Attr(5613, 'toolhead_fil_endstops')
-    toolhead_sense_speed = _k.Attr(5614, 'toolhead_sense_speed')
-    toolhead_unload_length = _k.Attr(5615, 'toolhead_unload_length')
-    toolhead_unload_speed = _k.Attr(5616, 'toolhead_unload_speed')
-    tr_kinematics = _k.Attr(5617, 'tr_kinematics')
-    tr_next_generator = _k.Attr(5618, 'tr_next_generator')
-    tr_toolhead = _k.Attr(5619, 'tr_toolhead')
-    unload_with_toolhead_sensor = _k.Attr(5620, 'unload_with_toolhead_sensor')
-    user_wait_time = _k.Attr(5621, 'user_wait_time')
-    variables = _k.Attr(5622, 'variables')
+        return _k.call(self, 5558, eventtime)
+    active_lane = _k.Attr(5559, 'active_lane')
+    bowden_load_calibrated = _k.Attr(5560, 'bowden_load_calibrated')
+    bowden_load_length = _k.Attr(5561, 'bowden_load_length')
+    bowden_load_length_filter = _k.Attr(5562, 'bowden_load_length_filter')
+    bowden_load_lengths_filename = _k.Attr(5563, 'bowden_load_lengths_filename')
+    bowden_unload_calibrated = _k.Attr(5564, 'bowden_unload_calibrated')
+    bowden_unload_length = _k.Attr(5565, 'bowden_unload_length')
+    bowden_unload_length_filter = _k.Attr(5566, 'bowden_unload_length_filter')
+    bowden_unload_lengths_filename = _k.Attr(5567, 'bowden_unload_lengths_filename')
+    buffer_pull_speed = _k.Attr(5568, 'buffer_pull_speed')
+    config_bowden_length = _k.Attr(5569, 'config_bowden_length')
+    curr_lane = _k.Attr(5570, 'curr_lane')
+    default_lanes = _k.Attr(5571, 'default_lanes')
+    eject_length = _k.Attr(5572, 'eject_length')
+    eject_speed = _k.Attr(5573, 'eject_speed')
+    extruder_load_length = _k.Attr(5574, 'extruder_load_length')
+    extruder_load_speed = _k.Attr(5575, 'extruder_load_speed')
+    extruder_sync_manager = _k.Attr(5576, 'extruder_sync_manager')
+    fil_driver_endstops = _k.Attr(5577, 'fil_driver_endstops')
+    fil_homing_lengths = _k.Attr(5578, 'fil_homing_lengths')
+    fil_homing_retract_dist = _k.Attr(5579, 'fil_homing_retract_dist')
+    gcode = _k.Attr(5580, 'gcode')
+    hotend_load_length = _k.Attr(5581, 'hotend_load_length')
+    hotend_load_speed = _k.Attr(5582, 'hotend_load_speed')
+    ignore_next_unload_length = _k.Attr(5583, 'ignore_next_unload_length')
+    keep_servo_down_after_lane_load = _k.Attr(5584, 'keep_servo_down_after_lane_load')
+    lane_count = _k.Attr(5585, 'lane_count')
+    lane_position_manager = _k.Attr(5586, 'lane_position_manager')
+    lane_positions = _k.Attr(5587, 'lane_positions')
+    lanes_buffered = _k.Attr(5588, 'lanes_buffered')
+    lanes_dead = _k.Attr(5589, 'lanes_dead')
+    last_heater_target = _k.Attr(5590, 'last_heater_target')
+    load_with_toolhead_sensor = _k.Attr(5591, 'load_with_toolhead_sensor')
+    log_bowden_lengths = _k.Attr(5592, 'log_bowden_lengths')
+    next_lane = _k.Attr(5593, 'next_lane')
+    next_tool = _k.Attr(5594, 'next_tool')
+    pause_macro = _k.Attr(5595, 'pause_macro')
+    post_load_macro = _k.Attr(5596, 'post_load_macro')
+    post_unload_macro = _k.Attr(5597, 'post_unload_macro')
+    pre_load_macro = _k.Attr(5598, 'pre_load_macro')
+    pre_unload_macro = _k.Attr(5599, 'pre_unload_macro')
+    printer = _k.Attr(5600, 'printer')
+    reactor = _k.Attr(5601, 'reactor')
+    replacement_lane = _k.Attr(5602, 'replacement_lane')
+    resume_callbacks = _k.Attr(5603, 'resume_callbacks')
+    resume_macro = _k.Attr(5604, 'resume_macro')
+    resume_stack = _k.Attr(5605, 'resume_stack')
+    retry_lane = _k.Attr(5606, 'retry_lane')
+    runout_lane = _k.Attr(5607, 'runout_lane')
+    runout_steps_done = _k.Attr(5608, 'runout_steps_done')
+    save_active_lane = _k.Attr(5609, 'save_active_lane')
+    sel_max_velocity = _k.Attr(5610, 'sel_max_velocity')
+    selector_endstops = _k.Attr(5611, 'selector_endstops')
+    selector_pos_uncertain = _k.Attr(5612, 'selector_pos_uncertain')
+    selector_sense_speed = _k.Attr(5613, 'selector_sense_speed')
+    selector_sensor = _k.Attr(5614, 'selector_sensor')
+    selector_unload_length = _k.Attr(5615, 'selector_unload_length')
+    selector_unload_length_extra = _k.Attr(5616, 'selector_unload_length_extra')
+    selector_unload_speed = _k.Attr(5617, 'selector_unload_speed')
+    servo = _k.Attr(5618, 'servo')
+    servo_down_angle = _k.Attr(5619, 'servo_down_angle')
+    servo_raised = _k.Attr(5620, 'servo_raised')
+    servo_up_angle = _k.Attr(5621, 'servo_up_angle')
+    servo_wait = _k.Attr(5622, 'servo_wait')
+    spool_pull_speed = _k.Attr(5623, 'spool_pull_speed')
+    sync_to_extruder = _k.Attr(5624, 'sync_to_extruder')
+    target_selector_homing_dist = _k.Attr(5625, 'target_selector_homing_dist')
+    target_toolhead_homing_dist = _k.Attr(5626, 'target_toolhead_homing_dist')
+    tool_map = _k.Attr(5627, 'tool_map')
+    toolhead = _k.Attr(5628, 'toolhead')
+    toolhead_fil_endstops = _k.Attr(5629, 'toolhead_fil_endstops')
+    toolhead_sense_speed = _k.Attr(5630, 'toolhead_sense_speed')
+    toolhead_unload_length = _k.Attr(5631, 'toolhead_unload_length')
+    toolhead_unload_speed = _k.Attr(5632, 'toolhead_unload_speed')
+    tr_kinematics = _k.Attr(5633, 'tr_kinematics')
+    tr_next_generator = _k.Attr(5634, 'tr_next_generator')
+    tr_toolhead = _k.Attr(5635, 'tr_toolhead')
+    unload_with_toolhead_sensor = _k.Attr(5636, 'unload_with_toolhead_sensor')
+    user_wait_time = _k.Attr(5637, 'user_wait_time')
+    variables = _k.Attr(5638, 'variables')
 
 class TradRackToolHead(toolhead.ToolHead):
     __kaliru_mirror__ = True
     def __init__(self, config, buffer_pull_speed, is_extruder_synced):
-        _k.new(self, 5623, config, buffer_pull_speed, is_extruder_synced)
+        _k.new(self, 5639, config, buffer_pull_speed, is_extruder_synced)
     def set_position(self, newpos, homing_axes=()):
         for _ in range(4 - len(newpos)):
             newpos.append(0.0)
         super(TradRackToolHead, self).set_position(newpos, homing_axes)
     def get_sel_max_velocity(self):
-        return _k.call(self, 5625)
+        return _k.call(self, 5641)
     def get_fil_max_velocity(self):
-        return _k.call(self, 5626)
-    Coord = _k.Attr(5627, 'Coord')
-    can_pause = _k.Attr(5628, 'can_pause')
-    check_stall_time = _k.Attr(5629, 'check_stall_time')
-    commanded_pos = _k.Attr(5630, 'commanded_pos')
-    danger_options = _k.Attr(5631, 'danger_options')
-    extra_axes = _k.Attr(5632, 'extra_axes')
-    fil_max_accel = _k.Attr(5633, 'fil_max_accel')
-    fil_max_velocity = _k.Attr(5634, 'fil_max_velocity')
-    junction_deviation = _k.Attr(5635, 'junction_deviation')
-    kin = _k.Attr(5636, 'kin')
-    lookahead = _k.Attr(5637, 'lookahead')
-    max_accel = _k.Attr(5638, 'max_accel')
-    max_velocity = _k.Attr(5639, 'max_velocity')
-    mcr_pseudo_accel = _k.Attr(5640, 'mcr_pseudo_accel')
-    mcu = _k.Attr(5641, 'mcu')
-    min_cruise_ratio = _k.Attr(5642, 'min_cruise_ratio')
-    motion_queuing = _k.Attr(5643, 'motion_queuing')
-    need_check_pause = _k.Attr(5644, 'need_check_pause')
-    priming_timer = _k.Attr(5645, 'priming_timer')
-    print_stall = _k.Attr(5646, 'print_stall')
-    print_time = _k.Attr(5647, 'print_time')
-    printer = _k.Attr(5648, 'printer')
-    reactor = _k.Attr(5649, 'reactor')
-    sel_max_accel = _k.Attr(5650, 'sel_max_accel')
-    sel_max_velocity = _k.Attr(5651, 'sel_max_velocity')
-    special_queuing_state = _k.Attr(5652, 'special_queuing_state')
-    square_corner_velocity = _k.Attr(5653, 'square_corner_velocity')
-    trapq = _k.Attr(5654, 'trapq')
-    trapq_append = _k.Attr(5655, 'trapq_append')
+        return _k.call(self, 5642)
+    Coord = _k.Attr(5643, 'Coord')
+    can_pause = _k.Attr(5644, 'can_pause')
+    check_stall_time = _k.Attr(5645, 'check_stall_time')
+    commanded_pos = _k.Attr(5646, 'commanded_pos')
+    danger_options = _k.Attr(5647, 'danger_options')
+    extra_axes = _k.Attr(5648, 'extra_axes')
+    fil_max_accel = _k.Attr(5649, 'fil_max_accel')
+    fil_max_velocity = _k.Attr(5650, 'fil_max_velocity')
+    junction_deviation = _k.Attr(5651, 'junction_deviation')
+    kin = _k.Attr(5652, 'kin')
+    lookahead = _k.Attr(5653, 'lookahead')
+    max_accel = _k.Attr(5654, 'max_accel')
+    max_velocity = _k.Attr(5655, 'max_velocity')
+    mcr_pseudo_accel = _k.Attr(5656, 'mcr_pseudo_accel')
+    mcu = _k.Attr(5657, 'mcu')
+    min_cruise_ratio = _k.Attr(5658, 'min_cruise_ratio')
+    motion_queuing = _k.Attr(5659, 'motion_queuing')
+    need_check_pause = _k.Attr(5660, 'need_check_pause')
+    priming_timer = _k.Attr(5661, 'priming_timer')
+    print_stall = _k.Attr(5662, 'print_stall')
+    print_time = _k.Attr(5663, 'print_time')
+    printer = _k.Attr(5664, 'printer')
+    reactor = _k.Attr(5665, 'reactor')
+    sel_max_accel = _k.Attr(5666, 'sel_max_accel')
+    sel_max_velocity = _k.Attr(5667, 'sel_max_velocity')
+    special_queuing_state = _k.Attr(5668, 'special_queuing_state')
+    square_corner_velocity = _k.Attr(5669, 'square_corner_velocity')
+    trapq = _k.Attr(5670, 'trapq')
+    trapq_append = _k.Attr(5671, 'trapq_append')
 
 class TradRackKinematics(_k.Object):
     __kaliru_mirror__ = True
     def __init__(self, toolhead, config, is_extruder_synced):
-        _k.new(self, 5656, toolhead, config, is_extruder_synced)
+        _k.new(self, 5672, toolhead, config, is_extruder_synced)
     def get_steppers(self):
         return [s for rail in self.rails for s in rail.get_steppers()]
     def calc_position(self, stepper_positions):
         return [stepper_positions[rail.get_name()] for rail in self.rails]
     def set_position(self, newpos, homing_axes):
-        return _k.call(self, 5659, newpos, homing_axes)
+        return _k.call(self, 5675, newpos, homing_axes)
     def home_axis(self, homing_state, axis, rail):
-        return _k.call(self, 5660, homing_state, axis, rail)
+        return _k.call(self, 5676, homing_state, axis, rail)
     def home(self, homing_state):
         # Each axis is homed independently and in order
         for axis in homing_state.get_axes():
             self.home_axis(homing_state, axis, self.rails[axis])
     def _check_endstops(self, move):
-        return _k.call(self, 5662, move)
+        return _k.call(self, 5678, move)
     def check_move(self, move):
-        return _k.call(self, 5663, move)
+        return _k.call(self, 5679, move)
     def get_status(self, eventtime):
-        return _k.call(self, 5664, eventtime)
+        return _k.call(self, 5680, eventtime)
     def get_selector_rail(self):
-        return _k.call(self, 5665)
+        return _k.call(self, 5681)
     def get_fil_driver_rail(self):
-        return _k.call(self, 5666)
-    fil_max_accel = _k.Attr(5667, 'fil_max_accel')
-    fil_max_velocity = _k.Attr(5668, 'fil_max_velocity')
-    is_extruder_synced = _k.Attr(5669, 'is_extruder_synced')
-    limits = _k.Attr(5670, 'limits')
-    printer = _k.Attr(5671, 'printer')
-    rails = _k.Attr(5672, 'rails')
-    sel_max_accel = _k.Attr(5673, 'sel_max_accel')
-    sel_max_velocity = _k.Attr(5674, 'sel_max_velocity')
-    selector_max = _k.Attr(5675, 'selector_max')
-    selector_min = _k.Attr(5676, 'selector_min')
-    stepper_count = _k.Attr(5677, 'stepper_count')
+        return _k.call(self, 5682)
+    fil_max_accel = _k.Attr(5683, 'fil_max_accel')
+    fil_max_velocity = _k.Attr(5684, 'fil_max_velocity')
+    is_extruder_synced = _k.Attr(5685, 'is_extruder_synced')
+    limits = _k.Attr(5686, 'limits')
+    printer = _k.Attr(5687, 'printer')
+    rails = _k.Attr(5688, 'rails')
+    sel_max_accel = _k.Attr(5689, 'sel_max_accel')
+    sel_max_velocity = _k.Attr(5690, 'sel_max_velocity')
+    selector_max = _k.Attr(5691, 'selector_max')
+    selector_min = _k.Attr(5692, 'selector_min')
+    stepper_count = _k.Attr(5693, 'stepper_count')
 
 class TradRackHoming(Homing):
     __kaliru_mirror__ = True
     def __init__(self, printer, toolhead):
-        _k.new(self, 5678, printer, toolhead)
+        _k.new(self, 5694, printer, toolhead)
     def home_rails(self, rails, forcepos, movepos):
-        return _k.call(self, 5679, rails, forcepos, movepos)
-    adjust_pos = _k.Attr(5680, 'adjust_pos')
-    toolhead = _k.Attr(5681, 'toolhead')
-    trigger_mcu_pos = _k.Attr(5682, 'trigger_mcu_pos')
+        return _k.call(self, 5695, rails, forcepos, movepos)
+    adjust_pos = _k.Attr(5696, 'adjust_pos')
+    toolhead = _k.Attr(5697, 'toolhead')
+    trigger_mcu_pos = _k.Attr(5698, 'trigger_mcu_pos')
 
 class TradRackServo(_k.Object):
     __kaliru_mirror__ = True
     def __init__(self, servo, toolhead):
-        _k.new(self, 5683, servo, toolhead)
+        _k.new(self, 5699, servo, toolhead)
     def set_servo(self, width=None, angle=None, print_time=None):
-        return _k.call(self, 5684, width, angle, print_time)
+        return _k.call(self, 5700, width, angle, print_time)
     def get_max_angle(self):
-        return _k.call(self, 5685)
-    servo = _k.Attr(5686, 'servo')
-    toolhead = _k.Attr(5687, 'toolhead')
+        return _k.call(self, 5701)
+    servo = _k.Attr(5702, 'servo')
+    toolhead = _k.Attr(5703, 'toolhead')
 
 class TradRackLanePositionManager(_k.Object):
     __kaliru_mirror__ = True
     def __init__(self, lane_count, config):
-        _k.new(self, 5688, lane_count, config)
+        _k.new(self, 5704, lane_count, config)
     def get_lane_positions(self):
-        return _k.call(self, 5689)
+        return _k.call(self, 5705)
     def process_selector_calibration(self, endstop_to_lane0, endstop_to_last_lane, lane_spacing_ndigits=6):
-        return _k.call(self, 5690, endstop_to_lane0, endstop_to_last_lane, lane_spacing_ndigits)
-    lane_count = _k.Attr(5691, 'lane_count')
-    lane_offsets = _k.Attr(5692, 'lane_offsets')
-    lane_spacing = _k.Attr(5693, 'lane_spacing')
-    lane_spacing_mod_internal = _k.Attr(5694, 'lane_spacing_mod_internal')
-    lane_spacing_mods = _k.Attr(5695, 'lane_spacing_mods')
+        return _k.call(self, 5706, endstop_to_lane0, endstop_to_last_lane, lane_spacing_ndigits)
+    lane_count = _k.Attr(5707, 'lane_count')
+    lane_offsets = _k.Attr(5708, 'lane_offsets')
+    lane_spacing = _k.Attr(5709, 'lane_spacing')
+    lane_spacing_mod_internal = _k.Attr(5710, 'lane_spacing_mod_internal')
+    lane_spacing_mods = _k.Attr(5711, 'lane_spacing_mods')
 
 class TradRackExtruderSyncManager(_k.Object):
     __kaliru_mirror__ = True
     def __init__(self, printer, tr_toolhead, fil_driver_rail):
-        _k.new(self, 5696, printer, tr_toolhead, fil_driver_rail)
+        _k.new(self, 5712, printer, tr_toolhead, fil_driver_rail)
     def handle_connect(self):
-        return _k.call(self, 5697)
+        return _k.call(self, 5713)
     def _get_extruder_mcu_steppers(self):
-        return _k.call(self, 5698)
+        return _k.call(self, 5714)
     def reset_fil_driver(self):
-        return _k.call(self, 5699)
+        return _k.call(self, 5715)
     def _sync(self, sync_type):
-        return _k.call(self, 5700, sync_type)
+        return _k.call(self, 5716, sync_type)
     def sync_extruder_to_fil_driver(self):
-        return _k.call(self, 5701)
+        return _k.call(self, 5717)
     def sync_fil_driver_to_extruder(self):
-        return _k.call(self, 5702)
+        return _k.call(self, 5718)
     def unsync(self):
-        return _k.call(self, 5703)
+        return _k.call(self, 5719)
     def is_extruder_synced(self):
-        return _k.call(self, 5704)
+        return _k.call(self, 5720)
     def is_fil_driver_synced(self):
-        return _k.call(self, 5705)
+        return _k.call(self, 5721)
     def set_fil_driver_multiplier(self, multiplier):
-        return _k.call(self, 5706, multiplier)
-    _prev_rotation_dists = _k.Attr(5707, '_prev_rotation_dists')
-    _prev_sks = _k.Attr(5708, '_prev_sks')
-    _prev_trapq = _k.Attr(5709, '_prev_trapq')
-    fil_driver_rail = _k.Attr(5710, 'fil_driver_rail')
-    printer = _k.Attr(5711, 'printer')
-    sync_state = _k.Attr(5712, 'sync_state')
-    toolhead = _k.Attr(5713, 'toolhead')
-    tr_toolhead = _k.Attr(5714, 'tr_toolhead')
+        return _k.call(self, 5722, multiplier)
+    _prev_rotation_dists = _k.Attr(5723, '_prev_rotation_dists')
+    _prev_sks = _k.Attr(5724, '_prev_sks')
+    _prev_trapq = _k.Attr(5725, '_prev_trapq')
+    fil_driver_rail = _k.Attr(5726, 'fil_driver_rail')
+    printer = _k.Attr(5727, 'printer')
+    sync_state = _k.Attr(5728, 'sync_state')
+    toolhead = _k.Attr(5729, 'toolhead')
+    tr_toolhead = _k.Attr(5730, 'tr_toolhead')
 
 class RunIfNoActivity(_k.Object):
     __kaliru_mirror__ = True
     def __init__(self, toolhead, reactor, callback, delay):
-        _k.new(self, 5715, toolhead, reactor, callback, delay)
+        _k.new(self, 5731, toolhead, reactor, callback, delay)
     def _run_if_no_activity(self, eventtime):
-        return _k.call(self, 5716, eventtime)
-    callback = _k.Attr(5717, 'callback')
-    initial_print_time = _k.Attr(5718, 'initial_print_time')
-    toolhead = _k.Attr(5719, 'toolhead')
+        return _k.call(self, 5732, eventtime)
+    callback = _k.Attr(5733, 'callback')
+    initial_print_time = _k.Attr(5734, 'initial_print_time')
+    toolhead = _k.Attr(5735, 'toolhead')
 
 class MovingAverageFilter(_k.Object):
     __kaliru_mirror__ = True
     def __init__(self, max_entries):
-        _k.new(self, 5720, max_entries)
+        _k.new(self, 5736, max_entries)
     def update(self, value):
-        return _k.call(self, 5721, value)
+        return _k.call(self, 5737, value)
     def reset(self):
-        return _k.call(self, 5722)
+        return _k.call(self, 5738)
     def get_entry_count(self):
-        return _k.call(self, 5723)
-    max_entries = _k.Attr(5724, 'max_entries')
-    queue = _k.Attr(5725, 'queue')
-    total = _k.Attr(5726, 'total')
+        return _k.call(self, 5739)
+    max_entries = _k.Attr(5740, 'max_entries')
+    queue = _k.Attr(5741, 'queue')
+    total = _k.Attr(5742, 'total')
 
 class TradRackLoadError(CommandError):
     pass
@@ -452,18 +452,18 @@ class SelectorNotHomedError(CommandError):
 class TradRackRunoutSensor(_k.Object):
     __kaliru_mirror__ = True
     def __init__(self, config, runout_callback, pin):
-        _k.new(self, 5727, config, runout_callback, pin)
+        _k.new(self, 5743, config, runout_callback, pin)
     def sensor_callback(self, eventtime, state):
-        return _k.call(self, 5728, eventtime, state)
+        return _k.call(self, 5744, eventtime, state)
     def set_active(self, active):
-        return _k.call(self, 5729, active)
-    active = _k.Attr(5730, 'active')
-    printer = _k.Attr(5731, 'printer')
-    reactor = _k.Attr(5732, 'reactor')
-    runout_callback = _k.Attr(5733, 'runout_callback')
+        return _k.call(self, 5745, active)
+    active = _k.Attr(5746, 'active')
+    printer = _k.Attr(5747, 'printer')
+    reactor = _k.Attr(5748, 'reactor')
+    runout_callback = _k.Attr(5749, 'runout_callback')
 
 def load_config(config):
-    return _k.fcall(5734, config)
+    return _k.fcall(5750, config)
 
 
 __getattr__ = _k.module_getattr(__name__)

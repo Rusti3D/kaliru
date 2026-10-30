@@ -36,9 +36,9 @@ BATCH_UPDATES = 0.1
 class ICM20948(_k.Object):
     __kaliru_mirror__ = True
     def __init__(self, config):
-        _k.new(self, 2461, config)
+        _k.new(self, 2462, config)
     def _build_config(self):
-        return _k.call(self, 2462)
+        return _k.call(self, 2463)
     def read_reg(self, reg):
         params = self.i2c.i2c_read([reg], 1)
         return bytearray(params["response"])[0]
@@ -49,30 +49,30 @@ class ICM20948(_k.Object):
         self.batch_bulk.add_client(aqh.handle_batch)
         return aqh
     def _convert_samples(self, samples):
-        return _k.call(self, 2466, samples)
+        return _k.call(self, 2467, samples)
     def _start_measurements(self):
-        return _k.call(self, 2467)
-    def _finish_measurements(self):
         return _k.call(self, 2468)
+    def _finish_measurements(self):
+        return _k.call(self, 2469)
     def _process_batch(self, eventtime):
-        return _k.call(self, 2469, eventtime)
-    axes_map = _k.Attr(2470, 'axes_map')
-    batch_bulk = _k.Attr(2471, 'batch_bulk')
-    data_rate = _k.Attr(2472, 'data_rate')
-    ffreader = _k.Attr(2473, 'ffreader')
-    i2c = _k.Attr(2474, 'i2c')
-    last_error_count = _k.Attr(2475, 'last_error_count')
-    mcu = _k.Attr(2476, 'mcu')
-    name = _k.Attr(2477, 'name')
-    oid = _k.Attr(2478, 'oid')
-    printer = _k.Attr(2479, 'printer')
-    query_icm20948_cmd = _k.Attr(2480, 'query_icm20948_cmd')
+        return _k.call(self, 2470, eventtime)
+    axes_map = _k.Attr(2471, 'axes_map')
+    batch_bulk = _k.Attr(2472, 'batch_bulk')
+    data_rate = _k.Attr(2473, 'data_rate')
+    ffreader = _k.Attr(2474, 'ffreader')
+    i2c = _k.Attr(2475, 'i2c')
+    last_error_count = _k.Attr(2476, 'last_error_count')
+    mcu = _k.Attr(2477, 'mcu')
+    name = _k.Attr(2478, 'name')
+    oid = _k.Attr(2479, 'oid')
+    printer = _k.Attr(2480, 'printer')
+    query_icm20948_cmd = _k.Attr(2481, 'query_icm20948_cmd')
 
 def load_config(config):
-    return _k.fcall(2481, config)
+    return _k.fcall(2482, config)
 
 def load_config_prefix(config):
-    return _k.fcall(2482, config)
+    return _k.fcall(2483, config)
 
 
 __getattr__ = _k.module_getattr(__name__)

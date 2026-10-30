@@ -54,32 +54,32 @@ GLOBALSCALER_ERROR = "[tmc5160 %s]\nGLOBALSCALER(%d) calculation out of bounds.\
 class TMC5160CurrentHelper(tmc.BaseTMCCurrentHelper):
     __kaliru_mirror__ = True
     def __init__(self, config, mcu_tmc):
-        _k.new(self, 5311, config, mcu_tmc)
+        _k.new(self, 5327, config, mcu_tmc)
     def _calc_globalscaler(self, current):
-        return _k.call(self, 5312, current)
+        return _k.call(self, 5328, current)
     def _calc_current_bits(self, current, globalscaler):
-        return _k.call(self, 5313, current, globalscaler)
+        return _k.call(self, 5329, current, globalscaler)
     def _calc_current(self, run_current, hold_current):
-        return _k.call(self, 5314, run_current, hold_current)
+        return _k.call(self, 5330, run_current, hold_current)
     def _calc_current_from_field(self, field_name):
-        return _k.call(self, 5315, field_name)
+        return _k.call(self, 5331, field_name)
     def get_current(self):
-        return _k.call(self, 5316)
+        return _k.call(self, 5332)
     def apply_current(self, print_time):
-        return _k.call(self, 5317, print_time)
-    cs = _k.Attr(5318, 'cs')
+        return _k.call(self, 5333, print_time)
+    cs = _k.Attr(5334, 'cs')
 
 class TMC5160(_k.Object):
     __kaliru_mirror__ = True
     def __init__(self, config):
-        _k.new(self, 5319, config)
-    fields = _k.Attr(5320, 'fields')
-    get_phase_offset = _k.Attr(5321, 'get_phase_offset')
-    get_status = _k.Attr(5322, 'get_status')
-    mcu_tmc = _k.Attr(5323, 'mcu_tmc')
+        _k.new(self, 5335, config)
+    fields = _k.Attr(5336, 'fields')
+    get_phase_offset = _k.Attr(5337, 'get_phase_offset')
+    get_status = _k.Attr(5338, 'get_status')
+    mcu_tmc = _k.Attr(5339, 'mcu_tmc')
 
 def load_config_prefix(config):
-    return _k.fcall(5324, config)
+    return _k.fcall(5340, config)
 
 
 __getattr__ = _k.module_getattr(__name__)

@@ -228,6 +228,9 @@ impl LDC1612 {
     }
 
     pub fn read_reg(&self, reg: i64) -> KResult<i64> {
+        if self.mcu.is_fileoutput() {
+            return Ok(0);
+        }
         let params = self.i2c.i2c_read(&[reg as u8], 2, true)?;
         match params.get("response") {
             Some(Val::Bytes(b)) if b.len() >= 2 => Ok(((b[0] as i64) << 8) | b[1] as i64),
@@ -261,9 +264,6 @@ impl LDC1612 {
         {
             let cmd = self.ldc1612_setup_home_cmd.borrow();
             cmd.as_ref().ok_or_else(no_cmd)?.send(&[self.oid, 0, 0, 0, 0, 0].map(Val::Int), 0, 0)?;
-        }
-        if self.mcu.is_fileoutput() {
-            return Ok(0.0);
         }
         let params = {
             let q = self.query_ldc1612_home_state_cmd.borrow();
@@ -307,7 +307,7 @@ impl LDC1612 {
         // noise or wrong signal as a correctly initialized device
         let manuf_id = self.read_reg(REG_MANUFACTURER_ID)?;
         let dev_id = self.read_reg(REG_DEVICE_ID)?;
-        if manuf_id != LDC1612_MANUF_ID || dev_id != LDC1612_DEV_ID {
+        if (manuf_id != LDC1612_MANUF_ID || dev_id != LDC1612_DEV_ID) && !self.mcu.is_fileoutput() {
             return Err(KError::command(format!(
                 "Invalid ldc1612 id (got {:x},{:x} vs {:x},{:x}).\nThis is generally indicative of connection problems\n(e.g. faulty wiring) or a faulty ldc1612 chip.",
                 manuf_id, dev_id, LDC1612_MANUF_ID, LDC1612_DEV_ID
@@ -343,7 +343,7 @@ impl LDC1612 {
     }
 
     pub fn process_batch(&self, _eventtime: f64) -> KResult<PyVal> {
-        let raw = self.ffreader.pull_samples()?;
+        let (raw, _) = self.ffreader.pull_samples()?;
         let mut samples = self.convert_samples(&raw);
         if samples.is_empty() {
             return Ok(PyVal::dict());
@@ -355,7 +355,7 @@ impl LDC1612 {
         let d = crate::pydict! {
             "data" => PyVal::List(data),
             "errors" => PyVal::Int(self.last_error_count.get()),
-            "overflows" => PyVal::Int(self.ffreader.get_last_overflows()),
+            "overflows" => PyVal::Int(self.ffreader.get_total_overflows()),
         };
         Ok(PyVal::Dict(d))
     }

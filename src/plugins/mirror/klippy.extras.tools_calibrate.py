@@ -16,11 +16,11 @@ class Axis(enum.IntEnum):
 class ToolsCalibrate(_k.Object):
     __kaliru_mirror__ = True
     def __init__(self, config):
-        _k.new(self, 5400, config)
+        _k.new(self, 5416, config)
     def _reset_last_results(self, eventtime=None):
-        return _k.call(self, 5401, eventtime)
+        return _k.call(self, 5417, eventtime)
     def get_status(self, eventtime):
-        return _k.call(self, 5402, eventtime)
+        return _k.call(self, 5418, eventtime)
     def probe_xy(
         self, toolhead, top_pos, direction, gcmd, spread, samples=None
     ):
@@ -46,43 +46,43 @@ class ToolsCalibrate(_k.Object):
             max_distance=spread[axis] * 1.8,
         )[axis]
     def calibrate_xy(self, toolhead, top_pos, gcmd, spread, samples=None):
-        return _k.call(self, 5404, toolhead, top_pos, gcmd, spread, samples)
+        return _k.call(self, 5420, toolhead, top_pos, gcmd, spread, samples)
     def locate_sensor(self, gcmd):
-        return _k.call(self, 5405, gcmd)
+        return _k.call(self, 5421, gcmd)
     cmd_TOOL_LOCATE_SENSOR_help = 'Locate the tool calibration sensor, use with tool 0.'
     def cmd_TOOL_LOCATE_SENSOR(self, gcmd):
-        return _k.call(self, 5406, gcmd)
+        return _k.call(self, 5422, gcmd)
     cmd_TOOL_CALIBRATE_TOOL_OFFSET_help = 'Calibrate current tool offset relative to tool 0'
     def cmd_TOOL_CALIBRATE_TOOL_OFFSET(self, gcmd):
-        return _k.call(self, 5407, gcmd)
+        return _k.call(self, 5423, gcmd)
     cmd_TOOL_CALIBRATE_SAVE_TOOL_OFFSET_help = 'Save tool offset calibration to config'
     def cmd_TOOL_CALIBRATE_SAVE_TOOL_OFFSET(self, gcmd):
-        return _k.call(self, 5408, gcmd)
+        return _k.call(self, 5424, gcmd)
     cmd_TOOL_CALIBRATE_QUERY_PROBE_help = 'Return the state of calibration probe'
     def cmd_TOOL_CALIBRATE_QUERY_PROBE(self, gcmd):
-        return _k.call(self, 5409, gcmd)
-    calibration_probe_inactive = _k.Attr(5410, 'calibration_probe_inactive')
-    final_lift_z = _k.Attr(5411, 'final_lift_z')
-    gcode = _k.Attr(5412, 'gcode')
-    gcode_move = _k.Attr(5413, 'gcode_move')
-    initial_spread = _k.Attr(5414, 'initial_spread')
-    last_probe_offset = _k.Attr(5415, 'last_probe_offset')
-    last_result = _k.Attr(5416, 'last_result')
-    lift_speed = _k.Attr(5417, 'lift_speed')
-    lift_z = _k.Attr(5418, 'lift_z')
-    lower_z = _k.Attr(5419, 'lower_z')
-    name = _k.Attr(5420, 'name')
-    printer = _k.Attr(5421, 'printer')
-    probe_multi_axis = _k.Attr(5422, 'probe_multi_axis')
-    sensor_location = _k.Attr(5423, 'sensor_location')
-    spread = _k.Attr(5424, 'spread')
-    travel_speed = _k.Attr(5425, 'travel_speed')
-    trigger_to_bottom_z = _k.Attr(5426, 'trigger_to_bottom_z')
+        return _k.call(self, 5425, gcmd)
+    calibration_probe_inactive = _k.Attr(5426, 'calibration_probe_inactive')
+    final_lift_z = _k.Attr(5427, 'final_lift_z')
+    gcode = _k.Attr(5428, 'gcode')
+    gcode_move = _k.Attr(5429, 'gcode_move')
+    initial_spread = _k.Attr(5430, 'initial_spread')
+    last_probe_offset = _k.Attr(5431, 'last_probe_offset')
+    last_result = _k.Attr(5432, 'last_result')
+    lift_speed = _k.Attr(5433, 'lift_speed')
+    lift_z = _k.Attr(5434, 'lift_z')
+    lower_z = _k.Attr(5435, 'lower_z')
+    name = _k.Attr(5436, 'name')
+    printer = _k.Attr(5437, 'printer')
+    probe_multi_axis = _k.Attr(5438, 'probe_multi_axis')
+    sensor_location = _k.Attr(5439, 'sensor_location')
+    spread = _k.Attr(5440, 'spread')
+    travel_speed = _k.Attr(5441, 'travel_speed')
+    trigger_to_bottom_z = _k.Attr(5442, 'trigger_to_bottom_z')
 
 class PrinterProbeMultiAxis(_k.Object):
     __kaliru_mirror__ = True
     def __init__(self, config, mcu_probe_x, mcu_probe_y, mcu_probe_z):
-        _k.new(self, 5427, config, mcu_probe_x, mcu_probe_y, mcu_probe_z)
+        _k.new(self, 5443, config, mcu_probe_x, mcu_probe_y, mcu_probe_z)
     def setup_pin(self, pin_type, pin_params):
         if pin_type != "endstop" or pin_params["pin"] != "xy_virtual_endstop":
             raise pins.error("Probe virtual endstop only useful as endstop pin")
@@ -90,61 +90,61 @@ class PrinterProbeMultiAxis(_k.Object):
             raise pins.error("Can not pullup/invert probe virtual endstop")
         return self.mcu_probe
     def get_lift_speed(self, gcmd=None):
-        return _k.call(self, 5429, gcmd)
+        return _k.call(self, 5445, gcmd)
     def _probe(self, speed, axis, sense, max_distance):
-        return _k.call(self, 5430, speed, axis, sense, max_distance)
+        return _k.call(self, 5446, speed, axis, sense, max_distance)
     def _get_target_position(self, axis, sense, max_distance):
-        return _k.call(self, 5431, axis, sense, max_distance)
+        return _k.call(self, 5447, axis, sense, max_distance)
     def _move(self, coord, speed):
-        return _k.call(self, 5432, coord, speed)
+        return _k.call(self, 5448, coord, speed)
     def _calc_mean(self, positions):
-        return _k.call(self, 5433, positions)
+        return _k.call(self, 5449, positions)
     def _calc_median(self, positions, axis):
-        return _k.call(self, 5434, positions, axis)
+        return _k.call(self, 5450, positions, axis)
     def run_probe(self, direction, gcmd, speed_ratio=1.0, samples=None, max_distance=100.0):
-        return _k.call(self, 5435, direction, gcmd, speed_ratio, samples, max_distance)
-    gcode = _k.Attr(5436, 'gcode')
-    gcode_move = _k.Attr(5437, 'gcode_move')
-    last_result = _k.Attr(5438, 'last_result')
-    last_state = _k.Attr(5439, 'last_state')
-    last_x_result = _k.Attr(5440, 'last_x_result')
-    last_y_result = _k.Attr(5441, 'last_y_result')
-    last_z_result = _k.Attr(5442, 'last_z_result')
-    lift_speed = _k.Attr(5443, 'lift_speed')
-    max_travel = _k.Attr(5444, 'max_travel')
-    mcu_probe = _k.Attr(5445, 'mcu_probe')
-    name = _k.Attr(5446, 'name')
-    printer = _k.Attr(5447, 'printer')
-    sample_count = _k.Attr(5448, 'sample_count')
-    sample_retract_dist = _k.Attr(5449, 'sample_retract_dist')
-    samples_result = _k.Attr(5450, 'samples_result')
-    samples_retries = _k.Attr(5451, 'samples_retries')
-    samples_tolerance = _k.Attr(5452, 'samples_tolerance')
-    speed = _k.Attr(5453, 'speed')
+        return _k.call(self, 5451, direction, gcmd, speed_ratio, samples, max_distance)
+    gcode = _k.Attr(5452, 'gcode')
+    gcode_move = _k.Attr(5453, 'gcode_move')
+    last_result = _k.Attr(5454, 'last_result')
+    last_state = _k.Attr(5455, 'last_state')
+    last_x_result = _k.Attr(5456, 'last_x_result')
+    last_y_result = _k.Attr(5457, 'last_y_result')
+    last_z_result = _k.Attr(5458, 'last_z_result')
+    lift_speed = _k.Attr(5459, 'lift_speed')
+    max_travel = _k.Attr(5460, 'max_travel')
+    mcu_probe = _k.Attr(5461, 'mcu_probe')
+    name = _k.Attr(5462, 'name')
+    printer = _k.Attr(5463, 'printer')
+    sample_count = _k.Attr(5464, 'sample_count')
+    sample_retract_dist = _k.Attr(5465, 'sample_retract_dist')
+    samples_result = _k.Attr(5466, 'samples_result')
+    samples_retries = _k.Attr(5467, 'samples_retries')
+    samples_tolerance = _k.Attr(5468, 'samples_tolerance')
+    speed = _k.Attr(5469, 'speed')
 
 class ProbeEndstopWrapper(_k.Object):
     __kaliru_mirror__ = True
     def __init__(self, config, axis):
-        _k.new(self, 5454, config, axis)
+        _k.new(self, 5470, config, axis)
     def _get_steppers(self):
-        return _k.call(self, 5455)
+        return _k.call(self, 5471)
     def _handle_mcu_identify(self):
-        return _k.call(self, 5456)
+        return _k.call(self, 5472)
     def get_position_endstop(self):
-        return _k.call(self, 5457)
-    add_stepper = _k.Attr(5458, 'add_stepper')
-    axis = _k.Attr(5459, 'axis')
-    get_mcu = _k.Attr(5460, 'get_mcu')
-    get_steppers = _k.Attr(5461, 'get_steppers')
-    home_start = _k.Attr(5462, 'home_start')
-    home_wait = _k.Attr(5463, 'home_wait')
-    idex = _k.Attr(5464, 'idex')
-    mcu_endstop = _k.Attr(5465, 'mcu_endstop')
-    printer = _k.Attr(5466, 'printer')
-    query_endstop = _k.Attr(5467, 'query_endstop')
+        return _k.call(self, 5473)
+    add_stepper = _k.Attr(5474, 'add_stepper')
+    axis = _k.Attr(5475, 'axis')
+    get_mcu = _k.Attr(5476, 'get_mcu')
+    get_steppers = _k.Attr(5477, 'get_steppers')
+    home_start = _k.Attr(5478, 'home_start')
+    home_wait = _k.Attr(5479, 'home_wait')
+    idex = _k.Attr(5480, 'idex')
+    mcu_endstop = _k.Attr(5481, 'mcu_endstop')
+    printer = _k.Attr(5482, 'printer')
+    query_endstop = _k.Attr(5483, 'query_endstop')
 
 def load_config(config):
-    return _k.fcall(5468, config)
+    return _k.fcall(5484, config)
 
 Directions = {'x+': [Axis.X, +1], 'x-': [Axis.X, -1], 'y+': [Axis.Y, +1], 'y-': [Axis.Y, -1], 'z+': [Axis.Z, +1], 'z-': [Axis.Z, -1]}
 

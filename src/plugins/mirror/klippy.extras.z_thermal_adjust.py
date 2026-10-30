@@ -6,7 +6,7 @@ KELVIN_TO_CELSIUS = -273.15
 class ZThermalAdjuster(_k.Object):
     __kaliru_mirror__ = True
     def __init__(self, config):
-        _k.new(self, 5920, config)
+        _k.new(self, 5936, config)
     def register_commands(self, component):
         self.gcode.register_mux_command(
             "SET_Z_THERMAL_ADJUST",
@@ -16,62 +16,62 @@ class ZThermalAdjuster(_k.Object):
             desc=self.cmd_SET_Z_THERMAL_ADJUST_help,
         )
     def handle_connect(self):
-        return _k.call(self, 5922)
+        return _k.call(self, 5938)
     def get_status(self, eventtime):
-        return _k.call(self, 5923, eventtime)
+        return _k.call(self, 5939, eventtime)
     def handle_homing_move_end(self, homing_state, rails):
-        return _k.call(self, 5924, homing_state, rails)
+        return _k.call(self, 5940, homing_state, rails)
     def calc_adjust(self, pos):
-        return _k.call(self, 5925, pos)
+        return _k.call(self, 5941, pos)
     def calc_unadjust(self, pos):
-        return _k.call(self, 5926, pos)
+        return _k.call(self, 5942, pos)
     def get_position(self):
-        return _k.call(self, 5927)
+        return _k.call(self, 5943)
     def move(self, newpos, speed):
-        return _k.call(self, 5928, newpos, speed)
+        return _k.call(self, 5944, newpos, speed)
     def init_temperature_callback(self, read_time, temp):
-        return _k.call(self, 5929, read_time, temp)
+        return _k.call(self, 5945, read_time, temp)
     def temperature_callback(self, read_time, temp):
-        return _k.call(self, 5930, read_time, temp)
+        return _k.call(self, 5946, read_time, temp)
     def get_temp(self, eventtime):
-        return _k.call(self, 5931, eventtime)
+        return _k.call(self, 5947, eventtime)
     def stats(self, eventtime):
-        return _k.call(self, 5932, eventtime)
+        return _k.call(self, 5948, eventtime)
     def cmd_SET_Z_THERMAL_ADJUST(self, gcmd):
-        return _k.call(self, 5933, gcmd)
+        return _k.call(self, 5949, gcmd)
     cmd_SET_Z_THERMAL_ADJUST_help = 'Set/query Z Thermal Adjust parameters.'
-    adjust_enable = _k.Attr(5934, 'adjust_enable')
-    component = _k.Attr(5935, 'component')
-    config = _k.Attr(5936, 'config')
-    gcode = _k.Attr(5937, 'gcode')
-    inv_smooth_time = _k.Attr(5938, 'inv_smooth_time')
-    last_position = _k.Attr(5939, 'last_position')
-    last_temp = _k.Attr(5940, 'last_temp')
-    last_temp_time = _k.Attr(5941, 'last_temp_time')
-    lock = _k.Attr(5942, 'lock')
-    max_temp = _k.Attr(5943, 'max_temp')
-    max_z_adjust_mm = _k.Attr(5944, 'max_z_adjust_mm')
-    measured_max = _k.Attr(5945, 'measured_max')
-    measured_min = _k.Attr(5946, 'measured_min')
-    min_temp = _k.Attr(5947, 'min_temp')
-    next_transform = _k.Attr(5948, 'next_transform')
-    off_above_z = _k.Attr(5949, 'off_above_z')
-    printer = _k.Attr(5950, 'printer')
-    ref_temp_override = _k.Attr(5951, 'ref_temp_override')
-    ref_temperature = _k.Attr(5952, 'ref_temperature')
-    sensor = _k.Attr(5953, 'sensor')
-    smooth_time = _k.Attr(5954, 'smooth_time')
-    smoothed_temp = _k.Attr(5955, 'smoothed_temp')
-    temp_coeff = _k.Attr(5956, 'temp_coeff')
-    toolhead = _k.Attr(5957, 'toolhead')
-    z_adjust_mm = _k.Attr(5958, 'z_adjust_mm')
-    z_step_dist = _k.Attr(5959, 'z_step_dist')
+    adjust_enable = _k.Attr(5950, 'adjust_enable')
+    component = _k.Attr(5951, 'component')
+    config = _k.Attr(5952, 'config')
+    gcode = _k.Attr(5953, 'gcode')
+    inv_smooth_time = _k.Attr(5954, 'inv_smooth_time')
+    last_position = _k.Attr(5955, 'last_position')
+    last_temp = _k.Attr(5956, 'last_temp')
+    last_temp_time = _k.Attr(5957, 'last_temp_time')
+    lock = _k.Attr(5958, 'lock')
+    max_temp = _k.Attr(5959, 'max_temp')
+    max_z_adjust_mm = _k.Attr(5960, 'max_z_adjust_mm')
+    measured_max = _k.Attr(5961, 'measured_max')
+    measured_min = _k.Attr(5962, 'measured_min')
+    min_temp = _k.Attr(5963, 'min_temp')
+    next_transform = _k.Attr(5964, 'next_transform')
+    off_above_z = _k.Attr(5965, 'off_above_z')
+    printer = _k.Attr(5966, 'printer')
+    ref_temp_override = _k.Attr(5967, 'ref_temp_override')
+    ref_temperature = _k.Attr(5968, 'ref_temperature')
+    sensor = _k.Attr(5969, 'sensor')
+    smooth_time = _k.Attr(5970, 'smooth_time')
+    smoothed_temp = _k.Attr(5971, 'smoothed_temp')
+    temp_coeff = _k.Attr(5972, 'temp_coeff')
+    toolhead = _k.Attr(5973, 'toolhead')
+    z_adjust_mm = _k.Attr(5974, 'z_adjust_mm')
+    z_step_dist = _k.Attr(5975, 'z_step_dist')
 
 def load_config_prefix(config):
-    return _k.fcall(5960, config)
+    return _k.fcall(5976, config)
 
 def load_config(config):
-    return _k.fcall(5961, config)
+    return _k.fcall(5977, config)
 
 
 __getattr__ = _k.module_getattr(__name__)

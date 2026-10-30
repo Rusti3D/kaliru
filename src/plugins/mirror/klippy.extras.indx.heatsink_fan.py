@@ -6,24 +6,24 @@ BLOCKED_CHECK_SECONDS = 5
 class IndxHeatsinkFan(_k.Object):
     __kaliru_mirror__ = True
     def __init__(self, toolboard):
-        _k.new(self, 2644, toolboard)
+        _k.new(self, 2645, toolboard)
     def get_status(self, eventtime):
-        return _k.call(self, 2645, eventtime)
+        return _k.call(self, 2646, eventtime)
     def handle_ready(self):
-        return _k.call(self, 2646)
-    def handle_shutdown(self):
         return _k.call(self, 2647)
+    def handle_shutdown(self):
+        return _k.call(self, 2648)
     def add_heater(self, heater):
-        return _k.call(self, 2648, heater)
+        return _k.call(self, 2649, heater)
     def check_event(self, eventtime):
-        return _k.call(self, 2649, eventtime)
-    active_stopped_count = _k.Attr(2650, 'active_stopped_count')
-    check_timer = _k.Attr(2651, 'check_timer')
-    fan = _k.Attr(2652, 'fan')
-    heaters = _k.Attr(2653, 'heaters')
-    is_active = _k.Attr(2654, 'is_active')
-    steppers = _k.Attr(2655, 'steppers')
-    toolboard = _k.Attr(2656, 'toolboard')
+        return _k.call(self, 2650, eventtime)
+    active_stopped_count = _k.Attr(2651, 'active_stopped_count')
+    check_timer = _k.Attr(2652, 'check_timer')
+    fan = _k.Attr(2653, 'fan')
+    heaters = _k.Attr(2654, 'heaters')
+    is_active = _k.Attr(2655, 'is_active')
+    steppers = _k.Attr(2656, 'steppers')
+    toolboard = _k.Attr(2657, 'toolboard')
 
 
 __getattr__ = _k.module_getattr(__name__)

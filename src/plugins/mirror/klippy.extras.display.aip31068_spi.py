@@ -45,7 +45,7 @@ class flg_WRITE_RAM:
 class aip31068_spi(_k.Object):
     __kaliru_mirror__ = True
     def __init__(self, config):
-        _k.new(self, 1101, config)
+        _k.new(self, 1102, config)
     @staticmethod
     def encode(data, width=9):
         encoded_bytes = []
@@ -74,31 +74,31 @@ class aip31068_spi(_k.Object):
             encoded_bytes.append(last_byte)
         return encoded_bytes
     def send(self, data, minclock=0):
-        return _k.call(self, 1103, data, minclock)
+        return _k.call(self, 1104, data, minclock)
     def flush(self):
-        return _k.call(self, 1104)
-    def init(self):
         return _k.call(self, 1105)
+    def init(self):
+        return _k.call(self, 1106)
     def write_text(self, x, y, data):
-        return _k.call(self, 1106, x, y, data)
+        return _k.call(self, 1107, x, y, data)
     def set_glyphs(self, glyphs):
-        return _k.call(self, 1107, glyphs)
+        return _k.call(self, 1108, glyphs)
     def write_glyph(self, x, y, glyph_name):
-        return _k.call(self, 1108, x, y, glyph_name)
+        return _k.call(self, 1109, x, y, glyph_name)
     def write_graphics(self, x, y, data):
-        return _k.call(self, 1109, x, y, data)
+        return _k.call(self, 1110, x, y, data)
     def clear(self):
-        return _k.call(self, 1110)
-    def get_dimensions(self):
         return _k.call(self, 1111)
-    all_framebuffers = _k.Attr(1112, 'all_framebuffers')
-    glyph_framebuffer = _k.Attr(1113, 'glyph_framebuffer')
-    icons = _k.Attr(1114, 'icons')
-    line_length = _k.Attr(1115, 'line_length')
-    mcu = _k.Attr(1116, 'mcu')
-    printer = _k.Attr(1117, 'printer')
-    spi = _k.Attr(1118, 'spi')
-    text_framebuffers = _k.Attr(1119, 'text_framebuffers')
+    def get_dimensions(self):
+        return _k.call(self, 1112)
+    all_framebuffers = _k.Attr(1113, 'all_framebuffers')
+    glyph_framebuffer = _k.Attr(1114, 'glyph_framebuffer')
+    icons = _k.Attr(1115, 'icons')
+    line_length = _k.Attr(1116, 'line_length')
+    mcu = _k.Attr(1117, 'mcu')
+    printer = _k.Attr(1118, 'printer')
+    spi = _k.Attr(1119, 'spi')
+    text_framebuffers = _k.Attr(1120, 'text_framebuffers')
 
 DISPLAY_INIT_CMNDS = [CMND.HOME, CMND.ENTERY_MODE | flg_ENTERY_MODE.INC, CMND.DISPLAY | flg_DISPLAY.ON, CMND.SHIFT | flg_SHIFT.RIGHT, CMND.FUNCTION | flg_FUNCTION.TWO_LINES]
 

@@ -68,47 +68,47 @@ DEFAULT_RREF = 12000.0
 KIFS_BASE = 18.0
 
 def _adc_to_celsius(adc_value):
-    return _k.fcall(5325, adc_value)
+    return _k.fcall(5341, adc_value)
 
 def _adc_to_volts(adc_value):
-    return _k.fcall(5326, adc_value)
+    return _k.fcall(5342, adc_value)
 
 class TMC5262CurrentHelper(tmc.BaseTMCCurrentHelper):
     __kaliru_mirror__ = True
     def __init__(self, config, mcu_tmc):
-        _k.new(self, 5327, config, mcu_tmc)
+        _k.new(self, 5343, config, mcu_tmc)
     def _ifs_rms_for(self, cr, crs):
-        return _k.call(self, 5328, cr, crs)
+        return _k.call(self, 5344, cr, crs)
     def _ifs_rms(self):
-        return _k.call(self, 5329)
+        return _k.call(self, 5345)
     def _calc_ranges(self, current):
-        return _k.call(self, 5330, current)
+        return _k.call(self, 5346, current)
     def _calc_current(self, run_current, hold_current):
-        return _k.call(self, 5331, run_current, hold_current)
+        return _k.call(self, 5347, run_current, hold_current)
     def _calc_current_from_field(self, field_name):
-        return _k.call(self, 5332, field_name)
+        return _k.call(self, 5348, field_name)
     def get_current(self):
-        return _k.call(self, 5333)
+        return _k.call(self, 5349)
     def apply_current(self, print_time):
-        return _k.call(self, 5334, print_time)
-    rref = _k.Attr(5335, 'rref')
+        return _k.call(self, 5350, print_time)
+    rref = _k.Attr(5351, 'rref')
 
 class TMC5262(_k.Object):
     __kaliru_mirror__ = True
     def __init__(self, config):
-        _k.new(self, 5336, config)
+        _k.new(self, 5352, config)
     def _handle_pll_init(self):
-        return _k.call(self, 5337)
-    clear_mcu_phase_offset = _k.Attr(5338, 'clear_mcu_phase_offset')
-    fields = _k.Attr(5339, 'fields')
-    get_phase_offset = _k.Attr(5340, 'get_phase_offset')
-    get_status = _k.Attr(5341, 'get_status')
-    mcu_tmc = _k.Attr(5342, 'mcu_tmc')
-    name = _k.Attr(5343, 'name')
-    printer = _k.Attr(5344, 'printer')
+        return _k.call(self, 5353)
+    clear_mcu_phase_offset = _k.Attr(5354, 'clear_mcu_phase_offset')
+    fields = _k.Attr(5355, 'fields')
+    get_phase_offset = _k.Attr(5356, 'get_phase_offset')
+    get_status = _k.Attr(5357, 'get_status')
+    mcu_tmc = _k.Attr(5358, 'mcu_tmc')
+    name = _k.Attr(5359, 'name')
+    printer = _k.Attr(5360, 'printer')
 
 def load_config_prefix(config):
-    return _k.fcall(5345, config)
+    return _k.fcall(5361, config)
 
 FieldFormatters.update({'ov': lambda v: '1(Overvoltage!)' if v else '', 's2vsa': lambda v: '1(ShortToSupply_A!)' if v else '', 's2vsb': lambda v: '1(ShortToSupply_B!)' if v else '', 'vm_uvlo': lambda v: '1(VMUndervoltage!)' if v else '', 'vccio_uv': lambda v: '1(VCCIOUndervoltage!)' if v else '', 'register_reset': lambda v: '1(RegisterReset!)' if v else '', 'ext_clk': lambda v: '1(ExternalClock)' if v else '0(Internal16MHz)', 'ext_res_det': lambda v: '1' if v else '0(MissingRREF!)', 'drv_enn': lambda v: '1(Disabled)' if v else '0(Enabled)', 'silicon_rv': lambda v: '%d' % (v,), 'clk_loss': lambda v: '1(ClockLoss!)' if v else '', 'clk_is_stuck': lambda v: '1(ClockStuck!)' if v else '', 'clk_1m0_tmo': lambda v: '1(ClockTimeout!)' if v else '', 'adc_temp': lambda v: '0x%03x(%.1fC)' % (v, _adc_to_celsius(v)), 'adc_vsupply': lambda v: '0x%03x(%.3fV)' % (v, _adc_to_volts(v)), 'angle_meas': lambda v: '%d(%.1fdeg)' % (v, v * 360.0 / 1024.0), 'overvoltage_vth': lambda v: '0x%03x(%.3fV)' % (v, _adc_to_volts(v)), 'overtempprewarning_vth': lambda v: '0x%03x(%.1fC)' % (v, _adc_to_celsius(v))})
 

@@ -5,26 +5,26 @@ import _k
 class DelayedGcode(_k.Object):
     __kaliru_mirror__ = True
     def __init__(self, config):
-        _k.new(self, 1065, config)
+        _k.new(self, 1066, config)
     def _handle_ready(self):
-        return _k.call(self, 1066)
+        return _k.call(self, 1067)
     def _gcode_timer_event(self, eventtime):
-        return _k.call(self, 1067, eventtime)
+        return _k.call(self, 1068, eventtime)
     def cmd_UPDATE_DELAYED_GCODE(self, gcmd):
-        return _k.call(self, 1068, gcmd)
-    cmd_desc = _k.Attr(1069, 'cmd_desc')
-    duration = _k.Attr(1070, 'duration')
-    gcode = _k.Attr(1071, 'gcode')
-    inside_timer = _k.Attr(1072, 'inside_timer')
-    name = _k.Attr(1073, 'name')
-    printer = _k.Attr(1074, 'printer')
-    reactor = _k.Attr(1075, 'reactor')
-    repeat = _k.Attr(1076, 'repeat')
-    timer_gcode = _k.Attr(1077, 'timer_gcode')
-    timer_handler = _k.Attr(1078, 'timer_handler')
+        return _k.call(self, 1069, gcmd)
+    cmd_desc = _k.Attr(1070, 'cmd_desc')
+    duration = _k.Attr(1071, 'duration')
+    gcode = _k.Attr(1072, 'gcode')
+    inside_timer = _k.Attr(1073, 'inside_timer')
+    name = _k.Attr(1074, 'name')
+    printer = _k.Attr(1075, 'printer')
+    reactor = _k.Attr(1076, 'reactor')
+    repeat = _k.Attr(1077, 'repeat')
+    timer_gcode = _k.Attr(1078, 'timer_gcode')
+    timer_handler = _k.Attr(1079, 'timer_handler')
 
 def load_config_prefix(config):
-    return _k.fcall(1079, config)
+    return _k.fcall(1080, config)
 
 
 __getattr__ = _k.module_getattr(__name__)

@@ -104,6 +104,11 @@ pub fn register(r: &mut Registry) {
     r.method("klippy.msgproto.UnknownFormat.parse", |a| {
         parsed(crate::msgproto::UnknownFormat.parse(&bytes_of(a.arg(0))?, a.arg(1).as_i64()? as usize))
     });
+    // create_dummy_response(msgname, params=None)
+    r.method("klippy.msgproto.MessageParser.create_dummy_response", |a| {
+        let params = if a.arg(1).is_none() { Params::default() } else { params_from_py(a.arg(1))? };
+        params_to_py(&this(a)?.create_dummy_response(&a.string(0)?, &params)?)
+    });
     // create_command(msg): "" for an empty message, as python returns
     r.method("klippy.msgproto.MessageParser.create_command", |a| {
         let msg = a.string(0)?;

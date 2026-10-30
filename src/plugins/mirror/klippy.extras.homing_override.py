@@ -5,19 +5,19 @@ import _k
 class HomingOverride(_k.Object):
     __kaliru_mirror__ = True
     def __init__(self, config):
-        _k.new(self, 2426, config)
+        _k.new(self, 2427, config)
     def cmd_G28(self, gcmd):
-        return _k.call(self, 2427, gcmd)
-    axes = _k.Attr(2428, 'axes')
-    gcode = _k.Attr(2429, 'gcode')
-    in_script = _k.Attr(2430, 'in_script')
-    prev_G28 = _k.Attr(2431, 'prev_G28')
-    printer = _k.Attr(2432, 'printer')
-    start_pos = _k.Attr(2433, 'start_pos')
-    template = _k.Attr(2434, 'template')
+        return _k.call(self, 2428, gcmd)
+    axes = _k.Attr(2429, 'axes')
+    gcode = _k.Attr(2430, 'gcode')
+    in_script = _k.Attr(2431, 'in_script')
+    prev_G28 = _k.Attr(2432, 'prev_G28')
+    printer = _k.Attr(2433, 'printer')
+    start_pos = _k.Attr(2434, 'start_pos')
+    template = _k.Attr(2435, 'template')
 
 def load_config(config):
-    return _k.fcall(2435, config)
+    return _k.fcall(2436, config)
 
 
 __getattr__ = _k.module_getattr(__name__)

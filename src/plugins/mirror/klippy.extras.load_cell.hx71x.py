@@ -24,8 +24,9 @@ class HX71xBase(LoadCellSensor):
         return _k.call(self, 2977, callback)
     def attach_load_cell_probe(self, load_cell_probe_oid):
         return _k.call(self, 2978, load_cell_probe_oid)
-    def _convert_samples(self, samples):
-        return _k.call(self, 2979, samples)
+    @staticmethod
+    def _convert_samples(samples):
+        return _k.fcall(2979, samples)
     def _start_measurements(self):
         return _k.call(self, 2980)
     def _finish_measurements(self):
@@ -36,9 +37,9 @@ class HX71xBase(LoadCellSensor):
     batch_bulk = _k.Attr(2984, 'batch_bulk')
     consecutive_fails = _k.Attr(2985, 'consecutive_fails')
     dout_pin = _k.Attr(2986, 'dout_pin')
-    ffreader = _k.Attr(2987, 'ffreader')
-    gain_channel = _k.Attr(2988, 'gain_channel')
-    last_error_count = _k.Attr(2989, 'last_error_count')
+    error_count = _k.Attr(2987, 'error_count')
+    ffreader = _k.Attr(2988, 'ffreader')
+    gain_channel = _k.Attr(2989, 'gain_channel')
     mcu = _k.Attr(2990, 'mcu')
     name = _k.Attr(2991, 'name')
     oid = _k.Attr(2992, 'oid')

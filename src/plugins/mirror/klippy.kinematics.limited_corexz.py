@@ -8,18 +8,18 @@ EPSILON = float_info.epsilon
 class LimitedCoreXZKinematics(corexz.CoreXZKinematics):
     __kaliru_mirror__ = True
     def __init__(self, toolhead, config):
-        _k.new(self, 6457, toolhead, config)
+        _k.new(self, 6473, toolhead, config)
     def cmd_SET_KINEMATICS_LIMIT(self, gcmd):
-        return _k.call(self, 6458, gcmd)
+        return _k.call(self, 6474, gcmd)
     def check_move(self, move):
-        return _k.call(self, 6459, move)
-    max_accels = _k.Attr(6460, 'max_accels')
-    max_velocities = _k.Attr(6461, 'max_velocities')
-    scale_per_axis = _k.Attr(6462, 'scale_per_axis')
-    xy_hypot_accel = _k.Attr(6463, 'xy_hypot_accel')
+        return _k.call(self, 6475, move)
+    max_accels = _k.Attr(6476, 'max_accels')
+    max_velocities = _k.Attr(6477, 'max_velocities')
+    scale_per_axis = _k.Attr(6478, 'scale_per_axis')
+    xy_hypot_accel = _k.Attr(6479, 'xy_hypot_accel')
 
 def load_kinematics(toolhead, config):
-    return _k.fcall(6464, toolhead, config)
+    return _k.fcall(6480, toolhead, config)
 
 
 __getattr__ = _k.module_getattr(__name__)

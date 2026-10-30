@@ -5,24 +5,24 @@ import _k
 class GCodeButton(_k.Object):
     __kaliru_mirror__ = True
     def __init__(self, config):
-        _k.new(self, 1958, config)
+        _k.new(self, 1959, config)
     cmd_QUERY_BUTTON_help = 'Report on the state of a button'
     def cmd_QUERY_BUTTON(self, gcmd):
-        return _k.call(self, 1959, gcmd)
+        return _k.call(self, 1960, gcmd)
     def button_callback(self, eventtime, state):
-        return _k.call(self, 1960, eventtime, state)
+        return _k.call(self, 1961, eventtime, state)
     def get_status(self, eventtime=None):
-        return _k.call(self, 1961, eventtime)
-    gcode = _k.Attr(1962, 'gcode')
-    last_state = _k.Attr(1963, 'last_state')
-    name = _k.Attr(1964, 'name')
-    pin = _k.Attr(1965, 'pin')
-    press_template = _k.Attr(1966, 'press_template')
-    printer = _k.Attr(1967, 'printer')
-    release_template = _k.Attr(1968, 'release_template')
+        return _k.call(self, 1962, eventtime)
+    gcode = _k.Attr(1963, 'gcode')
+    last_state = _k.Attr(1964, 'last_state')
+    name = _k.Attr(1965, 'name')
+    pin = _k.Attr(1966, 'pin')
+    press_template = _k.Attr(1967, 'press_template')
+    printer = _k.Attr(1968, 'printer')
+    release_template = _k.Attr(1969, 'release_template')
 
 def load_config_prefix(config):
-    return _k.fcall(1969, config)
+    return _k.fcall(1970, config)
 
 
 __getattr__ = _k.module_getattr(__name__)

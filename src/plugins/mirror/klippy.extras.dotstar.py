@@ -6,21 +6,21 @@ BACKGROUND_PRIORITY_CLOCK = 9223372032559808512
 class PrinterDotstar(_k.Object):
     __kaliru_mirror__ = True
     def __init__(self, config):
-        _k.new(self, 1633, config)
+        _k.new(self, 1634, config)
     def handle_connect(self):
         self.update_leds(self.led_helper.get_status()["color_data"], None)
     def update_leds(self, led_state, print_time):
-        return _k.call(self, 1635, led_state, print_time)
+        return _k.call(self, 1636, led_state, print_time)
     def get_status(self, eventtime):
-        return _k.call(self, 1636, eventtime)
-    chain_count = _k.Attr(1637, 'chain_count')
-    led_helper = _k.Attr(1638, 'led_helper')
-    prev_data = _k.Attr(1639, 'prev_data')
-    printer = _k.Attr(1640, 'printer')
-    spi = _k.Attr(1641, 'spi')
+        return _k.call(self, 1637, eventtime)
+    chain_count = _k.Attr(1638, 'chain_count')
+    led_helper = _k.Attr(1639, 'led_helper')
+    prev_data = _k.Attr(1640, 'prev_data')
+    printer = _k.Attr(1641, 'printer')
+    spi = _k.Attr(1642, 'spi')
 
 def load_config_prefix(config):
-    return _k.fcall(1642, config)
+    return _k.fcall(1643, config)
 
 
 __getattr__ = _k.module_getattr(__name__)

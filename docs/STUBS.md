@@ -21,7 +21,7 @@ libusb's order (udev scan, sorted by sysfs path). Not tried on real hardware yet
 Every Kalico name has a Python stub in `src/plugins/mirror/`, but only names with a handler in
 `src/plugins/impls/` work. The rest raise `NotImplementedError: kaliru: X is not mirrored yet`.
 
-**Coverage: 6,753 of 7,489 IDs bound, 736 stubs (152 of them public names).**
+**Coverage: 6,779 of 7,512 IDs bound, 733 stubs (151 of them public names).**
 Done: extras.heaters, stepper (all but `_get_position_cmd`, `_stepqueue`), chelper `get_ffi` (an emulated cffi:
 prelude.py FFI / FFILib / CData, impls/chelper.rs), extras.motion_queuing (all but `setup_mcu_movequeue`,
 `steppersyncmgr`, `steppersyncmgr_gen_steps`), toolhead, kinematics.extruder, extras.homing, extras.force_move,
@@ -78,7 +78,7 @@ class of its kind (AHT1x/2x/3x, MAX6675/31855/31856/31865, ST7920/EmulatedST7920
 HX711/HX717, ADS131M02/04, the MPC wrappers, the menu item classes, the MCU helpers, z_tilt_ng's helpers);
 `objects::register_redirect` makes the "menu" object python's MenuManager.
 
-Left (152 public names) is what kaliru has no counterpart for, or keeps in a shape python cannot share:
+Left (151 public names) is what kaliru has no counterpart for, or keeps in a shape python cannot share:
 - no equivalent: cffi / C helpers (`chelper.logging_callback`, `run_hub_ctrl`, motion_queuing's steppersync,
   `RotaryDeltaCalibration.ffi_lib` aside), threads and locks (`BulkDataQueue.lock`, `ZThermalAdjuster.lock`,
   `SerialReader.lock` / `background_thread`), raw sockets and pyserial objects (`ServerSocket.sock`,

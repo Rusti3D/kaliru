@@ -139,15 +139,23 @@ fn opt_cmd_to_py<T: 'static + Clone>(c: &RefCell<Option<T>>) -> KResult<PyRef> {
     }
 }
 
+/// conn_helper.get_serial(), conn_helper.get_mcu().is_fileoutput()
+fn conn_helper_of(o: &PyRef) -> KResult<(Rc<crate::serialhdl::SerialReader>, bool)> {
+    let serial = objects::unwrap_as::<crate::serialhdl::SerialReader>(&o.call_method("get_serial", &[])?)?;
+    let fileoutput = o.call_method("get_mcu", &[])?.call_method("is_fileoutput", &[])?.is_true()?;
+    Ok((serial, fileoutput))
+}
+
 pub fn register(r: &mut Registry) {
     objects::register_class::<CqHandle>("_k", "CData");
     objects::register_class::<Trdispatch>("_k", "CData");
     objects::register_class::<McuTrsync>("klippy.mcu", "MCU_trsync");
 
     // ---------------------------------------------------- CommandWrapper
+    // (conn_helper, msgformat, cmd_queue=None)
     r.ctor("klippy.mcu.CommandWrapper.__init__", |a| {
-        let serial = objects::unwrap_as::<crate::serialhdl::SerialReader>(a.arg(0))?;
-        let c: Rc<dyn Any> = Rc::new(CommandWrapper::new(&serial, &a.string(1)?, cq_from_py(a.arg(2))?, a.bool(3)?)?);
+        let (serial, fileoutput) = conn_helper_of(a.arg(0))?;
+        let c: Rc<dyn Any> = Rc::new(CommandWrapper::new(&serial, &a.string(1)?, cq_from_py(a.arg(2))?, fileoutput)?);
         Ok(c)
     });
     // send(data=(), minclock=0, reqclock=0)
@@ -160,19 +168,32 @@ pub fn register(r: &mut Registry) {
         Ok(py_none())
     });
     method!(r, "klippy.mcu.CommandWrapper", CommandWrapper, get_command_tag(c) => c.get_command_tag());
+    // self._error: the printer's command_error
+    r.attr("klippy.mcu.CommandWrapper._error", |_o| lookup("klippy.gcode", "CommandError"), None);
+    r.attr("klippy.mcu.CommandQueryWrapper._error", |_o| lookup("klippy.gcode", "CommandError"), None);
+
+    // ----------------------------------------------------- DummyResponse
+    // (serial, name, oid=None)
+    r.ctor("klippy.mcu.DummyResponse.__init__", |a| {
+        let serial = objects::unwrap_as::<crate::serialhdl::SerialReader>(a.arg(0))?;
+        let oid: Option<i64> = FromPy::from_py(a.arg(2))?;
+        let d: Rc<dyn Any> = Rc::new(crate::mcu::DummyResponse::new(&serial, &a.string(1)?, oid)?);
+        Ok(d)
+    });
+    // get_response(cmds, cmd_queue, minclock=0, reqclock=0, retry=True)
+    r.method("klippy.mcu.DummyResponse.get_response", |a| params_to_py(&a.this::<crate::mcu::DummyResponse>()?.get_response()));
+    r.attr("klippy.mcu.DummyResponse._response", |o| params_to_py(&objects::unwrap_as::<crate::mcu::DummyResponse>(o)?.response), None);
     ro_attr!(r, "klippy.mcu.CommandWrapper._msgtag", CommandWrapper, |c| c.msgtag);
     ro_attr!(r, "klippy.mcu.CommandWrapper._serial", CommandWrapper, |c| c.serial.clone());
     r.attr("klippy.mcu.CommandWrapper._cmd_queue", |o| cq_to_py(objects::unwrap_as::<CommandWrapper>(o)?.cmd_queue.clone()), None);
 
     // ----------------------------------------------- CommandQueryWrapper
+    // (conn_helper, msgformat, respformat, oid=None, cmd_queue=None, is_async=False)
     r.ctor("klippy.mcu.CommandQueryWrapper.__init__", |a| {
-        let serial = objects::unwrap_as::<crate::serialhdl::SerialReader>(a.arg(0))?;
+        let (serial, fileoutput) = conn_helper_of(a.arg(0))?;
         let oid: Option<i64> = FromPy::from_py(a.arg(3))?;
-        // (error: serialhdl.error re-raised unchanged unless it is the gcode command error)
-        let error: Option<fn(String) -> KError> =
-            if a.arg(6).is(lookup("klippy.gcode", "CommandError")?.as_ptr()) { Some(KError::Command) } else { None };
         let c: Rc<dyn Any> =
-            Rc::new(CommandQueryWrapper::new(&serial, &a.string(1)?, &a.string(2)?, oid, cq_from_py(a.arg(4))?, a.bool(5)?, error)?);
+            Rc::new(CommandQueryWrapper::new(&serial, &a.string(1)?, &a.string(2)?, oid, cq_from_py(a.arg(4))?, a.bool(5)?, fileoutput)?);
         Ok(c)
     });
     // send(data=(), minclock=0, reqclock=0, retry=True)

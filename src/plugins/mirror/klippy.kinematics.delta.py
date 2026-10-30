@@ -8,56 +8,56 @@ SLOW_RATIO = 3.0
 class DeltaKinematics(_k.Object):
     __kaliru_mirror__ = True
     def __init__(self, toolhead, config):
-        _k.new(self, 6217, toolhead, config)
+        _k.new(self, 6233, toolhead, config)
     def get_steppers(self):
-        return _k.call(self, 6218)
+        return _k.call(self, 6234)
     def _actuator_to_cartesian(self, spos):
-        return _k.call(self, 6219, spos)
+        return _k.call(self, 6235, spos)
     def calc_position(self, stepper_positions):
-        return _k.call(self, 6220, stepper_positions)
+        return _k.call(self, 6236, stepper_positions)
     def set_position(self, newpos, homing_axes):
-        return _k.call(self, 6221, newpos, homing_axes)
+        return _k.call(self, 6237, newpos, homing_axes)
     def note_z_not_homed(self):
-        return _k.call(self, 6222)
+        return _k.call(self, 6238)
     def clear_homing_state(self, clear_axes):
-        return _k.call(self, 6223, clear_axes)
+        return _k.call(self, 6239, clear_axes)
     def home(self, homing_state):
-        return _k.call(self, 6224, homing_state)
+        return _k.call(self, 6240, homing_state)
     def check_move(self, move):
-        return _k.call(self, 6225, move)
+        return _k.call(self, 6241, move)
     def get_status(self, eventtime):
-        return _k.call(self, 6226, eventtime)
+        return _k.call(self, 6242, eventtime)
     def get_calibration(self):
-        return _k.call(self, 6227)
-    abs_endstops = _k.Attr(6228, 'abs_endstops')
-    angles = _k.Attr(6229, 'angles')
-    arm2 = _k.Attr(6230, 'arm2')
-    arm_lengths = _k.Attr(6231, 'arm_lengths')
-    axes_max = _k.Attr(6232, 'axes_max')
-    axes_min = _k.Attr(6233, 'axes_min')
-    home_position = _k.Attr(6234, 'home_position')
-    limit_xy2 = _k.Attr(6235, 'limit_xy2')
-    limit_z = _k.Attr(6236, 'limit_z')
-    max_accel = _k.Attr(6237, 'max_accel')
-    max_velocity = _k.Attr(6238, 'max_velocity')
-    max_xy2 = _k.Attr(6239, 'max_xy2')
-    max_z = _k.Attr(6240, 'max_z')
-    max_z_accel = _k.Attr(6241, 'max_z_accel')
-    max_z_velocity = _k.Attr(6242, 'max_z_velocity')
-    min_arm2 = _k.Attr(6243, 'min_arm2')
-    min_arm_length = _k.Attr(6244, 'min_arm_length')
-    min_z = _k.Attr(6245, 'min_z')
-    need_home = _k.Attr(6246, 'need_home')
-    radius = _k.Attr(6247, 'radius')
-    rails = _k.Attr(6248, 'rails')
-    slow_xy2 = _k.Attr(6249, 'slow_xy2')
-    towers = _k.Attr(6250, 'towers')
-    very_slow_xy2 = _k.Attr(6251, 'very_slow_xy2')
+        return _k.call(self, 6243)
+    abs_endstops = _k.Attr(6244, 'abs_endstops')
+    angles = _k.Attr(6245, 'angles')
+    arm2 = _k.Attr(6246, 'arm2')
+    arm_lengths = _k.Attr(6247, 'arm_lengths')
+    axes_max = _k.Attr(6248, 'axes_max')
+    axes_min = _k.Attr(6249, 'axes_min')
+    home_position = _k.Attr(6250, 'home_position')
+    limit_xy2 = _k.Attr(6251, 'limit_xy2')
+    limit_z = _k.Attr(6252, 'limit_z')
+    max_accel = _k.Attr(6253, 'max_accel')
+    max_velocity = _k.Attr(6254, 'max_velocity')
+    max_xy2 = _k.Attr(6255, 'max_xy2')
+    max_z = _k.Attr(6256, 'max_z')
+    max_z_accel = _k.Attr(6257, 'max_z_accel')
+    max_z_velocity = _k.Attr(6258, 'max_z_velocity')
+    min_arm2 = _k.Attr(6259, 'min_arm2')
+    min_arm_length = _k.Attr(6260, 'min_arm_length')
+    min_z = _k.Attr(6261, 'min_z')
+    need_home = _k.Attr(6262, 'need_home')
+    radius = _k.Attr(6263, 'radius')
+    rails = _k.Attr(6264, 'rails')
+    slow_xy2 = _k.Attr(6265, 'slow_xy2')
+    towers = _k.Attr(6266, 'towers')
+    very_slow_xy2 = _k.Attr(6267, 'very_slow_xy2')
 
 class DeltaCalibration(_k.Object):
     __kaliru_mirror__ = True
     def __init__(self, radius, angles, arms, endstops, stepdists):
-        _k.new(self, 6252, radius, angles, arms, endstops, stepdists)
+        _k.new(self, 6268, radius, angles, arms, endstops, stepdists)
     def coordinate_descent_params(self, is_extended):
         # Determine adjustment parameters (for use with coordinate_descent)
         adj_params = (
@@ -139,16 +139,16 @@ class DeltaCalibration(_k.Object):
                 self.radius,
             )
         )
-    abs_endstops = _k.Attr(6258, 'abs_endstops')
-    angles = _k.Attr(6259, 'angles')
-    arms = _k.Attr(6260, 'arms')
-    endstops = _k.Attr(6261, 'endstops')
-    radius = _k.Attr(6262, 'radius')
-    stepdists = _k.Attr(6263, 'stepdists')
-    towers = _k.Attr(6264, 'towers')
+    abs_endstops = _k.Attr(6274, 'abs_endstops')
+    angles = _k.Attr(6275, 'angles')
+    arms = _k.Attr(6276, 'arms')
+    endstops = _k.Attr(6277, 'endstops')
+    radius = _k.Attr(6278, 'radius')
+    stepdists = _k.Attr(6279, 'stepdists')
+    towers = _k.Attr(6280, 'towers')
 
 def load_kinematics(toolhead, config):
-    return _k.fcall(6265, toolhead, config)
+    return _k.fcall(6281, toolhead, config)
 
 
 __getattr__ = _k.module_getattr(__name__)

@@ -3,18 +3,18 @@ import _k
 
 
 def _ensure_klippy_package():
-    return _k.fcall(2501)
+    return _k.fcall(2502)
 
 class IndxFactories(_k.Object):
     __kaliru_mirror__ = True
     def __init__(self, config, printer):
-        _k.new(self, 2502, config, printer)
+        _k.new(self, 2503, config, printer)
 
 def register_factories(config):
-    return _k.fcall(2503, config)
+    return _k.fcall(2504, config)
 
 def load_config(config):
-    return _k.fcall(2504, config)
+    return _k.fcall(2505, config)
 
 _ensure_klippy_package()
 

@@ -188,7 +188,7 @@ def fit_thermal_rc(samples, baseline_power):
     }
 
 def thermal_model_fit(samples, baseline_power):
-    return _k.fcall(2507, samples, baseline_power)
+    return _k.fcall(2508, samples, baseline_power)
 
 def mean_phase_power(samples, phase_name):
     vals = [s[CAL_POWER] for s in samples if s[CAL_PHASE] == phase_name]
@@ -197,7 +197,7 @@ def mean_phase_power(samples, phase_name):
     return sum(vals) / len(vals)
 
 def fan_calibration_breakpoints(count, min_speed):
-    return _k.fcall(2509, count, min_speed)
+    return _k.fcall(2510, count, min_speed)
 
 def fit_fan_model(samples, thermal_capacity, to_ambient_r):
     points = []

@@ -78,13 +78,14 @@ pub fn register(r: &mut Registry) {
             a.this::<FixedFreqReader>()?.setup_query_command(&a.string(0)?, a.arg(1).as_i64()?, cq)?;
             Ok(py_none())
         });
-        // [(ptime, field, ...)]
+        // ([(ptime, field, ...)], overflows)
         r.method("klippy.extras.bulk_sensor.FixedFreqReader.pull_samples", |a| {
-            let samples = a.this::<FixedFreqReader>()?.pull_samples()?;
-            Ok(py_list(samples
+            let (samples, overflows) = a.this::<FixedFreqReader>()?.pull_samples()?;
+            let samples = py_list(samples
                 .into_iter()
                 .map(|(t, fields)| py_tuple(std::iter::once(py_float(t)).chain(fields.into_iter().map(py_int)).collect()))
-                .collect()))
+                .collect());
+            Ok(py_tuple(vec![samples, py_int(overflows)]))
         });
         r.attr("klippy.extras.bulk_sensor.FixedFreqReader.bulk_queue", |o| {
             objects::unwrap_as::<FixedFreqReader>(o)?.bulk_queue.borrow().clone().to_py()

@@ -134,8 +134,8 @@ pub struct CommandQueryWrapper {
     pub cmd: Rc<MessageFormat>,
     pub response: String,
     pub oid: Option<i64>,
-    /// the error class serialhdl.error is re-raised as (None: unchanged)
-    pub error: Option<fn(String) -> KError>,
+    /// the mcu's is_fileoutput(): queries get a DummyResponse
+    pub fileoutput: bool,
     pub is_async: bool,
     pub cmd_queue: CommandQueue,
 }
@@ -148,29 +148,28 @@ impl CommandQueryWrapper {
         oid: Option<i64>,
         cmd_queue: Option<CommandQueue>,
         is_async: bool,
-        error: Option<fn(String) -> KError>,
+        fileoutput: bool,
     ) -> KResult<Self> {
         let msgparser = serial.get_msgparser();
         let cmd = msgparser.lookup_command(msgformat)?;
         msgparser.lookup_command(respformat)?;
         let response = respformat.split_whitespace().next().unwrap_or("").to_string();
         let cmd_queue = cmd_queue.unwrap_or_else(|| serial.get_default_command_queue());
-        Ok(CommandQueryWrapper { serial: serial.clone(), cmd, response, oid, error, is_async, cmd_queue })
+        Ok(CommandQueryWrapper { serial: serial.clone(), cmd, response, oid, fileoutput, is_async, cmd_queue })
     }
 
     pub fn do_send(&self, cmds: &[Vec<u8>], minclock: u64, reqclock: u64, retry: bool) -> KResult<Params> {
         let reqclock = minclock.max(reqclock);
-        let res = if self.is_async {
+        let res = if self.fileoutput {
+            DummyResponse::new(&self.serial, &self.response, self.oid).map(|d| d.get_response())
+        } else if self.is_async {
             let xh = RetryAsyncCommand::new(&self.serial, &self.response, self.oid);
             xh.get_response(cmds, &self.cmd_queue, minclock, reqclock, retry)
         } else {
             let xh = SerialRetryCommand::new(&self.serial, &self.response, self.oid);
             xh.get_response(cmds, &self.cmd_queue, minclock, reqclock, retry)
         };
-        match (res, self.error) {
-            (Err(KError::Serial(e)), Some(error)) => Err(error(e)),
-            (res, _) => res,
-        }
+        command_error(res)
     }
 
     pub fn send(&self, data: &[Val], minclock: u64, reqclock: u64, retry: bool) -> KResult<Params> {
@@ -188,6 +187,37 @@ impl CommandQueryWrapper {
     ) -> KResult<Params> {
         let cmds = [preface_cmd.cmd.encode(preface_data)?, self.cmd.encode(data)?];
         self.do_send(&cmds, minclock, reqclock, retry)
+    }
+}
+
+/// `except serialhdl.error as e: raise self._error(str(e))` (the printer's
+/// command_error)
+fn command_error<T>(res: KResult<T>) -> KResult<T> {
+    match res {
+        Err(KError::Serial(e)) => Err(KError::Command(e)),
+        res => res,
+    }
+}
+
+// Generate a dummy response to query commands when in debugging mode
+pub struct DummyResponse {
+    pub response: Params,
+}
+
+impl DummyResponse {
+    pub fn new(serial: &SerialReader, name: &str, oid: Option<i64>) -> KResult<Self> {
+        let mut params = Params::default();
+        if let Some(oid) = oid {
+            params.insert("oid".into(), Val::Int(oid));
+        }
+        let mut resp = serial.get_msgparser().create_dummy_response(name, &params)?;
+        resp.insert("#sent_time".into(), Val::Float(0.0));
+        resp.insert("#receive_time".into(), Val::Float(0.0));
+        Ok(DummyResponse { response: resp })
+    }
+
+    pub fn get_response(&self) -> Params {
+        self.response.clone()
     }
 }
 
@@ -213,7 +243,7 @@ impl CommandWrapper {
 
     pub fn send(&self, data: &[Val], minclock: u64, reqclock: u64) -> KResult<()> {
         let cmd = self.cmd.encode(data)?;
-        self.serial.raw_send(&cmd, minclock, reqclock, &self.cmd_queue)
+        command_error(self.serial.raw_send(&cmd, minclock, reqclock, &self.cmd_queue))
     }
 
     pub fn send_wait_ack(&self, data: &[Val], minclock: u64, reqclock: u64) -> KResult<()> {
@@ -221,7 +251,7 @@ impl CommandWrapper {
             return self.send(data, minclock, reqclock);
         }
         let cmd = self.cmd.encode(data)?;
-        self.serial.raw_send_wait_ack(&cmd, minclock, reqclock, &self.cmd_queue)?;
+        command_error(self.serial.raw_send_wait_ack(&cmd, minclock, reqclock, &self.cmd_queue))?;
         Ok(())
     }
 
@@ -1766,6 +1796,7 @@ impl Mcu {
             ));
         }
         self.printer.invoke_shutdown(&format!("Lost communication with MCU '{}'", self.name), None);
+        self.serial.abort_wait_acks();
         Ok(())
     }
 
@@ -2152,8 +2183,8 @@ impl Mcu {
     pub fn handle_non_critical_disconnect(&self) -> KResult<()> {
         if self.non_critical_disconnected.get() || self.reconnecting.get() {
             // motion_queuing.stats() keeps calling calibrate_clock() (and
-            // thus check_timeout()) while the mcu is disconnected or still
-            // reconnecting; only handle the first disconnect notification
+            // thus check_timeout()) while a reconnect attempt is running;
+            // only handle the first disconnect notification
             return Ok(());
         }
         self.non_critical_disconnected.set(true);
@@ -2290,7 +2321,7 @@ impl Mcu {
         cq: Option<CommandQueue>,
         is_async: bool,
     ) -> KResult<CommandQueryWrapper> {
-        CommandQueryWrapper::new(&self.serial, msgformat, respformat, oid, cq, is_async, Some(KError::Command))
+        CommandQueryWrapper::new(&self.serial, msgformat, respformat, oid, cq, is_async, self.is_fileoutput())
     }
 
     pub fn try_lookup_command(&self, msgformat: &str) -> Option<CommandWrapper> {

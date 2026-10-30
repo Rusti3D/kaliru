@@ -2,7 +2,7 @@
 # Build Kalico's C firmware for configs/src/<name>.in (Kconfig choices) and
 # keep its configuration and its ctr txt + dictionary:
 #   tools/mkref.sh <name> ...
-F=/mnt/d/RustyKlipper/kaliru/firmware
+F=$(cd "$(dirname "$0")/.." && pwd)/firmware
 for N in "$@"; do
 O=$HOME/rk/fw_$N
 mkdir -p $O && cp $F/configs/src/$N.in $O/.config

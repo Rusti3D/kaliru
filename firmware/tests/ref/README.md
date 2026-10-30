@@ -1,6 +1,6 @@
 # Reference outputs of Kalico's C firmware
 
-Built from Kalico `5b59427` with `firmware/configs/linux` (`make OUT=... KCONFIG_CONFIG=...`):
+Built from Kalico `550d21fb` with `firmware/configs/linux` (`make OUT=... KCONFIG_CONFIG=...`):
 
 - `linux_compile_time_request.txt`: `out/compile_time_request.txt`, the compile time requests in link order.
 - `linux_klipper.dict`: `out/klipper.dict`, the data dictionary.

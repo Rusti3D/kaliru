@@ -6,69 +6,69 @@ TRINAMIC_DRIVERS = ['tmc2130', 'tmc2208', 'tmc2209', 'tmc2240', 'tmc2660', 'tmc5
 class PhaseCalc(_k.Object):
     __kaliru_mirror__ = True
     def __init__(self, printer, name, phases=None):
-        _k.new(self, 1666, printer, name, phases)
+        _k.new(self, 1667, printer, name, phases)
     def lookup_tmc(self):
-        return _k.call(self, 1667)
+        return _k.call(self, 1668)
     def convert_phase(self, driver_phase, driver_phases):
-        return _k.call(self, 1668, driver_phase, driver_phases)
+        return _k.call(self, 1669, driver_phase, driver_phases)
     def calc_phase(self, stepper, trig_mcu_pos):
-        return _k.call(self, 1669, stepper, trig_mcu_pos)
-    is_primary = _k.Attr(1670, 'is_primary')
-    last_mcu_position = _k.Attr(1671, 'last_mcu_position')
-    last_phase = _k.Attr(1672, 'last_phase')
-    name = _k.Attr(1673, 'name')
-    phase_history = _k.Attr(1674, 'phase_history')
-    phases = _k.Attr(1675, 'phases')
-    printer = _k.Attr(1676, 'printer')
-    stats_only = _k.Attr(1677, 'stats_only')
-    tmc_module = _k.Attr(1678, 'tmc_module')
+        return _k.call(self, 1670, stepper, trig_mcu_pos)
+    is_primary = _k.Attr(1671, 'is_primary')
+    last_mcu_position = _k.Attr(1672, 'last_mcu_position')
+    last_phase = _k.Attr(1673, 'last_phase')
+    name = _k.Attr(1674, 'name')
+    phase_history = _k.Attr(1675, 'phase_history')
+    phases = _k.Attr(1676, 'phases')
+    printer = _k.Attr(1677, 'printer')
+    stats_only = _k.Attr(1678, 'stats_only')
+    tmc_module = _k.Attr(1679, 'tmc_module')
 
 class EndstopPhase(_k.Object):
     __kaliru_mirror__ = True
     def __init__(self, config):
-        _k.new(self, 1679, config)
+        _k.new(self, 1680, config)
     def align_endstop(self, rail):
-        return _k.call(self, 1680, rail)
+        return _k.call(self, 1681, rail)
     def get_homed_offset(self, stepper, trig_mcu_pos):
-        return _k.call(self, 1681, stepper, trig_mcu_pos)
+        return _k.call(self, 1682, stepper, trig_mcu_pos)
     def handle_home_rails_end(self, homing_state, rails):
-        return _k.call(self, 1682, homing_state, rails)
-    endstop_accuracy = _k.Attr(1683, 'endstop_accuracy')
-    endstop_align_zero = _k.Attr(1684, 'endstop_align_zero')
-    endstop_phase = _k.Attr(1685, 'endstop_phase')
-    endstop_phase_accuracy = _k.Attr(1686, 'endstop_phase_accuracy')
-    name = _k.Attr(1687, 'name')
-    phase_calc = _k.Attr(1688, 'phase_calc')
-    phases = _k.Attr(1689, 'phases')
-    printer = _k.Attr(1690, 'printer')
-    step_dist = _k.Attr(1691, 'step_dist')
+        return _k.call(self, 1683, homing_state, rails)
+    endstop_accuracy = _k.Attr(1684, 'endstop_accuracy')
+    endstop_align_zero = _k.Attr(1685, 'endstop_align_zero')
+    endstop_phase = _k.Attr(1686, 'endstop_phase')
+    endstop_phase_accuracy = _k.Attr(1687, 'endstop_phase_accuracy')
+    name = _k.Attr(1688, 'name')
+    phase_calc = _k.Attr(1689, 'phase_calc')
+    phases = _k.Attr(1690, 'phases')
+    printer = _k.Attr(1691, 'printer')
+    step_dist = _k.Attr(1692, 'step_dist')
 
 class EndstopPhases(_k.Object):
     __kaliru_mirror__ = True
     def __init__(self, config):
-        _k.new(self, 1692, config)
+        _k.new(self, 1693, config)
     def update_stepper(self, stepper, trig_mcu_pos, is_primary):
-        return _k.call(self, 1693, stepper, trig_mcu_pos, is_primary)
+        return _k.call(self, 1694, stepper, trig_mcu_pos, is_primary)
     def handle_home_rails_end(self, homing_state, rails):
-        return _k.call(self, 1694, homing_state, rails)
+        return _k.call(self, 1695, homing_state, rails)
     cmd_ENDSTOP_PHASE_CALIBRATE_help = 'Calibrate stepper phase'
     def cmd_ENDSTOP_PHASE_CALIBRATE(self, gcmd):
-        return _k.call(self, 1695, gcmd)
+        return _k.call(self, 1696, gcmd)
     def generate_stats(self, stepper_name, phase_calc):
-        return _k.call(self, 1696, stepper_name, phase_calc)
+        return _k.call(self, 1697, stepper_name, phase_calc)
     def report_stats(self):
-        return _k.call(self, 1697)
+        return _k.call(self, 1698)
     def get_status(self, eventtime):
-        return _k.call(self, 1698, eventtime)
-    gcode = _k.Attr(1699, 'gcode')
-    printer = _k.Attr(1700, 'printer')
-    tracking = _k.Attr(1701, 'tracking')
+        return _k.call(self, 1699, eventtime)
+    gcode = _k.Attr(1700, 'gcode')
+    printer = _k.Attr(1701, 'printer')
+    tracking = _k.Attr(1702, 'tracking')
 
 def load_config_prefix(config):
-    return _k.fcall(1702, config)
+    return _k.fcall(1703, config)
 
 def load_config(config):
-    return _k.fcall(1703, config)
+    return _k.fcall(1704, config)
 
 
 __getattr__ = _k.module_getattr(__name__)

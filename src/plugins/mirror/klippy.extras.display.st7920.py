@@ -11,66 +11,66 @@ CharGlyphs = {'degrees': bytearray(font8x14.VGA_FONT[248])}
 class DisplayBase(_k.Object):
     __kaliru_mirror__ = True
     def __init__(self):
-        _k.new(self, 1439)
+        _k.new(self, 1440)
     def flush(self):
-        return _k.call(self, 1440)
-    def init(self):
         return _k.call(self, 1441)
+    def init(self):
+        return _k.call(self, 1442)
     def cache_glyph(self, glyph_name, base_glyph_name, glyph_id):
-        return _k.call(self, 1442, glyph_name, base_glyph_name, glyph_id)
+        return _k.call(self, 1443, glyph_name, base_glyph_name, glyph_id)
     def set_glyphs(self, glyphs):
-        return _k.call(self, 1443, glyphs)
+        return _k.call(self, 1444, glyphs)
     def write_text(self, x, y, data):
-        return _k.call(self, 1444, x, y, data)
-    def write_graphics(self, x, y, data):
         return _k.call(self, 1445, x, y, data)
+    def write_graphics(self, x, y, data):
+        return _k.call(self, 1446, x, y, data)
     def write_glyph(self, x, y, glyph_name):
-        return _k.call(self, 1446, x, y, glyph_name)
+        return _k.call(self, 1447, x, y, glyph_name)
     def clear(self):
-        return _k.call(self, 1447)
-    def get_dimensions(self):
         return _k.call(self, 1448)
-    all_framebuffers = _k.Attr(1449, 'all_framebuffers')
-    cached_glyphs = _k.Attr(1450, 'cached_glyphs')
-    glyph_framebuffer = _k.Attr(1451, 'glyph_framebuffer')
-    graphics_framebuffers = _k.Attr(1452, 'graphics_framebuffers')
-    icons = _k.Attr(1453, 'icons')
-    text_framebuffer = _k.Attr(1454, 'text_framebuffer')
+    def get_dimensions(self):
+        return _k.call(self, 1449)
+    all_framebuffers = _k.Attr(1450, 'all_framebuffers')
+    cached_glyphs = _k.Attr(1451, 'cached_glyphs')
+    glyph_framebuffer = _k.Attr(1452, 'glyph_framebuffer')
+    graphics_framebuffers = _k.Attr(1453, 'graphics_framebuffers')
+    icons = _k.Attr(1454, 'icons')
+    text_framebuffer = _k.Attr(1455, 'text_framebuffer')
 
 class ST7920(DisplayBase):
     __kaliru_mirror__ = True
     def __init__(self, config):
-        _k.new(self, 1455, config)
+        _k.new(self, 1456, config)
     def build_config(self):
-        return _k.call(self, 1456)
+        return _k.call(self, 1457)
     def send(self, cmds, is_data=False, is_extended=False):
-        return _k.call(self, 1457, cmds, is_data, is_extended)
-    is_extended = _k.Attr(1458, 'is_extended')
-    mcu = _k.Attr(1459, 'mcu')
-    oid = _k.Attr(1460, 'oid')
-    pins = _k.Attr(1461, 'pins')
-    send_cmds_cmd = _k.Attr(1462, 'send_cmds_cmd')
-    send_data_cmd = _k.Attr(1463, 'send_data_cmd')
+        return _k.call(self, 1458, cmds, is_data, is_extended)
+    is_extended = _k.Attr(1459, 'is_extended')
+    mcu = _k.Attr(1460, 'mcu')
+    oid = _k.Attr(1461, 'oid')
+    pins = _k.Attr(1462, 'pins')
+    send_cmds_cmd = _k.Attr(1463, 'send_cmds_cmd')
+    send_data_cmd = _k.Attr(1464, 'send_data_cmd')
 
 class EnableHelper(_k.Object):
     __kaliru_mirror__ = True
     def __init__(self, pin_desc, spi):
-        _k.new(self, 1464, pin_desc, spi)
+        _k.new(self, 1465, pin_desc, spi)
     def init(self):
-        return _k.call(self, 1465)
-    en_pin = _k.Attr(1466, 'en_pin')
+        return _k.call(self, 1466)
+    en_pin = _k.Attr(1467, 'en_pin')
 
 class EmulatedST7920(DisplayBase):
     __kaliru_mirror__ = True
     def __init__(self, config):
-        _k.new(self, 1467, config)
+        _k.new(self, 1468, config)
     def send(self, cmds, is_data=False, is_extended=False):
-        return _k.call(self, 1468, cmds, is_data, is_extended)
-    en_helper = _k.Attr(1469, 'en_helper')
-    en_set = _k.Attr(1470, 'en_set')
-    is_extended = _k.Attr(1471, 'is_extended')
-    mcu = _k.Attr(1472, 'mcu')
-    spi = _k.Attr(1473, 'spi')
+        return _k.call(self, 1469, cmds, is_data, is_extended)
+    en_helper = _k.Attr(1470, 'en_helper')
+    en_set = _k.Attr(1471, 'en_set')
+    is_extended = _k.Attr(1472, 'is_extended')
+    mcu = _k.Attr(1473, 'mcu')
+    spi = _k.Attr(1474, 'spi')
 
 
 __getattr__ = _k.module_getattr(__name__)

@@ -31,6 +31,7 @@ fn sources(config: &kconfig::Config) -> Vec<&'static str> {
         ("CONFIG_HAVE_GPIO_SDIO", "sdiocmds.rs"),
         ("CONFIG_WANT_BUTTONS", "buttons.rs"),
         ("CONFIG_WANT_TMCUART", "tmcuart.rs"),
+        ("CONFIG_WANT_TMC_SPI_ENDSTOP", "tmc_spi_endstop.rs"),
         ("CONFIG_WANT_NEOPIXEL", "neopixel.rs"),
         ("CONFIG_WANT_PULSE_COUNTER", "pulse_counter.rs"),
         ("CONFIG_WANT_ST7920", "lcd_st7920.rs"),

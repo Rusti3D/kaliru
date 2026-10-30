@@ -1,6 +1,6 @@
 # kaliru-mcu
 
-Kalico's micro-controller firmware (`src/` of Kalico `5b59427`) in Rust. Ported: the generic core (scheduler,
+Kalico's micro-controller firmware (`src/` of Kalico `550d21fb`) in Rust. Ported: the generic core (scheduler,
 command parsing, all command modules and sensor drivers) and these boards:
 
 - **linux** (the MCU code as a Linux process, `src/linux`) and the **simulator** (`src/simulator`);

@@ -7,96 +7,96 @@ TMC_BAUD_RATE_AVR = 9000
 class MCU_analog_mux(_k.Object):
     __kaliru_mirror__ = True
     def __init__(self, mcu, cmd_queue, select_pins_desc):
-        _k.new(self, 5346, mcu, cmd_queue, select_pins_desc)
+        _k.new(self, 5362, mcu, cmd_queue, select_pins_desc)
     def build_config(self):
-        return _k.call(self, 5347)
+        return _k.call(self, 5363)
     def get_instance_id(self, select_pins_desc):
-        return _k.call(self, 5348, select_pins_desc)
+        return _k.call(self, 5364, select_pins_desc)
     def activate(self, instance_id):
-        return _k.call(self, 5349, instance_id)
-    cmd_queue = _k.Attr(5350, 'cmd_queue')
-    mcu = _k.Attr(5351, 'mcu')
-    oids = _k.Attr(5352, 'oids')
-    pin_values = _k.Attr(5353, 'pin_values')
-    pins = _k.Attr(5354, 'pins')
-    update_pin_cmd = _k.Attr(5355, 'update_pin_cmd')
+        return _k.call(self, 5365, instance_id)
+    cmd_queue = _k.Attr(5366, 'cmd_queue')
+    mcu = _k.Attr(5367, 'mcu')
+    oids = _k.Attr(5368, 'oids')
+    pin_values = _k.Attr(5369, 'pin_values')
+    pins = _k.Attr(5370, 'pins')
+    update_pin_cmd = _k.Attr(5371, 'update_pin_cmd')
 
 class PrinterTMCUartMutexes(_k.Object):
     __kaliru_mirror__ = True
     def __init__(self):
-        _k.new(self, 5356)
-    mcu_to_mutex = _k.Attr(5357, 'mcu_to_mutex')
+        _k.new(self, 5372)
+    mcu_to_mutex = _k.Attr(5373, 'mcu_to_mutex')
 
 def lookup_tmc_uart_mutex(mcu):
-    return _k.fcall(5358, mcu)
+    return _k.fcall(5374, mcu)
 
 class MCU_TMC_uart_bitbang(_k.Object):
     __kaliru_mirror__ = True
     def __init__(self, rx_pin_params, tx_pin_params, select_pins_desc):
-        _k.new(self, 5359, rx_pin_params, tx_pin_params, select_pins_desc)
+        _k.new(self, 5375, rx_pin_params, tx_pin_params, select_pins_desc)
     def build_config(self):
-        return _k.call(self, 5360)
+        return _k.call(self, 5376)
     def register_instance(self, rx_pin_params, tx_pin_params, select_pins_desc, addr):
-        return _k.call(self, 5361, rx_pin_params, tx_pin_params, select_pins_desc, addr)
+        return _k.call(self, 5377, rx_pin_params, tx_pin_params, select_pins_desc, addr)
     def _calc_crc8(self, data):
-        return _k.call(self, 5362, data)
+        return _k.call(self, 5378, data)
     def _add_serial_bits(self, data):
-        return _k.call(self, 5363, data)
+        return _k.call(self, 5379, data)
     def _encode_read(self, sync, addr, reg):
-        return _k.call(self, 5364, sync, addr, reg)
+        return _k.call(self, 5380, sync, addr, reg)
     def _encode_write(self, sync, addr, reg, val):
-        return _k.call(self, 5365, sync, addr, reg, val)
+        return _k.call(self, 5381, sync, addr, reg, val)
     def _decode_read(self, reg, data):
-        return _k.call(self, 5366, reg, data)
+        return _k.call(self, 5382, reg, data)
     def reg_read(self, instance_id, addr, reg):
-        return _k.call(self, 5367, instance_id, addr, reg)
+        return _k.call(self, 5383, instance_id, addr, reg)
     def reg_write(self, instance_id, addr, reg, val, print_time=None):
-        return _k.call(self, 5368, instance_id, addr, reg, val, print_time)
+        return _k.call(self, 5384, instance_id, addr, reg, val, print_time)
     def get_mcu(self):
         return self.mcu
-    analog_mux = _k.Attr(5370, 'analog_mux')
-    cmd_queue = _k.Attr(5371, 'cmd_queue')
-    instances = _k.Attr(5372, 'instances')
-    mcu = _k.Attr(5373, 'mcu')
-    mutex = _k.Attr(5374, 'mutex')
-    oid = _k.Attr(5375, 'oid')
-    pullup = _k.Attr(5376, 'pullup')
-    rx_pin = _k.Attr(5377, 'rx_pin')
-    tmcuart_send_cmd = _k.Attr(5378, 'tmcuart_send_cmd')
-    tx_pin = _k.Attr(5379, 'tx_pin')
+    analog_mux = _k.Attr(5386, 'analog_mux')
+    cmd_queue = _k.Attr(5387, 'cmd_queue')
+    instances = _k.Attr(5388, 'instances')
+    mcu = _k.Attr(5389, 'mcu')
+    mutex = _k.Attr(5390, 'mutex')
+    oid = _k.Attr(5391, 'oid')
+    pullup = _k.Attr(5392, 'pullup')
+    rx_pin = _k.Attr(5393, 'rx_pin')
+    tmcuart_send_cmd = _k.Attr(5394, 'tmcuart_send_cmd')
+    tx_pin = _k.Attr(5395, 'tx_pin')
 
 def lookup_tmc_uart_bitbang(config, max_addr):
-    return _k.fcall(5380, config, max_addr)
+    return _k.fcall(5396, config, max_addr)
 
 class MCU_TMC_uart(_k.Object):
     __kaliru_mirror__ = True
     def __init__(self, config, name_to_reg, fields, max_addr, tmc_frequency):
-        _k.new(self, 5381, config, name_to_reg, fields, max_addr, tmc_frequency)
+        _k.new(self, 5397, config, name_to_reg, fields, max_addr, tmc_frequency)
     def get_fields(self):
-        return _k.call(self, 5382)
+        return _k.call(self, 5398)
     def _do_get_register(self, reg_name):
-        return _k.call(self, 5383, reg_name)
+        return _k.call(self, 5399, reg_name)
     def get_register_raw(self, reg_name):
-        return _k.call(self, 5384, reg_name)
+        return _k.call(self, 5400, reg_name)
     def get_register(self, reg_name):
-        return _k.call(self, 5385, reg_name)
+        return _k.call(self, 5401, reg_name)
     def set_register(self, reg_name, val, print_time=None):
-        return _k.call(self, 5386, reg_name, val, print_time)
+        return _k.call(self, 5402, reg_name, val, print_time)
     def get_tmc_frequency(self):
-        return _k.call(self, 5387)
+        return _k.call(self, 5403)
     def get_mcu(self):
-        return _k.call(self, 5388)
-    addr = _k.Attr(5389, 'addr')
-    fields = _k.Attr(5390, 'fields')
-    ifcnt = _k.Attr(5391, 'ifcnt')
-    instance_id = _k.Attr(5392, 'instance_id')
-    mcu = _k.Attr(5393, 'mcu')
-    mcu_uart = _k.Attr(5394, 'mcu_uart')
-    mutex = _k.Attr(5395, 'mutex')
-    name = _k.Attr(5396, 'name')
-    name_to_reg = _k.Attr(5397, 'name_to_reg')
-    printer = _k.Attr(5398, 'printer')
-    tmc_frequency = _k.Attr(5399, 'tmc_frequency')
+        return _k.call(self, 5404)
+    addr = _k.Attr(5405, 'addr')
+    fields = _k.Attr(5406, 'fields')
+    ifcnt = _k.Attr(5407, 'ifcnt')
+    instance_id = _k.Attr(5408, 'instance_id')
+    mcu = _k.Attr(5409, 'mcu')
+    mcu_uart = _k.Attr(5410, 'mcu_uart')
+    mutex = _k.Attr(5411, 'mutex')
+    name = _k.Attr(5412, 'name')
+    name_to_reg = _k.Attr(5413, 'name_to_reg')
+    printer = _k.Attr(5414, 'printer')
+    tmc_frequency = _k.Attr(5415, 'tmc_frequency')
 
 
 __getattr__ = _k.module_getattr(__name__)

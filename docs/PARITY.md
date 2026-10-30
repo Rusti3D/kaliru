@@ -1,6 +1,6 @@
 # Parity status
 
-Reference: Kalico `5b59427` in WSL `~/rk/kalico` (+ `tools/ref_trace.patch`), python 3.13 (uv venv). Reference outputs:
+Reference: Kalico `550d21fb` (`5b59427` until 2026-10-31) in WSL `~/rk/kalico` (+ `tools/ref_trace.patch`), python 3.13 (uv venv). Reference outputs:
 `~/rk/ref1` (PYTHONHASHSEED=1) and `~/rk/ref2` (=2); `refdiff.py ref1 ref2` = 88/88 identical (2026-10-23).
 What must match per run: serialqueue trace, exit code, masked log (see `tools/refdiff.py` header for why the raw
 `.serial` files are not compared).
@@ -102,6 +102,17 @@ tester / shaper_calibrate commands (shaper, shaper_cmds), smart_effector, tools_
 
 Function level checks against python for code file-output runs cannot reach: shaper_calibrate
 (`tools/gen_shaper_cases.py`: psds, fits, csv bit-identical), angle calibration, sos filter design.
+
+**Kalico 5b59427 -> 550d21fb** (2026-10-31, the 21 upstream commits): non-critical mcu clock calibration,
+non-blocking CAN check (`CANBUS_CHECK_TIME` / `_POLL_TIME`), bulk sensors' per-batch errors / overflows (Fix #1011,
+`get_total_overflows`), TMC sensorless homing over SPI (`TMCSpiEndstop`, firmware `tmc_spi_endstop.rs`), homing
+stops started endstops when a start fails, ProbeList `probe_status`, heater `hardware_pwm`, CommandWrapper /
+CommandQueryWrapper from the connect helper with command errors, debugging-mode dummy query responses
+(`create_dummy_response`), ack waits failed on mcu timeout (`abort_wait_acks`), the eddy / load cell fileoutput
+paths. Reference venvs got scipy (upstream's dev requirement; load_cell.test and the load cell api config need it).
+Results: suite 88/89, cases 64/64, examples 186/186, plugins 98/99, firmware 64/64 (C references rebuilt with
+`tools/mkref.sh`). The api probe now also runs the load cell config on the reference side; kaliru's walk does not
+reach `load_cell_probe._load_cell` and below there (85 groups, not looked into yet).
 
 **Example configs** (`tests/cases/configs/examples.test`, written by `tools/gen_config_cases.py`): every
 config/*.cfg that printers.test does not load (186), with the mcu dictionary its header names (LPC176x, SAME54,

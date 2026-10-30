@@ -5,9 +5,9 @@ import _k
 class HomingHeaters(_k.Object):
     __kaliru_mirror__ = True
     def __init__(self, config):
-        _k.new(self, 2415, config)
+        _k.new(self, 2416, config)
     def handle_connect(self):
-        return _k.call(self, 2416)
+        return _k.call(self, 2417)
     def check_eligible(self, endstops):
         if self.flaky_steppers is None:
             return True
@@ -16,17 +16,17 @@ class HomingHeaters(_k.Object):
         ]
         return any(x in self.flaky_steppers for x in steppers_being_homed)
     def handle_homing_move_begin(self, hmove):
-        return _k.call(self, 2418, hmove)
-    def handle_homing_move_end(self, hmove):
         return _k.call(self, 2419, hmove)
-    disable_heaters = _k.Attr(2420, 'disable_heaters')
-    flaky_steppers = _k.Attr(2421, 'flaky_steppers')
-    pheaters = _k.Attr(2422, 'pheaters')
-    printer = _k.Attr(2423, 'printer')
-    target_save = _k.Attr(2424, 'target_save')
+    def handle_homing_move_end(self, hmove):
+        return _k.call(self, 2420, hmove)
+    disable_heaters = _k.Attr(2421, 'disable_heaters')
+    flaky_steppers = _k.Attr(2422, 'flaky_steppers')
+    pheaters = _k.Attr(2423, 'pheaters')
+    printer = _k.Attr(2424, 'printer')
+    target_save = _k.Attr(2425, 'target_save')
 
 def load_config(config):
-    return _k.fcall(2425, config)
+    return _k.fcall(2426, config)
 
 
 __getattr__ = _k.module_getattr(__name__)

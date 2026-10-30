@@ -11,10 +11,10 @@ class ConfigWrapper(RealConfigWrapper):
         self.printer = printer
         self.fileconfig = ConfigContents(name, contents, fallback)
         self.access_tracking = {}
-    access_tracking = _k.Attr(2513, 'access_tracking')
-    fileconfig = _k.Attr(2514, 'fileconfig')
-    printer = _k.Attr(2515, 'printer')
-    section = _k.Attr(2516, 'section')
+    access_tracking = _k.Attr(2514, 'access_tracking')
+    fileconfig = _k.Attr(2515, 'fileconfig')
+    printer = _k.Attr(2516, 'printer')
+    section = _k.Attr(2517, 'section')
 
 class ConfigContents(_k.Object):
     __kaliru_mirror__ = True
@@ -44,9 +44,9 @@ class ConfigContents(_k.Object):
         return self.get_converted(section, option, float)
     def getboolean(self, section, option):
         return self.get_converted(section, option, bool)
-    contents = _k.Attr(2526, 'contents')
-    fallback = _k.Attr(2527, 'fallback')
-    section = _k.Attr(2528, 'section')
+    contents = _k.Attr(2527, 'contents')
+    fallback = _k.Attr(2528, 'fallback')
+    section = _k.Attr(2529, 'section')
 
 def register_response(mcu, callback, msgformat):
     """
@@ -65,8 +65,8 @@ class _ResponseHandle(_k.Object):
         self._name = name
     def unregister(self):
         self._mcu.register_response(None, self._name)
-    _mcu = _k.Attr(2532, '_mcu')
-    _name = _k.Attr(2533, '_name')
+    _mcu = _k.Attr(2533, '_mcu')
+    _name = _k.Attr(2534, '_name')
 
 def register_adc_callback(adc, callback):
     """

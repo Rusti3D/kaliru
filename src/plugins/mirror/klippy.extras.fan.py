@@ -5,58 +5,58 @@ import _k
 class Fan(_k.Object):
     __kaliru_mirror__ = True
     def __init__(self, config, default_shutdown_speed=0.0):
-        _k.new(self, 1767, config, default_shutdown_speed)
+        _k.new(self, 1768, config, default_shutdown_speed)
     def get_mcu(self):
-        return _k.call(self, 1768)
+        return _k.call(self, 1769)
     def _apply_speed(self, print_time, value):
-        return _k.call(self, 1769, print_time, value)
+        return _k.call(self, 1770, print_time, value)
     def set_speed(self, value, print_time=None):
-        return _k.call(self, 1770, value, print_time)
+        return _k.call(self, 1771, value, print_time)
     def set_speed_from_command(self, value):
-        return _k.call(self, 1771, value)
+        return _k.call(self, 1772, value)
     def _handle_request_restart(self, print_time):
-        return _k.call(self, 1772, print_time)
+        return _k.call(self, 1773, print_time)
     def _handle_ready(self):
-        return _k.call(self, 1773)
+        return _k.call(self, 1774)
     def get_status(self, eventtime):
-        return _k.call(self, 1774, eventtime)
-    enable_pin = _k.Attr(1775, 'enable_pin')
-    gcrq = _k.Attr(1776, 'gcrq')
-    initial_speed = _k.Attr(1777, 'initial_speed')
-    kick_start_time = _k.Attr(1778, 'kick_start_time')
-    last_fan_value = _k.Attr(1779, 'last_fan_value')
-    last_pwm_value = _k.Attr(1780, 'last_pwm_value')
-    last_req_value = _k.Attr(1781, 'last_req_value')
-    max_power = _k.Attr(1782, 'max_power')
-    mcu_fan = _k.Attr(1783, 'mcu_fan')
-    min_power = _k.Attr(1784, 'min_power')
-    off_below = _k.Attr(1785, 'off_below')
-    printer = _k.Attr(1786, 'printer')
-    tachometer = _k.Attr(1787, 'tachometer')
+        return _k.call(self, 1775, eventtime)
+    enable_pin = _k.Attr(1776, 'enable_pin')
+    gcrq = _k.Attr(1777, 'gcrq')
+    initial_speed = _k.Attr(1778, 'initial_speed')
+    kick_start_time = _k.Attr(1779, 'kick_start_time')
+    last_fan_value = _k.Attr(1780, 'last_fan_value')
+    last_pwm_value = _k.Attr(1781, 'last_pwm_value')
+    last_req_value = _k.Attr(1782, 'last_req_value')
+    max_power = _k.Attr(1783, 'max_power')
+    mcu_fan = _k.Attr(1784, 'mcu_fan')
+    min_power = _k.Attr(1785, 'min_power')
+    off_below = _k.Attr(1786, 'off_below')
+    printer = _k.Attr(1787, 'printer')
+    tachometer = _k.Attr(1788, 'tachometer')
 
 class FanTachometer(_k.Object):
     __kaliru_mirror__ = True
     def __init__(self, config):
-        _k.new(self, 1788, config)
+        _k.new(self, 1789, config)
     def get_status(self, eventtime):
-        return _k.call(self, 1789, eventtime)
-    _freq_counter = _k.Attr(1790, '_freq_counter')
-    ppr = _k.Attr(1791, 'ppr')
+        return _k.call(self, 1790, eventtime)
+    _freq_counter = _k.Attr(1791, '_freq_counter')
+    ppr = _k.Attr(1792, 'ppr')
 
 class PrinterFan(_k.Object):
     __kaliru_mirror__ = True
     def __init__(self, config):
-        _k.new(self, 1792, config)
+        _k.new(self, 1793, config)
     def get_status(self, eventtime):
-        return _k.call(self, 1793, eventtime)
+        return _k.call(self, 1794, eventtime)
     def cmd_M106(self, gcmd):
-        return _k.call(self, 1794, gcmd)
-    def cmd_M107(self, gcmd):
         return _k.call(self, 1795, gcmd)
-    fan = _k.Attr(1796, 'fan')
+    def cmd_M107(self, gcmd):
+        return _k.call(self, 1796, gcmd)
+    fan = _k.Attr(1797, 'fan')
 
 def load_config(config):
-    return _k.fcall(1797, config)
+    return _k.fcall(1798, config)
 
 
 __getattr__ = _k.module_getattr(__name__)

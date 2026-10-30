@@ -5,15 +5,15 @@ import _k
 class GarbageCollection(_k.Object):
     __kaliru_mirror__ = True
     def __init__(self, config):
-        _k.new(self, 1939, config)
+        _k.new(self, 1940, config)
     def _handle_ready(self):
-        return _k.call(self, 1940)
-    def _handle_disconnect(self):
         return _k.call(self, 1941)
-    printer = _k.Attr(1942, 'printer')
+    def _handle_disconnect(self):
+        return _k.call(self, 1942)
+    printer = _k.Attr(1943, 'printer')
 
 def load_config(config):
-    return _k.fcall(1943, config)
+    return _k.fcall(1944, config)
 
 
 __getattr__ = _k.module_getattr(__name__)

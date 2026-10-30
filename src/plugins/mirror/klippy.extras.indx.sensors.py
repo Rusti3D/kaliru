@@ -4,12 +4,12 @@ import _k
 TEMP_REPORT_TIME = 0.3
 
 def indx_temp_sensor_factory(config):
-    return _k.fcall(2657, config)
+    return _k.fcall(2658, config)
 
 class IndxHeaterTemperatureSensor(_k.Object):
     __kaliru_mirror__ = True
     def __init__(self, toolboard, source):
-        _k.new(self, 2658, toolboard, source)
+        _k.new(self, 2659, toolboard, source)
     def handle_nozzle_temperature(self, reading):
         self.temperature_callback(reading.time, reading.nozzle_temperature)
     def handle_sensor_temperature(self, reading):
@@ -25,27 +25,27 @@ class IndxHeaterTemperatureSensor(_k.Object):
             - reading.nozzle_temperature,
         )
     def setup_callback(self, temperature_callback):
-        return _k.call(self, 2663, temperature_callback)
+        return _k.call(self, 2664, temperature_callback)
     def get_report_time_delta(self):
-        return _k.call(self, 2664)
+        return _k.call(self, 2665)
     def setup_minmax(self, min_temp, max_temp):
-        return _k.call(self, 2665, min_temp, max_temp)
-    temperature_callback = _k.Attr(2666, 'temperature_callback')
-    toolboard = _k.Attr(2667, 'toolboard')
+        return _k.call(self, 2666, min_temp, max_temp)
+    temperature_callback = _k.Attr(2667, 'temperature_callback')
+    toolboard = _k.Attr(2668, 'toolboard')
 
 def ldc_coil_sensor(toolboard, config):
-    return _k.fcall(2668, toolboard, config)
+    return _k.fcall(2669, toolboard, config)
 
 class IndxTempSensorWrapper(_k.Object):
     __kaliru_mirror__ = True
     def __init__(self, toolboard, sensor):
-        _k.new(self, 2669, toolboard, sensor)
+        _k.new(self, 2670, toolboard, sensor)
     def setup_callback(self, temperature_callback):
-        return _k.call(self, 2670, temperature_callback)
+        return _k.call(self, 2671, temperature_callback)
     def setup_minmax(self, min_temp, max_temp):
-        return _k.call(self, 2671, min_temp, max_temp)
-    sensor = _k.Attr(2672, 'sensor')
-    toolboard = _k.Attr(2673, 'toolboard')
+        return _k.call(self, 2672, min_temp, max_temp)
+    sensor = _k.Attr(2673, 'sensor')
+    toolboard = _k.Attr(2674, 'toolboard')
 
 
 __getattr__ = _k.module_getattr(__name__)

@@ -7,78 +7,78 @@ DEFAULT_ERROR_GCODE = "\n{% if 'heaters' in printer %}\n   TURN_OFF_HEATERS\n{% 
 class VirtualSD(_k.Object):
     __kaliru_mirror__ = True
     def __init__(self, config):
-        _k.new(self, 5803, config)
+        _k.new(self, 5819, config)
     def _handle_analyze_shutdown(self, msg, details):
-        return _k.call(self, 5804, msg, details)
+        return _k.call(self, 5820, msg, details)
     def stats(self, eventtime):
-        return _k.call(self, 5805, eventtime)
+        return _k.call(self, 5821, eventtime)
     def get_file_list(self, check_subdirs=False):
-        return _k.call(self, 5806, check_subdirs)
+        return _k.call(self, 5822, check_subdirs)
     def get_status(self, eventtime):
-        return _k.call(self, 5807, eventtime)
+        return _k.call(self, 5823, eventtime)
     def file_path(self):
-        return _k.call(self, 5808)
+        return _k.call(self, 5824)
     def progress(self):
-        return _k.call(self, 5809)
+        return _k.call(self, 5825)
     def is_active(self):
-        return _k.call(self, 5810)
+        return _k.call(self, 5826)
     def do_pause(self):
-        return _k.call(self, 5811)
+        return _k.call(self, 5827)
     def do_resume(self):
-        return _k.call(self, 5812)
+        return _k.call(self, 5828)
     def do_cancel(self):
-        return _k.call(self, 5813)
+        return _k.call(self, 5829)
     def cmd_error(self, gcmd):
         raise gcmd.error("SD write not supported")
     def _reset_file(self):
-        return _k.call(self, 5815)
+        return _k.call(self, 5831)
     cmd_SDCARD_RESET_FILE_help = 'Clears a loaded SD File. Stops the print if necessary'
     def cmd_SDCARD_RESET_FILE(self, gcmd):
-        return _k.call(self, 5816, gcmd)
+        return _k.call(self, 5832, gcmd)
     cmd_SDCARD_PRINT_FILE_help = 'Loads a SD file and starts the print.  May include files in subdirectories.'
     def cmd_SDCARD_PRINT_FILE(self, gcmd):
-        return _k.call(self, 5817, gcmd)
+        return _k.call(self, 5833, gcmd)
     def cmd_M20(self, gcmd):
-        return _k.call(self, 5818, gcmd)
+        return _k.call(self, 5834, gcmd)
     def cmd_M21(self, gcmd):
-        return _k.call(self, 5819, gcmd)
+        return _k.call(self, 5835, gcmd)
     def cmd_M23(self, gcmd):
-        return _k.call(self, 5820, gcmd)
+        return _k.call(self, 5836, gcmd)
     def _load_file(self, gcmd, filename, check_subdirs=False):
-        return _k.call(self, 5821, gcmd, filename, check_subdirs)
+        return _k.call(self, 5837, gcmd, filename, check_subdirs)
     def cmd_M24(self, gcmd):
-        return _k.call(self, 5822, gcmd)
+        return _k.call(self, 5838, gcmd)
     def cmd_M25(self, gcmd):
-        return _k.call(self, 5823, gcmd)
+        return _k.call(self, 5839, gcmd)
     def cmd_M26(self, gcmd):
-        return _k.call(self, 5824, gcmd)
+        return _k.call(self, 5840, gcmd)
     def cmd_M27(self, gcmd):
-        return _k.call(self, 5825, gcmd)
+        return _k.call(self, 5841, gcmd)
     def get_file_position(self):
-        return _k.call(self, 5826)
+        return _k.call(self, 5842)
     def set_file_position(self, pos):
-        return _k.call(self, 5827, pos)
+        return _k.call(self, 5843, pos)
     def is_cmd_from_sd(self):
-        return _k.call(self, 5828)
+        return _k.call(self, 5844)
     def work_handler(self, eventtime):
-        return _k.call(self, 5829, eventtime)
-    cmd_from_sd = _k.Attr(5830, 'cmd_from_sd')
-    current_file = _k.Attr(5831, 'current_file')
-    file_position = _k.Attr(5832, 'file_position')
-    file_size = _k.Attr(5833, 'file_size')
-    gcode = _k.Attr(5834, 'gcode')
-    must_pause_work = _k.Attr(5835, 'must_pause_work')
-    next_file_position = _k.Attr(5836, 'next_file_position')
-    on_error_gcode = _k.Attr(5837, 'on_error_gcode')
-    print_stats = _k.Attr(5838, 'print_stats')
-    printer = _k.Attr(5839, 'printer')
-    reactor = _k.Attr(5840, 'reactor')
-    sdcard_dirname = _k.Attr(5841, 'sdcard_dirname')
-    with_subdirs = _k.Attr(5842, 'with_subdirs')
-    work_timer = _k.Attr(5843, 'work_timer')
+        return _k.call(self, 5845, eventtime)
+    cmd_from_sd = _k.Attr(5846, 'cmd_from_sd')
+    current_file = _k.Attr(5847, 'current_file')
+    file_position = _k.Attr(5848, 'file_position')
+    file_size = _k.Attr(5849, 'file_size')
+    gcode = _k.Attr(5850, 'gcode')
+    must_pause_work = _k.Attr(5851, 'must_pause_work')
+    next_file_position = _k.Attr(5852, 'next_file_position')
+    on_error_gcode = _k.Attr(5853, 'on_error_gcode')
+    print_stats = _k.Attr(5854, 'print_stats')
+    printer = _k.Attr(5855, 'printer')
+    reactor = _k.Attr(5856, 'reactor')
+    sdcard_dirname = _k.Attr(5857, 'sdcard_dirname')
+    with_subdirs = _k.Attr(5858, 'with_subdirs')
+    work_timer = _k.Attr(5859, 'work_timer')
 
 def load_config(config):
-    return _k.fcall(5844, config)
+    return _k.fcall(5860, config)
 
 
 __getattr__ = _k.module_getattr(__name__)

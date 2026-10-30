@@ -9,42 +9,42 @@ MEASUREMENT_INTERVAL_MM = 10
 class FilamentWidthSensor(_k.Object):
     __kaliru_mirror__ = True
     def __init__(self, config):
-        _k.new(self, 5735, config)
+        _k.new(self, 5751, config)
     def handle_ready(self):
-        return _k.call(self, 5736)
+        return _k.call(self, 5752)
     def adc_callback(self, read_time, read_value):
-        return _k.call(self, 5737, read_time, read_value)
+        return _k.call(self, 5753, read_time, read_value)
     def update_filament_array(self, last_epos):
-        return _k.call(self, 5738, last_epos)
+        return _k.call(self, 5754, last_epos)
     def extrude_factor_update_event(self, eventtime):
-        return _k.call(self, 5739, eventtime)
+        return _k.call(self, 5755, eventtime)
     def cmd_M407(self, gcmd):
-        return _k.call(self, 5740, gcmd)
+        return _k.call(self, 5756, gcmd)
     def cmd_ClearFilamentArray(self, gcmd):
-        return _k.call(self, 5741, gcmd)
+        return _k.call(self, 5757, gcmd)
     def cmd_M405(self, gcmd):
-        return _k.call(self, 5742, gcmd)
+        return _k.call(self, 5758, gcmd)
     def cmd_M406(self, gcmd):
-        return _k.call(self, 5743, gcmd)
-    extrude_factor_update_timer = _k.Attr(5744, 'extrude_factor_update_timer')
-    filament_array = _k.Attr(5745, 'filament_array')
-    gcode = _k.Attr(5746, 'gcode')
-    is_active = _k.Attr(5747, 'is_active')
-    lastFilamentWidthReading = _k.Attr(5748, 'lastFilamentWidthReading')
-    max_diameter = _k.Attr(5749, 'max_diameter')
-    mcu_adc = _k.Attr(5750, 'mcu_adc')
-    measurement_delay = _k.Attr(5751, 'measurement_delay')
-    measurement_max_difference = _k.Attr(5752, 'measurement_max_difference')
-    min_diameter = _k.Attr(5753, 'min_diameter')
-    nominal_filament_dia = _k.Attr(5754, 'nominal_filament_dia')
-    pin = _k.Attr(5755, 'pin')
-    ppins = _k.Attr(5756, 'ppins')
-    printer = _k.Attr(5757, 'printer')
-    reactor = _k.Attr(5758, 'reactor')
-    toolhead = _k.Attr(5759, 'toolhead')
+        return _k.call(self, 5759, gcmd)
+    extrude_factor_update_timer = _k.Attr(5760, 'extrude_factor_update_timer')
+    filament_array = _k.Attr(5761, 'filament_array')
+    gcode = _k.Attr(5762, 'gcode')
+    is_active = _k.Attr(5763, 'is_active')
+    lastFilamentWidthReading = _k.Attr(5764, 'lastFilamentWidthReading')
+    max_diameter = _k.Attr(5765, 'max_diameter')
+    mcu_adc = _k.Attr(5766, 'mcu_adc')
+    measurement_delay = _k.Attr(5767, 'measurement_delay')
+    measurement_max_difference = _k.Attr(5768, 'measurement_max_difference')
+    min_diameter = _k.Attr(5769, 'min_diameter')
+    nominal_filament_dia = _k.Attr(5770, 'nominal_filament_dia')
+    pin = _k.Attr(5771, 'pin')
+    ppins = _k.Attr(5772, 'ppins')
+    printer = _k.Attr(5773, 'printer')
+    reactor = _k.Attr(5774, 'reactor')
+    toolhead = _k.Attr(5775, 'toolhead')
 
 def load_config(config):
-    return _k.fcall(5760, config)
+    return _k.fcall(5776, config)
 
 
 __getattr__ = _k.module_getattr(__name__)

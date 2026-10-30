@@ -653,6 +653,8 @@ pub struct LoadCellPrimitives {
     pub dispatch: Rc<TriggerDispatch>,
     // internal state tracking
     pub last_trigger_time: Cell<f64>,
+    /// set by home_wait (python's _last_trigger_time is the int 0 before)
+    pub trigger_time_set: Cell<bool>,
 }
 
 impl LoadCellPrimitives {
@@ -709,6 +711,10 @@ impl LoadCellPrimitives {
         let res = self.dispatch.stop()?;
         // clear the homing state so it stops processing samples
         self.last_trigger_time.set(self.mcu_load_cell_probe.clear_home()?);
+        self.trigger_time_set.set(true);
+        if self.get_mcu().is_fileoutput() {
+            self.last_trigger_time.set(home_end_time);
+        }
         if res >= McuTrsync::REASON_COMMS_TIMEOUT {
             let error = Self::error_map(res).map(|s| s.to_string()).unwrap_or_else(|| format!("Load Cell Probe Error: unknown reason code {}", res));
             return Err(KError::command(error));
@@ -753,7 +759,8 @@ impl LoadCellPrimitives {
             PyVal::Dict(d) => d,
             _ => return None,
         };
-        status.insert("last_trigger_time".into(), PyVal::Float(self.last_trigger_time.get()));
+        let t = if self.trigger_time_set.get() { PyVal::Float(self.last_trigger_time.get()) } else { PyVal::Int(0) };
+        status.insert("last_trigger_time".into(), t);
         Some(PyVal::Dict(status))
     }
 }
@@ -1033,6 +1040,7 @@ impl LoadCellPrinterProbe {
             load_cell: load_cell.clone(),
             dispatch: trigger_dispatch,
             last_trigger_time: Cell::new(0.0),
+            trigger_time_set: Cell::new(false),
         });
         let homing_move = HomingMove { printer: printer.clone(), primitives: primitives.clone() };
         let tapping_move = Rc::new_cyclic(|me| TappingMove {

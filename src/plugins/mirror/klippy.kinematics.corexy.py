@@ -5,35 +5,35 @@ import _k
 class CoreXYKinematics(_k.Object):
     __kaliru_mirror__ = True
     def __init__(self, toolhead, config):
-        _k.new(self, 6181, toolhead, config)
+        _k.new(self, 6197, toolhead, config)
     def get_steppers(self):
-        return _k.call(self, 6182)
+        return _k.call(self, 6198)
     def calc_position(self, stepper_positions):
-        return _k.call(self, 6183, stepper_positions)
+        return _k.call(self, 6199, stepper_positions)
     def set_position(self, newpos, homing_axes):
-        return _k.call(self, 6184, newpos, homing_axes)
+        return _k.call(self, 6200, newpos, homing_axes)
     def note_z_not_homed(self):
-        return _k.call(self, 6185)
+        return _k.call(self, 6201)
     def clear_homing_state(self, clear_axes):
-        return _k.call(self, 6186, clear_axes)
+        return _k.call(self, 6202, clear_axes)
     def home(self, homing_state):
-        return _k.call(self, 6187, homing_state)
+        return _k.call(self, 6203, homing_state)
     def _check_endstops(self, move):
-        return _k.call(self, 6188, move)
+        return _k.call(self, 6204, move)
     def check_move(self, move):
-        return _k.call(self, 6189, move)
+        return _k.call(self, 6205, move)
     def get_status(self, eventtime):
-        return _k.call(self, 6190, eventtime)
-    axes_max = _k.Attr(6191, 'axes_max')
-    axes_min = _k.Attr(6192, 'axes_min')
-    limits = _k.Attr(6193, 'limits')
-    max_z_accel = _k.Attr(6194, 'max_z_accel')
-    max_z_velocity = _k.Attr(6195, 'max_z_velocity')
-    rails = _k.Attr(6196, 'rails')
-    supports_dual_carriage = _k.Attr(6197, 'supports_dual_carriage')
+        return _k.call(self, 6206, eventtime)
+    axes_max = _k.Attr(6207, 'axes_max')
+    axes_min = _k.Attr(6208, 'axes_min')
+    limits = _k.Attr(6209, 'limits')
+    max_z_accel = _k.Attr(6210, 'max_z_accel')
+    max_z_velocity = _k.Attr(6211, 'max_z_velocity')
+    rails = _k.Attr(6212, 'rails')
+    supports_dual_carriage = _k.Attr(6213, 'supports_dual_carriage')
 
 def load_kinematics(toolhead, config):
-    return _k.fcall(6198, toolhead, config)
+    return _k.fcall(6214, toolhead, config)
 
 
 __getattr__ = _k.module_getattr(__name__)

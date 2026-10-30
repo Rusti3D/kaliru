@@ -15,8 +15,8 @@ use crate::pyfmt::py_strip;
 use std::ffi::CString;
 use std::os::fd::RawFd;
 
-/// `git describe` of the Kalico commit this port tracks (5b59427)
-pub const KALICO_VERSION: &str = "v2026.10.00-155-g5b594279";
+/// `git describe` of the Kalico commit this port tracks (550d21fb)
+pub const KALICO_VERSION: &str = "v2026.10.00-176-g550d21fb";
 
 // Return the SIGINT interrupt handler back to the OS default
 pub fn fix_sigint() {

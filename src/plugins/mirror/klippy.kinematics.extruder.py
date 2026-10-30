@@ -5,120 +5,120 @@ import _k
 class ExtruderStepper(_k.Object):
     __kaliru_mirror__ = True
     def __init__(self, config):
-        _k.new(self, 6291, config)
+        _k.new(self, 6307, config)
     def _handle_connect(self):
-        return _k.call(self, 6292)
+        return _k.call(self, 6308)
     def get_status(self, eventtime):
-        return _k.call(self, 6293, eventtime)
+        return _k.call(self, 6309, eventtime)
     def find_past_position(self, print_time):
-        return _k.call(self, 6294, print_time)
+        return _k.call(self, 6310, print_time)
     def sync_to_extruder(self, extruder_name):
-        return _k.call(self, 6295, extruder_name)
+        return _k.call(self, 6311, extruder_name)
     def set_rotation_distance(self, rotation_dist):
-        return _k.call(self, 6296, rotation_dist)
+        return _k.call(self, 6312, rotation_dist)
     def get_rotation_distance(self):
-        return _k.call(self, 6297)
+        return _k.call(self, 6313)
     def _set_pressure_advance(self, pressure_advance, smooth_time):
-        return _k.call(self, 6298, pressure_advance, smooth_time)
+        return _k.call(self, 6314, pressure_advance, smooth_time)
     cmd_SET_PRESSURE_ADVANCE_help = 'Set pressure advance parameters'
     def cmd_default_SET_PRESSURE_ADVANCE(self, gcmd):
-        return _k.call(self, 6299, gcmd)
+        return _k.call(self, 6315, gcmd)
     def cmd_SET_PRESSURE_ADVANCE(self, gcmd):
-        return _k.call(self, 6300, gcmd)
+        return _k.call(self, 6316, gcmd)
     cmd_SET_E_ROTATION_DISTANCE_help = 'Set extruder rotation distance'
     def cmd_SET_E_ROTATION_DISTANCE(self, gcmd):
-        return _k.call(self, 6301, gcmd)
+        return _k.call(self, 6317, gcmd)
     cmd_SYNC_EXTRUDER_MOTION_help = 'Set extruder stepper motion queue'
     def cmd_SYNC_EXTRUDER_MOTION(self, gcmd):
-        return _k.call(self, 6302, gcmd)
-    config_pa = _k.Attr(6303, 'config_pa')
-    config_smooth_time = _k.Attr(6304, 'config_smooth_time')
-    motion_queue = _k.Attr(6305, 'motion_queue')
-    name = _k.Attr(6306, 'name')
-    per_move_pressure_advance = _k.Attr(6307, 'per_move_pressure_advance')
-    pressure_advance = _k.Attr(6308, 'pressure_advance')
-    pressure_advance_smooth_time = _k.Attr(6309, 'pressure_advance_smooth_time')
-    printer = _k.Attr(6310, 'printer')
-    sk_extruder = _k.Attr(6311, 'sk_extruder')
-    stepper = _k.Attr(6312, 'stepper')
+        return _k.call(self, 6318, gcmd)
+    config_pa = _k.Attr(6319, 'config_pa')
+    config_smooth_time = _k.Attr(6320, 'config_smooth_time')
+    motion_queue = _k.Attr(6321, 'motion_queue')
+    name = _k.Attr(6322, 'name')
+    per_move_pressure_advance = _k.Attr(6323, 'per_move_pressure_advance')
+    pressure_advance = _k.Attr(6324, 'pressure_advance')
+    pressure_advance_smooth_time = _k.Attr(6325, 'pressure_advance_smooth_time')
+    printer = _k.Attr(6326, 'printer')
+    sk_extruder = _k.Attr(6327, 'sk_extruder')
+    stepper = _k.Attr(6328, 'stepper')
 
 class PrinterExtruder(_k.Object):
     __kaliru_mirror__ = True
     def __init__(self, config, extruder_num):
-        _k.new(self, 6313, config, extruder_num)
+        _k.new(self, 6329, config, extruder_num)
     def get_status(self, eventtime):
-        return _k.call(self, 6314, eventtime)
+        return _k.call(self, 6330, eventtime)
     def get_name(self):
-        return _k.call(self, 6315)
+        return _k.call(self, 6331)
     def get_heater(self):
-        return _k.call(self, 6316)
+        return _k.call(self, 6332)
     def get_trapq(self):
-        return _k.call(self, 6317)
+        return _k.call(self, 6333)
     def get_axis_gcode_id(self):
-        return _k.call(self, 6318)
+        return _k.call(self, 6334)
     def stats(self, eventtime):
-        return _k.call(self, 6319, eventtime)
+        return _k.call(self, 6335, eventtime)
     def check_move(self, move, ea_index):
-        return _k.call(self, 6320, move, ea_index)
+        return _k.call(self, 6336, move, ea_index)
     def calc_junction(self, prev_move, move, ea_index):
-        return _k.call(self, 6321, prev_move, move, ea_index)
+        return _k.call(self, 6337, prev_move, move, ea_index)
     def process_move(self, print_time, move, ea_index):
-        return _k.call(self, 6322, print_time, move, ea_index)
+        return _k.call(self, 6338, print_time, move, ea_index)
     def find_past_position(self, print_time):
-        return _k.call(self, 6323, print_time)
+        return _k.call(self, 6339, print_time)
     def cmd_M104(self, gcmd, wait=False):
-        return _k.call(self, 6324, gcmd, wait)
+        return _k.call(self, 6340, gcmd, wait)
     def cmd_M109(self, gcmd):
-        return _k.call(self, 6325, gcmd)
+        return _k.call(self, 6341, gcmd)
     def cmd_M302(self, gcmd):
-        return _k.call(self, 6326, gcmd)
+        return _k.call(self, 6342, gcmd)
     cmd_ACTIVATE_EXTRUDER_help = 'Change the active extruder'
     def cmd_ACTIVATE_EXTRUDER(self, gcmd):
-        return _k.call(self, 6327, gcmd)
+        return _k.call(self, 6343, gcmd)
     cmd_SET_NOZZLE_DIAMETER_help = 'Set nozzle diameter'
     def cmd_default_SET_NOZZLE_DIAMETER(self, gcmd):
-        return _k.call(self, 6328, gcmd)
+        return _k.call(self, 6344, gcmd)
     def cmd_SET_NOZZLE_DIAMETER(self, gcmd):
-        return _k.call(self, 6329, gcmd)
-    config_max_cross_section = _k.Attr(6330, 'config_max_cross_section')
-    extruder_stepper = _k.Attr(6331, 'extruder_stepper')
-    filament_area = _k.Attr(6332, 'filament_area')
-    heater = _k.Attr(6333, 'heater')
-    instant_corner_v = _k.Attr(6334, 'instant_corner_v')
-    last_position = _k.Attr(6335, 'last_position')
-    max_e_accel = _k.Attr(6336, 'max_e_accel')
-    max_e_dist = _k.Attr(6337, 'max_e_dist')
-    max_e_velocity = _k.Attr(6338, 'max_e_velocity')
-    max_extrude_ratio = _k.Attr(6339, 'max_extrude_ratio')
-    motion_queuing = _k.Attr(6340, 'motion_queuing')
-    name = _k.Attr(6341, 'name')
-    nozzle_diameter = _k.Attr(6342, 'nozzle_diameter')
-    printer = _k.Attr(6343, 'printer')
-    trapq = _k.Attr(6344, 'trapq')
-    trapq_append = _k.Attr(6345, 'trapq_append')
+        return _k.call(self, 6345, gcmd)
+    config_max_cross_section = _k.Attr(6346, 'config_max_cross_section')
+    extruder_stepper = _k.Attr(6347, 'extruder_stepper')
+    filament_area = _k.Attr(6348, 'filament_area')
+    heater = _k.Attr(6349, 'heater')
+    instant_corner_v = _k.Attr(6350, 'instant_corner_v')
+    last_position = _k.Attr(6351, 'last_position')
+    max_e_accel = _k.Attr(6352, 'max_e_accel')
+    max_e_dist = _k.Attr(6353, 'max_e_dist')
+    max_e_velocity = _k.Attr(6354, 'max_e_velocity')
+    max_extrude_ratio = _k.Attr(6355, 'max_extrude_ratio')
+    motion_queuing = _k.Attr(6356, 'motion_queuing')
+    name = _k.Attr(6357, 'name')
+    nozzle_diameter = _k.Attr(6358, 'nozzle_diameter')
+    printer = _k.Attr(6359, 'printer')
+    trapq = _k.Attr(6360, 'trapq')
+    trapq_append = _k.Attr(6361, 'trapq_append')
 
 class DummyExtruder(_k.Object):
     __kaliru_mirror__ = True
     def __init__(self, printer):
-        _k.new(self, 6346, printer)
+        _k.new(self, 6362, printer)
     def check_move(self, move, ea_index):
-        return _k.call(self, 6347, move, ea_index)
+        return _k.call(self, 6363, move, ea_index)
     def find_past_position(self, print_time):
-        return _k.call(self, 6348, print_time)
+        return _k.call(self, 6364, print_time)
     def calc_junction(self, prev_move, move, ea_index):
-        return _k.call(self, 6349, prev_move, move, ea_index)
+        return _k.call(self, 6365, prev_move, move, ea_index)
     def get_name(self):
-        return _k.call(self, 6350)
+        return _k.call(self, 6366)
     def get_heater(self):
-        return _k.call(self, 6351)
+        return _k.call(self, 6367)
     def get_trapq(self):
-        return _k.call(self, 6352)
+        return _k.call(self, 6368)
     def get_axis_gcode_id(self):
-        return _k.call(self, 6353)
-    printer = _k.Attr(6354, 'printer')
+        return _k.call(self, 6369)
+    printer = _k.Attr(6370, 'printer')
 
 def add_printer_objects(config):
-    return _k.fcall(6355, config)
+    return _k.fcall(6371, config)
 
 
 __getattr__ = _k.module_getattr(__name__)

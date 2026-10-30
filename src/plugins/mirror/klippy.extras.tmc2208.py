@@ -34,19 +34,19 @@ FieldFormatters.update({'sel_a': lambda v: '%d(%s)' % (v, ['TMC222x', 'TMC220x']
 class TMC2208(_k.Object):
     __kaliru_mirror__ = True
     def __init__(self, config):
-        _k.new(self, 5249, config)
+        _k.new(self, 5265, config)
     def read_translate(self, reg_name, val):
         if reg_name == "IOIN":
             drv_type = self.fields.get_field("sel_a", val)
             reg_name = "IOIN@TMC220x" if drv_type else "IOIN@TMC222x"
         return reg_name, val
-    fields = _k.Attr(5251, 'fields')
-    get_phase_offset = _k.Attr(5252, 'get_phase_offset')
-    get_status = _k.Attr(5253, 'get_status')
-    mcu_tmc = _k.Attr(5254, 'mcu_tmc')
+    fields = _k.Attr(5267, 'fields')
+    get_phase_offset = _k.Attr(5268, 'get_phase_offset')
+    get_status = _k.Attr(5269, 'get_status')
+    mcu_tmc = _k.Attr(5270, 'mcu_tmc')
 
 def load_config_prefix(config):
-    return _k.fcall(5255, config)
+    return _k.fcall(5271, config)
 
 
 __getattr__ = _k.module_getattr(__name__)

@@ -5,29 +5,29 @@ import _k
 class WinchKinematics(_k.Object):
     __kaliru_mirror__ = True
     def __init__(self, toolhead, config):
-        _k.new(self, 6538, toolhead, config)
+        _k.new(self, 6554, toolhead, config)
     def get_steppers(self):
-        return _k.call(self, 6539)
+        return _k.call(self, 6555)
     def calc_position(self, stepper_positions):
-        return _k.call(self, 6540, stepper_positions)
+        return _k.call(self, 6556, stepper_positions)
     def set_position(self, newpos, homing_axes):
-        return _k.call(self, 6541, newpos, homing_axes)
+        return _k.call(self, 6557, newpos, homing_axes)
     def clear_homing_state(self, clear_axes):
-        return _k.call(self, 6542, clear_axes)
+        return _k.call(self, 6558, clear_axes)
     def home(self, homing_state):
-        return _k.call(self, 6543, homing_state)
+        return _k.call(self, 6559, homing_state)
     def check_move(self, move):
-        return _k.call(self, 6544, move)
+        return _k.call(self, 6560, move)
     def get_status(self, eventtime):
-        return _k.call(self, 6545, eventtime)
-    anchors = _k.Attr(6546, 'anchors')
-    axes_max = _k.Attr(6547, 'axes_max')
-    axes_min = _k.Attr(6548, 'axes_min')
-    steppers = _k.Attr(6549, 'steppers')
-    supports_dual_carriage = _k.Attr(6550, 'supports_dual_carriage')
+        return _k.call(self, 6561, eventtime)
+    anchors = _k.Attr(6562, 'anchors')
+    axes_max = _k.Attr(6563, 'axes_max')
+    axes_min = _k.Attr(6564, 'axes_min')
+    steppers = _k.Attr(6565, 'steppers')
+    supports_dual_carriage = _k.Attr(6566, 'supports_dual_carriage')
 
 def load_kinematics(toolhead, config):
-    return _k.fcall(6551, toolhead, config)
+    return _k.fcall(6567, toolhead, config)
 
 
 __getattr__ = _k.module_getattr(__name__)

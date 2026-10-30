@@ -117,142 +117,142 @@ class GCodeCommand(_k.Object):
             above=above,
             below=below,
         )
-    _command = _k.Attr(6080, '_command')
-    _commandline = _k.Attr(6081, '_commandline')
-    _need_ack = _k.Attr(6082, '_need_ack')
-    _params = _k.Attr(6083, '_params')
-    respond_info = _k.Attr(6084, 'respond_info')
-    respond_raw = _k.Attr(6085, 'respond_raw')
+    _command = _k.Attr(6096, '_command')
+    _commandline = _k.Attr(6097, '_commandline')
+    _need_ack = _k.Attr(6098, '_need_ack')
+    _params = _k.Attr(6099, '_params')
+    respond_info = _k.Attr(6100, 'respond_info')
+    respond_raw = _k.Attr(6101, 'respond_raw')
 
 class GCodeDispatch(_k.Object):
     __kaliru_mirror__ = True
     error = CommandError
     Coord = Coord
     def __init__(self, printer):
-        _k.new(self, 6086, printer)
+        _k.new(self, 6102, printer)
     def get_interrupt_counter(self):
-        return _k.call(self, 6087)
+        return _k.call(self, 6103)
     def increment_interrupt_counter(self):
-        return _k.call(self, 6088)
+        return _k.call(self, 6104)
     def is_traditional_gcode(self, cmd):
-        return _k.call(self, 6089, cmd)
+        return _k.call(self, 6105, cmd)
     def register_command(self, cmd, func, when_not_ready=False, desc=None):
-        return _k.call(self, 6090, cmd, func, when_not_ready, desc)
+        return _k.call(self, 6106, cmd, func, when_not_ready, desc)
     def register_mux_command(self, cmd, key, value, func, desc=None):
-        return _k.call(self, 6091, cmd, key, value, func, desc)
+        return _k.call(self, 6107, cmd, key, value, func, desc)
     def get_command_help(self):
-        return _k.call(self, 6092)
+        return _k.call(self, 6108)
     def get_status(self, eventtime):
-        return _k.call(self, 6093, eventtime)
+        return _k.call(self, 6109, eventtime)
     def _build_status_commands(self):
-        return _k.call(self, 6094)
+        return _k.call(self, 6110)
     def register_output_handler(self, cb):
-        return _k.call(self, 6095, cb)
+        return _k.call(self, 6111, cb)
     def _handle_shutdown(self):
-        return _k.call(self, 6096)
+        return _k.call(self, 6112)
     def _handle_disconnect(self):
-        return _k.call(self, 6097)
+        return _k.call(self, 6113)
     def _handle_ready(self):
-        return _k.call(self, 6098)
+        return _k.call(self, 6114)
     args_r = re.compile('([A-Z_]+|[A-Z*])')
     def _process_commands(self, commands, need_ack=True):
-        return _k.call(self, 6099, commands, need_ack)
+        return _k.call(self, 6115, commands, need_ack)
     def run_script_from_command(self, script):
-        return _k.call(self, 6100, script)
+        return _k.call(self, 6116, script)
     def run_script(self, script):
-        return _k.call(self, 6101, script)
+        return _k.call(self, 6117, script)
     def get_mutex(self):
-        return _k.call(self, 6102)
+        return _k.call(self, 6118)
     def create_gcode_command(self, command, commandline, params):
         return GCodeCommand(self, command, commandline, params, False)
     def respond_raw(self, msg):
-        return _k.call(self, 6104, msg)
+        return _k.call(self, 6120, msg)
     def respond_info(self, msg, log=True):
-        return _k.call(self, 6105, msg, log)
+        return _k.call(self, 6121, msg, log)
     def _respond_error(self, msg):
-        return _k.call(self, 6106, msg)
+        return _k.call(self, 6122, msg)
     def _respond_state(self, state):
-        return _k.call(self, 6107, state)
+        return _k.call(self, 6123, state)
     def _get_extended_params(self, gcmd):
-        return _k.call(self, 6108, gcmd)
+        return _k.call(self, 6124, gcmd)
     def cmd_default(self, gcmd):
-        return _k.call(self, 6109, gcmd)
+        return _k.call(self, 6125, gcmd)
     def _cmd_mux(self, command, gcmd):
-        return _k.call(self, 6110, command, gcmd)
+        return _k.call(self, 6126, command, gcmd)
     def cmd_M110(self, gcmd):
-        return _k.call(self, 6111, gcmd)
+        return _k.call(self, 6127, gcmd)
     def cmd_M112(self, gcmd):
-        return _k.call(self, 6112, gcmd)
+        return _k.call(self, 6128, gcmd)
     def cmd_M115(self, gcmd):
-        return _k.call(self, 6113, gcmd)
+        return _k.call(self, 6129, gcmd)
     def request_restart(self, result):
-        return _k.call(self, 6114, result)
+        return _k.call(self, 6130, result)
     cmd_RESTART_help = 'Reload config file and restart host software'
     def cmd_RESTART(self, gcmd):
-        return _k.call(self, 6115, gcmd)
+        return _k.call(self, 6131, gcmd)
     cmd_FIRMWARE_RESTART_help = 'Restart firmware, host, and reload config'
     def cmd_FIRMWARE_RESTART(self, gcmd):
-        return _k.call(self, 6116, gcmd)
+        return _k.call(self, 6132, gcmd)
     def cmd_ECHO(self, gcmd):
-        return _k.call(self, 6117, gcmd)
+        return _k.call(self, 6133, gcmd)
     cmd_STATUS_help = 'Report the printer status'
     def cmd_STATUS(self, gcmd):
-        return _k.call(self, 6118, gcmd)
+        return _k.call(self, 6134, gcmd)
     cmd_HELP_help = 'Report the list of available extended G-Code commands'
     def cmd_HELP(self, gcmd):
-        return _k.call(self, 6119, gcmd)
+        return _k.call(self, 6135, gcmd)
     def cmd_HEATER_INTERRUPT(self, gcmd):
-        return _k.call(self, 6120, gcmd)
+        return _k.call(self, 6136, gcmd)
     def cmd_LOG_ROLLOVER(self, gcmd):
-        return _k.call(self, 6121, gcmd)
-    _interrupt_counter = _k.Attr(6122, '_interrupt_counter')
-    _script_context = _k.Attr(6123, '_script_context')
-    base_gcode_handlers = _k.Attr(6124, 'base_gcode_handlers')
-    gcode_handlers = _k.Attr(6125, 'gcode_handlers')
-    gcode_help = _k.Attr(6126, 'gcode_help')
-    is_fileinput = _k.Attr(6127, 'is_fileinput')
-    is_printer_ready = _k.Attr(6128, 'is_printer_ready')
-    mutex = _k.Attr(6129, 'mutex')
-    mux_commands = _k.Attr(6130, 'mux_commands')
-    output_callbacks = _k.Attr(6131, 'output_callbacks')
-    printer = _k.Attr(6132, 'printer')
-    ready_gcode_handlers = _k.Attr(6133, 'ready_gcode_handlers')
-    status_commands = _k.Attr(6134, 'status_commands')
+        return _k.call(self, 6137, gcmd)
+    _interrupt_counter = _k.Attr(6138, '_interrupt_counter')
+    _script_context = _k.Attr(6139, '_script_context')
+    base_gcode_handlers = _k.Attr(6140, 'base_gcode_handlers')
+    gcode_handlers = _k.Attr(6141, 'gcode_handlers')
+    gcode_help = _k.Attr(6142, 'gcode_help')
+    is_fileinput = _k.Attr(6143, 'is_fileinput')
+    is_printer_ready = _k.Attr(6144, 'is_printer_ready')
+    mutex = _k.Attr(6145, 'mutex')
+    mux_commands = _k.Attr(6146, 'mux_commands')
+    output_callbacks = _k.Attr(6147, 'output_callbacks')
+    printer = _k.Attr(6148, 'printer')
+    ready_gcode_handlers = _k.Attr(6149, 'ready_gcode_handlers')
+    status_commands = _k.Attr(6150, 'status_commands')
 
 class GCodeIO(_k.Object):
     __kaliru_mirror__ = True
     def __init__(self, printer):
-        _k.new(self, 6135, printer)
+        _k.new(self, 6151, printer)
     def _handle_ready(self):
-        return _k.call(self, 6136)
+        return _k.call(self, 6152)
     def _handle_analyze_shutdown(self, msg, details):
-        return _k.call(self, 6137, msg, details)
+        return _k.call(self, 6153, msg, details)
     def _handle_shutdown(self):
-        return _k.call(self, 6138)
+        return _k.call(self, 6154)
     m112_r = re.compile('^(?:[nN][0-9]+)?\\s*[mM]112(?:\\s|$)')
     def _process_data(self, eventtime):
-        return _k.call(self, 6139, eventtime)
+        return _k.call(self, 6155, eventtime)
     def _respond_raw(self, msg):
-        return _k.call(self, 6140, msg)
+        return _k.call(self, 6156, msg)
     def stats(self, eventtime):
-        return _k.call(self, 6141, eventtime)
-    bytes_read = _k.Attr(6142, 'bytes_read')
-    fd = _k.Attr(6143, 'fd')
-    fd_handle = _k.Attr(6144, 'fd_handle')
-    gcode = _k.Attr(6145, 'gcode')
-    gcode_mutex = _k.Attr(6146, 'gcode_mutex')
-    input_log = _k.Attr(6147, 'input_log')
-    is_fileinput = _k.Attr(6148, 'is_fileinput')
-    is_printer_ready = _k.Attr(6149, 'is_printer_ready')
-    is_processing_data = _k.Attr(6150, 'is_processing_data')
-    partial_input = _k.Attr(6151, 'partial_input')
-    pending_commands = _k.Attr(6152, 'pending_commands')
-    pipe_is_active = _k.Attr(6153, 'pipe_is_active')
-    printer = _k.Attr(6154, 'printer')
-    reactor = _k.Attr(6155, 'reactor')
+        return _k.call(self, 6157, eventtime)
+    bytes_read = _k.Attr(6158, 'bytes_read')
+    fd = _k.Attr(6159, 'fd')
+    fd_handle = _k.Attr(6160, 'fd_handle')
+    gcode = _k.Attr(6161, 'gcode')
+    gcode_mutex = _k.Attr(6162, 'gcode_mutex')
+    input_log = _k.Attr(6163, 'input_log')
+    is_fileinput = _k.Attr(6164, 'is_fileinput')
+    is_printer_ready = _k.Attr(6165, 'is_printer_ready')
+    is_processing_data = _k.Attr(6166, 'is_processing_data')
+    partial_input = _k.Attr(6167, 'partial_input')
+    pending_commands = _k.Attr(6168, 'pending_commands')
+    pipe_is_active = _k.Attr(6169, 'pipe_is_active')
+    printer = _k.Attr(6170, 'printer')
+    reactor = _k.Attr(6171, 'reactor')
 
 def add_early_printer_objects(printer):
-    return _k.fcall(6156, printer)
+    return _k.fcall(6172, printer)
 
 
 __getattr__ = _k.module_getattr(__name__)

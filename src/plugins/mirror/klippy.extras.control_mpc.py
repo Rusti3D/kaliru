@@ -11,83 +11,83 @@ FILAMENT_TEMP_SRC_SENSOR = 'sensor'
 class ControlMPC(_k.Object):
     __kaliru_mirror__ = True
     def __init__(self, profile, heater, load_clean=False, register=True):
-        _k.new(self, 947, profile, heater, load_clean, register)
+        _k.new(self, 948, profile, heater, load_clean, register)
     cmd_MPC_SET_help = 'Set MPC parameter'
     def cmd_MPC_SET(self, gcmd):
-        return _k.call(self, 948, gcmd)
+        return _k.call(self, 949, gcmd)
     cmd_MPC_CALIBRATE_help = 'Run MPC calibration'
     def cmd_MPC_CALIBRATE(self, gcmd):
-        return _k.call(self, 949, gcmd)
+        return _k.call(self, 950, gcmd)
     def _heater_temp(self):
-        return _k.call(self, 950)
-    def _load_profile(self):
         return _k.call(self, 951)
-    def is_valid(self):
+    def _load_profile(self):
         return _k.call(self, 952)
-    def check_valid(self):
+    def is_valid(self):
         return _k.call(self, 953)
-    def _update_filament_const(self):
+    def check_valid(self):
         return _k.call(self, 954)
+    def _update_filament_const(self):
+        return _k.call(self, 955)
     def temperature_update(self, read_time, temp, target_temp):
-        return _k.call(self, 955, read_time, temp, target_temp)
+        return _k.call(self, 956, read_time, temp, target_temp)
     def filament_temp(self, read_time, ambient_temp):
-        return _k.call(self, 956, read_time, ambient_temp)
+        return _k.call(self, 957, read_time, ambient_temp)
     def check_busy(self, eventtime, smoothed_temp, target_temp):
-        return _k.call(self, 957, eventtime, smoothed_temp, target_temp)
+        return _k.call(self, 958, eventtime, smoothed_temp, target_temp)
     def update_smooth_time(self):
-        return _k.call(self, 958)
-    def get_profile(self):
         return _k.call(self, 959)
-    def get_type(self):
+    def get_profile(self):
         return _k.call(self, 960)
+    def get_type(self):
+        return _k.call(self, 961)
     def get_status(self, eventtime):
-        return _k.call(self, 961, eventtime)
-    ambient_sensor = _k.Attr(962, 'ambient_sensor')
-    const_ambient_transfer = _k.Attr(963, 'const_ambient_transfer')
-    const_block_heat_capacity = _k.Attr(964, 'const_block_heat_capacity')
-    const_fan_ambient_transfer = _k.Attr(965, 'const_fan_ambient_transfer')
-    const_filament_cross_section_heat_capacity = _k.Attr(966, 'const_filament_cross_section_heat_capacity')
-    const_filament_density = _k.Attr(967, 'const_filament_density')
-    const_filament_diameter = _k.Attr(968, 'const_filament_diameter')
-    const_filament_heat_capacity = _k.Attr(969, 'const_filament_heat_capacity')
-    const_heater_power = _k.Attr(970, 'const_heater_power')
-    const_maximum_retract = _k.Attr(971, 'const_maximum_retract')
-    const_min_ambient_change = _k.Attr(972, 'const_min_ambient_change')
-    const_sensor_responsiveness = _k.Attr(973, 'const_sensor_responsiveness')
-    const_smoothing = _k.Attr(974, 'const_smoothing')
-    const_steady_state_rate = _k.Attr(975, 'const_steady_state_rate')
-    const_target_reach_time = _k.Attr(976, 'const_target_reach_time')
-    cooling_fan = _k.Attr(977, 'cooling_fan')
-    filament_temp_src = _k.Attr(978, 'filament_temp_src')
-    heater = _k.Attr(979, 'heater')
-    heater_max_power = _k.Attr(980, 'heater_max_power')
-    last_loss_ambient = _k.Attr(981, 'last_loss_ambient')
-    last_loss_filament = _k.Attr(982, 'last_loss_filament')
-    last_power = _k.Attr(983, 'last_power')
-    last_temp_time = _k.Attr(984, 'last_temp_time')
-    last_time = _k.Attr(985, 'last_time')
-    printer = _k.Attr(986, 'printer')
-    profile = _k.Attr(987, 'profile')
-    state_ambient_temp = _k.Attr(988, 'state_ambient_temp')
-    state_block_temp = _k.Attr(989, 'state_block_temp')
-    state_sensor_temp = _k.Attr(990, 'state_sensor_temp')
-    toolhead = _k.Attr(991, 'toolhead')
-    want_ambient_refresh = _k.Attr(992, 'want_ambient_refresh')
+        return _k.call(self, 962, eventtime)
+    ambient_sensor = _k.Attr(963, 'ambient_sensor')
+    const_ambient_transfer = _k.Attr(964, 'const_ambient_transfer')
+    const_block_heat_capacity = _k.Attr(965, 'const_block_heat_capacity')
+    const_fan_ambient_transfer = _k.Attr(966, 'const_fan_ambient_transfer')
+    const_filament_cross_section_heat_capacity = _k.Attr(967, 'const_filament_cross_section_heat_capacity')
+    const_filament_density = _k.Attr(968, 'const_filament_density')
+    const_filament_diameter = _k.Attr(969, 'const_filament_diameter')
+    const_filament_heat_capacity = _k.Attr(970, 'const_filament_heat_capacity')
+    const_heater_power = _k.Attr(971, 'const_heater_power')
+    const_maximum_retract = _k.Attr(972, 'const_maximum_retract')
+    const_min_ambient_change = _k.Attr(973, 'const_min_ambient_change')
+    const_sensor_responsiveness = _k.Attr(974, 'const_sensor_responsiveness')
+    const_smoothing = _k.Attr(975, 'const_smoothing')
+    const_steady_state_rate = _k.Attr(976, 'const_steady_state_rate')
+    const_target_reach_time = _k.Attr(977, 'const_target_reach_time')
+    cooling_fan = _k.Attr(978, 'cooling_fan')
+    filament_temp_src = _k.Attr(979, 'filament_temp_src')
+    heater = _k.Attr(980, 'heater')
+    heater_max_power = _k.Attr(981, 'heater_max_power')
+    last_loss_ambient = _k.Attr(982, 'last_loss_ambient')
+    last_loss_filament = _k.Attr(983, 'last_loss_filament')
+    last_power = _k.Attr(984, 'last_power')
+    last_temp_time = _k.Attr(985, 'last_temp_time')
+    last_time = _k.Attr(986, 'last_time')
+    printer = _k.Attr(987, 'printer')
+    profile = _k.Attr(988, 'profile')
+    state_ambient_temp = _k.Attr(989, 'state_ambient_temp')
+    state_block_temp = _k.Attr(990, 'state_block_temp')
+    state_sensor_temp = _k.Attr(991, 'state_sensor_temp')
+    toolhead = _k.Attr(992, 'toolhead')
+    want_ambient_refresh = _k.Attr(993, 'want_ambient_refresh')
 
 class MpcCalibrate(_k.Object):
     __kaliru_mirror__ = True
     def __init__(self, printer, heater, orig_control):
-        _k.new(self, 993, printer, heater, orig_control)
+        _k.new(self, 994, printer, heater, orig_control)
     def run(self, gcmd):
-        return _k.call(self, 994, gcmd)
+        return _k.call(self, 995, gcmd)
     def wait_stable(self, cycles=5):
-        return _k.call(self, 995, cycles)
+        return _k.call(self, 996, cycles)
     def wait_settle(self, max_rate):
-        return _k.call(self, 996, max_rate)
+        return _k.call(self, 997, max_rate)
     def await_ambient(self, gcmd, control, minimum_temp):
-        return _k.call(self, 997, gcmd, control, minimum_temp)
+        return _k.call(self, 998, gcmd, control, minimum_temp)
     def heatup_test(self, gcmd, target_temp, control):
-        return _k.call(self, 998, gcmd, target_temp, control)
+        return _k.call(self, 999, gcmd, target_temp, control)
     def transfer_test(
         self,
         gcmd,
@@ -140,9 +140,9 @@ class MpcCalibrate(_k.Object):
             "fan_powers": fan_powers,
         }
     def measure_power(self, max_time, sample_time):
-        return _k.call(self, 1000, max_time, sample_time)
+        return _k.call(self, 1001, max_time, sample_time)
     def fastest_rate(self, samples):
-        return _k.call(self, 1001, samples)
+        return _k.call(self, 1002, samples)
     def process_first_pass(
         self,
         all_samples,
@@ -252,29 +252,29 @@ class MpcCalibrate(_k.Object):
             "asymp_temp": asymp_T,
             "fan_ambient_transfer": fan_ambient_transfer,
         }
-    heater = _k.Attr(1004, 'heater')
-    orig_control = _k.Attr(1005, 'orig_control')
-    printer = _k.Attr(1006, 'printer')
+    heater = _k.Attr(1005, 'heater')
+    orig_control = _k.Attr(1006, 'orig_control')
+    printer = _k.Attr(1007, 'printer')
 
 class TuningControl(_k.Object):
     __kaliru_mirror__ = True
     def __init__(self, heater):
-        _k.new(self, 1007, heater)
+        _k.new(self, 1008, heater)
     def temperature_update(self, read_time, temp, target_temp):
-        return _k.call(self, 1008, read_time, temp, target_temp)
+        return _k.call(self, 1009, read_time, temp, target_temp)
     def check_busy(self, eventtime, smoothed_temp, target_temp):
-        return _k.call(self, 1009, eventtime, smoothed_temp, target_temp)
+        return _k.call(self, 1010, eventtime, smoothed_temp, target_temp)
     def set_output(self, value, target):
-        return _k.call(self, 1010, value, target)
+        return _k.call(self, 1011, value, target)
     def get_profile(self):
-        return _k.call(self, 1011)
-    def get_type(self):
         return _k.call(self, 1012)
-    heater = _k.Attr(1013, 'heater')
-    log = _k.Attr(1014, 'log')
-    logging = _k.Attr(1015, 'logging')
-    target = _k.Attr(1016, 'target')
-    value = _k.Attr(1017, 'value')
+    def get_type(self):
+        return _k.call(self, 1013)
+    heater = _k.Attr(1014, 'heater')
+    log = _k.Attr(1015, 'log')
+    logging = _k.Attr(1016, 'logging')
+    target = _k.Attr(1017, 'target')
+    value = _k.Attr(1018, 'value')
 
 
 __getattr__ = _k.module_getattr(__name__)

@@ -8,7 +8,7 @@ off them over time. Their printer needs AFC (AFC-Klipper-Add-On) and the AFC_ACE
 
 ## What Kalico offers a plugin (the contract to match)
 
-Source: Kalico 5b59427 `klippy/printer.py` (`_load_modules`, `PrinterModule`, `load_object`), `klippy/compat.py`,
+Source: Kalico 550d21fb `klippy/printer.py` (`_load_modules`, `PrinterModule`, `load_object`), `klippy/compat.py`,
 `docs/Code_Overview.md` "Adding a host module", `docs/Kalico_Additions.md` "Plugins".
 
 1. **Discovery.** At startup Kalico lists every module in `klippy/extras/` and then `klippy/plugins/` (pkgutil). A
@@ -106,7 +106,7 @@ For comparison, Python Kalico in the live scenario is 34 MB anon and kaliru is 2
    classes (`KError::Py(class)` ↔ the same Python class objects).
 4. **Full mirror, not a subset.** Plugins may touch anything (contract point 5), so the layer exposes *all* of
    Kalico's Python surface, generated from Kalico's source and checked for completeness:
-   - **Every name.** Every module, class, function, method and attribute of Kalico 5b59427's klippy exists in the
+   - **Every name.** Every module, class, function, method and attribute of Kalico 550d21fb's klippy exists in the
      layer, with the same name and the same behaviour. A tool (Kalico AST vs layer) lists anything missing, and that
      list must be empty.
    - **Attributes are live views of Rust state.** Reads see the current value. Writes change it. A write of a type
@@ -246,7 +246,7 @@ There is no regression without plugins: stock suite 87/88 (`printers/13` timing,
 - `gil.rs` holds the layer's tables as GIL-guarded statics.
 
 **The mirror**
-- `tools/gen_mirror.py` generates `mirror/*.py` and `mirror.bin` from Kalico. It covers 208 modules and 7,489 IDs; 39 methods are copied verbatim (`tools/mirror_verbatim.txt`): all of ConfigWrapper and GCodeCommand, and mathutil.
+- `tools/gen_mirror.py` generates `mirror/*.py` and `mirror.bin` from Kalico. It covers 208 modules and 7,512 IDs; 39 methods are copied verbatim (`tools/mirror_verbatim.txt`): all of ConfigWrapper and GCodeCommand, and mathutil.
 - `prelude.py` provides:
   - Object, Meta and Attr. An object with no kaliru object behind it is plain Python.
   - The import finder and compat aliases.
@@ -299,7 +299,7 @@ printer, configfile, gcode, reactor, webhooks, pins (Python pin chips), buttons,
 
 ### Known gaps, all of which fail loudly
 
-- **Coverage.** Most of the 7,489 IDs still raise "kaliru: X is not mirrored yet". The work list is the surface tool plus a trace per corpus plugin.
+- **Coverage.** Most of the 7,512 IDs still raise "kaliru: X is not mirrored yet". The work list is the surface tool plus a trace per corpus plugin.
 - **Override dispatch.** It is wired only where plugins are known to patch. Every other kaliru method still runs its own code.
 - **Str enums in Jinja.** A str enum in a status (AFC's `State`) reaches Jinja and JSON as its value. JSON matches Kalico, but a macro that renders the enum directly gets `Idle`, where Kalico shows `State.IDLE`.
 - **Valueless options.** A plugin-built `RawConfigParser` option with no value (`set(section, option)`) reads back as "" in kaliru.

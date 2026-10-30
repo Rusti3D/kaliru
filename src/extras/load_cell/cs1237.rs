@@ -21,7 +21,7 @@ const UPDATE_INTERVAL: f64 = 0.10;
 pub struct CS1237 {
     pub printer: Rc<Printer>,
     pub name: String,
-    pub last_error_count: Cell<i64>,
+    pub error_count: Cell<i64>,
     sensor_errors: RefCell<IndexMap<i64, String>>,
     pub sps: i64,
     pub mcu: Rc<Mcu>,
@@ -63,7 +63,7 @@ impl CS1237 {
         let s = Rc::new(CS1237 {
             printer: printer.clone(),
             name,
-            last_error_count: Cell::new(0),
+            error_count: Cell::new(0),
             sensor_errors: RefCell::new(IndexMap::default()),
             sps,
             mcu: mcu.clone(),
@@ -102,8 +102,8 @@ impl CS1237 {
 
     pub fn get_status(&self, _eventtime: f64) -> PyVal {
         let d = crate::pydict! {
-            "errors" => PyVal::Int(self.last_error_count.get()),
-            "overflows" => PyVal::Int(self.ffreader.get_last_overflows()),
+            "errors" => PyVal::Int(self.error_count.get()),
+            "overflows" => PyVal::Int(self.ffreader.get_total_overflows()),
             "sample_rate" => PyVal::Int(self.sps),
         };
         PyVal::Dict(d)
@@ -113,18 +113,20 @@ impl CS1237 {
         self.sensor_errors.borrow().get(&error_code).cloned().unwrap_or_else(|| "Unknown CS1237 error".into())
     }
 
-    pub fn convert_samples(&self, samples: &[(f64, Vec<i64>)]) -> Vec<PyVal> {
+    /// the converted samples and the batch's errors
+    pub fn convert_samples(samples: &[(f64, Vec<i64>)]) -> (Vec<PyVal>, i64) {
+        let mut batch_errors = 0;
         let mut out = vec![];
         for (ptime, f) in samples {
             let value = f[0];
             let top_byte = (value >> 24) & 0xFF;
             if top_byte != 0x00 && top_byte != 0xFF {
-                self.last_error_count.set(self.last_error_count.get() + 1);
+                batch_errors += 1;
                 continue;
             }
             out.push(adc_row(*ptime, value));
         }
-        out
+        (out, batch_errors)
     }
 
     pub fn start_measurements(&self) -> KResult<()> {
@@ -145,9 +147,10 @@ impl CS1237 {
     }
 
     pub fn process_batch(&self, _eventtime: f64) -> KResult<PyVal> {
-        let samples = self.ffreader.pull_samples()?;
-        let samples = self.convert_samples(&samples);
-        Ok(adc_batch(samples, self.last_error_count.get(), self.ffreader.get_last_overflows()))
+        let (samples, overflows) = self.ffreader.pull_samples()?;
+        let (samples, batch_errors) = Self::convert_samples(&samples);
+        self.error_count.set(self.error_count.get() + batch_errors);
+        Ok(adc_batch(samples, batch_errors, overflows))
     }
 }
 

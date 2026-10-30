@@ -567,9 +567,14 @@ impl LoadCellSampleCollector {
         self.min_time.set(0.0);
         self.max_time.set(f64::INFINITY);
         self.min_count.set(f64::INFINITY);
-        let samples = std::mem::take(&mut *self.samples.borrow_mut());
+        let mut samples = std::mem::take(&mut *self.samples.borrow_mut());
         let errors = self.errors.replace(0);
         let overflows = self.overflows.replace(0);
+        if self.mcu.is_fileoutput() {
+            // one all-zero row (python: (0.0,) * len(header_labels))
+            let channels = self.load_cell.upgrade().map(|lc| lc.channel_count).unwrap_or(0);
+            samples = vec![ForceSample { time: 0.0, force: Some(0.0), counts: 0, tare_counts: Some(0), channels: vec![(Some(0.0), 0); channels] }];
+        }
         (samples, if errors != 0 || overflows != 0 { Some((errors, overflows)) } else { None })
     }
 
@@ -579,7 +584,7 @@ impl LoadCellSampleCollector {
         let now = self.reactor.monotonic();
         let print_time = self.mcu.estimated_print_time(now);
         let wake_time = now + (timeout - print_time);
-        if self.is_started.get() {
+        if self.is_started.get() && !self.mcu.is_fileoutput() {
             let completion = self.reactor.completion::<bool>();
             *self.completion.borrow_mut() = Some(completion.clone());
             let result = completion.wait(wake_time, None)?;
@@ -1074,7 +1079,8 @@ impl PrinterObject for LoadCell {
     fn get_status(&self, _eventtime: f64) -> Option<PyVal> {
         // (python's None.update() raises when a channel buffer is empty)
         let mut status = self.force_g()?;
-        let list = |v: &Option<Vec<i64>>| v.as_ref().map(|v| PyVal::List(v.iter().map(|c| PyVal::Int(*c)).collect())).unwrap_or(PyVal::None);
+        // (tuples: config.getintlist() and avg_counts() give them)
+        let list = |v: &Option<Vec<i64>>| v.as_ref().map(|v| PyVal::Tuple(v.iter().map(|c| PyVal::Int(*c)).collect())).unwrap_or(PyVal::None);
         status.insert("is_calibrated".into(), PyVal::Bool(self.is_calibrated()));
         status.insert("counts_per_gram".into(), opt_f(self.counts_per_gram.get()));
         status.insert("reference_tare_counts".into(), opt_i(self.reference_tare_counts.get()));

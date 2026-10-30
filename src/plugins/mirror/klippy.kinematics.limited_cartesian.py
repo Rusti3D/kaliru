@@ -10,22 +10,22 @@ SQRT2 = hypot(1.0, 1.0)
 class LimitedCartKinematics(cartesian.CartKinematics):
     __kaliru_mirror__ = True
     def __init__(self, toolhead, config):
-        _k.new(self, 6437, toolhead, config)
+        _k.new(self, 6453, toolhead, config)
     cmd_SET_KINEMATICS_LIMIT_help = 'Set/get cartesian per axis velocity limits'
     def cmd_SET_KINEMATICS_LIMIT(self, gcmd):
-        return _k.call(self, 6438, gcmd)
+        return _k.call(self, 6454, gcmd)
     def check_move(self, move):
-        return _k.call(self, 6439, move)
-    config_max_accel = _k.Attr(6440, 'config_max_accel')
-    config_max_velocity = _k.Attr(6441, 'config_max_velocity')
-    max_accels = _k.Attr(6442, 'max_accels')
-    max_velocities = _k.Attr(6443, 'max_velocities')
-    scale_per_axis = _k.Attr(6444, 'scale_per_axis')
-    supports_dual_carriage = _k.Attr(6445, 'supports_dual_carriage')
-    xy_hypot_accel = _k.Attr(6446, 'xy_hypot_accel')
+        return _k.call(self, 6455, move)
+    config_max_accel = _k.Attr(6456, 'config_max_accel')
+    config_max_velocity = _k.Attr(6457, 'config_max_velocity')
+    max_accels = _k.Attr(6458, 'max_accels')
+    max_velocities = _k.Attr(6459, 'max_velocities')
+    scale_per_axis = _k.Attr(6460, 'scale_per_axis')
+    supports_dual_carriage = _k.Attr(6461, 'supports_dual_carriage')
+    xy_hypot_accel = _k.Attr(6462, 'xy_hypot_accel')
 
 def load_kinematics(toolhead, config):
-    return _k.fcall(6447, toolhead, config)
+    return _k.fcall(6463, toolhead, config)
 
 
 __getattr__ = _k.module_getattr(__name__)

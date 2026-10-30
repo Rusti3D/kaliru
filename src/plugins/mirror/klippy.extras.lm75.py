@@ -10,41 +10,41 @@ LM75_MIN_REPORT_TIME = 0.5
 class LM75(_k.Object):
     __kaliru_mirror__ = True
     def __init__(self, config):
-        _k.new(self, 2824, config)
+        _k.new(self, 2825, config)
     def handle_connect(self):
-        return _k.call(self, 2825)
+        return _k.call(self, 2826)
     def setup_minmax(self, min_temp, max_temp):
-        return _k.call(self, 2826, min_temp, max_temp)
+        return _k.call(self, 2827, min_temp, max_temp)
     def setup_callback(self, cb):
-        return _k.call(self, 2827, cb)
+        return _k.call(self, 2828, cb)
     def get_report_time_delta(self):
-        return _k.call(self, 2828)
+        return _k.call(self, 2829)
     def degrees_from_sample(self, x):
-        return _k.call(self, 2829, x)
+        return _k.call(self, 2830, x)
     def _init_lm75(self):
-        return _k.call(self, 2830)
+        return _k.call(self, 2831)
     def _sample_lm75(self, eventtime):
-        return _k.call(self, 2831, eventtime)
+        return _k.call(self, 2832, eventtime)
     def read_register(self, reg_name, read_len):
-        return _k.call(self, 2832, reg_name, read_len)
+        return _k.call(self, 2833, reg_name, read_len)
     def write_register(self, reg_name, data):
-        return _k.call(self, 2833, reg_name, data)
+        return _k.call(self, 2834, reg_name, data)
     def get_status(self, eventtime):
-        return _k.call(self, 2834, eventtime)
-    _callback = _k.Attr(2835, '_callback')
-    i2c = _k.Attr(2836, 'i2c')
-    max_temp = _k.Attr(2837, 'max_temp')
-    mcu = _k.Attr(2838, 'mcu')
-    min_temp = _k.Attr(2839, 'min_temp')
-    name = _k.Attr(2840, 'name')
-    printer = _k.Attr(2841, 'printer')
-    reactor = _k.Attr(2842, 'reactor')
-    report_time = _k.Attr(2843, 'report_time')
-    sample_timer = _k.Attr(2844, 'sample_timer')
-    temp = _k.Attr(2845, 'temp')
+        return _k.call(self, 2835, eventtime)
+    _callback = _k.Attr(2836, '_callback')
+    i2c = _k.Attr(2837, 'i2c')
+    max_temp = _k.Attr(2838, 'max_temp')
+    mcu = _k.Attr(2839, 'mcu')
+    min_temp = _k.Attr(2840, 'min_temp')
+    name = _k.Attr(2841, 'name')
+    printer = _k.Attr(2842, 'printer')
+    reactor = _k.Attr(2843, 'reactor')
+    report_time = _k.Attr(2844, 'report_time')
+    sample_timer = _k.Attr(2845, 'sample_timer')
+    temp = _k.Attr(2846, 'temp')
 
 def load_config(config):
-    return _k.fcall(2846, config)
+    return _k.fcall(2847, config)
 
 
 __getattr__ = _k.module_getattr(__name__)

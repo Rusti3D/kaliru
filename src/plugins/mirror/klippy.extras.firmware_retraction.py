@@ -7,65 +7,65 @@ MAX_Z_MARGIN = 0.1
 class FirmwareRetraction(_k.Object):
     __kaliru_mirror__ = True
     def __init__(self, config):
-        _k.new(self, 1883, config)
+        _k.new(self, 1884, config)
     def _get_config_params(self):
-        return _k.call(self, 1884)
-    def _handle_ready(self):
         return _k.call(self, 1885)
+    def _handle_ready(self):
+        return _k.call(self, 1886)
     def get_status(self, eventtime):
-        return _k.call(self, 1886, eventtime)
+        return _k.call(self, 1887, eventtime)
     cmd_SET_RETRACTION_help = 'Set firmware retraction parameters'
     def cmd_SET_RETRACTION(self, gcmd):
-        return _k.call(self, 1887, gcmd)
+        return _k.call(self, 1888, gcmd)
     cmd_GET_RETRACTION_help = 'Report firmware retraction parameters and states'
     def cmd_GET_RETRACTION(self, gcmd):
-        return _k.call(self, 1888, gcmd)
+        return _k.call(self, 1889, gcmd)
     cmd_CLEAR_RETRACTION_help = 'Clear retraction state without retract move if enabled'
     def cmd_CLEAR_RETRACTION(self, gcmd):
-        return _k.call(self, 1889, gcmd)
+        return _k.call(self, 1890, gcmd)
     cmd_RESET_RETRACTION_help = 'Reset retraction parameters to default values'
     def cmd_RESET_RETRACTION(self, gcmd):
-        return _k.call(self, 1890, gcmd)
+        return _k.call(self, 1891, gcmd)
     def _execute_clear_z_hop(self, *args):
-        return _k.call(self, 1891, args)
+        return _k.call(self, 1892, args)
     def _test_in_excluded_region(self):
-        return _k.call(self, 1892)
+        return _k.call(self, 1893)
     def cmd_G10(self, gcmd):
-        return _k.call(self, 1893, gcmd)
-    def cmd_G11(self, gcmd):
         return _k.call(self, 1894, gcmd)
+    def cmd_G11(self, gcmd):
+        return _k.call(self, 1895, gcmd)
     def get_position(self):
-        return _k.call(self, 1895)
+        return _k.call(self, 1896)
     def move(self, newpos, speed):
-        return _k.call(self, 1896, newpos, speed)
+        return _k.call(self, 1897, newpos, speed)
     def _limit_zhop(self, gcmd, pos):
-        return _k.call(self, 1897, gcmd, pos)
+        return _k.call(self, 1898, gcmd, pos)
     def _get_factors(self):
-        return _k.call(self, 1898)
-    clear_zhop = _k.Attr(1899, 'clear_zhop')
-    config_ref = _k.Attr(1900, 'config_ref')
-    current_unretract_length = _k.Attr(1901, 'current_unretract_length')
-    current_unretract_speed = _k.Attr(1902, 'current_unretract_speed')
-    current_z_hop_height = _k.Attr(1903, 'current_z_hop_height')
-    do_zhop = _k.Attr(1904, 'do_zhop')
-    exclude_objects = _k.Attr(1905, 'exclude_objects')
-    gcode = _k.Attr(1906, 'gcode')
-    gcode_move = _k.Attr(1907, 'gcode_move')
-    is_retracted = _k.Attr(1908, 'is_retracted')
-    last_position = _k.Attr(1909, 'last_position')
-    max_z_vel = _k.Attr(1910, 'max_z_vel')
-    maximum_z = _k.Attr(1911, 'maximum_z')
-    next_transform = _k.Attr(1912, 'next_transform')
-    printer = _k.Attr(1913, 'printer')
-    retract_length = _k.Attr(1914, 'retract_length')
-    retract_speed = _k.Attr(1915, 'retract_speed')
-    unretract_extra_length = _k.Attr(1916, 'unretract_extra_length')
-    unretract_length = _k.Attr(1917, 'unretract_length')
-    unretract_speed = _k.Attr(1918, 'unretract_speed')
-    z_hop_height = _k.Attr(1919, 'z_hop_height')
+        return _k.call(self, 1899)
+    clear_zhop = _k.Attr(1900, 'clear_zhop')
+    config_ref = _k.Attr(1901, 'config_ref')
+    current_unretract_length = _k.Attr(1902, 'current_unretract_length')
+    current_unretract_speed = _k.Attr(1903, 'current_unretract_speed')
+    current_z_hop_height = _k.Attr(1904, 'current_z_hop_height')
+    do_zhop = _k.Attr(1905, 'do_zhop')
+    exclude_objects = _k.Attr(1906, 'exclude_objects')
+    gcode = _k.Attr(1907, 'gcode')
+    gcode_move = _k.Attr(1908, 'gcode_move')
+    is_retracted = _k.Attr(1909, 'is_retracted')
+    last_position = _k.Attr(1910, 'last_position')
+    max_z_vel = _k.Attr(1911, 'max_z_vel')
+    maximum_z = _k.Attr(1912, 'maximum_z')
+    next_transform = _k.Attr(1913, 'next_transform')
+    printer = _k.Attr(1914, 'printer')
+    retract_length = _k.Attr(1915, 'retract_length')
+    retract_speed = _k.Attr(1916, 'retract_speed')
+    unretract_extra_length = _k.Attr(1917, 'unretract_extra_length')
+    unretract_length = _k.Attr(1918, 'unretract_length')
+    unretract_speed = _k.Attr(1919, 'unretract_speed')
+    z_hop_height = _k.Attr(1920, 'z_hop_height')
 
 def load_config(config):
-    return _k.fcall(1920, config)
+    return _k.fcall(1921, config)
 
 
 __getattr__ = _k.module_getattr(__name__)

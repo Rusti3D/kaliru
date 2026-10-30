@@ -14,53 +14,53 @@ NOOP_CMD = 0
 RESET_STATE = bytearray([0, 0, 0, 0])
 
 def hexify(byte_array):
-    return _k.fcall(2850, byte_array)
+    return _k.fcall(2851, byte_array)
 
 class ADS1220(LoadCellSensor):
     __kaliru_mirror__ = True
     def __init__(self, config):
-        _k.new(self, 2851, config)
+        _k.new(self, 2852, config)
     def _build_config(self):
-        return _k.call(self, 2852)
-    def get_mcu(self):
         return _k.call(self, 2853)
-    def get_samples_per_second(self):
+    def get_mcu(self):
         return _k.call(self, 2854)
-    def get_range(self):
+    def get_samples_per_second(self):
         return _k.call(self, 2855)
-    def get_channel_count(self):
+    def get_range(self):
         return _k.call(self, 2856)
+    def get_channel_count(self):
+        return _k.call(self, 2857)
     def add_client(self, callback):
-        return _k.call(self, 2857, callback)
+        return _k.call(self, 2858, callback)
     def attach_load_cell_probe(self, load_cell_probe_oid):
-        return _k.call(self, 2858, load_cell_probe_oid)
-    def _convert_samples(self, samples):
-        return _k.call(self, 2859, samples)
+        return _k.call(self, 2859, load_cell_probe_oid)
+    @staticmethod
+    def _convert_samples(samples):
+        return _k.fcall(2860, samples)
     def _start_measurements(self):
-        return _k.call(self, 2860)
-    def _finish_measurements(self):
         return _k.call(self, 2861)
+    def _finish_measurements(self):
+        return _k.call(self, 2862)
     def _process_batch(self, eventtime):
-        return _k.call(self, 2862, eventtime)
+        return _k.call(self, 2863, eventtime)
     def reset_chip(self):
-        return _k.call(self, 2863)
-    def setup_chip(self):
         return _k.call(self, 2864)
+    def setup_chip(self):
+        return _k.call(self, 2865)
     def read_reg(self, reg, byte_count):
-        return _k.call(self, 2865, reg, byte_count)
+        return _k.call(self, 2866, reg, byte_count)
     def send_command(self, cmd):
-        return _k.call(self, 2866, cmd)
+        return _k.call(self, 2867, cmd)
     def write_reg(self, reg, register_bytes):
-        return _k.call(self, 2867, reg, register_bytes)
-    attach_probe_cmd = _k.Attr(2868, 'attach_probe_cmd')
-    batch_bulk = _k.Attr(2869, 'batch_bulk')
-    consecutive_fails = _k.Attr(2870, 'consecutive_fails')
-    data_ready_pin = _k.Attr(2871, 'data_ready_pin')
-    ffreader = _k.Attr(2872, 'ffreader')
-    gain = _k.Attr(2873, 'gain')
-    gain_options = _k.Attr(2874, 'gain_options')
-    is_turbo = _k.Attr(2875, 'is_turbo')
-    last_error_count = _k.Attr(2876, 'last_error_count')
+        return _k.call(self, 2868, reg, register_bytes)
+    attach_probe_cmd = _k.Attr(2869, 'attach_probe_cmd')
+    batch_bulk = _k.Attr(2870, 'batch_bulk')
+    consecutive_fails = _k.Attr(2871, 'consecutive_fails')
+    data_ready_pin = _k.Attr(2872, 'data_ready_pin')
+    ffreader = _k.Attr(2873, 'ffreader')
+    gain = _k.Attr(2874, 'gain')
+    gain_options = _k.Attr(2875, 'gain_options')
+    is_turbo = _k.Attr(2876, 'is_turbo')
     mcu = _k.Attr(2877, 'mcu')
     mux = _k.Attr(2878, 'mux')
     name = _k.Attr(2879, 'name')

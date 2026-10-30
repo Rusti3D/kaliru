@@ -12,12 +12,12 @@ use crate::extras::homing::HomingMove;
 use crate::extras::stepper_enable::PrinterStepperEnable;
 use crate::gcode::{GCodeCommand, GCodeDispatch};
 use crate::logging;
-use crate::mcu::{any_to_endstop, EndstopRef, Mcu};
+use crate::mcu::{any_to_endstop, CommandQueryWrapper, CommandWrapper, Endstop, EndstopRef, Mcu, McuTrsync, StepperRef, TriggerDispatch};
 use crate::pins::{PinChip, PinsObject, SharedPinParams};
 use crate::printer::{downcast_rc, Printer};
 use crate::pyfmt::{py_bool, py_float_repr, py_min, py_round};
 use crate::pyval::{PyDict, PyVal};
-use crate::reactor::{ReactorMutex, Timer, NEVER, NOW};
+use crate::reactor::{ReactorCompletion, ReactorMutex, Timer, NEVER, NOW};
 use crate::stepper::{parse_step_distance, McuStepper, TmcCurrentHelper};
 use crate::toolhead::ToolHead;
 use crate::IndexMap;
@@ -217,6 +217,11 @@ pub trait TmcMcu: std::any::Any {
     fn get_mcu(&self) -> Rc<Mcu>;
     /// self.name_to_reg.get(reg_name, 0)
     fn name_to_reg(&self, reg_name: &str) -> i64;
+    /// (self.tmc_spi, self.chain_pos) of an SPI driver; None where python's
+    /// hasattr(mcu_tmc, "tmc_spi") is false
+    fn tmc_spi(&self) -> Option<(Rc<crate::extras::tmc2130::McuTmcSpiChain>, i64)> {
+        None
+    }
     /// the Rust type's path (python plugins find the Kalico class by it)
     fn type_name(&self) -> &'static str {
         std::any::type_name::<Self>()
@@ -1405,9 +1410,9 @@ impl PinChip for TMCVirtualPinHelper {
                 return Err("Can not pullup/invert tmc virtual pin".into());
             }
         }
-        let Some(diag_pin) = self.diag_pin.clone() else {
+        if self.diag_pin.is_none() && self.mcu_tmc.tmc_spi().is_none() {
             return Err("tmc virtual endstop requires diag pin config".into());
-        };
+        }
         // Setup for sensorless homing
         let w = self.me.clone();
         crate::events::HomingMoveBegin::on(&self.printer, move |hmove| match w.upgrade() {
@@ -1419,9 +1424,157 @@ impl PinChip for TMCVirtualPinHelper {
             Some(h) => h.handle_homing_move_end(&hmove),
             None => Ok(()),
         });
-        let obj = crate::pins::setup_pin(&self.printer, "endstop", &diag_pin).map_err(|e| e.message().to_string())?;
+        let obj = match &self.diag_pin {
+            None => {
+                let e: EndstopRef = TMCSpiEndstop::new(&self.printer, &self.mcu_tmc)?;
+                Rc::new(e) as Rc<dyn Any>
+            }
+            Some(diag_pin) => crate::pins::setup_pin(&self.printer, "endstop", diag_pin).map_err(|e| e.message().to_string())?,
+        };
         *self.mcu_endstop.borrow_mut() = any_to_endstop(obj.clone());
         Ok(obj)
+    }
+}
+
+// Sensorless homing by polling the stallguard flag over spi
+pub struct TMCSpiEndstop {
+    pub printer: Rc<Printer>,
+    pub mutex: Rc<ReactorMutex>,
+    pub mcu_tmc: TmcMcuRef,
+    pub mcu: Rc<Mcu>,
+    pub oid: i64,
+    dispatch: TriggerDispatch,
+    pub home_cmd: RefCell<Option<CommandWrapper>>,
+    pub query_cmd: RefCell<Option<CommandQueryWrapper>>,
+}
+
+impl TMCSpiEndstop {
+    pub const POLL_TIME: f64 = 0.001;
+    // Stallguard needs some time at speed before its flag is valid
+    pub const SETTLE_TIME: f64 = 0.150;
+    // Matches MAX_DATA_LEN in src/tmc_spi_endstop.c
+    pub const MAX_CHAIN_LEN: i64 = 8;
+
+    pub fn new(printer: &Rc<Printer>, mcu_tmc: &TmcMcuRef) -> Result<Rc<Self>, String> {
+        let (tmc_spi, chain_pos) = mcu_tmc.tmc_spi().expect("an spi tmc driver");
+        if tmc_spi.chain_len > Self::MAX_CHAIN_LEN {
+            return Err(format!("Sensorless homing via SPI supports at most {} drivers in a daisy chain", Self::MAX_CHAIN_LEN));
+        }
+        let mcu = tmc_spi.spi.get_mcu();
+        let oid = mcu.create_oid();
+        let e = Rc::new(TMCSpiEndstop {
+            printer: printer.clone(),
+            mutex: tmc_spi.mutex.clone(),
+            mcu_tmc: mcu_tmc.clone(),
+            mcu: mcu.clone(),
+            oid,
+            dispatch: TriggerDispatch::new(&mcu),
+            home_cmd: RefCell::new(None),
+            query_cmd: RefCell::new(None),
+        });
+        mcu.add_config_cmd(
+            &format!(
+                "config_tmc_spi_endstop oid={} spi_oid={} data_len={} status_pos={}",
+                oid,
+                tmc_spi.spi.get_oid(),
+                tmc_spi.chain_len * 5,
+                (tmc_spi.chain_len - chain_pos) * 5
+            ),
+            false,
+            false,
+        );
+        mcu.add_config_cmd(&format!("tmc_spi_endstop_home oid={} clock=0 rest_ticks=0 trsync_oid=0 trigger_reason=0", oid), false, true);
+        let w = Rc::downgrade(&e);
+        mcu.register_config_callback(Rc::new(move || match w.upgrade() {
+            Some(e) => e.build_config(),
+            None => Ok(()),
+        }));
+        Ok(e)
+    }
+
+    pub fn build_config(&self) -> KResult<()> {
+        let cmd_queue = self.dispatch.get_command_queue();
+        *self.home_cmd.borrow_mut() = Some(self.mcu.lookup_command(
+            "tmc_spi_endstop_home oid=%c clock=%u rest_ticks=%u trsync_oid=%c trigger_reason=%c",
+            Some(cmd_queue.clone()),
+        )?);
+        *self.query_cmd.borrow_mut() = Some(self.mcu.lookup_query_command(
+            "tmc_spi_endstop_query_state oid=%c",
+            "tmc_spi_endstop_state oid=%c trigger_clock=%u",
+            Some(self.oid),
+            Some(cmd_queue),
+            false,
+        )?);
+        Ok(())
+    }
+
+    fn home_cmd(&self) -> KResult<CommandWrapper> {
+        self.home_cmd.borrow().clone().ok_or_else(|| KError::Py("AttributeError".into(), "'NoneType' object has no attribute 'send'".into()))
+    }
+}
+
+impl Endstop for TMCSpiEndstop {
+    fn get_mcu(&self) -> Rc<Mcu> {
+        self.mcu.clone()
+    }
+    fn add_stepper(&self, stepper: &StepperRef) -> KResult<()> {
+        self.dispatch.add_stepper(stepper)
+    }
+    fn get_steppers(&self) -> Vec<StepperRef> {
+        self.dispatch.get_steppers()
+    }
+    fn home_start(&self, print_time: f64, _sample_time: f64, _sample_count: i64, rest_time: f64, _triggered: bool) -> KResult<Rc<ReactorCompletion<bool>>> {
+        let toolhead = self.printer.lookup::<ToolHead>("toolhead")?;
+        let accel = toolhead.get_max_velocity().1;
+        let steppers = self.get_steppers();
+        let stepper = steppers.first().ok_or_else(|| KError::Py("IndexError".into(), "list index out of range".into()))?;
+        let speed = stepper.get_step_dist() / rest_time;
+        let guard_time = speed / accel + Self::SETTLE_TIME;
+        // Host register reads must not interleave with the mcu polling
+        self.mutex.lock()?;
+        let clock = self.mcu.print_time_to_clock(print_time + guard_time);
+        let trigger_completion = self.dispatch.start(print_time)?;
+        self.home_cmd()?.send(
+            &crate::mcu::ints(&[
+                self.oid,
+                clock,
+                self.mcu.seconds_to_clock(Self::POLL_TIME),
+                self.dispatch.get_oid(),
+                McuTrsync::REASON_ENDSTOP_HIT,
+            ]),
+            0,
+            clock as u64,
+        )?;
+        Ok(trigger_completion)
+    }
+    fn home_wait(&self, home_end_time: f64) -> KResult<f64> {
+        let waited = self.dispatch.wait_end(home_end_time).and_then(|_| self.home_cmd()?.send(&crate::mcu::ints(&[self.oid, 0, 0, 0, 0]), 0, 0));
+        self.mutex.unlock();
+        waited?;
+        let res = self.dispatch.stop()?;
+        if res >= McuTrsync::REASON_COMMS_TIMEOUT {
+            return Err(KError::command("Communication timeout during homing"));
+        }
+        if res != McuTrsync::REASON_ENDSTOP_HIT {
+            return Ok(0.0);
+        }
+        if self.mcu.is_fileoutput() {
+            return Ok(home_end_time);
+        }
+        let params = match self.query_cmd.borrow().as_ref() {
+            Some(cmd) => cmd.send(&crate::mcu::ints(&[self.oid]), 0, 0, true)?,
+            None => return Err(KError::Py("AttributeError".into(), "'NoneType' object has no attribute 'send'".into())),
+        };
+        let clock = self.mcu.clock32_to_clock64(crate::mcu::pint(&params, "trigger_clock"));
+        Ok(self.mcu.clock_to_print_time(clock as f64))
+    }
+    fn query_endstop(&self, _print_time: f64) -> KResult<i64> {
+        if self.mcu.is_fileoutput() {
+            return Ok(0);
+        }
+        let status = self.mcu_tmc.get_register_raw("DRV_STATUS")?.spi_status.unwrap_or(0);
+        // Ignore the stale stall flag at standstill
+        Ok((status & 0x0C == 0x04) as i64)
     }
 }
 

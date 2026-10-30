@@ -76,10 +76,10 @@ class QueueListener(logging.handlers.TimedRotatingFileHandler):
         )
 
 def setup_bg_logging(filename, debuglevel, rotate_log_at_restart):
-    return _k.fcall(7030, filename, debuglevel, rotate_log_at_restart)
+    return _k.fcall(7051, filename, debuglevel, rotate_log_at_restart)
 
 def clear_bg_logging():
-    return _k.fcall(7031)
+    return _k.fcall(7052)
 
 
 __getattr__ = _k.module_getattr(__name__)

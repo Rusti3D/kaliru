@@ -5,23 +5,23 @@ import _k
 class ShellCommand(_k.Object):
     __kaliru_mirror__ = True
     def __init__(self, config):
-        _k.new(self, 2095, config)
+        _k.new(self, 2096, config)
     def _process_output(self, eventime):
-        return _k.call(self, 2096, eventime)
+        return _k.call(self, 2097, eventime)
     cmd_RUN_SHELL_COMMAND_help = 'Run a linux shell command'
     def cmd_RUN_SHELL_COMMAND(self, params):
-        return _k.call(self, 2097, params)
-    command = _k.Attr(2098, 'command')
-    gcode = _k.Attr(2099, 'gcode')
-    name = _k.Attr(2100, 'name')
-    partial_output = _k.Attr(2101, 'partial_output')
-    printer = _k.Attr(2102, 'printer')
-    proc_fd = _k.Attr(2103, 'proc_fd')
-    timeout = _k.Attr(2104, 'timeout')
-    verbose = _k.Attr(2105, 'verbose')
+        return _k.call(self, 2098, params)
+    command = _k.Attr(2099, 'command')
+    gcode = _k.Attr(2100, 'gcode')
+    name = _k.Attr(2101, 'name')
+    partial_output = _k.Attr(2102, 'partial_output')
+    printer = _k.Attr(2103, 'printer')
+    proc_fd = _k.Attr(2104, 'proc_fd')
+    timeout = _k.Attr(2105, 'timeout')
+    verbose = _k.Attr(2106, 'verbose')
 
 def load_config_prefix(config):
-    return _k.fcall(2106, config)
+    return _k.fcall(2107, config)
 
 
 __getattr__ = _k.module_getattr(__name__)

@@ -5,73 +5,73 @@ import _k
 class InputShaperParams(_k.Object):
     __kaliru_mirror__ = True
     def __init__(self, axis, config):
-        _k.new(self, 2696, axis, config)
+        _k.new(self, 2697, axis, config)
     def update(self, gcmd):
-        return _k.call(self, 2697, gcmd)
+        return _k.call(self, 2698, gcmd)
     def get_shaper(self):
-        return _k.call(self, 2698)
-    def get_status(self):
         return _k.call(self, 2699)
-    axis = _k.Attr(2700, 'axis')
-    damping_ratio = _k.Attr(2701, 'damping_ratio')
-    shaper_freq = _k.Attr(2702, 'shaper_freq')
-    shaper_type = _k.Attr(2703, 'shaper_type')
-    shapers = _k.Attr(2704, 'shapers')
+    def get_status(self):
+        return _k.call(self, 2700)
+    axis = _k.Attr(2701, 'axis')
+    damping_ratio = _k.Attr(2702, 'damping_ratio')
+    shaper_freq = _k.Attr(2703, 'shaper_freq')
+    shaper_type = _k.Attr(2704, 'shaper_type')
+    shapers = _k.Attr(2705, 'shapers')
 
 class AxisInputShaper(_k.Object):
     __kaliru_mirror__ = True
     def __init__(self, axis, config):
-        _k.new(self, 2705, axis, config)
+        _k.new(self, 2706, axis, config)
     def get_name(self):
-        return _k.call(self, 2706)
-    def get_shaper(self):
         return _k.call(self, 2707)
+    def get_shaper(self):
+        return _k.call(self, 2708)
     def update(self, gcmd):
-        return _k.call(self, 2708, gcmd)
+        return _k.call(self, 2709, gcmd)
     def set_shaper_kinematics(self, sk):
-        return _k.call(self, 2709, sk)
+        return _k.call(self, 2710, sk)
     def disable_shaping(self):
-        return _k.call(self, 2710)
-    def enable_shaping(self):
         return _k.call(self, 2711)
+    def enable_shaping(self):
+        return _k.call(self, 2712)
     def report(self, gcmd):
-        return _k.call(self, 2712, gcmd)
-    A = _k.Attr(2713, 'A')
-    T = _k.Attr(2714, 'T')
-    axis = _k.Attr(2715, 'axis')
-    n = _k.Attr(2716, 'n')
-    params = _k.Attr(2717, 'params')
-    saved = _k.Attr(2718, 'saved')
+        return _k.call(self, 2713, gcmd)
+    A = _k.Attr(2714, 'A')
+    T = _k.Attr(2715, 'T')
+    axis = _k.Attr(2716, 'axis')
+    n = _k.Attr(2717, 'n')
+    params = _k.Attr(2718, 'params')
+    saved = _k.Attr(2719, 'saved')
 
 class InputShaper(_k.Object):
     __kaliru_mirror__ = True
     def __init__(self, config):
-        _k.new(self, 2719, config)
+        _k.new(self, 2720, config)
     def get_shapers(self):
-        return _k.call(self, 2720)
-    def connect(self):
         return _k.call(self, 2721)
+    def connect(self):
+        return _k.call(self, 2722)
     def _get_input_shaper_stepper_kinematics(self, stepper):
-        return _k.call(self, 2722, stepper)
+        return _k.call(self, 2723, stepper)
     def _update_kinematics(self):
-        return _k.call(self, 2723)
+        return _k.call(self, 2724)
     def _update_input_shaping(self, error=None):
-        return _k.call(self, 2724, error)
+        return _k.call(self, 2725, error)
     def disable_shaping(self):
-        return _k.call(self, 2725)
-    def enable_shaping(self):
         return _k.call(self, 2726)
+    def enable_shaping(self):
+        return _k.call(self, 2727)
     cmd_SET_INPUT_SHAPER_help = 'Set cartesian parameters for input shaper'
     def cmd_SET_INPUT_SHAPER(self, gcmd):
-        return _k.call(self, 2727, gcmd)
-    input_shaper_stepper_kinematics = _k.Attr(2728, 'input_shaper_stepper_kinematics')
-    orig_stepper_kinematics = _k.Attr(2729, 'orig_stepper_kinematics')
-    printer = _k.Attr(2730, 'printer')
-    shapers = _k.Attr(2731, 'shapers')
-    toolhead = _k.Attr(2732, 'toolhead')
+        return _k.call(self, 2728, gcmd)
+    input_shaper_stepper_kinematics = _k.Attr(2729, 'input_shaper_stepper_kinematics')
+    orig_stepper_kinematics = _k.Attr(2730, 'orig_stepper_kinematics')
+    printer = _k.Attr(2731, 'printer')
+    shapers = _k.Attr(2732, 'shapers')
+    toolhead = _k.Attr(2733, 'toolhead')
 
 def load_config(config):
-    return _k.fcall(2733, config)
+    return _k.fcall(2734, config)
 
 
 __getattr__ = _k.module_getattr(__name__)

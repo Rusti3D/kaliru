@@ -19,7 +19,7 @@ class error(Exception):
     pass
 
 def crc16_ccitt(buf):
-    return _k.fcall(6876, buf)
+    return _k.fcall(6896, buf)
 
 class PT_uint32(_k.Object):
     __kaliru_mirror__ = True
@@ -118,11 +118,11 @@ class Enumeration(_k.Object):
         if tv is None:
             tv = "?%d" % (v,)
         return tv, pos
-    enum_name = _k.Attr(6884, 'enum_name')
-    enums = _k.Attr(6885, 'enums')
-    max_length = _k.Attr(6886, 'max_length')
-    pt = _k.Attr(6887, 'pt')
-    reverse_enums = _k.Attr(6888, 'reverse_enums')
+    enum_name = _k.Attr(6904, 'enum_name')
+    enums = _k.Attr(6905, 'enums')
+    max_length = _k.Attr(6906, 'max_length')
+    pt = _k.Attr(6907, 'pt')
+    reverse_enums = _k.Attr(6908, 'reverse_enums')
 
 def lookup_params(msgformat, enumerations=None):
     if enumerations is None:
@@ -157,65 +157,65 @@ def lookup_output_params(msgformat):
     return param_types
 
 def convert_msg_format(msgformat):
-    return _k.fcall(6891, msgformat)
+    return _k.fcall(6911, msgformat)
 
 class MessageFormat(_k.Object):
     __kaliru_mirror__ = True
     def __init__(self, msgid_bytes, msgformat, enumerations=None):
-        _k.new(self, 6892, msgid_bytes, msgformat, enumerations)
+        _k.new(self, 6912, msgid_bytes, msgformat, enumerations)
     def encode(self, params):
-        return _k.call(self, 6893, params)
+        return _k.call(self, 6913, params)
     def encode_by_name(self, **params):
-        return _k.call(self, 6894, params)
+        return _k.call(self, 6914, params)
     def parse(self, s, pos):
-        return _k.call(self, 6895, s, pos)
+        return _k.call(self, 6915, s, pos)
     def format_params(self, params):
-        return _k.call(self, 6896, params)
-    debugformat = _k.Attr(6897, 'debugformat')
-    msgformat = _k.Attr(6898, 'msgformat')
-    msgid_bytes = _k.Attr(6899, 'msgid_bytes')
-    name = _k.Attr(6900, 'name')
-    name_to_type = _k.Attr(6901, 'name_to_type')
-    param_names = _k.Attr(6902, 'param_names')
-    param_types = _k.Attr(6903, 'param_types')
+        return _k.call(self, 6916, params)
+    debugformat = _k.Attr(6917, 'debugformat')
+    msgformat = _k.Attr(6918, 'msgformat')
+    msgid_bytes = _k.Attr(6919, 'msgid_bytes')
+    name = _k.Attr(6920, 'name')
+    name_to_type = _k.Attr(6921, 'name_to_type')
+    param_names = _k.Attr(6922, 'param_names')
+    param_types = _k.Attr(6923, 'param_types')
 
 class OutputFormat(_k.Object):
     __kaliru_mirror__ = True
     name = '#output'
     def __init__(self, msgid_bytes, msgformat):
-        _k.new(self, 6904, msgid_bytes, msgformat)
+        _k.new(self, 6924, msgid_bytes, msgformat)
     def parse(self, s, pos):
-        return _k.call(self, 6905, s, pos)
+        return _k.call(self, 6925, s, pos)
     def format_params(self, params):
-        return _k.call(self, 6906, params)
-    debugformat = _k.Attr(6907, 'debugformat')
-    msgformat = _k.Attr(6908, 'msgformat')
-    msgid_bytes = _k.Attr(6909, 'msgid_bytes')
-    param_types = _k.Attr(6910, 'param_types')
+        return _k.call(self, 6926, params)
+    debugformat = _k.Attr(6927, 'debugformat')
+    msgformat = _k.Attr(6928, 'msgformat')
+    msgid_bytes = _k.Attr(6929, 'msgid_bytes')
+    param_types = _k.Attr(6930, 'param_types')
 
 class UnknownFormat(_k.Object):
     __kaliru_mirror__ = True
     name = '#unknown'
     def parse(self, s, pos):
-        return _k.call(self, 6911, s, pos)
+        return _k.call(self, 6931, s, pos)
     def format_params(self, params):
-        return _k.call(self, 6912, params)
+        return _k.call(self, 6932, params)
 
 class MessageParser(_k.Object):
     __kaliru_mirror__ = True
     error = error
     def __init__(self, warn_prefix=""):
-        _k.new(self, 6913, warn_prefix)
+        _k.new(self, 6933, warn_prefix)
     def _error(self, msg, *params):
         raise error(self.warn_prefix + (msg % params))
     def check_packet(self, s):
-        return _k.call(self, 6915, s)
+        return _k.call(self, 6935, s)
     def dump(self, s):
-        return _k.call(self, 6916, s)
+        return _k.call(self, 6936, s)
     def format_params(self, params):
-        return _k.call(self, 6917, params)
+        return _k.call(self, 6937, params)
     def parse(self, s):
-        return _k.call(self, 6918, s)
+        return _k.call(self, 6938, s)
     def encode_msgblock(self, seq, cmd):
         msglen = MESSAGE_MIN + len(cmd)
         seq = (seq & MESSAGE_SEQ_MASK) | MESSAGE_DEST
@@ -224,22 +224,24 @@ class MessageParser(_k.Object):
         out.append(MESSAGE_SYNC)
         return out
     def _parse_buffer(self, value):
-        return _k.call(self, 6920, value)
+        return _k.call(self, 6940, value)
     def lookup_command(self, msgformat):
-        return _k.call(self, 6921, msgformat)
+        return _k.call(self, 6941, msgformat)
     def lookup_msgid(self, msgformat):
         msgid = self.msgid_by_format.get(msgformat)
         if msgid is None:
             self._error("Unknown command: %s", msgformat)
         return msgid
     def create_command(self, msg):
-        return _k.call(self, 6923, msg)
+        return _k.call(self, 6943, msg)
+    def create_dummy_response(self, msgname, params=None):
+        return _k.call(self, 6944, msgname, params)
     def fill_enumerations(self, enumerations):
-        return _k.call(self, 6924, enumerations)
+        return _k.call(self, 6945, enumerations)
     def _init_messages(self, messages, command_ids=None, output_ids=None):
-        return _k.call(self, 6925, messages, command_ids, output_ids)
+        return _k.call(self, 6946, messages, command_ids, output_ids)
     def process_identify(self, data, decompress=True):
-        return _k.call(self, 6926, data, decompress)
+        return _k.call(self, 6947, data, decompress)
     def get_raw_data_dictionary(self):
         return self.raw_identify_data
     def get_app_info(self):
@@ -247,7 +249,7 @@ class MessageParser(_k.Object):
     def get_version_info(self):
         return self.version, self.build_versions
     def get_messages(self):
-        return _k.call(self, 6930)
+        return _k.call(self, 6951)
     def get_enumerations(self):
         return dict(self.enumerations)
     def get_constants(self):
@@ -274,20 +276,20 @@ class MessageParser(_k.Object):
         return self.get_constant(name, default, parser=float)
     def get_constant_int(self, name, default=sentinel):
         return self.get_constant(name, default, parser=int)
-    app = _k.Attr(6937, 'app')
-    build_versions = _k.Attr(6938, 'build_versions')
-    config = _k.Attr(6939, 'config')
-    enumerations = _k.Attr(6940, 'enumerations')
-    kconfig = _k.Attr(6941, 'kconfig')
-    messages = _k.Attr(6942, 'messages')
-    messages_by_id = _k.Attr(6943, 'messages_by_id')
-    messages_by_name = _k.Attr(6944, 'messages_by_name')
-    msgid_by_format = _k.Attr(6945, 'msgid_by_format')
-    msgid_parser = _k.Attr(6946, 'msgid_parser')
-    raw_identify_data = _k.Attr(6947, 'raw_identify_data')
-    unknown = _k.Attr(6948, 'unknown')
-    version = _k.Attr(6949, 'version')
-    warn_prefix = _k.Attr(6950, 'warn_prefix')
+    app = _k.Attr(6958, 'app')
+    build_versions = _k.Attr(6959, 'build_versions')
+    config = _k.Attr(6960, 'config')
+    enumerations = _k.Attr(6961, 'enumerations')
+    kconfig = _k.Attr(6962, 'kconfig')
+    messages = _k.Attr(6963, 'messages')
+    messages_by_id = _k.Attr(6964, 'messages_by_id')
+    messages_by_name = _k.Attr(6965, 'messages_by_name')
+    msgid_by_format = _k.Attr(6966, 'msgid_by_format')
+    msgid_parser = _k.Attr(6967, 'msgid_parser')
+    raw_identify_data = _k.Attr(6968, 'raw_identify_data')
+    unknown = _k.Attr(6969, 'unknown')
+    version = _k.Attr(6970, 'version')
+    warn_prefix = _k.Attr(6971, 'warn_prefix')
 
 MessageTypes = {'%u': PT_uint32(), '%i': PT_int32(), '%hu': PT_uint16(), '%hi': PT_int16(), '%c': PT_byte(), '%s': PT_string(), '%.*s': PT_progmem_buffer(), '%*s': PT_buffer()}
 

@@ -3,7 +3,7 @@ import _k
 
 
 def load_config_prefix(config):
-    return _k.fcall(2206, config)
+    return _k.fcall(2207, config)
 
 
 __getattr__ = _k.module_getattr(__name__)

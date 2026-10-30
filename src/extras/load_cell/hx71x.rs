@@ -24,7 +24,7 @@ const SAMPLE_ERROR_LONG_READ: i64 = 0x40000000;
 pub struct HX71xBase {
     pub printer: Rc<Printer>,
     pub name: String,
-    pub last_error_count: Cell<i64>,
+    pub error_count: Cell<i64>,
     pub consecutive_fails: Cell<i64>,
     pub sensor_type: &'static str,
     pub mcu: Rc<Mcu>,
@@ -68,7 +68,7 @@ impl HX71xBase {
         let s = Rc::new(HX71xBase {
             printer: printer.clone(),
             name,
-            last_error_count: Cell::new(0),
+            error_count: Cell::new(0),
             consecutive_fails: Cell::new(0),
             sensor_type,
             mcu: mcu.clone(),
@@ -114,23 +114,24 @@ impl HX71xBase {
     }
 
     // Measurement decoding
-    pub fn convert_samples(&self, samples: &[(f64, Vec<i64>)]) -> Vec<PyVal> {
+    /// the converted samples and the batch's errors
+    pub fn convert_samples(samples: &[(f64, Vec<i64>)]) -> (Vec<PyVal>, i64) {
+        let mut batch_errors = 0;
         let mut out = vec![];
         for (ptime, f) in samples {
             let val = f[0];
             if val == SAMPLE_ERROR_DESYNC || val == SAMPLE_ERROR_LONG_READ {
-                self.last_error_count.set(self.last_error_count.get() + 1);
+                batch_errors += 1;
                 break; // additional errors are duplicates
             }
             out.push(adc_row(*ptime, val));
         }
-        out
+        (out, batch_errors)
     }
 
     // Start, stop, and process message batches
     pub fn start_measurements(&self) -> KResult<()> {
         self.consecutive_fails.set(0);
-        self.last_error_count.set(0);
         // Start bulk reading
         let rest_ticks = self.mcu.seconds_to_clock(1.0 / (10.0 * self.sps as f64));
         self.query_hx71x_cmd.borrow().as_ref().ok_or_else(no_cmd)?.send(&[Val::Int(self.oid), Val::Int(rest_ticks)], 0, 0)?;
@@ -152,13 +153,10 @@ impl HX71xBase {
     }
 
     pub fn process_batch(&self, _eventtime: f64) -> KResult<PyVal> {
-        let prev_overflows = self.ffreader.get_last_overflows();
-        let prev_error_count = self.last_error_count.get();
-        let samples = self.ffreader.pull_samples()?;
-        let samples = self.convert_samples(&samples);
-        let overflows = self.ffreader.get_last_overflows() - prev_overflows;
-        let errors = self.last_error_count.get() - prev_error_count;
-        if errors > 0 {
+        let (samples, overflows) = self.ffreader.pull_samples()?;
+        let (samples, batch_errors) = Self::convert_samples(&samples);
+        self.error_count.set(self.error_count.get() + batch_errors);
+        if batch_errors > 0 {
             logging::error(&format!("{}: Forced sensor restart due to error", self.name));
             self.finish_measurements()?;
             self.start_measurements()?;
@@ -172,7 +170,7 @@ impl HX71xBase {
         } else {
             self.consecutive_fails.set(0);
         }
-        Ok(adc_batch(samples, self.last_error_count.get(), self.ffreader.get_last_overflows()))
+        Ok(adc_batch(samples, batch_errors, overflows))
     }
 }
 

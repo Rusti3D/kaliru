@@ -14,13 +14,13 @@ class WaitInterruption(gcode.CommandError):
 class SubsystemComponentCollection(_k.Object):
     __kaliru_mirror__ = True
     def __init__(self, config_error):
-        _k.new(self, 6974, config_error)
+        _k.new(self, 6995, config_error)
     def get_components(self, subsystem_name):
-        return _k.call(self, 6975, subsystem_name)
+        return _k.call(self, 6996, subsystem_name)
     def register_component(self, subsystem_name, component_name, component):
-        return _k.call(self, 6976, subsystem_name, component_name, component)
-    _config_error = _k.Attr(6977, '_config_error')
-    _subsystems = _k.Attr(6978, '_subsystems')
+        return _k.call(self, 6997, subsystem_name, component_name, component)
+    _config_error = _k.Attr(6998, '_config_error')
+    _subsystems = _k.Attr(6999, '_subsystems')
 
 class PrinterModule(_k.Object):
     __kaliru_mirror__ = True
@@ -29,96 +29,96 @@ class PrinterModule(_k.Object):
     loaded: bool = False
     _may_register: Optional[bool] = None
     def __init__(self, name, module_info):
-        _k.new(self, 6979, name, module_info)
+        _k.new(self, 7000, name, module_info)
     def load(self):
-        return _k.call(self, 6980)
+        return _k.call(self, 7001)
     def may_register_components(self):
-        return _k.call(self, 6981)
+        return _k.call(self, 7002)
     def get_init_function(self, section):
-        return _k.call(self, 6982, section)
+        return _k.call(self, 7003, section)
     def register_components(self, collector):
-        return _k.call(self, 6983, collector)
+        return _k.call(self, 7004, collector)
     def get_method(self, function_name):
-        return _k.call(self, 6984, function_name)
-    _may_register = _k.Attr(6985, '_may_register')
-    exception = _k.Attr(6986, 'exception')
-    loaded = _k.Attr(6987, 'loaded')
-    module = _k.Attr(6988, 'module')
-    module_info = _k.Attr(6989, 'module_info')
-    name = _k.Attr(6990, 'name')
+        return _k.call(self, 7005, function_name)
+    _may_register = _k.Attr(7006, '_may_register')
+    exception = _k.Attr(7007, 'exception')
+    loaded = _k.Attr(7008, 'loaded')
+    module = _k.Attr(7009, 'module')
+    module_info = _k.Attr(7010, 'module_info')
+    name = _k.Attr(7011, 'name')
 
 class Printer(_k.Object):
     __kaliru_mirror__ = True
     config_error = configfile.error
     command_error = gcode.CommandError
     def __init__(self, main_reactor, bglogger, start_args):
-        _k.new(self, 6991, main_reactor, bglogger, start_args)
+        _k.new(self, 7012, main_reactor, bglogger, start_args)
     @staticmethod
     def _iter_modules(prefix, path):
-        return _k.fcall(6992, prefix, path)
+        return _k.fcall(7013, prefix, path)
     def _load_modules(self, config):
-        return _k.call(self, 6993, config)
+        return _k.call(self, 7014, config)
     def _register_subsystem_components(self):
-        return _k.call(self, 6994)
+        return _k.call(self, 7015)
     @staticmethod
     def _allow_plugin_override(config):
-        return _k.fcall(6995, config)
+        return _k.fcall(7016, config)
     def get_start_args(self):
-        return _k.call(self, 6996)
+        return _k.call(self, 7017)
     def get_reactor(self):
-        return _k.call(self, 6997)
+        return _k.call(self, 7018)
     def get_state_message(self):
-        return _k.call(self, 6998)
+        return _k.call(self, 7019)
     def is_shutdown(self):
-        return _k.call(self, 6999)
+        return _k.call(self, 7020)
     def _set_state(self, msg):
-        return _k.call(self, 7000, msg)
+        return _k.call(self, 7021, msg)
     def update_error_msg(self, oldmsg, newmsg):
-        return _k.call(self, 7001, oldmsg, newmsg)
+        return _k.call(self, 7022, oldmsg, newmsg)
     def add_object(self, name, obj):
-        return _k.call(self, 7002, name, obj)
+        return _k.call(self, 7023, name, obj)
     def lookup_object(self, name, default=configfile.sentinel):
-        return _k.call(self, 7003, name, default)
+        return _k.call(self, 7024, name, default)
     def lookup_components(self, subsystem_name):
-        return _k.call(self, 7004, subsystem_name)
+        return _k.call(self, 7025, subsystem_name)
     def lookup_objects(self, module=None):
-        return _k.call(self, 7005, module)
+        return _k.call(self, 7026, module)
     def load_object(self, config, section, default=configfile.sentinel):
-        return _k.call(self, 7006, config, section, default)
+        return _k.call(self, 7027, config, section, default)
     def _read_config(self):
-        return _k.call(self, 7007)
+        return _k.call(self, 7028)
     def _connect(self, eventtime):
-        return _k.call(self, 7008, eventtime)
+        return _k.call(self, 7029, eventtime)
     def run(self):
-        return _k.call(self, 7009)
+        return _k.call(self, 7030)
     def set_rollover_info(self, name, info, log=True):
-        return _k.call(self, 7010, name, info, log)
+        return _k.call(self, 7031, name, info, log)
     def invoke_shutdown(self, msg, details=None):
-        return _k.call(self, 7011, msg, details)
+        return _k.call(self, 7032, msg, details)
     def invoke_async_shutdown(self, msg, details=None):
-        return _k.call(self, 7012, msg, details)
+        return _k.call(self, 7033, msg, details)
     def register_event_handler(self, event, callback):
-        return _k.call(self, 7013, event, callback)
+        return _k.call(self, 7034, event, callback)
     def send_event(self, event, *params):
-        return _k.call(self, 7014, event, params)
+        return _k.call(self, 7035, event, params)
     def request_exit(self, result):
-        return _k.call(self, 7015, result)
+        return _k.call(self, 7036, result)
     wait_interrupted = WaitInterruption
     def wait_while(self, condition_cb, error_on_cancel=True, interval=1.0):
-        return _k.call(self, 7016, condition_cb, error_on_cancel, interval)
-    bglogger = _k.Attr(7017, 'bglogger')
-    components = _k.Attr(7018, 'components')
-    event_handlers = _k.Attr(7019, 'event_handlers')
-    in_shutdown_state = _k.Attr(7020, 'in_shutdown_state')
-    objects = _k.Attr(7021, 'objects')
-    printer_modules = _k.Attr(7022, 'printer_modules')
-    reactor = _k.Attr(7023, 'reactor')
-    run_result = _k.Attr(7024, 'run_result')
-    start_args = _k.Attr(7025, 'start_args')
-    state_message = _k.Attr(7026, 'state_message')
+        return _k.call(self, 7037, condition_cb, error_on_cancel, interval)
+    bglogger = _k.Attr(7038, 'bglogger')
+    components = _k.Attr(7039, 'components')
+    event_handlers = _k.Attr(7040, 'event_handlers')
+    in_shutdown_state = _k.Attr(7041, 'in_shutdown_state')
+    objects = _k.Attr(7042, 'objects')
+    printer_modules = _k.Attr(7043, 'printer_modules')
+    reactor = _k.Attr(7044, 'reactor')
+    run_result = _k.Attr(7045, 'run_result')
+    start_args = _k.Attr(7046, 'start_args')
+    state_message = _k.Attr(7047, 'state_message')
 
 def import_test():
-    return _k.fcall(7027)
+    return _k.fcall(7048)
 
 def arg_dictionary(option, opt_str, value, parser):
     key, fname = "dictionary", value
@@ -130,7 +130,7 @@ def arg_dictionary(option, opt_str, value, parser):
     parser.values.dictionary[key] = fname
 
 def main():
-    return _k.fcall(7029)
+    return _k.fcall(7050)
 
 
 __getattr__ = _k.module_getattr(__name__)

@@ -5,13 +5,13 @@ import _k
 class dac084S085(_k.Object):
     __kaliru_mirror__ = True
     def __init__(self, config):
-        _k.new(self, 1036, config)
+        _k.new(self, 1037, config)
     def set_register(self, chan, value):
-        return _k.call(self, 1037, chan, value)
-    spi = _k.Attr(1038, 'spi')
+        return _k.call(self, 1038, chan, value)
+    spi = _k.Attr(1039, 'spi')
 
 def load_config_prefix(config):
-    return _k.fcall(1039, config)
+    return _k.fcall(1040, config)
 
 
 __getattr__ = _k.module_getattr(__name__)

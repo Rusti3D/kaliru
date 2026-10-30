@@ -5,18 +5,18 @@ import _k
 class PrinterHeaterBed(_k.Object):
     __kaliru_mirror__ = True
     def __init__(self, config):
-        _k.new(self, 2186, config)
+        _k.new(self, 2187, config)
     def cmd_M140(self, gcmd, wait=False):
-        return _k.call(self, 2187, gcmd, wait)
+        return _k.call(self, 2188, gcmd, wait)
     def cmd_M190(self, gcmd):
-        return _k.call(self, 2188, gcmd)
-    get_status = _k.Attr(2189, 'get_status')
-    heater = _k.Attr(2190, 'heater')
-    printer = _k.Attr(2191, 'printer')
-    stats = _k.Attr(2192, 'stats')
+        return _k.call(self, 2189, gcmd)
+    get_status = _k.Attr(2190, 'get_status')
+    heater = _k.Attr(2191, 'heater')
+    printer = _k.Attr(2192, 'printer')
+    stats = _k.Attr(2193, 'stats')
 
 def load_config(config):
-    return _k.fcall(2193, config)
+    return _k.fcall(2194, config)
 
 
 __getattr__ = _k.module_getattr(__name__)

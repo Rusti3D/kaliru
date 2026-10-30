@@ -414,7 +414,8 @@ pub struct FixedFreqReader {
     pub samples_per_block: usize,
     pub last_sequence: Cell<i64>,
     pub max_query_duration: Cell<i64>,
-    pub last_overflows: Cell<i64>,
+    pub _total_overflows: Cell<i64>,
+    pub _batch_overflows: Cell<i64>,
     pub bulk_queue: RefCell<Option<Rc<BulkDataQueue>>>,
     pub oid: Cell<Option<i64>>,
     pub query_status_cmd: RefCell<Option<CommandQueryWrapper>>,
@@ -433,7 +434,8 @@ impl FixedFreqReader {
             samples_per_block: MAX_BULK_MSG_SIZE / bytes_per_sample,
             last_sequence: Cell::new(0),
             max_query_duration: Cell::new(0),
-            last_overflows: Cell::new(0),
+            _total_overflows: Cell::new(0),
+            _batch_overflows: Cell::new(0),
             bulk_queue: RefCell::new(None),
             oid: Cell::new(None),
             query_status_cmd: RefCell::new(None),
@@ -455,8 +457,8 @@ impl FixedFreqReader {
         Ok(())
     }
 
-    pub fn get_last_overflows(&self) -> i64 {
-        self.last_overflows.get()
+    pub fn get_total_overflows(&self) -> i64 {
+        self._total_overflows.get()
     }
 
     pub fn clear_duration_filter(&self) {
@@ -473,7 +475,8 @@ impl FixedFreqReader {
 
     pub fn note_start(&self) -> KResult<()> {
         self.last_sequence.set(0);
-        self.last_overflows.set(0);
+        self._total_overflows.set(0);
+        self._batch_overflows.set(0);
         // Clear local queue (clear any stale samples from previous session)
         self.queue()?.clear_queue();
         // Set initial clock
@@ -500,8 +503,9 @@ impl FixedFreqReader {
         let seq_diff = (p("next_sequence") - self.last_sequence.get()) & 0xFFFF;
         self.last_sequence.set(self.last_sequence.get() + seq_diff);
         let buffered = p("buffered");
-        let po_diff = (p("possible_overflows") - self.last_overflows.get()) & 0xFFFF;
-        self.last_overflows.set(self.last_overflows.get() + po_diff);
+        let po_diff = (p("possible_overflows") - self._total_overflows.get()) & 0xFFFF;
+        self._batch_overflows.set(self._batch_overflows.get() + po_diff);
+        self._total_overflows.set(self._total_overflows.get() + po_diff);
         let duration = p("query_ticks");
         if duration > self.max_query_duration.get() {
             // Skip measurement as a high query time could skew clock tracking
@@ -524,14 +528,16 @@ impl FixedFreqReader {
         Ok(())
     }
 
-    // Convert sensor_bulk_data responses into list of samples
-    pub fn pull_samples(&self) -> KResult<Vec<RawSample>> {
+    // Convert sensor_bulk_data responses into list of samples, and the
+    // overflows since the last pull
+    pub fn pull_samples(&self) -> KResult<(Vec<RawSample>, i64)> {
         // Query MCU for sample timing and update clock synchronization
         self.update_clock(false)?;
+        let overflows = self._batch_overflows.replace(0);
         // Pull sensor_bulk_data messages from local queue
         let raw_samples = self.queue()?.pull_queue();
         if raw_samples.is_empty() {
-            return Ok(vec![]);
+            return Ok((vec![], overflows));
         }
         // Load variables to optimize inner loop below
         let last_sequence = self.last_sequence.get();
@@ -558,6 +564,6 @@ impl FixedFreqReader {
             }
         }
         self.clock_sync.set_last_chip_clock((seq * samples_per_block + i as i64) as f64)?;
-        Ok(samples)
+        Ok((samples, overflows))
     }
 }

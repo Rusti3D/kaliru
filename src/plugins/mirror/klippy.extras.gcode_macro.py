@@ -35,9 +35,9 @@ class GetStatusWrapperJinja(_k.Object):
         for name, obj in self.printer.lookup_objects():
             if self.__contains__(name):
                 yield name
-    cache = _k.Attr(1974, 'cache')
-    eventtime = _k.Attr(1975, 'eventtime')
-    printer = _k.Attr(1976, 'printer')
+    cache = _k.Attr(1975, 'cache')
+    eventtime = _k.Attr(1976, 'eventtime')
+    printer = _k.Attr(1977, 'printer')
 
 class GetStatusWrapperPython(_k.Object):
     __kaliru_mirror__ = True
@@ -69,21 +69,21 @@ class GetStatusWrapperPython(_k.Object):
             if default is not configfile.sentinel:
                 return default
             raise
-    printer = _k.Attr(1983, 'printer')
+    printer = _k.Attr(1984, 'printer')
 
 class TemplateWrapperJinja(_k.Object):
     __kaliru_mirror__ = True
     def __init__(self, printer, env, name, script):
-        _k.new(self, 1984, printer, env, name, script)
+        _k.new(self, 1985, printer, env, name, script)
     def render(self, context=None):
-        return _k.call(self, 1985, context)
-    def run_gcode_from_command(self, context=None):
         return _k.call(self, 1986, context)
-    create_template_context = _k.Attr(1987, 'create_template_context')
-    gcode = _k.Attr(1988, 'gcode')
-    name = _k.Attr(1989, 'name')
-    printer = _k.Attr(1990, 'printer')
-    template = _k.Attr(1991, 'template')
+    def run_gcode_from_command(self, context=None):
+        return _k.call(self, 1987, context)
+    create_template_context = _k.Attr(1988, 'create_template_context')
+    gcode = _k.Attr(1989, 'gcode')
+    name = _k.Attr(1990, 'name')
+    printer = _k.Attr(1991, 'printer')
+    template = _k.Attr(1992, 'template')
 
 class TemplateWrapperPython(_k.Object):
     __kaliru_mirror__ = True
@@ -197,15 +197,15 @@ class TemplateWrapperPython(_k.Object):
         v = dict(macro.variables)
         v[variable] = value
         macro.variables = v
-    checked_own_macro = _k.Attr(2001, 'checked_own_macro')
-    create_template_context = _k.Attr(2002, 'create_template_context')
-    func = _k.Attr(2003, 'func')
-    gcode = _k.Attr(2004, 'gcode')
-    gcode_macro = _k.Attr(2005, 'gcode_macro')
-    name = _k.Attr(2006, 'name')
-    printer = _k.Attr(2007, 'printer')
-    toolhead = _k.Attr(2008, 'toolhead')
-    vars = _k.Attr(2009, 'vars')
+    checked_own_macro = _k.Attr(2002, 'checked_own_macro')
+    create_template_context = _k.Attr(2003, 'create_template_context')
+    func = _k.Attr(2004, 'func')
+    gcode = _k.Attr(2005, 'gcode')
+    gcode_macro = _k.Attr(2006, 'gcode_macro')
+    name = _k.Attr(2007, 'name')
+    printer = _k.Attr(2008, 'printer')
+    toolhead = _k.Attr(2009, 'toolhead')
+    vars = _k.Attr(2010, 'vars')
 
 class TemplateVariableWrapperPython(_k.Object):
     __kaliru_mirror__ = True
@@ -232,24 +232,24 @@ class TemplateVariableWrapperPython(_k.Object):
 class Template(_k.Object):
     __kaliru_mirror__ = True
     def __init__(self, printer, env, name, script, script_type="gcode"):
-        _k.new(self, 2015, printer, env, name, script, script_type)
+        _k.new(self, 2016, printer, env, name, script, script_type)
     def __call__(self, context=None):
-        return _k.call(self, 2016, context)
+        return _k.call(self, 2017, context)
     def __getattr__(self, name):
-        return _k.call(self, 2017, name)
+        return _k.call(self, 2018, name)
     def reload(self, script_type, script):
-        return _k.call(self, 2018, script_type, script)
-    env = _k.Attr(2019, 'env')
-    function = _k.Attr(2020, 'function')
-    name = _k.Attr(2021, 'name')
-    printer = _k.Attr(2022, 'printer')
+        return _k.call(self, 2019, script_type, script)
+    env = _k.Attr(2020, 'env')
+    function = _k.Attr(2021, 'function')
+    name = _k.Attr(2022, 'name')
+    printer = _k.Attr(2023, 'printer')
 
 class PrinterGCodeMacro(_k.Object):
     __kaliru_mirror__ = True
     def __init__(self, config):
-        _k.new(self, 2023, config)
+        _k.new(self, 2024, config)
     def load_template(self, config, option, default=None):
-        return _k.call(self, 2024, config, option, default)
+        return _k.call(self, 2025, config, option, default)
     def _action_emergency_stop(self, msg="action_emergency_stop"):
         self.printer.invoke_shutdown("Shutdown due to %s" % (msg,))
         return ""
@@ -279,38 +279,38 @@ class PrinterGCodeMacro(_k.Object):
             "math": math,
         }
     def cmd_RELOAD_GCODE_MACROS(self, gcmd):
-        return _k.call(self, 2031, gcmd)
-    env = _k.Attr(2032, 'env')
-    gcode = _k.Attr(2033, 'gcode')
-    printer = _k.Attr(2034, 'printer')
+        return _k.call(self, 2032, gcmd)
+    env = _k.Attr(2033, 'env')
+    gcode = _k.Attr(2034, 'gcode')
+    printer = _k.Attr(2035, 'printer')
 
 def load_config(config):
-    return _k.fcall(2035, config)
+    return _k.fcall(2036, config)
 
 class GCodeMacro(_k.Object):
     __kaliru_mirror__ = True
     def __init__(self, config):
-        _k.new(self, 2036, config)
+        _k.new(self, 2037, config)
     def handle_connect(self):
-        return _k.call(self, 2037)
+        return _k.call(self, 2038)
     def get_status(self, eventtime):
-        return _k.call(self, 2038, eventtime)
+        return _k.call(self, 2039, eventtime)
     cmd_SET_GCODE_VARIABLE_help = 'Set the value of a G-Code macro variable'
     def cmd_SET_GCODE_VARIABLE(self, gcmd):
-        return _k.call(self, 2039, gcmd)
-    def cmd(self, gcmd):
         return _k.call(self, 2040, gcmd)
-    alias = _k.Attr(2041, 'alias')
-    cmd_desc = _k.Attr(2042, 'cmd_desc')
-    gcode = _k.Attr(2043, 'gcode')
-    in_script = _k.Attr(2044, 'in_script')
-    printer = _k.Attr(2045, 'printer')
-    rename_existing = _k.Attr(2046, 'rename_existing')
-    template = _k.Attr(2047, 'template')
-    variables = _k.Attr(2048, 'variables')
+    def cmd(self, gcmd):
+        return _k.call(self, 2041, gcmd)
+    alias = _k.Attr(2042, 'alias')
+    cmd_desc = _k.Attr(2043, 'cmd_desc')
+    gcode = _k.Attr(2044, 'gcode')
+    in_script = _k.Attr(2045, 'in_script')
+    printer = _k.Attr(2046, 'printer')
+    rename_existing = _k.Attr(2047, 'rename_existing')
+    template = _k.Attr(2048, 'template')
+    variables = _k.Attr(2049, 'variables')
 
 def load_config_prefix(config):
-    return _k.fcall(2049, config)
+    return _k.fcall(2050, config)
 
 
 __getattr__ = _k.module_getattr(__name__)

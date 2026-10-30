@@ -6,32 +6,32 @@ HINT_THERMAL = "\nSee the 'verify_heater' section in docs/Config_Reference.md\nf
 class HeaterCheck(_k.Object):
     __kaliru_mirror__ = True
     def __init__(self, config):
-        _k.new(self, 5783, config)
+        _k.new(self, 5799, config)
     def handle_connect(self):
-        return _k.call(self, 5784)
+        return _k.call(self, 5800)
     def handle_shutdown(self):
-        return _k.call(self, 5785)
+        return _k.call(self, 5801)
     def check_event(self, eventtime):
-        return _k.call(self, 5786, eventtime)
+        return _k.call(self, 5802, eventtime)
     def heater_fault(self):
-        return _k.call(self, 5787)
-    approaching_target = _k.Attr(5788, 'approaching_target')
-    check_gain_time = _k.Attr(5789, 'check_gain_time')
-    check_timer = _k.Attr(5790, 'check_timer')
-    error = _k.Attr(5791, 'error')
-    goal_systime = _k.Attr(5792, 'goal_systime')
-    goal_temp = _k.Attr(5793, 'goal_temp')
-    heater = _k.Attr(5794, 'heater')
-    heater_name = _k.Attr(5795, 'heater_name')
-    heating_gain = _k.Attr(5796, 'heating_gain')
-    hysteresis = _k.Attr(5797, 'hysteresis')
-    last_target = _k.Attr(5798, 'last_target')
-    max_error = _k.Attr(5799, 'max_error')
-    printer = _k.Attr(5800, 'printer')
-    starting_approach = _k.Attr(5801, 'starting_approach')
+        return _k.call(self, 5803)
+    approaching_target = _k.Attr(5804, 'approaching_target')
+    check_gain_time = _k.Attr(5805, 'check_gain_time')
+    check_timer = _k.Attr(5806, 'check_timer')
+    error = _k.Attr(5807, 'error')
+    goal_systime = _k.Attr(5808, 'goal_systime')
+    goal_temp = _k.Attr(5809, 'goal_temp')
+    heater = _k.Attr(5810, 'heater')
+    heater_name = _k.Attr(5811, 'heater_name')
+    heating_gain = _k.Attr(5812, 'heating_gain')
+    hysteresis = _k.Attr(5813, 'hysteresis')
+    last_target = _k.Attr(5814, 'last_target')
+    max_error = _k.Attr(5815, 'max_error')
+    printer = _k.Attr(5816, 'printer')
+    starting_approach = _k.Attr(5817, 'starting_approach')
 
 def load_config_prefix(config):
-    return _k.fcall(5802, config)
+    return _k.fcall(5818, config)
 
 
 __getattr__ = _k.module_getattr(__name__)

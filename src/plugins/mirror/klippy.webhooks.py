@@ -23,169 +23,169 @@ class WebRequest(_k.Object):
     __kaliru_mirror__ = True
     error = WebRequestError
     def __init__(self, client_conn, request):
-        _k.new(self, 7396, client_conn, request)
+        _k.new(self, 7419, client_conn, request)
     def get_client_connection(self):
-        return _k.call(self, 7397)
+        return _k.call(self, 7420)
     def get(self, item, default=Sentinel, types=None):
-        return _k.call(self, 7398, item, default, types)
+        return _k.call(self, 7421, item, default, types)
     def get_str(self, item, default=Sentinel):
-        return _k.call(self, 7399, item, default)
+        return _k.call(self, 7422, item, default)
     def get_int(self, item, default=Sentinel):
-        return _k.call(self, 7400, item, default)
+        return _k.call(self, 7423, item, default)
     def get_float(self, item, default=Sentinel):
-        return _k.call(self, 7401, item, default)
+        return _k.call(self, 7424, item, default)
     def get_dict(self, item, default=Sentinel):
-        return _k.call(self, 7402, item, default)
+        return _k.call(self, 7425, item, default)
     def get_method(self):
-        return _k.call(self, 7403)
+        return _k.call(self, 7426)
     def set_error(self, error):
-        return _k.call(self, 7404, error)
+        return _k.call(self, 7427, error)
     def send(self, data):
-        return _k.call(self, 7405, data)
+        return _k.call(self, 7428, data)
     def finish(self):
-        return _k.call(self, 7406)
-    client_conn = _k.Attr(7407, 'client_conn')
-    id = _k.Attr(7408, 'id')
-    is_error = _k.Attr(7409, 'is_error')
-    method = _k.Attr(7410, 'method')
-    params = _k.Attr(7411, 'params')
-    response = _k.Attr(7412, 'response')
+        return _k.call(self, 7429)
+    client_conn = _k.Attr(7430, 'client_conn')
+    id = _k.Attr(7431, 'id')
+    is_error = _k.Attr(7432, 'is_error')
+    method = _k.Attr(7433, 'method')
+    params = _k.Attr(7434, 'params')
+    response = _k.Attr(7435, 'response')
 
 class ServerSocket(_k.Object):
     __kaliru_mirror__ = True
     def __init__(self, webhooks, printer):
-        _k.new(self, 7413, webhooks, printer)
+        _k.new(self, 7436, webhooks, printer)
     def _handle_accept(self, eventtime):
-        return _k.call(self, 7414, eventtime)
+        return _k.call(self, 7437, eventtime)
     def _handle_disconnect(self):
-        return _k.call(self, 7415)
+        return _k.call(self, 7438)
     def _handle_analyze_shutdown(self, msg, details):
-        return _k.call(self, 7416, msg, details)
+        return _k.call(self, 7439, msg, details)
     def _remove_socket_file(self, file_path):
-        return _k.call(self, 7417, file_path)
+        return _k.call(self, 7440, file_path)
     def pop_client(self, client_id):
-        return _k.call(self, 7418, client_id)
+        return _k.call(self, 7441, client_id)
     def stats(self, eventtime):
-        return _k.call(self, 7419, eventtime)
+        return _k.call(self, 7442, eventtime)
     def __apply_permission_options_to_socket(self, socket_path, start_args):
-        return _k.call(self, 7420, socket_path, start_args)
-    clients = _k.Attr(7421, 'clients')
-    fd_handle = _k.Attr(7422, 'fd_handle')
-    printer = _k.Attr(7423, 'printer')
-    reactor = _k.Attr(7424, 'reactor')
-    sock = _k.Attr(7425, 'sock')
-    webhooks = _k.Attr(7426, 'webhooks')
+        return _k.call(self, 7443, socket_path, start_args)
+    clients = _k.Attr(7444, 'clients')
+    fd_handle = _k.Attr(7445, 'fd_handle')
+    printer = _k.Attr(7446, 'printer')
+    reactor = _k.Attr(7447, 'reactor')
+    sock = _k.Attr(7448, 'sock')
+    webhooks = _k.Attr(7449, 'webhooks')
 
 class ClientConnection(_k.Object):
     __kaliru_mirror__ = True
     def __init__(self, server, sock):
-        _k.new(self, 7427, server, sock)
+        _k.new(self, 7450, server, sock)
     def dump_request_log(self):
-        return _k.call(self, 7428)
+        return _k.call(self, 7451)
     def set_client_info(self, client_info, state_msg=None):
-        return _k.call(self, 7429, client_info, state_msg)
+        return _k.call(self, 7452, client_info, state_msg)
     def close(self):
-        return _k.call(self, 7430)
+        return _k.call(self, 7453)
     def is_closed(self):
-        return _k.call(self, 7431)
+        return _k.call(self, 7454)
     def process_received(self, eventtime):
-        return _k.call(self, 7432, eventtime)
+        return _k.call(self, 7455, eventtime)
     def _process_request(self, web_request):
-        return _k.call(self, 7433, web_request)
+        return _k.call(self, 7456, web_request)
     def _json_convert(self, obj):
-        return _k.call(self, 7434, obj)
+        return _k.call(self, 7457, obj)
     def send(self, data):
-        return _k.call(self, 7435, data)
+        return _k.call(self, 7458, data)
     def _do_send(self, eventtime=None):
-        return _k.call(self, 7436, eventtime)
-    blocking_count = _k.Attr(7437, 'blocking_count')
-    fd_handle = _k.Attr(7438, 'fd_handle')
-    is_blocking = _k.Attr(7439, 'is_blocking')
-    partial_data = _k.Attr(7440, 'partial_data')
-    printer = _k.Attr(7441, 'printer')
-    reactor = _k.Attr(7442, 'reactor')
-    request_log = _k.Attr(7443, 'request_log')
-    send_buffer = _k.Attr(7444, 'send_buffer')
-    server = _k.Attr(7445, 'server')
-    sock = _k.Attr(7446, 'sock')
-    uid = _k.Attr(7447, 'uid')
-    webhooks = _k.Attr(7448, 'webhooks')
+        return _k.call(self, 7459, eventtime)
+    blocking_count = _k.Attr(7460, 'blocking_count')
+    fd_handle = _k.Attr(7461, 'fd_handle')
+    is_blocking = _k.Attr(7462, 'is_blocking')
+    partial_data = _k.Attr(7463, 'partial_data')
+    printer = _k.Attr(7464, 'printer')
+    reactor = _k.Attr(7465, 'reactor')
+    request_log = _k.Attr(7466, 'request_log')
+    send_buffer = _k.Attr(7467, 'send_buffer')
+    server = _k.Attr(7468, 'server')
+    sock = _k.Attr(7469, 'sock')
+    uid = _k.Attr(7470, 'uid')
+    webhooks = _k.Attr(7471, 'webhooks')
 
 class WebHooks(_k.Object):
     __kaliru_mirror__ = True
     def __init__(self, printer):
-        _k.new(self, 7449, printer)
+        _k.new(self, 7472, printer)
     def register_endpoint(self, path, callback):
-        return _k.call(self, 7450, path, callback)
+        return _k.call(self, 7473, path, callback)
     def register_mux_endpoint(self, path, key, value, callback):
-        return _k.call(self, 7451, path, key, value, callback)
+        return _k.call(self, 7474, path, key, value, callback)
     def _handle_mux(self, web_request):
-        return _k.call(self, 7452, web_request)
+        return _k.call(self, 7475, web_request)
     def _handle_list_endpoints(self, web_request):
-        return _k.call(self, 7453, web_request)
+        return _k.call(self, 7476, web_request)
     def _handle_info_request(self, web_request):
-        return _k.call(self, 7454, web_request)
+        return _k.call(self, 7477, web_request)
     def _handle_estop_request(self, web_request):
-        return _k.call(self, 7455, web_request)
+        return _k.call(self, 7478, web_request)
     def _handle_rpc_registration(self, web_request):
-        return _k.call(self, 7456, web_request)
+        return _k.call(self, 7479, web_request)
     def get_connection(self):
-        return _k.call(self, 7457)
+        return _k.call(self, 7480)
     def get_callback(self, path):
-        return _k.call(self, 7458, path)
+        return _k.call(self, 7481, path)
     def get_status(self, eventtime):
-        return _k.call(self, 7459, eventtime)
+        return _k.call(self, 7482, eventtime)
     def stats(self, eventtime):
-        return _k.call(self, 7460, eventtime)
+        return _k.call(self, 7483, eventtime)
     def call_remote_method(self, method, **kwargs):
-        return _k.call(self, 7461, method, kwargs)
-    _endpoints = _k.Attr(7462, '_endpoints')
-    _mux_endpoints = _k.Attr(7463, '_mux_endpoints')
-    _remote_methods = _k.Attr(7464, '_remote_methods')
-    printer = _k.Attr(7465, 'printer')
-    sconn = _k.Attr(7466, 'sconn')
+        return _k.call(self, 7484, method, kwargs)
+    _endpoints = _k.Attr(7485, '_endpoints')
+    _mux_endpoints = _k.Attr(7486, '_mux_endpoints')
+    _remote_methods = _k.Attr(7487, '_remote_methods')
+    printer = _k.Attr(7488, 'printer')
+    sconn = _k.Attr(7489, 'sconn')
 
 class GCodeHelper(_k.Object):
     __kaliru_mirror__ = True
     def __init__(self, printer):
-        _k.new(self, 7467, printer)
+        _k.new(self, 7490, printer)
     def _handle_help(self, web_request):
-        return _k.call(self, 7468, web_request)
+        return _k.call(self, 7491, web_request)
     def _handle_script(self, web_request):
-        return _k.call(self, 7469, web_request)
+        return _k.call(self, 7492, web_request)
     def _handle_restart(self, web_request):
-        return _k.call(self, 7470, web_request)
+        return _k.call(self, 7493, web_request)
     def _handle_firmware_restart(self, web_request):
-        return _k.call(self, 7471, web_request)
+        return _k.call(self, 7494, web_request)
     def _output_callback(self, msg):
-        return _k.call(self, 7472, msg)
+        return _k.call(self, 7495, msg)
     def _handle_subscribe_output(self, web_request):
-        return _k.call(self, 7473, web_request)
-    clients = _k.Attr(7474, 'clients')
-    gcode = _k.Attr(7475, 'gcode')
-    is_output_registered = _k.Attr(7476, 'is_output_registered')
-    printer = _k.Attr(7477, 'printer')
+        return _k.call(self, 7496, web_request)
+    clients = _k.Attr(7497, 'clients')
+    gcode = _k.Attr(7498, 'gcode')
+    is_output_registered = _k.Attr(7499, 'is_output_registered')
+    printer = _k.Attr(7500, 'printer')
 
 class QueryStatusHelper(_k.Object):
     __kaliru_mirror__ = True
     def __init__(self, printer):
-        _k.new(self, 7478, printer)
+        _k.new(self, 7501, printer)
     def _handle_list(self, web_request):
-        return _k.call(self, 7479, web_request)
+        return _k.call(self, 7502, web_request)
     def _do_query(self, eventtime):
-        return _k.call(self, 7480, eventtime)
+        return _k.call(self, 7503, eventtime)
     def _handle_query(self, web_request, is_subscribe=False):
-        return _k.call(self, 7481, web_request, is_subscribe)
+        return _k.call(self, 7504, web_request, is_subscribe)
     def _handle_subscribe(self, web_request):
-        return _k.call(self, 7482, web_request)
-    clients = _k.Attr(7483, 'clients')
-    last_query = _k.Attr(7484, 'last_query')
-    pending_queries = _k.Attr(7485, 'pending_queries')
-    printer = _k.Attr(7486, 'printer')
-    query_timer = _k.Attr(7487, 'query_timer')
+        return _k.call(self, 7505, web_request)
+    clients = _k.Attr(7506, 'clients')
+    last_query = _k.Attr(7507, 'last_query')
+    pending_queries = _k.Attr(7508, 'pending_queries')
+    printer = _k.Attr(7509, 'printer')
+    query_timer = _k.Attr(7510, 'query_timer')
 
 def add_early_printer_objects(printer):
-    return _k.fcall(7488, printer)
+    return _k.fcall(7511, printer)
 
 
 __getattr__ = _k.module_getattr(__name__)

@@ -249,20 +249,36 @@ impl HomingMove {
         // Start endstop checking
         let print_time = self.toolhead.get_last_move_time()?;
         let mut endstop_triggers = vec![];
-        for (mcu_endstop, _name) in &self.endstops {
-            let rest_time = self.calc_endstop_rate(mcu_endstop, movepos, speed)?;
-            let wait = mcu_endstop.home_start(
-                print_time,
-                ENDSTOP_SAMPLE_TIME.with(|v| v.get()),
-                ENDSTOP_SAMPLE_COUNT.with(|v| v.get()),
-                rest_time,
-                triggered,
-            )?;
-            endstop_triggers.push(wait);
-        }
-        let all_endstop_trigger = multi_complete(&self.printer, &endstop_triggers);
-
-        self.toolhead.dwell(HOMING_START_DELAY.with(|v| v.get()))?;
+        let started = (|| -> KResult<_> {
+            for (mcu_endstop, _name) in &self.endstops {
+                let rest_time = self.calc_endstop_rate(mcu_endstop, movepos, speed)?;
+                let wait = mcu_endstop.home_start(
+                    print_time,
+                    ENDSTOP_SAMPLE_TIME.with(|v| v.get()),
+                    ENDSTOP_SAMPLE_COUNT.with(|v| v.get()),
+                    rest_time,
+                    triggered,
+                )?;
+                endstop_triggers.push(wait);
+            }
+            let all_endstop_trigger = multi_complete(&self.printer, &endstop_triggers);
+            self.toolhead.dwell(HOMING_START_DELAY.with(|v| v.get()))?;
+            Ok(all_endstop_trigger)
+        })();
+        let all_endstop_trigger = match started {
+            Ok(t) => t,
+            Err(e) => {
+                // Stop endstops already started so they release their resources
+                let end_time = self.toolhead.get_last_move_time()?;
+                for (mcu_endstop, _name) in &self.endstops[..endstop_triggers.len()] {
+                    match mcu_endstop.home_wait(end_time) {
+                        Err(e2) if !e2.is_command_error() => return Err(e2),
+                        _ => {}
+                    }
+                }
+                return Err(e);
+            }
+        };
         // Issue move
         let mut error = None;
         match self.toolhead.drip_move(movepos, speed, &all_endstop_trigger) {

@@ -10,66 +10,66 @@ class DualCarriages(_k.Object):
     __kaliru_mirror__ = True
     VALID_MODES = [PRIMARY, COPY, MIRROR]
     def __init__(self, dc_config, rail_0, rail_1, axis):
-        _k.new(self, 6404, dc_config, rail_0, rail_1, axis)
+        _k.new(self, 6420, dc_config, rail_0, rail_1, axis)
     def get_rails(self):
         return self.dc
     def get_primary_rail(self):
-        return _k.call(self, 6406)
+        return _k.call(self, 6422)
     def toggle_active_dc_rail(self, index):
-        return _k.call(self, 6407, index)
+        return _k.call(self, 6423, index)
     def home(self, homing_state):
-        return _k.call(self, 6408, homing_state)
+        return _k.call(self, 6424, homing_state)
     def get_status(self, eventtime=None):
-        return _k.call(self, 6409, eventtime)
+        return _k.call(self, 6425, eventtime)
     def get_kin_range(self, toolhead, mode):
-        return _k.call(self, 6410, toolhead, mode)
+        return _k.call(self, 6426, toolhead, mode)
     def get_dc_order(self, first, second):
-        return _k.call(self, 6411, first, second)
+        return _k.call(self, 6427, first, second)
     def activate_dc_mode(self, index, mode):
-        return _k.call(self, 6412, index, mode)
+        return _k.call(self, 6428, index, mode)
     def _handle_ready(self):
-        return _k.call(self, 6413)
+        return _k.call(self, 6429)
     cmd_SET_DUAL_CARRIAGE_help = 'Configure the dual carriages mode'
     def cmd_SET_DUAL_CARRIAGE(self, gcmd):
-        return _k.call(self, 6414, gcmd)
+        return _k.call(self, 6430, gcmd)
     cmd_SAVE_DUAL_CARRIAGE_STATE_help = 'Save dual carriages modes and positions'
     def cmd_SAVE_DUAL_CARRIAGE_STATE(self, gcmd):
-        return _k.call(self, 6415, gcmd)
+        return _k.call(self, 6431, gcmd)
     cmd_RESTORE_DUAL_CARRIAGE_STATE_help = 'Restore dual carriages modes and positions'
     def cmd_RESTORE_DUAL_CARRIAGE_STATE(self, gcmd):
-        return _k.call(self, 6416, gcmd)
-    axis = _k.Attr(6417, 'axis')
-    dc = _k.Attr(6418, 'dc')
-    printer = _k.Attr(6419, 'printer')
-    safe_dist = _k.Attr(6420, 'safe_dist')
-    saved_states = _k.Attr(6421, 'saved_states')
+        return _k.call(self, 6432, gcmd)
+    axis = _k.Attr(6433, 'axis')
+    dc = _k.Attr(6434, 'dc')
+    printer = _k.Attr(6435, 'printer')
+    safe_dist = _k.Attr(6436, 'safe_dist')
+    saved_states = _k.Attr(6437, 'saved_states')
 
 class DualCarriagesRail(_k.Object):
     __kaliru_mirror__ = True
     ENC_AXES = [b'x', b'y']
     def __init__(self, rail, axis, active):
-        _k.new(self, 6422, rail, axis, active)
+        _k.new(self, 6438, rail, axis, active)
     def get_rail(self):
-        return _k.call(self, 6423)
+        return _k.call(self, 6439)
     def is_active(self):
-        return _k.call(self, 6424)
+        return _k.call(self, 6440)
     def get_axis_position(self, position):
-        return _k.call(self, 6425, position)
+        return _k.call(self, 6441, position)
     def apply_transform(self):
-        return _k.call(self, 6426)
+        return _k.call(self, 6442)
     def activate(self, mode, position, old_position=None):
-        return _k.call(self, 6427, mode, position, old_position)
+        return _k.call(self, 6443, mode, position, old_position)
     def inactivate(self, position):
-        return _k.call(self, 6428, position)
+        return _k.call(self, 6444, position)
     def override_axis_scaling(self, new_scale, position):
-        return _k.call(self, 6429, new_scale, position)
-    axis = _k.Attr(6430, 'axis')
-    dc_stepper_kinematics = _k.Attr(6431, 'dc_stepper_kinematics')
-    mode = _k.Attr(6432, 'mode')
-    offset = _k.Attr(6433, 'offset')
-    orig_stepper_kinematics = _k.Attr(6434, 'orig_stepper_kinematics')
-    rail = _k.Attr(6435, 'rail')
-    scale = _k.Attr(6436, 'scale')
+        return _k.call(self, 6445, new_scale, position)
+    axis = _k.Attr(6446, 'axis')
+    dc_stepper_kinematics = _k.Attr(6447, 'dc_stepper_kinematics')
+    mode = _k.Attr(6448, 'mode')
+    offset = _k.Attr(6449, 'offset')
+    orig_stepper_kinematics = _k.Attr(6450, 'orig_stepper_kinematics')
+    rail = _k.Attr(6451, 'rail')
+    scale = _k.Attr(6452, 'scale')
 
 
 __getattr__ = _k.module_getattr(__name__)

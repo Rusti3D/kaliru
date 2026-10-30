@@ -381,13 +381,17 @@ impl PrinterObject for ProbeList {
     fn has_status(&self) -> bool {
         true
     }
-    fn get_status(&self, _eventtime: f64) -> Option<PyVal> {
+    fn get_status(&self, eventtime: f64) -> Option<PyVal> {
         let mut d = IndexMap::default();
         let probes: Vec<PyVal> = self.probes.borrow().keys().map(|k| PyVal::Str(k.clone())).collect();
         d.insert("probes".into(), PyVal::List(probes));
         // self.default_probe and self.default_probe[0]
         let default = self.default_probe.borrow().as_ref().map(|(n, _)| PyVal::Str(n.clone())).unwrap_or(PyVal::None);
         d.insert("default_probe".into(), default);
+        // each registered probe's own status
+        let probe_status: crate::pyval::PyDict =
+            self.probes.borrow().iter().map(|(k, (p, _))| (k.clone().into(), p.get_status(eventtime).unwrap_or(PyVal::None))).collect();
+        d.insert("probe_status".into(), PyVal::Dict(probe_status));
         Some(PyVal::Dict(d))
     }
     fn teardown(&self) {

@@ -3,7 +3,7 @@
 **Kaliru** (Kalico in Rust): port of **Kalico** (Klipper fork, what the Centauri Carbon's COSMOS image runs) to Rust: host software (klippy)
 and MCU firmware, full parity, byte-identical outputs. Updated 2026-10-23.
 
-- Reference: `Originals_Base/kalico` = KalicoCrew/kalico `main` @ `5b59427` (2026-10-21). Read-only.
+- Reference: `Originals_Base/kalico` = KalicoCrew/kalico `main` @ `550d21fb` (2026-10-31; `5b59427` before). Read-only.
 - Later layer: COSMOS changes (pinned to Kalico `26e46bd`, 58 commits behind our reference): 12 patches + 2 extras,
   ported after upstream parity (see "COSMOS layer").
 - `Originals_Base/klipper` (upstream Klipper @ `ee2c6fb6b`) stays as a secondary reference: Kalico tracks it, so

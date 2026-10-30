@@ -7,7 +7,7 @@ TIMER_DELAY = 0.2
 class MenuKeys(_k.Object):
     __kaliru_mirror__ = True
     def __init__(self, config, callback):
-        _k.new(self, 1421, config, callback)
+        _k.new(self, 1422, config, callback)
     def register_button(self, config, name, callback, push_only=True):
         pin = config.get(name, None)
         if pin is None:
@@ -26,29 +26,29 @@ class MenuKeys(_k.Object):
         else:
             buttons.register_adc_button(pin, amin, amax, pullup, callback)
     def encoder_cw_callback(self, eventtime):
-        return _k.call(self, 1423, eventtime)
-    def encoder_ccw_callback(self, eventtime):
         return _k.call(self, 1424, eventtime)
-    def long_click_event(self, eventtime):
+    def encoder_ccw_callback(self, eventtime):
         return _k.call(self, 1425, eventtime)
+    def long_click_event(self, eventtime):
+        return _k.call(self, 1426, eventtime)
     def click_callback(self, eventtime, state):
-        return _k.call(self, 1426, eventtime, state)
+        return _k.call(self, 1427, eventtime, state)
     def back_callback(self, eventtime):
-        return _k.call(self, 1427, eventtime)
-    def up_callback(self, eventtime):
         return _k.call(self, 1428, eventtime)
-    def down_callback(self, eventtime):
+    def up_callback(self, eventtime):
         return _k.call(self, 1429, eventtime)
+    def down_callback(self, eventtime):
+        return _k.call(self, 1430, eventtime)
     def kill_callback(self, eventtime):
         self.printer.invoke_shutdown("Shutdown due to kill button!")
-    callback = _k.Attr(1431, 'callback')
-    click_timer = _k.Attr(1432, 'click_timer')
-    encoder_fast_rate = _k.Attr(1433, 'encoder_fast_rate')
-    is_short_click = _k.Attr(1434, 'is_short_click')
-    last_encoder_ccw_eventtime = _k.Attr(1435, 'last_encoder_ccw_eventtime')
-    last_encoder_cw_eventtime = _k.Attr(1436, 'last_encoder_cw_eventtime')
-    printer = _k.Attr(1437, 'printer')
-    reactor = _k.Attr(1438, 'reactor')
+    callback = _k.Attr(1432, 'callback')
+    click_timer = _k.Attr(1433, 'click_timer')
+    encoder_fast_rate = _k.Attr(1434, 'encoder_fast_rate')
+    is_short_click = _k.Attr(1435, 'is_short_click')
+    last_encoder_ccw_eventtime = _k.Attr(1436, 'last_encoder_ccw_eventtime')
+    last_encoder_cw_eventtime = _k.Attr(1437, 'last_encoder_cw_eventtime')
+    printer = _k.Attr(1438, 'printer')
+    reactor = _k.Attr(1439, 'reactor')
 
 
 __getattr__ = _k.module_getattr(__name__)

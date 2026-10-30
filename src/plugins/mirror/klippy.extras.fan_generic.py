@@ -6,20 +6,20 @@ class PrinterFanGeneric(_k.Object):
     __kaliru_mirror__ = True
     cmd_SET_FAN_SPEED_help = 'Sets the speed of a fan'
     def __init__(self, config):
-        _k.new(self, 1798, config)
+        _k.new(self, 1799, config)
     def get_status(self, eventtime):
-        return _k.call(self, 1799, eventtime)
+        return _k.call(self, 1800, eventtime)
     def _template_update(self, text):
-        return _k.call(self, 1800, text)
+        return _k.call(self, 1801, text)
     def cmd_SET_FAN_SPEED(self, gcmd):
-        return _k.call(self, 1801, gcmd)
-    fan = _k.Attr(1802, 'fan')
-    fan_name = _k.Attr(1803, 'fan_name')
-    printer = _k.Attr(1804, 'printer')
-    template_eval = _k.Attr(1805, 'template_eval')
+        return _k.call(self, 1802, gcmd)
+    fan = _k.Attr(1803, 'fan')
+    fan_name = _k.Attr(1804, 'fan_name')
+    printer = _k.Attr(1805, 'printer')
+    template_eval = _k.Attr(1806, 'template_eval')
 
 def load_config_prefix(config):
-    return _k.fcall(1806, config)
+    return _k.fcall(1807, config)
 
 
 __getattr__ = _k.module_getattr(__name__)

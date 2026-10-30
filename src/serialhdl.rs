@@ -25,6 +25,11 @@ use std::os::fd::RawFd;
 use std::rc::{Rc, Weak};
 use std::sync::{Arc, Mutex};
 
+// How long check_canbus_connect() waits for a reply to its query, and how
+// often it polls the bus during that time
+pub const CANBUS_CHECK_TIME: f64 = 1.0;
+pub const CANBUS_CHECK_POLL_TIME: f64 = 0.005;
+
 /// serialhdl.error
 fn error(msg: String) -> KError {
     KError::Serial(msg)
@@ -79,6 +84,7 @@ pub struct SerialReader {
     handlers: RefCell<HashMap<(String, Option<i64>), ResponseHandler>>,
     pub last_notify_id: Cell<u64>,
     pending_notifications: RefCell<IndexMap<u64, Rc<ReactorCompletion<Option<Params>>>>>,
+    pub can_wait_acks: Cell<bool>,
     wait_ack_hook: RefCell<Option<WaitAckHook>>,
 }
 
@@ -119,6 +125,7 @@ impl SerialReader {
             handlers: RefCell::new(HashMap::new()),
             last_notify_id: Cell::new(0),
             pending_notifications: RefCell::new(IndexMap::default()),
+            can_wait_acks: Cell::new(true),
             wait_ack_hook: RefCell::new(None),
         });
         READERS.with(|r| r.borrow_mut().insert(sr.id, Rc::downgrade(&sr)));
@@ -306,20 +313,32 @@ impl SerialReader {
                 return Ok(false);
             }
         };
+        // (the bus is shut down when it goes out of scope, as Kalico's finally)
         if let Err(e) = bus.send(CANBUS_ID_ADMIN, &[CMD_QUERY_UNASSIGNED, CMD_QUERY_UNASSIGNED_EXTENDED]) {
             logging::warning(&format!("{}can issue: {}", self.warn_prefix, e));
             return Ok(false);
         }
-        let start_time = self.reactor.monotonic();
-        let mut curtime = start_time;
+        // This runs in the reactor thread (non-critical mcu reconnect
+        // timer), so poll without blocking and let the reactor run in
+        // between. A blocking recv() here stalls step flushing on all
+        // other mcus for the whole timeout ("Timer too close").
+        let end_time = self.reactor.monotonic() + CANBUS_CHECK_TIME;
         loop {
-            let tdiff = start_time + 1.0 - curtime;
-            if tdiff <= 0.0 {
-                break;
-            }
-            let msg = bus.recv(tdiff);
-            curtime = self.reactor.monotonic();
-            let Some((id, data)) = msg else { continue };
+            let msg = match bus.recv(0.0) {
+                Ok(m) => m,
+                Err(e) => {
+                    logging::warning(&format!("{}can issue: {}", self.warn_prefix, e));
+                    return Ok(false);
+                }
+            };
+            let Some((id, data)) = msg else {
+                let curtime = self.reactor.monotonic();
+                if curtime >= end_time {
+                    return Ok(false);
+                }
+                self.reactor.pause(end_time.min(curtime + CANBUS_CHECK_POLL_TIME))?;
+                continue;
+            };
             if id != CANBUS_ID_ADMIN + 1 || data.len() < 7 || !(data[0] == RESP_NEED_NODEID || data[0] == RESP_HAVE_NODEID) {
                 continue;
             }
@@ -329,7 +348,6 @@ impl SerialReader {
                 return Ok(true);
             }
         }
-        Ok(false)
     }
 
     pub fn connect_canbus(self: &Rc<Self>, canbus_uuid: &str, canbus_nodeid: i64, canbus_iface: &str) -> KResult<()> {
@@ -469,7 +487,17 @@ impl SerialReader {
             drop(sq);
         }
         self.serial_dev.borrow_mut().take();
-        let pending: Vec<_> = self.pending_notifications.borrow_mut().drain(..).map(|(_, c)| c).collect();
+        // Abort any waiting commands and then restore ability to wait
+        self.abort_wait_acks();
+        self.pending_notifications.borrow_mut().clear();
+        self.can_wait_acks.set(true);
+    }
+
+    /// Fail all current and future raw_send_wait_ack() calls (the mcu
+    /// stopped responding)
+    pub fn abort_wait_acks(&self) {
+        self.can_wait_acks.set(false);
+        let pending: Vec<_> = self.pending_notifications.borrow().values().cloned().collect();
         for pn in pending {
             pn.complete(None);
         }
@@ -547,6 +575,9 @@ impl SerialReader {
         }
         self.check_noncritical_disconnected()?;
         let Some(sq) = self.serialqueue.borrow().clone() else { return Ok(None) };
+        if !self.can_wait_acks.get() {
+            return Err(error(format!("{}No communication with MCU", self.warn_prefix)));
+        }
         self.last_notify_id.set(self.last_notify_id.get() + 1);
         let nid = self.last_notify_id.get();
         let completion = self.reactor.completion::<Option<Params>>();
@@ -554,7 +585,7 @@ impl SerialReader {
         sq.send(cmd_queue, cmd, minclock, reqclock, nid);
         let params = completion.wait(crate::reactor::NEVER, None)?.flatten();
         match params {
-            None => Err(error(format!("{}Serial connection closed", self.warn_prefix))),
+            None => Err(error(format!("{}No communication with MCU", self.warn_prefix))),
             Some(p) => Ok(Some(p)),
         }
     }
@@ -1121,19 +1152,34 @@ impl CanSocket {
     }
 
     /// recv(timeout): (arbitration id, data)
-    pub fn recv(&self, timeout: f64) -> Option<(u32, Vec<u8>)> {
+    /// python-can's recv(timeout): None on timeout, Err (CanOperationError's
+    /// text) when the socket fails, e.g. the interface went down
+    pub fn recv(&self, timeout: f64) -> Result<Option<(u32, Vec<u8>)>, String> {
+        let oserr = |what: &str| {
+            let e = std::io::Error::last_os_error().raw_os_error().unwrap_or(0);
+            format!("{}: {} [Error Code {}]", what, crate::pyfmt::strerror(e), e)
+        };
         let mut p = libc::pollfd { fd: self.fd, events: libc::POLLIN, revents: 0 };
-        // SAFETY: p is one live pollfd
-        if unsafe { libc::poll(&mut p, 1, (timeout * 1000.0).ceil() as i32) } <= 0 {
-            return None;
+        loop {
+            // SAFETY: p is one live pollfd
+            match unsafe { libc::poll(&mut p, 1, (timeout * 1000.0).ceil() as i32) } {
+                0 => return Ok(None),
+                r if r > 0 => break,
+                // (python retries select() on EINTR)
+                _ if std::io::Error::last_os_error().raw_os_error() == Some(libc::EINTR) => continue,
+                _ => return Err(oserr("Failed to receive")),
+            }
         }
         let mut cf = CanFrame::default();
         // SAFETY: cf is a live #[repr(C)] can_frame of the size read
         let r = unsafe { libc::read(self.fd, &mut cf as *mut CanFrame as *mut libc::c_void, std::mem::size_of::<CanFrame>()) };
-        if r <= 0 {
-            return None;
+        if r < 0 {
+            return Err(oserr("Error receiving"));
         }
-        Some((cf.can_id & libc::CAN_EFF_MASK, cf.data[..cf.can_dlc.min(8) as usize].to_vec()))
+        if r == 0 {
+            return Ok(None);
+        }
+        Ok(Some((cf.can_id & libc::CAN_EFF_MASK, cf.data[..cf.can_dlc.min(8) as usize].to_vec())))
     }
 
     pub fn into_fd(self) -> RawFd {

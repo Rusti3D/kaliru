@@ -6,38 +6,38 @@ PIN_MIN_TIME = 0.1
 class HeatedFan(_k.Object):
     __kaliru_mirror__ = True
     def __init__(self, config):
-        _k.new(self, 2165, config)
+        _k.new(self, 2166, config)
     def cmd_SET_HEATED_FAN_TARGET(self, gcmd):
-        return _k.call(self, 2166, gcmd)
-    def cmd_M106(self, gcmd):
         return _k.call(self, 2167, gcmd)
-    def cmd_M107(self, gcmd):
+    def cmd_M106(self, gcmd):
         return _k.call(self, 2168, gcmd)
+    def cmd_M107(self, gcmd):
+        return _k.call(self, 2169, gcmd)
     def start_timeout_timer(self):
-        return _k.call(self, 2169)
-    def handle_ready(self):
         return _k.call(self, 2170)
+    def handle_ready(self):
+        return _k.call(self, 2171)
     def handle_timeout_timer(self, eventtime):
         self.fan.set_speed_from_command(self.set_speed)
         return self.reactor.NEVER
     def callback(self, eventtime):
-        return _k.call(self, 2172, eventtime)
-    def get_status(self, eventtime):
         return _k.call(self, 2173, eventtime)
-    fan = _k.Attr(2174, 'fan')
-    gcode = _k.Attr(2175, 'gcode')
-    heater = _k.Attr(2176, 'heater')
-    heater_temp = _k.Attr(2177, 'heater_temp')
-    idle_timeout = _k.Attr(2178, 'idle_timeout')
-    min_speed = _k.Attr(2179, 'min_speed')
-    printer = _k.Attr(2180, 'printer')
-    reactor = _k.Attr(2181, 'reactor')
-    set_speed = _k.Attr(2182, 'set_speed')
-    stats = _k.Attr(2183, 'stats')
-    timeout_timer = _k.Attr(2184, 'timeout_timer')
+    def get_status(self, eventtime):
+        return _k.call(self, 2174, eventtime)
+    fan = _k.Attr(2175, 'fan')
+    gcode = _k.Attr(2176, 'gcode')
+    heater = _k.Attr(2177, 'heater')
+    heater_temp = _k.Attr(2178, 'heater_temp')
+    idle_timeout = _k.Attr(2179, 'idle_timeout')
+    min_speed = _k.Attr(2180, 'min_speed')
+    printer = _k.Attr(2181, 'printer')
+    reactor = _k.Attr(2182, 'reactor')
+    set_speed = _k.Attr(2183, 'set_speed')
+    stats = _k.Attr(2184, 'stats')
+    timeout_timer = _k.Attr(2185, 'timeout_timer')
 
 def load_config(config):
-    return _k.fcall(2185, config)
+    return _k.fcall(2186, config)
 
 
 __getattr__ = _k.module_getattr(__name__)

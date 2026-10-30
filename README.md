@@ -14,7 +14,7 @@ Phase 1 is a 1:1 port: for the same config and g-code, Kaliru must produce the
 same MCU command stream, exit code and log as Kalico. Phase 2 (later) is
 optimisation.
 
-Reference: Kalico `5b59427`.
+Reference: Kalico `550d21fb`.
 
 ## Status
 

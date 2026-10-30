@@ -83,7 +83,7 @@ class FixedFreqReader(_k.Object):
         _k.new(self, 801, mcu, chip_clock_smooth, unpack_fmt)
     def setup_query_command(self, msgformat, oid, cq):
         return _k.call(self, 802, msgformat, oid, cq)
-    def get_last_overflows(self):
+    def get_total_overflows(self):
         return _k.call(self, 803)
     def _clear_duration_filter(self):
         return _k.call(self, 804)
@@ -95,17 +95,18 @@ class FixedFreqReader(_k.Object):
         return _k.call(self, 807, is_reset)
     def pull_samples(self):
         return _k.call(self, 808)
-    bulk_queue = _k.Attr(809, 'bulk_queue')
-    bytes_per_sample = _k.Attr(810, 'bytes_per_sample')
-    clock_sync = _k.Attr(811, 'clock_sync')
-    last_overflows = _k.Attr(812, 'last_overflows')
-    last_sequence = _k.Attr(813, 'last_sequence')
-    max_query_duration = _k.Attr(814, 'max_query_duration')
-    mcu = _k.Attr(815, 'mcu')
-    oid = _k.Attr(816, 'oid')
-    query_status_cmd = _k.Attr(817, 'query_status_cmd')
-    samples_per_block = _k.Attr(818, 'samples_per_block')
-    unpack_from = _k.Attr(819, 'unpack_from')
+    _batch_overflows = _k.Attr(809, '_batch_overflows')
+    _total_overflows = _k.Attr(810, '_total_overflows')
+    bulk_queue = _k.Attr(811, 'bulk_queue')
+    bytes_per_sample = _k.Attr(812, 'bytes_per_sample')
+    clock_sync = _k.Attr(813, 'clock_sync')
+    last_sequence = _k.Attr(814, 'last_sequence')
+    max_query_duration = _k.Attr(815, 'max_query_duration')
+    mcu = _k.Attr(816, 'mcu')
+    oid = _k.Attr(817, 'oid')
+    query_status_cmd = _k.Attr(818, 'query_status_cmd')
+    samples_per_block = _k.Attr(819, 'samples_per_block')
+    unpack_from = _k.Attr(820, 'unpack_from')
 
 
 __getattr__ = _k.module_getattr(__name__)

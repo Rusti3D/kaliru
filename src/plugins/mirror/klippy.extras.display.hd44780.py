@@ -10,39 +10,39 @@ HD44780_DELAY = 4e-05
 class HD44780(_k.Object):
     __kaliru_mirror__ = True
     def __init__(self, config):
-        _k.new(self, 1161, config)
+        _k.new(self, 1162, config)
     def build_config(self):
-        return _k.call(self, 1162)
+        return _k.call(self, 1163)
     def send(self, cmds, is_data=False):
-        return _k.call(self, 1163, cmds, is_data)
+        return _k.call(self, 1164, cmds, is_data)
     def flush(self):
-        return _k.call(self, 1164)
-    def init(self):
         return _k.call(self, 1165)
+    def init(self):
+        return _k.call(self, 1166)
     def write_text(self, x, y, data):
-        return _k.call(self, 1166, x, y, data)
+        return _k.call(self, 1167, x, y, data)
     def set_glyphs(self, glyphs):
-        return _k.call(self, 1167, glyphs)
+        return _k.call(self, 1168, glyphs)
     def write_glyph(self, x, y, glyph_name):
-        return _k.call(self, 1168, x, y, glyph_name)
+        return _k.call(self, 1169, x, y, glyph_name)
     def write_graphics(self, x, y, data):
-        return _k.call(self, 1169, x, y, data)
+        return _k.call(self, 1170, x, y, data)
     def clear(self):
-        return _k.call(self, 1170)
-    def get_dimensions(self):
         return _k.call(self, 1171)
-    all_framebuffers = _k.Attr(1172, 'all_framebuffers')
-    glyph_framebuffer = _k.Attr(1173, 'glyph_framebuffer')
-    hd44780_protocol_init = _k.Attr(1174, 'hd44780_protocol_init')
-    icons = _k.Attr(1175, 'icons')
-    line_length = _k.Attr(1176, 'line_length')
-    mcu = _k.Attr(1177, 'mcu')
-    oid = _k.Attr(1178, 'oid')
-    pins = _k.Attr(1179, 'pins')
-    printer = _k.Attr(1180, 'printer')
-    send_cmds_cmd = _k.Attr(1181, 'send_cmds_cmd')
-    send_data_cmd = _k.Attr(1182, 'send_data_cmd')
-    text_framebuffers = _k.Attr(1183, 'text_framebuffers')
+    def get_dimensions(self):
+        return _k.call(self, 1172)
+    all_framebuffers = _k.Attr(1173, 'all_framebuffers')
+    glyph_framebuffer = _k.Attr(1174, 'glyph_framebuffer')
+    hd44780_protocol_init = _k.Attr(1175, 'hd44780_protocol_init')
+    icons = _k.Attr(1176, 'icons')
+    line_length = _k.Attr(1177, 'line_length')
+    mcu = _k.Attr(1178, 'mcu')
+    oid = _k.Attr(1179, 'oid')
+    pins = _k.Attr(1180, 'pins')
+    printer = _k.Attr(1181, 'printer')
+    send_cmds_cmd = _k.Attr(1182, 'send_cmds_cmd')
+    send_data_cmd = _k.Attr(1183, 'send_data_cmd')
+    text_framebuffers = _k.Attr(1184, 'text_framebuffers')
 
 
 __getattr__ = _k.module_getattr(__name__)

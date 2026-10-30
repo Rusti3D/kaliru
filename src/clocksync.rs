@@ -336,6 +336,13 @@ impl ClockSync {
         let Some(sec) = &self.secondary else {
             return (0.0, self.mcu_freq.get());
         };
+        if self.clock_est.get().2 <= 0.0 {
+            // Never received a clock estimate from this mcu (for example a
+            // non-critical mcu that was not reachable at startup). The
+            // calculation below would degenerate and eventually divide by
+            // zero, so keep the current (unsynchronized) adjustment.
+            return sec.clock_adj.get();
+        }
         // Calculate: est_print_time = main_sync.estimatated_print_time()
         let (ser_time, ser_clock, ser_freq) = sec.main_sync.clock_est.get();
         let main_mcu_freq = sec.main_sync.mcu_freq.get();

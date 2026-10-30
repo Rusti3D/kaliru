@@ -5,13 +5,13 @@ import _k
 class PrinterDupPinOverride(_k.Object):
     __kaliru_mirror__ = True
     def __init__(self, config):
-        _k.new(self, 1663, config)
+        _k.new(self, 1664, config)
 
 def load_config(config):
-    return _k.fcall(1664, config)
+    return _k.fcall(1665, config)
 
 def load_config_prefix(config):
-    return _k.fcall(1665, config)
+    return _k.fcall(1666, config)
 
 
 __getattr__ = _k.module_getattr(__name__)

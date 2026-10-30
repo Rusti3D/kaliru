@@ -34,47 +34,47 @@ I2C_SERIAL_TYPE = 'i2c'
 class LIS2DW(_k.Object):
     __kaliru_mirror__ = True
     def __init__(self, config, lis_type):
-        _k.new(self, 2797, config, lis_type)
+        _k.new(self, 2798, config, lis_type)
     def _build_config(self):
-        return _k.call(self, 2798)
-    def check_connected(self):
         return _k.call(self, 2799)
+    def check_connected(self):
+        return _k.call(self, 2800)
     def read_reg(self, reg):
-        return _k.call(self, 2800, reg)
+        return _k.call(self, 2801, reg)
     def set_reg(self, reg, val, minclock=0):
-        return _k.call(self, 2801, reg, val, minclock)
+        return _k.call(self, 2802, reg, val, minclock)
     def start_internal_client(self):
         self.check_connected()
         aqh = adxl345.AccelQueryHelper(self.printer)
         self.batch_bulk.add_client(aqh.handle_batch)
         return aqh
     def _convert_samples(self, samples):
-        return _k.call(self, 2803, samples)
+        return _k.call(self, 2804, samples)
     def _start_measurements(self):
-        return _k.call(self, 2804)
-    def _finish_measurements(self):
         return _k.call(self, 2805)
+    def _finish_measurements(self):
+        return _k.call(self, 2806)
     def _process_batch(self, eventtime):
-        return _k.call(self, 2806, eventtime)
-    axes_map = _k.Attr(2807, 'axes_map')
-    batch_bulk = _k.Attr(2808, 'batch_bulk')
-    bus = _k.Attr(2809, 'bus')
-    bus_type = _k.Attr(2810, 'bus_type')
-    data_rate = _k.Attr(2811, 'data_rate')
-    ffreader = _k.Attr(2812, 'ffreader')
-    last_error_count = _k.Attr(2813, 'last_error_count')
-    lis_type = _k.Attr(2814, 'lis_type')
-    mcu = _k.Attr(2815, 'mcu')
-    name = _k.Attr(2816, 'name')
-    oid = _k.Attr(2817, 'oid')
-    printer = _k.Attr(2818, 'printer')
-    query_lis2dw_cmd = _k.Attr(2819, 'query_lis2dw_cmd')
+        return _k.call(self, 2807, eventtime)
+    axes_map = _k.Attr(2808, 'axes_map')
+    batch_bulk = _k.Attr(2809, 'batch_bulk')
+    bus = _k.Attr(2810, 'bus')
+    bus_type = _k.Attr(2811, 'bus_type')
+    data_rate = _k.Attr(2812, 'data_rate')
+    ffreader = _k.Attr(2813, 'ffreader')
+    last_error_count = _k.Attr(2814, 'last_error_count')
+    lis_type = _k.Attr(2815, 'lis_type')
+    mcu = _k.Attr(2816, 'mcu')
+    name = _k.Attr(2817, 'name')
+    oid = _k.Attr(2818, 'oid')
+    printer = _k.Attr(2819, 'printer')
+    query_lis2dw_cmd = _k.Attr(2820, 'query_lis2dw_cmd')
 
 def load_config(config):
-    return _k.fcall(2820, config)
+    return _k.fcall(2821, config)
 
 def load_config_prefix(config):
-    return _k.fcall(2821, config)
+    return _k.fcall(2822, config)
 
 
 __getattr__ = _k.module_getattr(__name__)

@@ -22,60 +22,60 @@ MAX_CURRENT = 2.4
 class TMC2660CurrentHelper(tmc.BaseTMCCurrentHelper):
     __kaliru_mirror__ = True
     def __init__(self, config, mcu_tmc):
-        _k.new(self, 5281, config, mcu_tmc)
+        _k.new(self, 5297, config, mcu_tmc)
     def _calc_current_bits(self, current, vsense):
-        return _k.call(self, 5282, current, vsense)
+        return _k.call(self, 5298, current, vsense)
     def _calc_current_from_bits(self, cs, vsense):
-        return _k.call(self, 5283, cs, vsense)
+        return _k.call(self, 5299, cs, vsense)
     def _calc_current(self, run_current):
-        return _k.call(self, 5284, run_current)
+        return _k.call(self, 5300, run_current)
     def _handle_printing(self, print_time):
-        return _k.call(self, 5285, print_time)
+        return _k.call(self, 5301, print_time)
     def _handle_ready(self, print_time):
-        return _k.call(self, 5286, print_time)
+        return _k.call(self, 5302, print_time)
     def _update_current(self, current, print_time):
-        return _k.call(self, 5287, current, print_time)
+        return _k.call(self, 5303, current, print_time)
     def get_current(self):
-        return _k.call(self, 5288)
+        return _k.call(self, 5304)
     def set_current(self, run_current, hold_current, print_time, force=False):
-        return _k.call(self, 5289, run_current, hold_current, print_time, force)
-    current = _k.Attr(5290, 'current')
-    idle_current_percentage = _k.Attr(5291, 'idle_current_percentage')
+        return _k.call(self, 5305, run_current, hold_current, print_time, force)
+    current = _k.Attr(5306, 'current')
+    idle_current_percentage = _k.Attr(5307, 'idle_current_percentage')
 
 class MCU_TMC2660_SPI(_k.Object):
     __kaliru_mirror__ = True
     def __init__(self, config, name_to_reg, fields):
-        _k.new(self, 5292, config, name_to_reg, fields)
+        _k.new(self, 5308, config, name_to_reg, fields)
     def get_fields(self):
-        return _k.call(self, 5293)
+        return _k.call(self, 5309)
     def get_register_raw(self, reg_name):
-        return _k.call(self, 5294, reg_name)
+        return _k.call(self, 5310, reg_name)
     def get_register(self, reg_name):
-        return _k.call(self, 5295, reg_name)
+        return _k.call(self, 5311, reg_name)
     def set_register(self, reg_name, val, print_time=None):
-        return _k.call(self, 5296, reg_name, val, print_time)
+        return _k.call(self, 5312, reg_name, val, print_time)
     def get_tmc_frequency(self):
-        return _k.call(self, 5297)
+        return _k.call(self, 5313)
     def get_mcu(self):
-        return _k.call(self, 5298)
-    fields = _k.Attr(5299, 'fields')
-    mcu = _k.Attr(5300, 'mcu')
-    mutex = _k.Attr(5301, 'mutex')
-    name_to_reg = _k.Attr(5302, 'name_to_reg')
-    printer = _k.Attr(5303, 'printer')
-    spi = _k.Attr(5304, 'spi')
+        return _k.call(self, 5314)
+    fields = _k.Attr(5315, 'fields')
+    mcu = _k.Attr(5316, 'mcu')
+    mutex = _k.Attr(5317, 'mutex')
+    name_to_reg = _k.Attr(5318, 'name_to_reg')
+    printer = _k.Attr(5319, 'printer')
+    spi = _k.Attr(5320, 'spi')
 
 class TMC2660(_k.Object):
     __kaliru_mirror__ = True
     def __init__(self, config):
-        _k.new(self, 5305, config)
-    fields = _k.Attr(5306, 'fields')
-    get_phase_offset = _k.Attr(5307, 'get_phase_offset')
-    get_status = _k.Attr(5308, 'get_status')
-    mcu_tmc = _k.Attr(5309, 'mcu_tmc')
+        _k.new(self, 5321, config)
+    fields = _k.Attr(5322, 'fields')
+    get_phase_offset = _k.Attr(5323, 'get_phase_offset')
+    get_status = _k.Attr(5324, 'get_status')
+    mcu_tmc = _k.Attr(5325, 'mcu_tmc')
 
 def load_config_prefix(config):
-    return _k.fcall(5310, config)
+    return _k.fcall(5326, config)
 
 
 __getattr__ = _k.module_getattr(__name__)

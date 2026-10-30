@@ -273,6 +273,10 @@ impl TmcMcu for McuTmcSpi {
         self.fields.clone()
     }
 
+    fn tmc_spi(&self) -> Option<(Rc<McuTmcSpiChain>, i64)> {
+        Some((self.tmc_spi.clone(), self.chain_pos))
+    }
+
     fn get_register_raw(&self, reg_name: &str) -> KResult<RawRead> {
         let reg = self.reg(reg_name)?;
         self.with_mutex(|| self.tmc_spi.reg_read(reg, self.chain_pos))

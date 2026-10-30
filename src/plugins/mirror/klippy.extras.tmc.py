@@ -170,64 +170,94 @@ class TMCVirtualPinHelper(_k.Object):
     mcu_tmc = _k.Attr(5175, 'mcu_tmc')
     printer = _k.Attr(5176, 'printer')
 
+class TMCSpiEndstop(_k.Object):
+    __kaliru_mirror__ = True
+    POLL_TIME = 0.001
+    SETTLE_TIME = 0.15
+    MAX_CHAIN_LEN = 8
+    def __init__(self, printer, mcu_tmc):
+        _k.new(self, 5177, printer, mcu_tmc)
+    def _build_config(self):
+        return _k.call(self, 5178)
+    def get_mcu(self):
+        return _k.call(self, 5179)
+    def add_stepper(self, stepper):
+        return _k.call(self, 5180, stepper)
+    def get_steppers(self):
+        return _k.call(self, 5181)
+    def home_start(self, print_time, sample_time, sample_count, rest_time, triggered=True):
+        return _k.call(self, 5182, print_time, sample_time, sample_count, rest_time, triggered)
+    def home_wait(self, home_end_time):
+        return _k.call(self, 5183, home_end_time)
+    def query_endstop(self, print_time):
+        return _k.call(self, 5184, print_time)
+    _dispatch = _k.Attr(5185, '_dispatch')
+    _home_cmd = _k.Attr(5186, '_home_cmd')
+    _mcu = _k.Attr(5187, '_mcu')
+    _mcu_tmc = _k.Attr(5188, '_mcu_tmc')
+    _mutex = _k.Attr(5189, '_mutex')
+    _oid = _k.Attr(5190, '_oid')
+    _printer = _k.Attr(5191, '_printer')
+    _query_cmd = _k.Attr(5192, '_query_cmd')
+
 def TMCWaveTableHelper(config, mcu_tmc):
-    return _k.fcall(5177, config, mcu_tmc)
+    return _k.fcall(5193, config, mcu_tmc)
 
 def TMCMicrostepHelper(config, mcu_tmc):
-    return _k.fcall(5178, config, mcu_tmc)
+    return _k.fcall(5194, config, mcu_tmc)
 
 def TMCtstepHelper(mcu_tmc, velocity, pstepper=None, config=None):
-    return _k.fcall(5179, mcu_tmc, velocity, pstepper, config)
+    return _k.fcall(5195, mcu_tmc, velocity, pstepper, config)
 
 def TMCStealthchopHelper(config, mcu_tmc):
-    return _k.fcall(5180, config, mcu_tmc)
+    return _k.fcall(5196, config, mcu_tmc)
 
 class BaseTMCCurrentHelper(_k.Object):
     __kaliru_mirror__ = True
     def __init__(self, config, mcu_tmc, max_current, has_sense_resistor=True):
-        _k.new(self, 5181, config, mcu_tmc, max_current, has_sense_resistor)
+        _k.new(self, 5197, config, mcu_tmc, max_current, has_sense_resistor)
     def needs_home_current_change(self):
-        return _k.call(self, 5182)
+        return _k.call(self, 5198)
     def needs_run_current_change(self):
-        return _k.call(self, 5183)
+        return _k.call(self, 5199)
     def needs_hold_current_change(self, hold_current):
-        return _k.call(self, 5184, hold_current)
+        return _k.call(self, 5200, hold_current)
     def set_home_current(self, new_home_current):
-        return _k.call(self, 5185, new_home_current)
+        return _k.call(self, 5201, new_home_current)
     def set_run_current(self, new_run_current):
-        return _k.call(self, 5186, new_run_current)
+        return _k.call(self, 5202, new_run_current)
     def set_hold_current(self, new_hold_current):
-        return _k.call(self, 5187, new_hold_current)
+        return _k.call(self, 5203, new_hold_current)
     def set_actual_current(self, current):
-        return _k.call(self, 5188, current)
+        return _k.call(self, 5204, current)
     def set_current_for_homing(self, print_time, pre_homing):
-        return _k.call(self, 5189, print_time, pre_homing)
+        return _k.call(self, 5205, print_time, pre_homing)
     def needs_current_changes(self, run_current, hold_current, force=False):
-        return _k.call(self, 5190, run_current, hold_current, force)
+        return _k.call(self, 5206, run_current, hold_current, force)
     def apply_current(self, print_time):
-        return _k.call(self, 5191, print_time)
+        return _k.call(self, 5207, print_time)
     def set_current(self, new_current, hold_current, print_time, force=False):
-        return _k.call(self, 5192, new_current, hold_current, print_time, force)
-    actual_current = _k.Attr(5193, 'actual_current')
-    config_hold_current = _k.Attr(5194, 'config_hold_current')
-    config_home_current = _k.Attr(5195, 'config_home_current')
-    config_run_current = _k.Attr(5196, 'config_run_current')
-    current_change_dwell_time = _k.Attr(5197, 'current_change_dwell_time')
-    fields = _k.Attr(5198, 'fields')
-    max_current = _k.Attr(5199, 'max_current')
-    mcu_tmc = _k.Attr(5200, 'mcu_tmc')
-    name = _k.Attr(5201, 'name')
-    printer = _k.Attr(5202, 'printer')
-    req_hold_current = _k.Attr(5203, 'req_hold_current')
-    req_home_current = _k.Attr(5204, 'req_home_current')
-    req_run_current = _k.Attr(5205, 'req_run_current')
-    sense_resistor = _k.Attr(5206, 'sense_resistor')
+        return _k.call(self, 5208, new_current, hold_current, print_time, force)
+    actual_current = _k.Attr(5209, 'actual_current')
+    config_hold_current = _k.Attr(5210, 'config_hold_current')
+    config_home_current = _k.Attr(5211, 'config_home_current')
+    config_run_current = _k.Attr(5212, 'config_run_current')
+    current_change_dwell_time = _k.Attr(5213, 'current_change_dwell_time')
+    fields = _k.Attr(5214, 'fields')
+    max_current = _k.Attr(5215, 'max_current')
+    mcu_tmc = _k.Attr(5216, 'mcu_tmc')
+    name = _k.Attr(5217, 'name')
+    printer = _k.Attr(5218, 'printer')
+    req_hold_current = _k.Attr(5219, 'req_hold_current')
+    req_home_current = _k.Attr(5220, 'req_home_current')
+    req_run_current = _k.Attr(5221, 'req_run_current')
+    sense_resistor = _k.Attr(5222, 'sense_resistor')
 
 def TMCVcoolthrsHelper(config, mcu_tmc):
-    return _k.fcall(5207, config, mcu_tmc)
+    return _k.fcall(5223, config, mcu_tmc)
 
 def TMCVhighHelper(config, mcu_tmc):
-    return _k.fcall(5208, config, mcu_tmc)
+    return _k.fcall(5224, config, mcu_tmc)
 
 
 __getattr__ = _k.module_getattr(__name__)

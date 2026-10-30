@@ -5,43 +5,43 @@ import _k
 class HybridCoreXYKinematics(_k.Object):
     __kaliru_mirror__ = True
     def __init__(self, toolhead, config):
-        _k.new(self, 6356, toolhead, config)
+        _k.new(self, 6372, toolhead, config)
     def get_steppers(self):
-        return _k.call(self, 6357)
+        return _k.call(self, 6373)
     def calc_position(self, stepper_positions):
-        return _k.call(self, 6358, stepper_positions)
+        return _k.call(self, 6374, stepper_positions)
     def update_limits(self, i, range):
-        return _k.call(self, 6359, i, range)
+        return _k.call(self, 6375, i, range)
     def set_position(self, newpos, homing_axes):
-        return _k.call(self, 6360, newpos, homing_axes)
+        return _k.call(self, 6376, newpos, homing_axes)
     def note_z_not_homed(self):
-        return _k.call(self, 6361)
+        return _k.call(self, 6377)
     def clear_homing_state(self, clear_axes):
-        return _k.call(self, 6362, clear_axes)
+        return _k.call(self, 6378, clear_axes)
     def home_axis(self, homing_state, axis, rail):
-        return _k.call(self, 6363, homing_state, axis, rail)
+        return _k.call(self, 6379, homing_state, axis, rail)
     def home(self, homing_state):
-        return _k.call(self, 6364, homing_state)
+        return _k.call(self, 6380, homing_state)
     def _check_endstops(self, move):
-        return _k.call(self, 6365, move)
+        return _k.call(self, 6381, move)
     def check_move(self, move):
-        return _k.call(self, 6366, move)
+        return _k.call(self, 6382, move)
     def get_status(self, eventtime):
-        return _k.call(self, 6367, eventtime)
-    axes_max = _k.Attr(6368, 'axes_max')
-    axes_min = _k.Attr(6369, 'axes_min')
-    corexy_mode = _k.Attr(6370, 'corexy_mode')
-    dc_module = _k.Attr(6371, 'dc_module')
-    inverted = _k.Attr(6372, 'inverted')
-    limits = _k.Attr(6373, 'limits')
-    max_z_accel = _k.Attr(6374, 'max_z_accel')
-    max_z_velocity = _k.Attr(6375, 'max_z_velocity')
-    printer = _k.Attr(6376, 'printer')
-    rails = _k.Attr(6377, 'rails')
-    supports_dual_carriage = _k.Attr(6378, 'supports_dual_carriage')
+        return _k.call(self, 6383, eventtime)
+    axes_max = _k.Attr(6384, 'axes_max')
+    axes_min = _k.Attr(6385, 'axes_min')
+    corexy_mode = _k.Attr(6386, 'corexy_mode')
+    dc_module = _k.Attr(6387, 'dc_module')
+    inverted = _k.Attr(6388, 'inverted')
+    limits = _k.Attr(6389, 'limits')
+    max_z_accel = _k.Attr(6390, 'max_z_accel')
+    max_z_velocity = _k.Attr(6391, 'max_z_velocity')
+    printer = _k.Attr(6392, 'printer')
+    rails = _k.Attr(6393, 'rails')
+    supports_dual_carriage = _k.Attr(6394, 'supports_dual_carriage')
 
 def load_kinematics(toolhead, config):
-    return _k.fcall(6379, toolhead, config)
+    return _k.fcall(6395, toolhead, config)
 
 
 __getattr__ = _k.module_getattr(__name__)

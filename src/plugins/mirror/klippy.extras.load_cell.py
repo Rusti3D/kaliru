@@ -3,13 +3,13 @@ import _k
 
 
 def register_components(subsystem):
-    return _k.fcall(2847, subsystem)
+    return _k.fcall(2848, subsystem)
 
 def load_config(config):
-    return _k.fcall(2848, config)
+    return _k.fcall(2849, config)
 
 def load_config_prefix(config):
-    return _k.fcall(2849, config)
+    return _k.fcall(2850, config)
 
 
 __getattr__ = _k.module_getattr(__name__)

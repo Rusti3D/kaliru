@@ -18,99 +18,99 @@ class MenuElement(_k.Object):
     __kaliru_mirror__ = True
     _default_suffix = ''
     def __init__(self, manager, config, **kwargs):
-        _k.new(self, 1208, manager, config, kwargs)
+        _k.new(self, 1209, manager, config, kwargs)
     def init(self):
-        return _k.call(self, 1209)
-    def _render_name(self):
         return _k.call(self, 1210)
-    def _render_suffix(self):
+    def _render_name(self):
         return _k.call(self, 1211)
+    def _render_suffix(self):
+        return _k.call(self, 1212)
     def _load_script(self, config, name, option=None):
-        return _k.call(self, 1212, config, name, option)
+        return _k.call(self, 1213, config, name, option)
     def is_editing(self):
-        return _k.call(self, 1213)
-    def is_scrollable(self):
         return _k.call(self, 1214)
-    def is_enabled(self):
+    def is_scrollable(self):
         return _k.call(self, 1215)
-    def start_editing(self):
+    def is_enabled(self):
         return _k.call(self, 1216)
-    def stop_editing(self):
+    def start_editing(self):
         return _k.call(self, 1217)
+    def stop_editing(self):
+        return _k.call(self, 1218)
     def get_context(self, cxt=None):
-        return _k.call(self, 1218, cxt)
+        return _k.call(self, 1219, cxt)
     def _eval_tpl(self, tpl, context, coerce=identity):
-        return _k.call(self, 1219, tpl, context, coerce)
+        return _k.call(self, 1220, tpl, context, coerce)
     def eval_enable(self, context):
-        return _k.call(self, 1220, context)
+        return _k.call(self, 1221, context)
     def select(self):
-        return _k.call(self, 1221)
+        return _k.call(self, 1222)
     def heartbeat(self, eventtime):
-        return _k.call(self, 1222, eventtime)
+        return _k.call(self, 1223, eventtime)
     def __update_scroller(self):
-        return _k.call(self, 1223)
-    def __reset_scroller(self):
         return _k.call(self, 1224)
+    def __reset_scroller(self):
+        return _k.call(self, 1225)
     def need_scroller(self, value):
-        return _k.call(self, 1225, value)
+        return _k.call(self, 1226, value)
     def __slice_name(self, name, index):
-        return _k.call(self, 1226, name, index)
+        return _k.call(self, 1227, name, index)
     def render_name(self, selected=False):
-        return _k.call(self, 1227, selected)
+        return _k.call(self, 1228, selected)
     def get_ns(self, name="."):
-        return _k.call(self, 1228, name)
+        return _k.call(self, 1229, name)
     def send_event(self, event, *args):
         return self.manager.send_event(
             "%s:%s" % (self.get_ns(), str(event)), *args
         )
     def get_script(self, name):
-        return _k.call(self, 1230, name)
+        return _k.call(self, 1231, name)
     def _run_script(self, name, context):
-        return _k.call(self, 1231, name, context)
+        return _k.call(self, 1232, name, context)
     def run_script(self, name, **kwargs):
-        return _k.call(self, 1232, name, kwargs)
+        return _k.call(self, 1233, name, kwargs)
     @property
     def cursor(self):
-        return _k.call(self, 1233)
+        return _k.call(self, 1234)
     @property
     def manager(self):
-        return _k.call(self, 1234)
+        return _k.call(self, 1235)
     @property
     def index(self):
         return self._index
-    __scroll_next = _k.Attr(1236, '__scroll_next')
-    __scroll_pos = _k.Attr(1237, '__scroll_pos')
-    __scroll_request_pending = _k.Attr(1238, '__scroll_request_pending')
-    _context = _k.Attr(1239, '_context')
-    _cursor = _k.Attr(1240, '_cursor')
-    _enable = _k.Attr(1241, '_enable')
-    _enable_tpl = _k.Attr(1242, '_enable_tpl')
-    _id = _k.Attr(1243, '_id')
-    _index = _k.Attr(1244, '_index')
-    _last_heartbeat = _k.Attr(1245, '_last_heartbeat')
-    _manager = _k.Attr(1246, '_manager')
-    _name = _k.Attr(1247, '_name')
-    _name_tpl = _k.Attr(1248, '_name_tpl')
-    _ns = _k.Attr(1249, '_ns')
-    _scripts = _k.Attr(1250, '_scripts')
-    _suffix = _k.Attr(1251, '_suffix')
-    _suffix_tpl = _k.Attr(1252, '_suffix_tpl')
-    dialog = _k.Attr(1253, 'dialog')
+    __scroll_next = _k.Attr(1237, '__scroll_next')
+    __scroll_pos = _k.Attr(1238, '__scroll_pos')
+    __scroll_request_pending = _k.Attr(1239, '__scroll_request_pending')
+    _context = _k.Attr(1240, '_context')
+    _cursor = _k.Attr(1241, '_cursor')
+    _enable = _k.Attr(1242, '_enable')
+    _enable_tpl = _k.Attr(1243, '_enable_tpl')
+    _id = _k.Attr(1244, '_id')
+    _index = _k.Attr(1245, '_index')
+    _last_heartbeat = _k.Attr(1246, '_last_heartbeat')
+    _manager = _k.Attr(1247, '_manager')
+    _name = _k.Attr(1248, '_name')
+    _name_tpl = _k.Attr(1249, '_name_tpl')
+    _ns = _k.Attr(1250, '_ns')
+    _scripts = _k.Attr(1251, '_scripts')
+    _suffix = _k.Attr(1252, '_suffix')
+    _suffix_tpl = _k.Attr(1253, '_suffix_tpl')
+    dialog = _k.Attr(1254, 'dialog')
 
 class MenuContainer(MenuElement):
     __kaliru_mirror__ = True
     def __init__(self, manager, config, **kwargs):
-        _k.new(self, 1254, manager, config, kwargs)
+        _k.new(self, 1255, manager, config, kwargs)
     def init(self):
-        return _k.call(self, 1255)
-    def _names_aslist(self):
         return _k.call(self, 1256)
+    def _names_aslist(self):
+        return _k.call(self, 1257)
     def is_accepted(self, item):
-        return _k.call(self, 1257, item)
+        return _k.call(self, 1258, item)
     def is_editing(self):
-        return _k.call(self, 1258)
-    def stop_editing(self):
         return _k.call(self, 1259)
+    def stop_editing(self):
+        return _k.call(self, 1260)
     def lookup_item(self, item):
         if isinstance(item, str):
             name = item.strip()
@@ -120,147 +120,147 @@ class MenuContainer(MenuElement):
             return (item, item.get_ns())
         return (None, item)
     def _lookup_item(self, item):
-        return _k.call(self, 1261, item)
-    def _index_of(self, item):
         return _k.call(self, 1262, item)
+    def _index_of(self, item):
+        return _k.call(self, 1263, item)
     def index_of(self, item, look_inside=False):
-        return _k.call(self, 1263, item, look_inside)
+        return _k.call(self, 1264, item, look_inside)
     def add_parents(self, parents):
-        return _k.call(self, 1264, parents)
-    def assert_recursive_relation(self, parents=None):
         return _k.call(self, 1265, parents)
+    def assert_recursive_relation(self, parents=None):
+        return _k.call(self, 1266, parents)
     def insert_item(self, s, index=None):
-        return _k.call(self, 1266, s, index)
-    def _insert_item(self, s, index=None):
         return _k.call(self, 1267, s, index)
+    def _insert_item(self, s, index=None):
+        return _k.call(self, 1268, s, index)
     def _populate(self):
-        return _k.call(self, 1268)
-    def populate(self):
         return _k.call(self, 1269)
+    def populate(self):
+        return _k.call(self, 1270)
     def update_items(self, keep_pointer=False):
-        return _k.call(self, 1270, keep_pointer)
+        return _k.call(self, 1271, keep_pointer)
     def init_selection(self):
-        return _k.call(self, 1271)
+        return _k.call(self, 1272)
     def select_at(self, index):
-        return _k.call(self, 1272, index)
+        return _k.call(self, 1273, index)
     def select_item(self, needle):
-        return _k.call(self, 1273, needle)
+        return _k.call(self, 1274, needle)
     def selected_item(self):
-        return _k.call(self, 1274)
-    def select_next(self):
         return _k.call(self, 1275)
-    def select_prev(self):
+    def select_next(self):
         return _k.call(self, 1276)
+    def select_prev(self):
+        return _k.call(self, 1277)
     def draw_container(self, nrows, eventtime):
-        return _k.call(self, 1277, nrows, eventtime)
+        return _k.call(self, 1278, nrows, eventtime)
     def __iter__(self):
-        return _k.call(self, 1278)
-    def __len__(self):
         return _k.call(self, 1279)
+    def __len__(self):
+        return _k.call(self, 1280)
     def __getitem__(self, key):
-        return _k.call(self, 1280, key)
+        return _k.call(self, 1281, key)
     @property
     def selected(self):
-        return _k.call(self, 1281)
-    __selected = _k.Attr(1282, '__selected')
-    _allitems = _k.Attr(1283, '_allitems')
-    _cursor = _k.Attr(1284, '_cursor')
-    _items = _k.Attr(1285, '_items')
-    _names = _k.Attr(1286, '_names')
-    _parents = _k.Attr(1287, '_parents')
-    _populate_cb = _k.Attr(1288, '_populate_cb')
+        return _k.call(self, 1282)
+    __selected = _k.Attr(1283, '__selected')
+    _allitems = _k.Attr(1284, '_allitems')
+    _cursor = _k.Attr(1285, '_cursor')
+    _items = _k.Attr(1286, '_items')
+    _names = _k.Attr(1287, '_names')
+    _parents = _k.Attr(1288, '_parents')
+    _populate_cb = _k.Attr(1289, '_populate_cb')
 
 class MenuDisabled(MenuElement):
     __kaliru_mirror__ = True
     def __init__(self, manager, config, **kwargs):
-        _k.new(self, 1289, manager, config, kwargs)
+        _k.new(self, 1290, manager, config, kwargs)
     def is_enabled(self):
-        return _k.call(self, 1290)
+        return _k.call(self, 1291)
 
 class MenuCommand(MenuElement):
     __kaliru_mirror__ = True
     def __init__(self, manager, config, **kwargs):
-        _k.new(self, 1291, manager, config, kwargs)
+        _k.new(self, 1292, manager, config, kwargs)
 
 class MenuInput(MenuCommand):
     __kaliru_mirror__ = True
     def __init__(self, manager, config, **kwargs):
-        _k.new(self, 1292, manager, config, kwargs)
+        _k.new(self, 1293, manager, config, kwargs)
     def init(self):
-        return _k.call(self, 1293)
-    def is_scrollable(self):
         return _k.call(self, 1294)
-    def is_editing(self):
+    def is_scrollable(self):
         return _k.call(self, 1295)
-    def handle_script_change(self):
+    def is_editing(self):
         return _k.call(self, 1296)
-    def stop_editing(self):
+    def handle_script_change(self):
         return _k.call(self, 1297)
-    def start_editing(self):
+    def stop_editing(self):
         return _k.call(self, 1298)
+    def start_editing(self):
+        return _k.call(self, 1299)
     def heartbeat(self, eventtime):
-        return _k.call(self, 1299, eventtime)
+        return _k.call(self, 1300, eventtime)
     def get_context(self, cxt=None):
-        return _k.call(self, 1300, cxt)
+        return _k.call(self, 1301, cxt)
     def is_enabled(self):
-        return _k.call(self, 1301)
+        return _k.call(self, 1302)
     def _eval_min(self, context):
-        return _k.call(self, 1302, context)
-    def _eval_max(self, context):
         return _k.call(self, 1303, context)
-    def _eval_value(self, context):
+    def _eval_max(self, context):
         return _k.call(self, 1304, context)
-    def _get_value(self, context):
+    def _eval_value(self, context):
         return _k.call(self, 1305, context)
+    def _get_value(self, context):
+        return _k.call(self, 1306, context)
     def get_value(self):
-        return _k.call(self, 1306)
-    def _value_changed(self):
         return _k.call(self, 1307)
-    def _init_value(self):
+    def _value_changed(self):
         return _k.call(self, 1308)
-    def _reset_value(self):
+    def _init_value(self):
         return _k.call(self, 1309)
+    def _reset_value(self):
+        return _k.call(self, 1310)
     def _get_input_step(self, fast_rate=False):
-        return _k.call(self, 1310, fast_rate)
-    def inc_value(self, fast_rate=False):
         return _k.call(self, 1311, fast_rate)
-    def dec_value(self, fast_rate=False):
+    def inc_value(self, fast_rate=False):
         return _k.call(self, 1312, fast_rate)
+    def dec_value(self, fast_rate=False):
+        return _k.call(self, 1313, fast_rate)
     def handle_script_click(self):
         if not self.is_editing():
             self.start_editing()
         elif self.is_editing():
             self.stop_editing()
-    __last_change = _k.Attr(1314, '__last_change')
-    _input = _k.Attr(1315, '_input')
-    _input_max = _k.Attr(1316, '_input_max')
-    _input_max_tpl = _k.Attr(1317, '_input_max_tpl')
-    _input_min = _k.Attr(1318, '_input_min')
-    _input_min_tpl = _k.Attr(1319, '_input_min_tpl')
-    _input_step = _k.Attr(1320, '_input_step')
-    _input_tpl = _k.Attr(1321, '_input_tpl')
-    _input_value = _k.Attr(1322, '_input_value')
-    _is_dirty = _k.Attr(1323, '_is_dirty')
-    _realtime = _k.Attr(1324, '_realtime')
+    __last_change = _k.Attr(1315, '__last_change')
+    _input = _k.Attr(1316, '_input')
+    _input_max = _k.Attr(1317, '_input_max')
+    _input_max_tpl = _k.Attr(1318, '_input_max_tpl')
+    _input_min = _k.Attr(1319, '_input_min')
+    _input_min_tpl = _k.Attr(1320, '_input_min_tpl')
+    _input_step = _k.Attr(1321, '_input_step')
+    _input_tpl = _k.Attr(1322, '_input_tpl')
+    _input_value = _k.Attr(1323, '_input_value')
+    _is_dirty = _k.Attr(1324, '_is_dirty')
+    _realtime = _k.Attr(1325, '_realtime')
 
 class MenuList(MenuContainer):
     __kaliru_mirror__ = True
     _default_suffix = '>'
     def __init__(self, manager, config, **kwargs):
-        _k.new(self, 1325, manager, config, kwargs)
+        _k.new(self, 1326, manager, config, kwargs)
     def _names_aslist(self):
-        return _k.call(self, 1326)
-    def _populate(self):
         return _k.call(self, 1327)
+    def _populate(self):
+        return _k.call(self, 1328)
     def draw_container(self, nrows, eventtime):
-        return _k.call(self, 1328, nrows, eventtime)
-    _itemBack = _k.Attr(1329, '_itemBack')
-    _viewport_top = _k.Attr(1330, '_viewport_top')
+        return _k.call(self, 1329, nrows, eventtime)
+    _itemBack = _k.Attr(1330, '_itemBack')
+    _viewport_top = _k.Attr(1331, '_viewport_top')
 
 class MenuVSDList(MenuList):
     __kaliru_mirror__ = True
     def _populate(self):
-        return _k.call(self, 1331)
+        return _k.call(self, 1332)
 
 def sort_key_name(item: pathlib.Path):
     # Most people expect insensitive sort
@@ -273,111 +273,111 @@ class MenuFileBrowser(MenuList):
     __kaliru_mirror__ = True
     _default_suffix = '~folder~'
     def __init__(self, manager, config, **kwargs):
-        _k.new(self, 1334, manager, config, kwargs)
+        _k.new(self, 1335, manager, config, kwargs)
     def is_enabled(self):
-        return _k.call(self, 1335)
+        return _k.call(self, 1336)
     def _dir_contains_gcode(self, path):
-        return _k.call(self, 1336, path)
+        return _k.call(self, 1337, path)
     def _populate(self):
-        return _k.call(self, 1337)
-    _itemBack = _k.Attr(1338, '_itemBack')
-    _sort_by = _k.Attr(1339, '_sort_by')
-    path = _k.Attr(1340, 'path')
-    prefix = _k.Attr(1341, 'prefix')
-    root_dir = _k.Attr(1342, 'root_dir')
+        return _k.call(self, 1338)
+    _itemBack = _k.Attr(1339, '_itemBack')
+    _sort_by = _k.Attr(1340, '_sort_by')
+    path = _k.Attr(1341, 'path')
+    prefix = _k.Attr(1342, 'prefix')
+    root_dir = _k.Attr(1343, 'root_dir')
 
 class MenuDialog(MenuList):
     __kaliru_mirror__ = True
     def __init__(self, manager, config, **kwargs):
-        _k.new(self, 1343, manager, config, kwargs)
+        _k.new(self, 1344, manager, config, kwargs)
     def select_at(self, index):
-        return _k.call(self, 1344, index)
+        return _k.call(self, 1345, index)
     def handle_script_gcode(self):
         self.manager.back()
     def _on_confirm(self, el, context):
-        return _k.call(self, 1346, el, context)
-    def _on_cancel(self, el, context):
         return _k.call(self, 1347, el, context)
+    def _on_cancel(self, el, context):
+        return _k.call(self, 1348, el, context)
     def get_values(self):
-        return _k.call(self, 1348)
+        return _k.call(self, 1349)
     def get_value(self, ns, default=None):
-        return _k.call(self, 1349, ns, default)
+        return _k.call(self, 1350, ns, default)
     def set_value(self, ns, value):
-        return _k.call(self, 1350, ns, value)
+        return _k.call(self, 1351, ns, value)
     def _populate(self):
-        return _k.call(self, 1351)
+        return _k.call(self, 1352)
     def is_accepted(self, item):
-        return _k.call(self, 1352, item)
+        return _k.call(self, 1353, item)
     def update_items(self, keep_pointer=False):
-        return _k.call(self, 1353, keep_pointer)
+        return _k.call(self, 1354, keep_pointer)
     def populate_values(self):
-        return _k.call(self, 1354)
-    _cancel_item = _k.Attr(1355, '_cancel_item')
-    _cancel_text = _k.Attr(1356, '_cancel_text')
-    _confirm_item = _k.Attr(1357, '_confirm_item')
-    _confirm_text = _k.Attr(1358, '_confirm_text')
-    _title_item = _k.Attr(1359, '_title_item')
-    _title_text = _k.Attr(1360, '_title_text')
-    _values = _k.Attr(1361, '_values')
-    _viewport_top = _k.Attr(1362, '_viewport_top')
+        return _k.call(self, 1355)
+    _cancel_item = _k.Attr(1356, '_cancel_item')
+    _cancel_text = _k.Attr(1357, '_cancel_text')
+    _confirm_item = _k.Attr(1358, '_confirm_item')
+    _confirm_text = _k.Attr(1359, '_confirm_text')
+    _title_item = _k.Attr(1360, '_title_item')
+    _title_text = _k.Attr(1361, '_title_text')
+    _values = _k.Attr(1362, '_values')
+    _viewport_top = _k.Attr(1363, '_viewport_top')
 
 class MenuManager(_k.Object):
     __kaliru_mirror__ = True
     def __init__(self, config, display):
-        _k.new(self, 1363, config, display)
+        _k.new(self, 1364, config, display)
     def handle_ready(self):
-        return _k.call(self, 1364)
+        return _k.call(self, 1365)
     def _handle_printer_event(self, *args):
-        return _k.call(self, 1365, args)
+        return _k.call(self, 1366, args)
     def timer_event(self, eventtime):
-        return _k.call(self, 1366, eventtime)
-    def timeout_check(self, eventtime):
         return _k.call(self, 1367, eventtime)
+    def timeout_check(self, eventtime):
+        return _k.call(self, 1368, eventtime)
     def send_event(self, event, *args):
         return self.printer.send_event("menu:" + str(event), *args)
     def is_running(self):
-        return _k.call(self, 1369)
+        return _k.call(self, 1370)
     def begin(self, eventtime):
-        return _k.call(self, 1370, eventtime)
-    def get_status(self, eventtime):
         return _k.call(self, 1371, eventtime)
+    def get_status(self, eventtime):
+        return _k.call(self, 1372, eventtime)
     def _action_back(self, force=False, update=True):
-        return _k.call(self, 1372, force, update)
+        return _k.call(self, 1373, force, update)
     def _action_exit(self, force=False):
-        return _k.call(self, 1373, force)
+        return _k.call(self, 1374, force)
     def get_context(self, cxt=None):
-        return _k.call(self, 1374, cxt)
+        return _k.call(self, 1375, cxt)
     def update_context(self, eventtime):
-        return _k.call(self, 1375, eventtime)
+        return _k.call(self, 1376, eventtime)
     @property
     def current_dialog(self):
-        return _k.call(self, 1376)
+        return _k.call(self, 1377)
     def stack_push(self, container):
-        return _k.call(self, 1377, container)
+        return _k.call(self, 1378, container)
     def stack_pop(self, update=True):
-        return _k.call(self, 1378, update)
+        return _k.call(self, 1379, update)
     def stack_size(self):
-        return _k.call(self, 1379)
+        return _k.call(self, 1380)
     def stack_peek(self, lvl=0):
-        return _k.call(self, 1380, lvl)
+        return _k.call(self, 1381, lvl)
     def screen_update_event(self, eventtime):
-        return _k.call(self, 1381, eventtime)
+        return _k.call(self, 1382, eventtime)
     def up(self, fast_rate=False):
-        return _k.call(self, 1382, fast_rate)
-    def down(self, fast_rate=False):
         return _k.call(self, 1383, fast_rate)
+    def down(self, fast_rate=False):
+        return _k.call(self, 1384, fast_rate)
     def back(self, force=False, update=True):
-        return _k.call(self, 1384, force, update)
+        return _k.call(self, 1385, force, update)
     def exit(self, force=False):
-        return _k.call(self, 1385, force)
+        return _k.call(self, 1386, force)
     def push_container(self, menu):
-        return _k.call(self, 1386, menu)
+        return _k.call(self, 1387, menu)
     def press(self, event="click"):
-        return _k.call(self, 1387, event)
+        return _k.call(self, 1388, event)
     def queue_gcode(self, script):
-        return _k.call(self, 1388, script)
+        return _k.call(self, 1389, script)
     def dispatch_gcode(self, eventtime):
-        return _k.call(self, 1389, eventtime)
+        return _k.call(self, 1390, eventtime)
     def menuitem_from(self, type, **kwargs):
         if type not in menu_items:
             raise error(
@@ -386,7 +386,7 @@ class MenuManager(_k.Object):
             )
         return menu_items[type](self, None, **kwargs)
     def add_menuitem(self, name, item):
-        return _k.call(self, 1391, name, item)
+        return _k.call(self, 1392, name, item)
     def lookup_menuitem(self, name, default=sentinel):
         if name is None:
             return None
@@ -396,15 +396,15 @@ class MenuManager(_k.Object):
             raise self.printer.config_error("Unknown menuitem '%s'" % (name,))
         return default
     def lookup_children(self, ns):
-        return _k.call(self, 1393, ns)
+        return _k.call(self, 1394, ns)
     def load_config(self, *args):
-        return _k.call(self, 1394, args)
+        return _k.call(self, 1395, args)
     def load_menuitems(self, config):
-        return _k.call(self, 1395, config)
+        return _k.call(self, 1396, config)
     def _click_callback(self, eventtime, event):
-        return _k.call(self, 1396, eventtime, event)
+        return _k.call(self, 1397, eventtime, event)
     def key_event(self, key, eventtime):
-        return _k.call(self, 1397, key, eventtime)
+        return _k.call(self, 1398, key, eventtime)
     @classmethod
     def stripliterals(cls, s):
         """Literals are beginning or ending by the double or single quotes"""
@@ -425,26 +425,26 @@ class MenuManager(_k.Object):
     @classmethod
     def asflat(cls, s):
         return cls.stripliterals("".join(cls.aslatin(s).splitlines()))
-    _reverse_navigation = _k.Attr(1401, '_reverse_navigation')
-    _root = _k.Attr(1402, '_root')
-    children = _k.Attr(1403, 'children')
-    cols = _k.Attr(1404, 'cols')
-    context = _k.Attr(1405, 'context')
-    dialog_stack = _k.Attr(1406, 'dialog_stack')
-    display = _k.Attr(1407, 'display')
-    gcode = _k.Attr(1408, 'gcode')
-    gcode_macro = _k.Attr(1409, 'gcode_macro')
-    gcode_queue = _k.Attr(1410, 'gcode_queue')
-    menuitems = _k.Attr(1411, 'menuitems')
-    menustack = _k.Attr(1412, 'menustack')
-    pconfig = _k.Attr(1413, 'pconfig')
-    printer = _k.Attr(1414, 'printer')
-    root = _k.Attr(1415, 'root')
-    rows = _k.Attr(1416, 'rows')
-    running = _k.Attr(1417, 'running')
-    timeout = _k.Attr(1418, 'timeout')
-    timer = _k.Attr(1419, 'timer')
-    virtual_sdcard = _k.Attr(1420, 'virtual_sdcard')
+    _reverse_navigation = _k.Attr(1402, '_reverse_navigation')
+    _root = _k.Attr(1403, '_root')
+    children = _k.Attr(1404, 'children')
+    cols = _k.Attr(1405, 'cols')
+    context = _k.Attr(1406, 'context')
+    dialog_stack = _k.Attr(1407, 'dialog_stack')
+    display = _k.Attr(1408, 'display')
+    gcode = _k.Attr(1409, 'gcode')
+    gcode_macro = _k.Attr(1410, 'gcode_macro')
+    gcode_queue = _k.Attr(1411, 'gcode_queue')
+    menuitems = _k.Attr(1412, 'menuitems')
+    menustack = _k.Attr(1413, 'menustack')
+    pconfig = _k.Attr(1414, 'pconfig')
+    printer = _k.Attr(1415, 'printer')
+    root = _k.Attr(1416, 'root')
+    rows = _k.Attr(1417, 'rows')
+    running = _k.Attr(1418, 'running')
+    timeout = _k.Attr(1419, 'timeout')
+    timer = _k.Attr(1420, 'timer')
+    virtual_sdcard = _k.Attr(1421, 'virtual_sdcard')
 
 menu_items = {'disabled': MenuDisabled, 'command': MenuCommand, 'input': MenuInput, 'list': MenuList, 'dialog': MenuDialog, 'vsdlist': MenuVSDList, 'file_browser': MenuFileBrowser}
 

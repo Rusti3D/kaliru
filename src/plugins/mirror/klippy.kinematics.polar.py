@@ -5,37 +5,37 @@ import _k
 class PolarKinematics(_k.Object):
     __kaliru_mirror__ = True
     def __init__(self, toolhead, config):
-        _k.new(self, 6476, toolhead, config)
+        _k.new(self, 6492, toolhead, config)
     def get_steppers(self):
-        return _k.call(self, 6477)
+        return _k.call(self, 6493)
     def calc_position(self, stepper_positions):
-        return _k.call(self, 6478, stepper_positions)
+        return _k.call(self, 6494, stepper_positions)
     def set_position(self, newpos, homing_axes):
-        return _k.call(self, 6479, newpos, homing_axes)
+        return _k.call(self, 6495, newpos, homing_axes)
     def note_z_not_homed(self):
-        return _k.call(self, 6480)
+        return _k.call(self, 6496)
     def clear_homing_state(self, clear_axes):
-        return _k.call(self, 6481, clear_axes)
+        return _k.call(self, 6497, clear_axes)
     def _home_axis(self, homing_state, axis, rail):
-        return _k.call(self, 6482, homing_state, axis, rail)
+        return _k.call(self, 6498, homing_state, axis, rail)
     def home(self, homing_state):
-        return _k.call(self, 6483, homing_state)
+        return _k.call(self, 6499, homing_state)
     def check_move(self, move):
-        return _k.call(self, 6484, move)
+        return _k.call(self, 6500, move)
     def get_status(self, eventtime):
-        return _k.call(self, 6485, eventtime)
-    axes_max = _k.Attr(6486, 'axes_max')
-    axes_min = _k.Attr(6487, 'axes_min')
-    limit_xy2 = _k.Attr(6488, 'limit_xy2')
-    limit_z = _k.Attr(6489, 'limit_z')
-    max_z_accel = _k.Attr(6490, 'max_z_accel')
-    max_z_velocity = _k.Attr(6491, 'max_z_velocity')
-    rails = _k.Attr(6492, 'rails')
-    steppers = _k.Attr(6493, 'steppers')
-    supports_dual_carriage = _k.Attr(6494, 'supports_dual_carriage')
+        return _k.call(self, 6501, eventtime)
+    axes_max = _k.Attr(6502, 'axes_max')
+    axes_min = _k.Attr(6503, 'axes_min')
+    limit_xy2 = _k.Attr(6504, 'limit_xy2')
+    limit_z = _k.Attr(6505, 'limit_z')
+    max_z_accel = _k.Attr(6506, 'max_z_accel')
+    max_z_velocity = _k.Attr(6507, 'max_z_velocity')
+    rails = _k.Attr(6508, 'rails')
+    steppers = _k.Attr(6509, 'steppers')
+    supports_dual_carriage = _k.Attr(6510, 'supports_dual_carriage')
 
 def load_kinematics(toolhead, config):
-    return _k.fcall(6495, toolhead, config)
+    return _k.fcall(6511, toolhead, config)
 
 
 __getattr__ = _k.module_getattr(__name__)

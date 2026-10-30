@@ -50,7 +50,6 @@ pub fn sps_options() -> Vec<(&'static str, i64)> {
 pub struct ADS1220 {
     pub printer: Rc<Printer>,
     pub name: String,
-    pub last_error_count: Cell<i64>,
     pub consecutive_fails: Cell<i64>,
     pub gain: i64,
     pub sps: i64,
@@ -127,7 +126,6 @@ impl ADS1220 {
         let s = Rc::new(ADS1220 {
             printer: printer.clone(),
             name,
-            last_error_count: Cell::new(0),
             consecutive_fails: Cell::new(0),
             gain,
             sps,
@@ -167,13 +165,12 @@ impl ADS1220 {
     }
 
     // Measurement decoding
-    pub fn convert_samples(&self, samples: &[(f64, Vec<i64>)]) -> Vec<PyVal> {
+    pub fn convert_samples(samples: &[(f64, Vec<i64>)]) -> Vec<PyVal> {
         samples.iter().map(|(ptime, f)| adc_row(*ptime, f[0])).collect()
     }
 
     // Start, stop, and process message batches
     pub fn start_measurements(&self) -> KResult<()> {
-        self.last_error_count.set(0);
         self.consecutive_fails.set(0);
         // Start bulk reading
         self.reset_chip()?;
@@ -198,9 +195,9 @@ impl ADS1220 {
     }
 
     pub fn process_batch(&self, _eventtime: f64) -> KResult<PyVal> {
-        let samples = self.ffreader.pull_samples()?;
-        let samples = self.convert_samples(&samples);
-        Ok(adc_batch(samples, self.last_error_count.get(), self.ffreader.get_last_overflows()))
+        let (samples, overflows) = self.ffreader.pull_samples()?;
+        let samples = Self::convert_samples(&samples);
+        Ok(adc_batch(samples, 0, overflows))
     }
 
     pub fn reset_chip(&self) -> KResult<()> {
@@ -209,6 +206,9 @@ impl ADS1220 {
         // read startup register state and validate
         let val = self.read_reg(0x0, 4)?;
         if val != RESET_STATE {
+            if self.mcu.is_fileoutput() {
+                return Ok(());
+            }
             return Err(KError::command(format!(
                 "Invalid ads1220 reset state (got {} vs {}).\nThis is generally indicative of connection problems\n(e.g. faulty wiring) or a faulty ADS1220 chip.",
                 hexify(&val),
@@ -258,6 +258,9 @@ impl ADS1220 {
         self.spi.spi_send(&write_command, 0, 0)?;
         let stored_val = self.read_reg(reg, register_bytes.len())?;
         if register_bytes != stored_val.as_slice() {
+            if self.mcu.is_fileoutput() {
+                return Ok(());
+            }
             return Err(KError::command(format!(
                 "Failed to set ADS1220 register [0x{:x}] to {}: got {}. This may be a connection problem (e.g. faulty wiring)",
                 reg,

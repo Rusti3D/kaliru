@@ -45,6 +45,8 @@ pub mod sdiocmds;
 pub mod buttons;
 #[cfg(CONFIG_WANT_TMCUART)]
 pub mod tmcuart;
+#[cfg(CONFIG_WANT_TMC_SPI_ENDSTOP)]
+pub mod tmc_spi_endstop;
 #[cfg(CONFIG_WANT_NEOPIXEL)]
 pub mod neopixel;
 #[cfg(CONFIG_WANT_PULSE_COUNTER)]

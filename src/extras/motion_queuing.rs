@@ -413,6 +413,16 @@ pub trait DripCompletion {
     fn wait(&self, waketime: f64) -> KResult<()>;
 }
 
+// native plugins hand over their Rc (Rust-AFC's drip_move)
+impl<C: DripCompletion + ?Sized> DripCompletion for Rc<C> {
+    fn test(&self) -> KResult<bool> {
+        (**self).test()
+    }
+    fn wait(&self, waketime: f64) -> KResult<()> {
+        (**self).wait(waketime)
+    }
+}
+
 impl<T: Clone> DripCompletion for ReactorCompletion<T> {
     fn test(&self) -> KResult<bool> {
         Ok(ReactorCompletion::test(self))
@@ -453,6 +463,11 @@ impl PrinterObject for PrinterMotionQueuing {
         let sync_time = self.last_step_gen_time.get();
         let steppersyncs = self.steppersyncs.borrow().clone();
         for (mcu, ss) in steppersyncs {
+            if mcu.non_critical_disconnected.get() {
+                // No clock to synchronize with; the mcu is recalibrated
+                // here again once it has reconnected
+                continue;
+            }
             match mcu.calibrate_clock(sync_time, eventtime) {
                 Ok((offset, freq)) => ss.borrow_mut().set_time(offset, freq),
                 Err(e) => {

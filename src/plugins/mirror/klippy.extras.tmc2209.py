@@ -17,14 +17,14 @@ FieldFormatters = dict(tmc2208.FieldFormatters)
 class TMC2209(_k.Object):
     __kaliru_mirror__ = True
     def __init__(self, config):
-        _k.new(self, 5256, config)
-    fields = _k.Attr(5257, 'fields')
-    get_phase_offset = _k.Attr(5258, 'get_phase_offset')
-    get_status = _k.Attr(5259, 'get_status')
-    mcu_tmc = _k.Attr(5260, 'mcu_tmc')
+        _k.new(self, 5272, config)
+    fields = _k.Attr(5273, 'fields')
+    get_phase_offset = _k.Attr(5274, 'get_phase_offset')
+    get_status = _k.Attr(5275, 'get_status')
+    mcu_tmc = _k.Attr(5276, 'mcu_tmc')
 
 def load_config_prefix(config):
-    return _k.fcall(5261, config)
+    return _k.fcall(5277, config)
 
 
 __getattr__ = _k.module_getattr(__name__)

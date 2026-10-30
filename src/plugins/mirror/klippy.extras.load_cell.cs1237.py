@@ -25,8 +25,9 @@ class CS1237(_k.Object):
         return _k.call(self, 2950, error_code)
     def add_client(self, callback):
         return _k.call(self, 2951, callback)
-    def _convert_samples(self, samples):
-        return _k.call(self, 2952, samples)
+    @staticmethod
+    def _convert_samples(samples):
+        return _k.fcall(2952, samples)
     def _start_measurements(self):
         return _k.call(self, 2953)
     def _finish_measurements(self):
@@ -38,8 +39,8 @@ class CS1237(_k.Object):
     batch_bulk = _k.Attr(2958, 'batch_bulk')
     chip_config = _k.Attr(2959, 'chip_config')
     dout_pin = _k.Attr(2960, 'dout_pin')
-    ffreader = _k.Attr(2961, 'ffreader')
-    last_error_count = _k.Attr(2962, 'last_error_count')
+    error_count = _k.Attr(2961, 'error_count')
+    ffreader = _k.Attr(2962, 'ffreader')
     mcu = _k.Attr(2963, 'mcu')
     name = _k.Attr(2964, 'name')
     oid = _k.Attr(2965, 'oid')

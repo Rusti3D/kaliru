@@ -40,47 +40,47 @@ MAX_CURRENT = 2.0
 class TMC2130CurrentHelper(tmc.BaseTMCCurrentHelper):
     __kaliru_mirror__ = True
     def __init__(self, config, mcu_tmc):
-        _k.new(self, 5209, config, mcu_tmc)
+        _k.new(self, 5225, config, mcu_tmc)
     def _calc_current_bits(self, current, vsense):
-        return _k.call(self, 5210, current, vsense)
+        return _k.call(self, 5226, current, vsense)
     def _calc_current_from_bits(self, cs, vsense):
-        return _k.call(self, 5211, cs, vsense)
+        return _k.call(self, 5227, cs, vsense)
     def _calc_current(self, run_current, hold_current):
-        return _k.call(self, 5212, run_current, hold_current)
+        return _k.call(self, 5228, run_current, hold_current)
     def get_current(self):
-        return _k.call(self, 5213)
+        return _k.call(self, 5229)
     def apply_current(self, print_time):
-        return _k.call(self, 5214, print_time)
+        return _k.call(self, 5230, print_time)
 
 class MCU_TMC_SPI_chain(_k.Object):
     __kaliru_mirror__ = True
     def __init__(self, config, chain_len=1):
-        _k.new(self, 5215, config, chain_len)
+        _k.new(self, 5231, config, chain_len)
     def _build_cmd(self, data, chain_pos):
-        return _k.call(self, 5216, data, chain_pos)
+        return _k.call(self, 5232, data, chain_pos)
     def reg_read(self, reg, chain_pos):
-        return _k.call(self, 5217, reg, chain_pos)
+        return _k.call(self, 5233, reg, chain_pos)
     def reg_write(self, reg, val, chain_pos, print_time=None):
-        return _k.call(self, 5218, reg, val, chain_pos, print_time)
+        return _k.call(self, 5234, reg, val, chain_pos, print_time)
     def get_mcu(self):
         return self.spi.get_mcu()
-    chain_len = _k.Attr(5220, 'chain_len')
-    mutex = _k.Attr(5221, 'mutex')
-    printer = _k.Attr(5222, 'printer')
-    spi = _k.Attr(5223, 'spi')
-    taken_chain_positions = _k.Attr(5224, 'taken_chain_positions')
+    chain_len = _k.Attr(5236, 'chain_len')
+    mutex = _k.Attr(5237, 'mutex')
+    printer = _k.Attr(5238, 'printer')
+    spi = _k.Attr(5239, 'spi')
+    taken_chain_positions = _k.Attr(5240, 'taken_chain_positions')
 
 def lookup_tmc_spi_chain(config):
-    return _k.fcall(5225, config)
+    return _k.fcall(5241, config)
 
 class MCU_TMC_SPI(_k.Object):
     __kaliru_mirror__ = True
     def __init__(self, config, name_to_reg, fields, tmc_frequency):
-        _k.new(self, 5226, config, name_to_reg, fields, tmc_frequency)
+        _k.new(self, 5242, config, name_to_reg, fields, tmc_frequency)
     def get_fields(self):
-        return _k.call(self, 5227)
+        return _k.call(self, 5243)
     def get_register_raw(self, reg_name):
-        return _k.call(self, 5228, reg_name)
+        return _k.call(self, 5244, reg_name)
     def decode_spi_status(spi_status):
         return {
             "standstill": spi_status >> 3 & 0x1,
@@ -89,34 +89,34 @@ class MCU_TMC_SPI(_k.Object):
             "reset_flag": spi_status & 0x1,
         }
     def get_register(self, reg_name):
-        return _k.call(self, 5230, reg_name)
+        return _k.call(self, 5246, reg_name)
     def set_register(self, reg_name, val, print_time=None):
-        return _k.call(self, 5231, reg_name, val, print_time)
+        return _k.call(self, 5247, reg_name, val, print_time)
     def get_tmc_frequency(self):
-        return _k.call(self, 5232)
+        return _k.call(self, 5248)
     def get_mcu(self):
-        return _k.call(self, 5233)
-    chain_pos = _k.Attr(5234, 'chain_pos')
-    fields = _k.Attr(5235, 'fields')
-    mcu = _k.Attr(5236, 'mcu')
-    mutex = _k.Attr(5237, 'mutex')
-    name = _k.Attr(5238, 'name')
-    name_to_reg = _k.Attr(5239, 'name_to_reg')
-    printer = _k.Attr(5240, 'printer')
-    tmc_frequency = _k.Attr(5241, 'tmc_frequency')
-    tmc_spi = _k.Attr(5242, 'tmc_spi')
+        return _k.call(self, 5249)
+    chain_pos = _k.Attr(5250, 'chain_pos')
+    fields = _k.Attr(5251, 'fields')
+    mcu = _k.Attr(5252, 'mcu')
+    mutex = _k.Attr(5253, 'mutex')
+    name = _k.Attr(5254, 'name')
+    name_to_reg = _k.Attr(5255, 'name_to_reg')
+    printer = _k.Attr(5256, 'printer')
+    tmc_frequency = _k.Attr(5257, 'tmc_frequency')
+    tmc_spi = _k.Attr(5258, 'tmc_spi')
 
 class TMC2130(_k.Object):
     __kaliru_mirror__ = True
     def __init__(self, config):
-        _k.new(self, 5243, config)
-    fields = _k.Attr(5244, 'fields')
-    get_phase_offset = _k.Attr(5245, 'get_phase_offset')
-    get_status = _k.Attr(5246, 'get_status')
-    mcu_tmc = _k.Attr(5247, 'mcu_tmc')
+        _k.new(self, 5259, config)
+    fields = _k.Attr(5260, 'fields')
+    get_phase_offset = _k.Attr(5261, 'get_phase_offset')
+    get_status = _k.Attr(5262, 'get_status')
+    mcu_tmc = _k.Attr(5263, 'mcu_tmc')
 
 def load_config_prefix(config):
-    return _k.fcall(5248, config)
+    return _k.fcall(5264, config)
 
 
 __getattr__ = _k.module_getattr(__name__)

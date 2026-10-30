@@ -124,6 +124,12 @@ _DECL_ENCODER tmcuart_response oid=%c read=%*s
 DECL_COMMAND_FLAGS command_tmcuart_send 0 tmcuart_send oid=%c write=%*s read=%c
 _DECL_STATIC_STR tmcuart data too large
 DECL_COMMAND_FLAGS command_config_tmcuart 0 config_tmcuart oid=%c rx_pin=%u pull_up=%c tx_pin=%u bit_time=%u
+_DECL_CALLLIST ctr_run_taskfuncs tmc_spi_endstop_task
+DECL_COMMAND_FLAGS command_tmc_spi_endstop_query_state 0 tmc_spi_endstop_query_state oid=%c
+_DECL_ENCODER tmc_spi_endstop_state oid=%c trigger_clock=%u
+DECL_COMMAND_FLAGS command_tmc_spi_endstop_home 0 tmc_spi_endstop_home oid=%c clock=%u rest_ticks=%u trsync_oid=%c trigger_reason=%c
+DECL_COMMAND_FLAGS command_config_tmc_spi_endstop 0 config_tmc_spi_endstop oid=%c spi_oid=%c data_len=%c status_pos=%c
+_DECL_STATIC_STR Invalid tmc_spi_endstop config
 DECL_COMMAND_FLAGS command_neopixel_send 0 neopixel_send oid=%c
 _DECL_ENCODER neopixel_result oid=%c success=%c
 DECL_COMMAND_FLAGS command_neopixel_update 0 neopixel_update oid=%c pos=%hu data=%*s

@@ -13,41 +13,41 @@ HTU21D_CRC8_POLYNOMINAL = 78080
 class HTU21D(_k.Object):
     __kaliru_mirror__ = True
     def __init__(self, config):
-        _k.new(self, 2436, config)
+        _k.new(self, 2437, config)
     def handle_connect(self):
-        return _k.call(self, 2437)
+        return _k.call(self, 2438)
     def setup_minmax(self, min_temp, max_temp):
-        return _k.call(self, 2438, min_temp, max_temp)
+        return _k.call(self, 2439, min_temp, max_temp)
     def setup_callback(self, cb):
-        return _k.call(self, 2439, cb)
+        return _k.call(self, 2440, cb)
     def get_report_time_delta(self):
-        return _k.call(self, 2440)
-    def _init_htu21d(self):
         return _k.call(self, 2441)
+    def _init_htu21d(self):
+        return _k.call(self, 2442)
     def _sample_htu21d(self, eventtime):
-        return _k.call(self, 2442, eventtime)
+        return _k.call(self, 2443, eventtime)
     def _chekCRC8(self, data):
-        return _k.call(self, 2443, data)
+        return _k.call(self, 2444, data)
     def get_status(self, eventtime):
-        return _k.call(self, 2444, eventtime)
-    _callback = _k.Attr(2445, '_callback')
-    deviceId = _k.Attr(2446, 'deviceId')
-    hold_master_mode = _k.Attr(2447, 'hold_master_mode')
-    humidity = _k.Attr(2448, 'humidity')
-    i2c = _k.Attr(2449, 'i2c')
-    max_temp = _k.Attr(2450, 'max_temp')
-    mcu = _k.Attr(2451, 'mcu')
-    min_temp = _k.Attr(2452, 'min_temp')
-    name = _k.Attr(2453, 'name')
-    printer = _k.Attr(2454, 'printer')
-    reactor = _k.Attr(2455, 'reactor')
-    report_time = _k.Attr(2456, 'report_time')
-    resolution = _k.Attr(2457, 'resolution')
-    sample_timer = _k.Attr(2458, 'sample_timer')
-    temp = _k.Attr(2459, 'temp')
+        return _k.call(self, 2445, eventtime)
+    _callback = _k.Attr(2446, '_callback')
+    deviceId = _k.Attr(2447, 'deviceId')
+    hold_master_mode = _k.Attr(2448, 'hold_master_mode')
+    humidity = _k.Attr(2449, 'humidity')
+    i2c = _k.Attr(2450, 'i2c')
+    max_temp = _k.Attr(2451, 'max_temp')
+    mcu = _k.Attr(2452, 'mcu')
+    min_temp = _k.Attr(2453, 'min_temp')
+    name = _k.Attr(2454, 'name')
+    printer = _k.Attr(2455, 'printer')
+    reactor = _k.Attr(2456, 'reactor')
+    report_time = _k.Attr(2457, 'report_time')
+    resolution = _k.Attr(2458, 'resolution')
+    sample_timer = _k.Attr(2459, 'sample_timer')
+    temp = _k.Attr(2460, 'temp')
 
 def load_config(config):
-    return _k.fcall(2460, config)
+    return _k.fcall(2461, config)
 
 
 __getattr__ = _k.module_getattr(__name__)

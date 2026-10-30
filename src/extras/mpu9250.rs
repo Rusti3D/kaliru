@@ -232,9 +232,9 @@ impl MPU9250 {
     }
 
     pub fn process_batch(&self, _eventtime: f64) -> KResult<PyVal> {
-        let samples = self.ffreader.pull_samples()?;
+        let (samples, _) = self.ffreader.pull_samples()?;
         let samples = self.convert_samples(&samples);
-        Ok(batch_msg(&samples, self.last_error_count.get(), self.ffreader.get_last_overflows()))
+        Ok(batch_msg(&samples, self.last_error_count.get(), self.ffreader.get_total_overflows()))
     }
 }
 

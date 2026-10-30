@@ -9,7 +9,7 @@ def read_dictionary(filename):
     return dictionary
 
 def main():
-    return _k.fcall(6952)
+    return _k.fcall(6973)
 
 
 __getattr__ = _k.module_getattr(__name__)

@@ -8,34 +8,34 @@ READY_TIMEOUT = 0.5
 class IdleTimeout(_k.Object):
     __kaliru_mirror__ = True
     def __init__(self, config):
-        _k.new(self, 2483, config)
+        _k.new(self, 2484, config)
     def get_status(self, eventtime):
-        return _k.call(self, 2484, eventtime)
+        return _k.call(self, 2485, eventtime)
     def handle_ready(self):
-        return _k.call(self, 2485)
+        return _k.call(self, 2486)
     def transition_idle_state(self, eventtime):
-        return _k.call(self, 2486, eventtime)
-    def check_idle_timeout(self, eventtime):
         return _k.call(self, 2487, eventtime)
-    def timeout_handler(self, eventtime):
+    def check_idle_timeout(self, eventtime):
         return _k.call(self, 2488, eventtime)
+    def timeout_handler(self, eventtime):
+        return _k.call(self, 2489, eventtime)
     def handle_sync_print_time(self, curtime, print_time, est_print_time):
-        return _k.call(self, 2489, curtime, print_time, est_print_time)
+        return _k.call(self, 2490, curtime, print_time, est_print_time)
     cmd_SET_IDLE_TIMEOUT_help = 'Set the idle timeout in seconds'
     def cmd_SET_IDLE_TIMEOUT(self, gcmd):
-        return _k.call(self, 2490, gcmd)
-    gcode = _k.Attr(2491, 'gcode')
-    idle_gcode = _k.Attr(2492, 'idle_gcode')
-    idle_timeout = _k.Attr(2493, 'idle_timeout')
-    last_print_start_systime = _k.Attr(2494, 'last_print_start_systime')
-    printer = _k.Attr(2495, 'printer')
-    reactor = _k.Attr(2496, 'reactor')
-    state = _k.Attr(2497, 'state')
-    timeout_timer = _k.Attr(2498, 'timeout_timer')
-    toolhead = _k.Attr(2499, 'toolhead')
+        return _k.call(self, 2491, gcmd)
+    gcode = _k.Attr(2492, 'gcode')
+    idle_gcode = _k.Attr(2493, 'idle_gcode')
+    idle_timeout = _k.Attr(2494, 'idle_timeout')
+    last_print_start_systime = _k.Attr(2495, 'last_print_start_systime')
+    printer = _k.Attr(2496, 'printer')
+    reactor = _k.Attr(2497, 'reactor')
+    state = _k.Attr(2498, 'state')
+    timeout_timer = _k.Attr(2499, 'timeout_timer')
+    toolhead = _k.Attr(2500, 'toolhead')
 
 def load_config(config):
-    return _k.fcall(2500, config)
+    return _k.fcall(2501, config)
 
 
 __getattr__ = _k.module_getattr(__name__)

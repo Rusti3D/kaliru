@@ -6,16 +6,16 @@ NODEID_FIRST = 4
 class PrinterCANBus(_k.Object):
     __kaliru_mirror__ = True
     def __init__(self, config):
-        _k.new(self, 927, config)
+        _k.new(self, 928, config)
     def add_uuid(self, config, canbus_uuid, canbus_iface):
-        return _k.call(self, 928, config, canbus_uuid, canbus_iface)
+        return _k.call(self, 929, config, canbus_uuid, canbus_iface)
     def get_nodeid(self, canbus_uuid):
-        return _k.call(self, 929, canbus_uuid)
-    ids = _k.Attr(930, 'ids')
-    printer = _k.Attr(931, 'printer')
+        return _k.call(self, 930, canbus_uuid)
+    ids = _k.Attr(931, 'ids')
+    printer = _k.Attr(932, 'printer')
 
 def load_config(config):
-    return _k.fcall(932, config)
+    return _k.fcall(933, config)
 
 
 __getattr__ = _k.module_getattr(__name__)

@@ -61,7 +61,7 @@ def measurements_to_distances(measured_params, delta_params):
 class DeltaCalibrate(_k.Object):
     __kaliru_mirror__ = True
     def __init__(self, config):
-        _k.new(self, 1082, config)
+        _k.new(self, 1083, config)
     def handle_connect(self):
         kin = self.printer.lookup_object("toolhead").get_kinematics()
         if not hasattr(kin, "get_calibration"):
@@ -69,31 +69,31 @@ class DeltaCalibrate(_k.Object):
                 "Delta calibrate is only for delta printers"
             )
     def save_state(self, probe_positions, distances, delta_params):
-        return _k.call(self, 1084, probe_positions, distances, delta_params)
+        return _k.call(self, 1085, probe_positions, distances, delta_params)
     def probe_finalize(self, offsets, positions):
-        return _k.call(self, 1085, offsets, positions)
+        return _k.call(self, 1086, offsets, positions)
     def calculate_params(self, probe_positions, distances):
-        return _k.call(self, 1086, probe_positions, distances)
+        return _k.call(self, 1087, probe_positions, distances)
     cmd_DELTA_CALIBRATE_help = 'Delta calibration script'
     def cmd_DELTA_CALIBRATE(self, gcmd):
-        return _k.call(self, 1087, gcmd)
+        return _k.call(self, 1088, gcmd)
     def add_manual_height(self, height):
-        return _k.call(self, 1088, height)
+        return _k.call(self, 1089, height)
     def do_extended_calibration(self):
-        return _k.call(self, 1089)
+        return _k.call(self, 1090)
     cmd_DELTA_ANALYZE_help = 'Extended delta calibration tool'
     def cmd_DELTA_ANALYZE(self, gcmd):
-        return _k.call(self, 1090, gcmd)
-    delta_analyze_entry = _k.Attr(1091, 'delta_analyze_entry')
-    gcode = _k.Attr(1092, 'gcode')
-    last_distances = _k.Attr(1093, 'last_distances')
-    last_probe_positions = _k.Attr(1094, 'last_probe_positions')
-    manual_heights = _k.Attr(1095, 'manual_heights')
-    printer = _k.Attr(1096, 'printer')
-    probe_helper = _k.Attr(1097, 'probe_helper')
+        return _k.call(self, 1091, gcmd)
+    delta_analyze_entry = _k.Attr(1092, 'delta_analyze_entry')
+    gcode = _k.Attr(1093, 'gcode')
+    last_distances = _k.Attr(1094, 'last_distances')
+    last_probe_positions = _k.Attr(1095, 'last_probe_positions')
+    manual_heights = _k.Attr(1096, 'manual_heights')
+    printer = _k.Attr(1097, 'printer')
+    probe_helper = _k.Attr(1098, 'probe_helper')
 
 def load_config(config):
-    return _k.fcall(1098, config)
+    return _k.fcall(1099, config)
 
 
 __getattr__ = _k.module_getattr(__name__)

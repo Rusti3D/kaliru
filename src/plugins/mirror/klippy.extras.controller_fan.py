@@ -6,30 +6,30 @@ PIN_MIN_TIME = 0.1
 class ControllerFan(_k.Object):
     __kaliru_mirror__ = True
     def __init__(self, config):
-        _k.new(self, 1018, config)
+        _k.new(self, 1019, config)
     def handle_connect(self):
-        return _k.call(self, 1019)
-    def handle_ready(self):
         return _k.call(self, 1020)
+    def handle_ready(self):
+        return _k.call(self, 1021)
     def get_status(self, eventtime):
-        return _k.call(self, 1021, eventtime)
-    def callback(self, eventtime):
         return _k.call(self, 1022, eventtime)
-    fan = _k.Attr(1023, 'fan')
-    fan_speed = _k.Attr(1024, 'fan_speed')
-    heater_names = _k.Attr(1025, 'heater_names')
-    heaters = _k.Attr(1026, 'heaters')
-    idle_speed = _k.Attr(1027, 'idle_speed')
-    idle_timeout = _k.Attr(1028, 'idle_timeout')
-    last_on = _k.Attr(1029, 'last_on')
-    last_speed = _k.Attr(1030, 'last_speed')
-    printer = _k.Attr(1031, 'printer')
-    standby_speed = _k.Attr(1032, 'standby_speed')
-    stepper_enable = _k.Attr(1033, 'stepper_enable')
-    stepper_names = _k.Attr(1034, 'stepper_names')
+    def callback(self, eventtime):
+        return _k.call(self, 1023, eventtime)
+    fan = _k.Attr(1024, 'fan')
+    fan_speed = _k.Attr(1025, 'fan_speed')
+    heater_names = _k.Attr(1026, 'heater_names')
+    heaters = _k.Attr(1027, 'heaters')
+    idle_speed = _k.Attr(1028, 'idle_speed')
+    idle_timeout = _k.Attr(1029, 'idle_timeout')
+    last_on = _k.Attr(1030, 'last_on')
+    last_speed = _k.Attr(1031, 'last_speed')
+    printer = _k.Attr(1032, 'printer')
+    standby_speed = _k.Attr(1033, 'standby_speed')
+    stepper_enable = _k.Attr(1034, 'stepper_enable')
+    stepper_names = _k.Attr(1035, 'stepper_names')
 
 def load_config_prefix(config):
-    return _k.fcall(1035, config)
+    return _k.fcall(1036, config)
 
 
 __getattr__ = _k.module_getattr(__name__)

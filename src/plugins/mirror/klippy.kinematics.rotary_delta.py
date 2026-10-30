@@ -6,43 +6,43 @@ from klippy import mathutil
 class RotaryDeltaKinematics(_k.Object):
     __kaliru_mirror__ = True
     def __init__(self, toolhead, config):
-        _k.new(self, 6496, toolhead, config)
+        _k.new(self, 6512, toolhead, config)
     def get_steppers(self):
-        return _k.call(self, 6497)
+        return _k.call(self, 6513)
     def calc_position(self, stepper_positions):
-        return _k.call(self, 6498, stepper_positions)
+        return _k.call(self, 6514, stepper_positions)
     def set_position(self, newpos, homing_axes):
-        return _k.call(self, 6499, newpos, homing_axes)
+        return _k.call(self, 6515, newpos, homing_axes)
     def note_z_not_homed(self):
-        return _k.call(self, 6500)
+        return _k.call(self, 6516)
     def clear_homing_state(self, clear_axes):
-        return _k.call(self, 6501, clear_axes)
+        return _k.call(self, 6517, clear_axes)
     def home(self, homing_state):
-        return _k.call(self, 6502, homing_state)
+        return _k.call(self, 6518, homing_state)
     def check_move(self, move):
-        return _k.call(self, 6503, move)
+        return _k.call(self, 6519, move)
     def get_status(self, eventtime):
-        return _k.call(self, 6504, eventtime)
+        return _k.call(self, 6520, eventtime)
     def get_calibration(self):
-        return _k.call(self, 6505)
-    axes_max = _k.Attr(6506, 'axes_max')
-    axes_min = _k.Attr(6507, 'axes_min')
-    calibration = _k.Attr(6508, 'calibration')
-    home_position = _k.Attr(6509, 'home_position')
-    limit_xy2 = _k.Attr(6510, 'limit_xy2')
-    limit_z = _k.Attr(6511, 'limit_z')
-    max_xy2 = _k.Attr(6512, 'max_xy2')
-    max_z = _k.Attr(6513, 'max_z')
-    max_z_velocity = _k.Attr(6514, 'max_z_velocity')
-    min_z = _k.Attr(6515, 'min_z')
-    need_home = _k.Attr(6516, 'need_home')
-    rails = _k.Attr(6517, 'rails')
-    supports_dual_carriage = _k.Attr(6518, 'supports_dual_carriage')
+        return _k.call(self, 6521)
+    axes_max = _k.Attr(6522, 'axes_max')
+    axes_min = _k.Attr(6523, 'axes_min')
+    calibration = _k.Attr(6524, 'calibration')
+    home_position = _k.Attr(6525, 'home_position')
+    limit_xy2 = _k.Attr(6526, 'limit_xy2')
+    limit_z = _k.Attr(6527, 'limit_z')
+    max_xy2 = _k.Attr(6528, 'max_xy2')
+    max_z = _k.Attr(6529, 'max_z')
+    max_z_velocity = _k.Attr(6530, 'max_z_velocity')
+    min_z = _k.Attr(6531, 'min_z')
+    need_home = _k.Attr(6532, 'need_home')
+    rails = _k.Attr(6533, 'rails')
+    supports_dual_carriage = _k.Attr(6534, 'supports_dual_carriage')
 
 class RotaryDeltaCalibration(_k.Object):
     __kaliru_mirror__ = True
     def __init__(self, shoulder_radius, shoulder_height, angles, upper_arms, lower_arms, endstops, stepdists):
-        _k.new(self, 6519, shoulder_radius, shoulder_height, angles, upper_arms, lower_arms, endstops, stepdists)
+        _k.new(self, 6535, shoulder_radius, shoulder_height, angles, upper_arms, lower_arms, endstops, stepdists)
     def coordinate_descent_params(self, is_extended):
         # Determine adjustment parameters (for use with coordinate_descent)
         adj_params = ("shoulder_height", "endstop_a", "endstop_b", "endstop_c")
@@ -78,15 +78,15 @@ class RotaryDeltaCalibration(_k.Object):
             stepdists,
         )
     def elbow_coord(self, elbow_id, spos):
-        return _k.call(self, 6522, elbow_id, spos)
+        return _k.call(self, 6538, elbow_id, spos)
     def actuator_to_cartesian(self, spos):
         sphere_coords = [self.elbow_coord(i, sp) for i, sp in enumerate(spos)]
         lower_arm2 = [la**2 for la in self.lower_arms]
         return mathutil.trilateration(sphere_coords, lower_arm2)
     def get_position_from_stable(self, stable_position):
-        return _k.call(self, 6524, stable_position)
+        return _k.call(self, 6540, stable_position)
     def calc_stable_position(self, coord):
-        return _k.call(self, 6525, coord)
+        return _k.call(self, 6541, coord)
     def save_state(self, configfile):
         # Save the current parameters (for use with SAVE_CONFIG)
         configfile.set(
@@ -121,19 +121,19 @@ class RotaryDeltaCalibration(_k.Object):
                 self.shoulder_height,
             )
         )
-    abs_endstops = _k.Attr(6527, 'abs_endstops')
-    angles = _k.Attr(6528, 'angles')
-    endstops = _k.Attr(6529, 'endstops')
-    ffi_lib = _k.Attr(6530, 'ffi_lib')
-    lower_arms = _k.Attr(6531, 'lower_arms')
-    shoulder_height = _k.Attr(6532, 'shoulder_height')
-    shoulder_radius = _k.Attr(6533, 'shoulder_radius')
-    sks = _k.Attr(6534, 'sks')
-    stepdists = _k.Attr(6535, 'stepdists')
-    upper_arms = _k.Attr(6536, 'upper_arms')
+    abs_endstops = _k.Attr(6543, 'abs_endstops')
+    angles = _k.Attr(6544, 'angles')
+    endstops = _k.Attr(6545, 'endstops')
+    ffi_lib = _k.Attr(6546, 'ffi_lib')
+    lower_arms = _k.Attr(6547, 'lower_arms')
+    shoulder_height = _k.Attr(6548, 'shoulder_height')
+    shoulder_radius = _k.Attr(6549, 'shoulder_radius')
+    sks = _k.Attr(6550, 'sks')
+    stepdists = _k.Attr(6551, 'stepdists')
+    upper_arms = _k.Attr(6552, 'upper_arms')
 
 def load_kinematics(toolhead, config):
-    return _k.fcall(6537, toolhead, config)
+    return _k.fcall(6553, toolhead, config)
 
 
 __getattr__ = _k.module_getattr(__name__)

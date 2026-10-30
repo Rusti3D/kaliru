@@ -285,7 +285,8 @@ pub fn register(r: &mut Registry) {
         crate::extras::load_cell::load_cell_probe::LoadCellEndstopWrapper,
         crate::extras::probe_eddy_current::EddyEndstopWrapper,
         crate::extras::smart_effector::SmartEffectorEndstopWrapper,
-        crate::extras::tools_calibrate::ProbeEndstopWrapper
+        crate::extras::tools_calibrate::ProbeEndstopWrapper,
+        crate::extras::tmc::TMCSpiEndstop
     );
     endstop_attr!(r, "klippy.extras.probe.ProbeEndstopWrapper", add_stepper);
     endstop_attr!(r, "klippy.extras.probe.ProbeEndstopWrapper", get_mcu);
@@ -311,6 +312,18 @@ pub fn register(r: &mut Registry) {
     endstop_attr!(r, "klippy.extras.tools_calibrate.ProbeEndstopWrapper", home_start);
     endstop_attr!(r, "klippy.extras.tools_calibrate.ProbeEndstopWrapper", home_wait);
     endstop_attr!(r, "klippy.extras.tools_calibrate.ProbeEndstopWrapper", query_endstop);
+    // TMCSpiEndstop(printer, mcu_tmc): sensorless homing over spi
+    r.ctor("klippy.extras.tmc.TMCSpiEndstop.__init__", |a| {
+        let printer = objects::unwrap_as::<crate::printer::Printer>(a.arg(0))?;
+        let mcu_tmc = super::tmc::mcu_tmc_from_py(a.arg(1))?;
+        let e: Rc<dyn Any> = crate::extras::tmc::TMCSpiEndstop::new(&printer, &mcu_tmc).map_err(KError::Config)?;
+        Ok(e)
+    });
+    endstop_method!(r, "klippy.extras.tmc.TMCSpiEndstop", add_stepper);
+    endstop_method!(r, "klippy.extras.tmc.TMCSpiEndstop", get_steppers);
+    endstop_method!(r, "klippy.extras.tmc.TMCSpiEndstop", home_start);
+    endstop_method!(r, "klippy.extras.tmc.TMCSpiEndstop", home_wait);
+    endstop_method!(r, "klippy.extras.tmc.TMCSpiEndstop", query_endstop);
     endstop_method!(r, "klippy.extras.probe_eddy_current.EddyEndstopWrapper", add_stepper);
     endstop_method!(r, "klippy.extras.probe_eddy_current.EddyEndstopWrapper", get_mcu);
     endstop_method!(r, "klippy.extras.probe_eddy_current.EddyEndstopWrapper", get_steppers);

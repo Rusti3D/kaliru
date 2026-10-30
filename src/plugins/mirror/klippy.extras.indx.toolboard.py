@@ -5,45 +5,45 @@ import _k
 class IndxToolboard(_k.Object):
     __kaliru_mirror__ = True
     def __init__(self, config):
-        _k.new(self, 2674, config)
+        _k.new(self, 2675, config)
     def get_status(self, eventtime):
-        return _k.call(self, 2675, eventtime)
+        return _k.call(self, 2676, eventtime)
     def cmd_LED_FORCE_COLOR(self, gcmd):
-        return _k.call(self, 2676, gcmd)
-    def cmd_LED_SET_CURRENT(self, gcmd):
         return _k.call(self, 2677, gcmd)
-    config = _k.Attr(2678, 'config')
-    dock_measurement = _k.Attr(2679, 'dock_measurement')
-    heater = _k.Attr(2680, 'heater')
-    mcu = _k.Attr(2681, 'mcu')
-    name = _k.Attr(2682, 'name')
-    printer = _k.Attr(2683, 'printer')
+    def cmd_LED_SET_CURRENT(self, gcmd):
+        return _k.call(self, 2678, gcmd)
+    config = _k.Attr(2679, 'config')
+    dock_measurement = _k.Attr(2680, 'dock_measurement')
+    heater = _k.Attr(2681, 'heater')
+    mcu = _k.Attr(2682, 'mcu')
+    name = _k.Attr(2683, 'name')
+    printer = _k.Attr(2684, 'printer')
 
 class IndxToolboardPins(_k.Object):
     __kaliru_mirror__ = True
     def __init__(self, toolboard, ppins):
-        _k.new(self, 2684, toolboard, ppins)
+        _k.new(self, 2685, toolboard, ppins)
     def setup_pin(self, pin_type, pin_params):
-        return _k.call(self, 2685, pin_type, pin_params)
-    ppins = _k.Attr(2686, 'ppins')
-    toolboard = _k.Attr(2687, 'toolboard')
+        return _k.call(self, 2686, pin_type, pin_params)
+    ppins = _k.Attr(2687, 'ppins')
+    toolboard = _k.Attr(2688, 'toolboard')
 
 class IndxDockMeasurement(_k.Object):
     __kaliru_mirror__ = True
     def __init__(self, toolboard):
-        _k.new(self, 2688, toolboard)
+        _k.new(self, 2689, toolboard)
     cmd_INDX_DOCK_MEASURE_help = 'Measure INDX dock X/Y position by energizing XY motors and homing.'
     def cmd_INDX_DOCK_MEASURE(self, gcmd):
-        return _k.call(self, 2689, gcmd)
+        return _k.call(self, 2690, gcmd)
     def _enable_motors(self, toolhead, kin):
-        return _k.call(self, 2690, toolhead, kin)
+        return _k.call(self, 2691, toolhead, kin)
     def _get_kinematic_position(self, kin):
-        return _k.call(self, 2691, kin)
+        return _k.call(self, 2692, kin)
     def measure(self, axes, retreat, retreat_speed):
-        return _k.call(self, 2692, axes, retreat, retreat_speed)
-    last_dock_measurement = _k.Attr(2693, 'last_dock_measurement')
-    printer = _k.Attr(2694, 'printer')
-    toolboard = _k.Attr(2695, 'toolboard')
+        return _k.call(self, 2693, axes, retreat, retreat_speed)
+    last_dock_measurement = _k.Attr(2694, 'last_dock_measurement')
+    printer = _k.Attr(2695, 'printer')
+    toolboard = _k.Attr(2696, 'toolboard')
 
 
 __getattr__ = _k.module_getattr(__name__)

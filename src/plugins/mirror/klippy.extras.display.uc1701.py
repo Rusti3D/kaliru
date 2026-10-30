@@ -7,82 +7,82 @@ TextGlyphs = {'right_arrow': b'\x1a', 'degrees': b'\xf8'}
 class DisplayBase(_k.Object):
     __kaliru_mirror__ = True
     def __init__(self, io, columns=128, x_offset=0):
-        _k.new(self, 1474, io, columns, x_offset)
+        _k.new(self, 1475, io, columns, x_offset)
     def flush(self):
-        return _k.call(self, 1475)
+        return _k.call(self, 1476)
     def _swizzle_bits(self, data):
-        return _k.call(self, 1476, data)
+        return _k.call(self, 1477, data)
     def set_glyphs(self, glyphs):
-        return _k.call(self, 1477, glyphs)
+        return _k.call(self, 1478, glyphs)
     def write_text(self, x, y, data):
-        return _k.call(self, 1478, x, y, data)
-    def write_graphics(self, x, y, data):
         return _k.call(self, 1479, x, y, data)
+    def write_graphics(self, x, y, data):
+        return _k.call(self, 1480, x, y, data)
     def write_glyph(self, x, y, glyph_name):
-        return _k.call(self, 1480, x, y, glyph_name)
+        return _k.call(self, 1481, x, y, glyph_name)
     def clear(self):
-        return _k.call(self, 1481)
-    def get_dimensions(self):
         return _k.call(self, 1482)
-    all_framebuffers = _k.Attr(1483, 'all_framebuffers')
-    columns = _k.Attr(1484, 'columns')
-    font = _k.Attr(1485, 'font')
-    icons = _k.Attr(1486, 'icons')
-    send = _k.Attr(1487, 'send')
-    vram = _k.Attr(1488, 'vram')
-    x_offset = _k.Attr(1489, 'x_offset')
+    def get_dimensions(self):
+        return _k.call(self, 1483)
+    all_framebuffers = _k.Attr(1484, 'all_framebuffers')
+    columns = _k.Attr(1485, 'columns')
+    font = _k.Attr(1486, 'font')
+    icons = _k.Attr(1487, 'icons')
+    send = _k.Attr(1488, 'send')
+    vram = _k.Attr(1489, 'vram')
+    x_offset = _k.Attr(1490, 'x_offset')
 
 class SPI4wire(_k.Object):
     __kaliru_mirror__ = True
     def __init__(self, config, data_pin_name):
-        _k.new(self, 1490, config, data_pin_name)
+        _k.new(self, 1491, config, data_pin_name)
     def send(self, cmds, is_data=False):
-        return _k.call(self, 1491, cmds, is_data)
-    mcu_dc = _k.Attr(1492, 'mcu_dc')
-    spi = _k.Attr(1493, 'spi')
+        return _k.call(self, 1492, cmds, is_data)
+    mcu_dc = _k.Attr(1493, 'mcu_dc')
+    spi = _k.Attr(1494, 'spi')
 
 class I2C(_k.Object):
     __kaliru_mirror__ = True
     def __init__(self, config, default_addr):
-        _k.new(self, 1494, config, default_addr)
+        _k.new(self, 1495, config, default_addr)
     def send(self, cmds, is_data=False):
-        return _k.call(self, 1495, cmds, is_data)
-    i2c = _k.Attr(1496, 'i2c')
+        return _k.call(self, 1496, cmds, is_data)
+    i2c = _k.Attr(1497, 'i2c')
 
 class ResetHelper(_k.Object):
     __kaliru_mirror__ = True
     def __init__(self, pin_desc, io_bus):
-        _k.new(self, 1497, pin_desc, io_bus)
+        _k.new(self, 1498, pin_desc, io_bus)
     def init(self):
-        return _k.call(self, 1498)
-    mcu_reset = _k.Attr(1499, 'mcu_reset')
+        return _k.call(self, 1499)
+    mcu_reset = _k.Attr(1500, 'mcu_reset')
 
 class UC1701(DisplayBase):
     __kaliru_mirror__ = True
     def __init__(self, config):
-        _k.new(self, 1500, config)
+        _k.new(self, 1501, config)
     def init(self):
-        return _k.call(self, 1501)
-    contrast = _k.Attr(1502, 'contrast')
-    mcu = _k.Attr(1503, 'mcu')
-    reset = _k.Attr(1504, 'reset')
+        return _k.call(self, 1502)
+    contrast = _k.Attr(1503, 'contrast')
+    mcu = _k.Attr(1504, 'mcu')
+    reset = _k.Attr(1505, 'reset')
 
 class SSD1306(DisplayBase):
     __kaliru_mirror__ = True
     def __init__(self, config, columns=128, x_offset=0):
-        _k.new(self, 1505, config, columns, x_offset)
+        _k.new(self, 1506, config, columns, x_offset)
     def init(self):
-        return _k.call(self, 1506)
-    contrast = _k.Attr(1507, 'contrast')
-    invert = _k.Attr(1508, 'invert')
-    mcu = _k.Attr(1509, 'mcu')
-    reset = _k.Attr(1510, 'reset')
-    vcomh = _k.Attr(1511, 'vcomh')
+        return _k.call(self, 1507)
+    contrast = _k.Attr(1508, 'contrast')
+    invert = _k.Attr(1509, 'invert')
+    mcu = _k.Attr(1510, 'mcu')
+    reset = _k.Attr(1511, 'reset')
+    vcomh = _k.Attr(1512, 'vcomh')
 
 class SH1106(SSD1306):
     __kaliru_mirror__ = True
     def __init__(self, config):
-        _k.new(self, 1512, config)
+        _k.new(self, 1513, config)
 
 
 __getattr__ = _k.module_getattr(__name__)

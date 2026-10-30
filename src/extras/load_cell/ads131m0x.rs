@@ -82,7 +82,7 @@ pub struct ADS131MxBase {
     pub name: String,
     pub sensor_type: &'static str,
     pub channel_count: usize,
-    pub last_error_count: Cell<i64>,
+    pub error_count: Cell<i64>,
     pub consecutive_fails: Cell<i64>,
     pub sps: i64,
     pub gain: i64,
@@ -131,7 +131,7 @@ impl ADS131MxBase {
             name,
             sensor_type,
             channel_count,
-            last_error_count: Cell::new(0),
+            error_count: Cell::new(0),
             consecutive_fails: Cell::new(0),
             sps,
             gain,
@@ -185,13 +185,14 @@ impl ADS131MxBase {
         self.ffreader.setup_query_command("query_ads131m0x_status oid=%c", self.oid, Some(cq))
     }
 
-    // Measurement decoding
-    pub fn convert_samples(&self, samples: &[(f64, Vec<i64>)]) -> Vec<PyVal> {
+    // Measurement decoding: the samples and the batch's errors
+    pub fn convert_samples(&self, samples: &[(f64, Vec<i64>)]) -> (Vec<PyVal>, i64) {
+        let mut batch_errors = 0;
         let mut samples_out = vec![];
         for (ptime, channel_counts) in samples {
             let val = channel_counts[0];
             if val == SAMPLE_ERROR_CRC || val == SAMPLE_ERROR_RESET {
-                self.last_error_count.set(self.last_error_count.get() + 1);
+                batch_errors += 1;
                 logging::error(&format!("{} sample error: {}", self.sensor_type, channel_counts[0]));
                 break;
             }
@@ -202,11 +203,10 @@ impl ADS131MxBase {
             }
             samples_out.push(PyVal::List(converted_sample));
         }
-        samples_out
+        (samples_out, batch_errors)
     }
 
     pub fn start_measurements(&self) -> KResult<()> {
-        self.last_error_count.set(0);
         self.consecutive_fails.set(0);
         self.reset_chip()?;
         self.setup_chip()?;
@@ -227,9 +227,10 @@ impl ADS131MxBase {
     }
 
     pub fn process_batch(&self, _eventtime: f64) -> KResult<PyVal> {
-        let samples = self.ffreader.pull_samples()?;
-        let data = self.convert_samples(&samples);
-        Ok(adc_batch(data, self.last_error_count.get(), self.ffreader.get_last_overflows()))
+        let (raw_samples, overflows) = self.ffreader.pull_samples()?;
+        let (samples, batch_errors) = self.convert_samples(&raw_samples);
+        self.error_count.set(self.error_count.get() + batch_errors);
+        Ok(adc_batch(samples, batch_errors, overflows))
     }
 
     // --- SPI Communication Helpers ---

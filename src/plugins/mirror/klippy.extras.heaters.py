@@ -22,64 +22,64 @@ PID_SETTLE_DELTA = 1.0
 PID_SETTLE_SLOPE = 0.1
 
 def lookup_dual_loop_pid_inner_target_temp(config):
-    return _k.fcall(2207, config)
+    return _k.fcall(2208, config)
 
 class Heater(_k.Object):
     __kaliru_mirror__ = True
     def __init__(self, config, sensor):
-        _k.new(self, 2208, config, sensor)
+        _k.new(self, 2209, config, sensor)
     def lookup_control(self, profile, load_clean=False):
-        return _k.call(self, 2209, profile, load_clean)
+        return _k.call(self, 2210, profile, load_clean)
     def set_pwm(self, read_time, value):
-        return _k.call(self, 2210, read_time, value)
+        return _k.call(self, 2211, read_time, value)
     def temperature_callback(self, read_time, temp):
-        return _k.call(self, 2211, read_time, temp)
+        return _k.call(self, 2212, read_time, temp)
     def _handle_shutdown(self):
-        return _k.call(self, 2212)
-    def get_name(self):
         return _k.call(self, 2213)
+    def get_name(self):
+        return _k.call(self, 2214)
     def add_mpc_sensor(self, mpc_sensor):
-        return _k.call(self, 2214, mpc_sensor)
+        return _k.call(self, 2215, mpc_sensor)
     def get_pwm_delay(self):
-        return _k.call(self, 2215)
-    def get_max_power(self):
         return _k.call(self, 2216)
-    def get_smooth_time(self):
+    def get_max_power(self):
         return _k.call(self, 2217)
+    def get_smooth_time(self):
+        return _k.call(self, 2218)
     def set_inv_smooth_time(self, inv_smooth_time):
-        return _k.call(self, 2218, inv_smooth_time)
+        return _k.call(self, 2219, inv_smooth_time)
     def set_temp(self, degrees):
-        return _k.call(self, 2219, degrees)
+        return _k.call(self, 2220, degrees)
     def get_temp(self, eventtime):
-        return _k.call(self, 2220, eventtime)
-    def check_busy(self, eventtime):
         return _k.call(self, 2221, eventtime)
+    def check_busy(self, eventtime):
+        return _k.call(self, 2222, eventtime)
     def set_control(self, control, keep_target=True):
-        return _k.call(self, 2222, control, keep_target)
+        return _k.call(self, 2223, control, keep_target)
     def get_control(self):
-        return _k.call(self, 2223)
+        return _k.call(self, 2224)
     def alter_target(self, target_temp):
-        return _k.call(self, 2224, target_temp)
+        return _k.call(self, 2225, target_temp)
     def stats(self, eventtime):
-        return _k.call(self, 2225, eventtime)
-    def get_status(self, eventtime):
         return _k.call(self, 2226, eventtime)
+    def get_status(self, eventtime):
+        return _k.call(self, 2227, eventtime)
     def is_adc_faulty(self):
-        return _k.call(self, 2227)
+        return _k.call(self, 2228)
     def set_cold_extrude(self, cold_extrude, min_extrude_temp):
-        return _k.call(self, 2228, cold_extrude, min_extrude_temp)
+        return _k.call(self, 2229, cold_extrude, min_extrude_temp)
     cmd_SET_HEATER_TEMPERATURE_help = 'Sets a heater temperature'
     def cmd_SET_HEATER_TEMPERATURE(self, gcmd):
-        return _k.call(self, 2229, gcmd)
+        return _k.call(self, 2230, gcmd)
     cmd_COLD_EXTRUDE_help = 'Control cold extrusions'
     def cmd_COLD_EXTRUDE(self, gcmd):
-        return _k.call(self, 2230, gcmd)
+        return _k.call(self, 2231, gcmd)
     cmd_SET_SMOOTH_TIME_help = 'Set the smooth time for the given heater'
     def cmd_SET_SMOOTH_TIME(self, gcmd):
-        return _k.call(self, 2231, gcmd)
+        return _k.call(self, 2232, gcmd)
     cmd_SET_HEATER_PID_help = 'Sets a heater PID parameter'
     def cmd_SET_HEATER_PID(self, gcmd):
-        return _k.call(self, 2232, gcmd)
+        return _k.call(self, 2233, gcmd)
     class ProfileManager:
     
         def __init__(self, outer_instance):
@@ -347,213 +347,213 @@ class Heater(_k.Object):
                     options[key](profile_name, gcmd, True)
                     return
             raise self.outer_instance.gcode.error("pid_profile: Invalid syntax '%s'" % (gcmd.get_commandline(),))
-    can_extrude = _k.Attr(2233, 'can_extrude')
-    cold_extrude = _k.Attr(2234, 'cold_extrude')
-    config = _k.Attr(2235, 'config')
-    config_smooth_time = _k.Attr(2236, 'config_smooth_time')
-    configfile = _k.Attr(2237, 'configfile')
-    control = _k.Attr(2238, 'control')
-    gcode = _k.Attr(2239, 'gcode')
-    inv_smooth_time = _k.Attr(2240, 'inv_smooth_time')
-    last_pwm_value = _k.Attr(2241, 'last_pwm_value')
-    last_temp = _k.Attr(2242, 'last_temp')
-    last_temp_time = _k.Attr(2243, 'last_temp_time')
-    lock = _k.Attr(2244, 'lock')
-    lost_update_tolerance = _k.Attr(2245, 'lost_update_tolerance')
-    max_power = _k.Attr(2246, 'max_power')
-    max_temp = _k.Attr(2247, 'max_temp')
-    mcu_pwm = _k.Attr(2248, 'mcu_pwm')
-    min_extrude_temp = _k.Attr(2249, 'min_extrude_temp')
-    min_pwm_change = _k.Attr(2250, 'min_pwm_change')
-    min_temp = _k.Attr(2251, 'min_temp')
-    mpc_sensors = _k.Attr(2252, 'mpc_sensors')
-    name = _k.Attr(2253, 'name')
-    next_pwm_time = _k.Attr(2254, 'next_pwm_time')
-    pmgr = _k.Attr(2255, 'pmgr')
-    printer = _k.Attr(2256, 'printer')
-    pwm_delay = _k.Attr(2257, 'pwm_delay')
-    reactor = _k.Attr(2258, 'reactor')
-    sensor = _k.Attr(2259, 'sensor')
-    short_name = _k.Attr(2260, 'short_name')
-    smooth_time = _k.Attr(2261, 'smooth_time')
-    smoothed_temp = _k.Attr(2262, 'smoothed_temp')
-    target_temp = _k.Attr(2263, 'target_temp')
-    verify_mainthread_time = _k.Attr(2264, 'verify_mainthread_time')
+    can_extrude = _k.Attr(2234, 'can_extrude')
+    cold_extrude = _k.Attr(2235, 'cold_extrude')
+    config = _k.Attr(2236, 'config')
+    config_smooth_time = _k.Attr(2237, 'config_smooth_time')
+    configfile = _k.Attr(2238, 'configfile')
+    control = _k.Attr(2239, 'control')
+    gcode = _k.Attr(2240, 'gcode')
+    inv_smooth_time = _k.Attr(2241, 'inv_smooth_time')
+    last_pwm_value = _k.Attr(2242, 'last_pwm_value')
+    last_temp = _k.Attr(2243, 'last_temp')
+    last_temp_time = _k.Attr(2244, 'last_temp_time')
+    lock = _k.Attr(2245, 'lock')
+    lost_update_tolerance = _k.Attr(2246, 'lost_update_tolerance')
+    max_power = _k.Attr(2247, 'max_power')
+    max_temp = _k.Attr(2248, 'max_temp')
+    mcu_pwm = _k.Attr(2249, 'mcu_pwm')
+    min_extrude_temp = _k.Attr(2250, 'min_extrude_temp')
+    min_pwm_change = _k.Attr(2251, 'min_pwm_change')
+    min_temp = _k.Attr(2252, 'min_temp')
+    mpc_sensors = _k.Attr(2253, 'mpc_sensors')
+    name = _k.Attr(2254, 'name')
+    next_pwm_time = _k.Attr(2255, 'next_pwm_time')
+    pmgr = _k.Attr(2256, 'pmgr')
+    printer = _k.Attr(2257, 'printer')
+    pwm_delay = _k.Attr(2258, 'pwm_delay')
+    reactor = _k.Attr(2259, 'reactor')
+    sensor = _k.Attr(2260, 'sensor')
+    short_name = _k.Attr(2261, 'short_name')
+    smooth_time = _k.Attr(2262, 'smooth_time')
+    smoothed_temp = _k.Attr(2263, 'smoothed_temp')
+    target_temp = _k.Attr(2264, 'target_temp')
+    verify_mainthread_time = _k.Attr(2265, 'verify_mainthread_time')
 
 class DualSensorHeater(Heater):
     __kaliru_mirror__ = True
     def __init__(self, config, primary_sensor, secondary_sensor):
-        _k.new(self, 2265, config, primary_sensor, secondary_sensor)
+        _k.new(self, 2266, config, primary_sensor, secondary_sensor)
     def temperature_callback(self, read_time, primary_temp):
-        return _k.call(self, 2266, read_time, primary_temp)
-    can_extrude = _k.Attr(2267, 'can_extrude')
-    last_temp = _k.Attr(2268, 'last_temp')
-    last_temp_time = _k.Attr(2269, 'last_temp_time')
-    secondary_sensor = _k.Attr(2270, 'secondary_sensor')
-    smoothed_temp = _k.Attr(2271, 'smoothed_temp')
+        return _k.call(self, 2267, read_time, primary_temp)
+    can_extrude = _k.Attr(2268, 'can_extrude')
+    last_temp = _k.Attr(2269, 'last_temp')
+    last_temp_time = _k.Attr(2270, 'last_temp_time')
+    secondary_sensor = _k.Attr(2271, 'secondary_sensor')
+    smoothed_temp = _k.Attr(2272, 'smoothed_temp')
 
 class ControlBangBang(_k.Object):
     __kaliru_mirror__ = True
     def __init__(self, profile, heater, load_clean=False):
-        _k.new(self, 2272, profile, heater, load_clean)
+        _k.new(self, 2273, profile, heater, load_clean)
     def temperature_update(self, read_time, temp, target_temp):
-        return _k.call(self, 2273, read_time, temp, target_temp)
+        return _k.call(self, 2274, read_time, temp, target_temp)
     def check_busy(self, eventtime, smoothed_temp, target_temp):
-        return _k.call(self, 2274, eventtime, smoothed_temp, target_temp)
+        return _k.call(self, 2275, eventtime, smoothed_temp, target_temp)
     def update_smooth_time(self):
-        return _k.call(self, 2275)
-    def get_profile(self):
         return _k.call(self, 2276)
-    def get_type(self):
+    def get_profile(self):
         return _k.call(self, 2277)
-    heater = _k.Attr(2278, 'heater')
-    heater_max_power = _k.Attr(2279, 'heater_max_power')
-    heating = _k.Attr(2280, 'heating')
-    max_delta = _k.Attr(2281, 'max_delta')
-    profile = _k.Attr(2282, 'profile')
-    smooth_time = _k.Attr(2283, 'smooth_time')
+    def get_type(self):
+        return _k.call(self, 2278)
+    heater = _k.Attr(2279, 'heater')
+    heater_max_power = _k.Attr(2280, 'heater_max_power')
+    heating = _k.Attr(2281, 'heating')
+    max_delta = _k.Attr(2282, 'max_delta')
+    profile = _k.Attr(2283, 'profile')
+    smooth_time = _k.Attr(2284, 'smooth_time')
 
 class ControlPID(_k.Object):
     __kaliru_mirror__ = True
     def __init__(self, profile, heater, load_clean=False):
-        _k.new(self, 2284, profile, heater, load_clean)
+        _k.new(self, 2285, profile, heater, load_clean)
     def calculate_output(self, read_time, temp, target_temp):
-        return _k.call(self, 2285, read_time, temp, target_temp)
-    def temperature_update(self, read_time, temp, target_temp):
         return _k.call(self, 2286, read_time, temp, target_temp)
+    def temperature_update(self, read_time, temp, target_temp):
+        return _k.call(self, 2287, read_time, temp, target_temp)
     def check_busy(self, eventtime, smoothed_temp, target_temp):
-        return _k.call(self, 2287, eventtime, smoothed_temp, target_temp)
+        return _k.call(self, 2288, eventtime, smoothed_temp, target_temp)
     def update_smooth_time(self):
-        return _k.call(self, 2288)
-    def get_profile(self):
         return _k.call(self, 2289)
-    def get_type(self):
+    def get_profile(self):
         return _k.call(self, 2290)
-    Kd = _k.Attr(2291, 'Kd')
-    Ki = _k.Attr(2292, 'Ki')
-    Kp = _k.Attr(2293, 'Kp')
-    heater = _k.Attr(2294, 'heater')
-    heater_max_power = _k.Attr(2295, 'heater_max_power')
-    min_deriv_time = _k.Attr(2296, 'min_deriv_time')
-    prev_temp = _k.Attr(2297, 'prev_temp')
-    prev_temp_deriv = _k.Attr(2298, 'prev_temp_deriv')
-    prev_temp_integ = _k.Attr(2299, 'prev_temp_integ')
-    prev_temp_time = _k.Attr(2300, 'prev_temp_time')
-    profile = _k.Attr(2301, 'profile')
-    smooth_time = _k.Attr(2302, 'smooth_time')
-    temp_integ_max = _k.Attr(2303, 'temp_integ_max')
+    def get_type(self):
+        return _k.call(self, 2291)
+    Kd = _k.Attr(2292, 'Kd')
+    Ki = _k.Attr(2293, 'Ki')
+    Kp = _k.Attr(2294, 'Kp')
+    heater = _k.Attr(2295, 'heater')
+    heater_max_power = _k.Attr(2296, 'heater_max_power')
+    min_deriv_time = _k.Attr(2297, 'min_deriv_time')
+    prev_temp = _k.Attr(2298, 'prev_temp')
+    prev_temp_deriv = _k.Attr(2299, 'prev_temp_deriv')
+    prev_temp_integ = _k.Attr(2300, 'prev_temp_integ')
+    prev_temp_time = _k.Attr(2301, 'prev_temp_time')
+    profile = _k.Attr(2302, 'profile')
+    smooth_time = _k.Attr(2303, 'smooth_time')
+    temp_integ_max = _k.Attr(2304, 'temp_integ_max')
 
 class ControlVelocityPID(_k.Object):
     __kaliru_mirror__ = True
     def __init__(self, profile, heater, load_clean=False):
-        _k.new(self, 2304, profile, heater, load_clean)
+        _k.new(self, 2305, profile, heater, load_clean)
     def temperature_update(self, read_time, temp, target_temp):
-        return _k.call(self, 2305, read_time, temp, target_temp)
+        return _k.call(self, 2306, read_time, temp, target_temp)
     def check_busy(self, eventtime, smoothed_temp, target_temp):
-        return _k.call(self, 2306, eventtime, smoothed_temp, target_temp)
+        return _k.call(self, 2307, eventtime, smoothed_temp, target_temp)
     def update_smooth_time(self):
-        return _k.call(self, 2307)
-    def get_profile(self):
         return _k.call(self, 2308)
-    def get_type(self):
+    def get_profile(self):
         return _k.call(self, 2309)
-    Kd = _k.Attr(2310, 'Kd')
-    Ki = _k.Attr(2311, 'Ki')
-    Kp = _k.Attr(2312, 'Kp')
-    d1 = _k.Attr(2313, 'd1')
-    d2 = _k.Attr(2314, 'd2')
-    heater = _k.Attr(2315, 'heater')
-    heater_max_power = _k.Attr(2316, 'heater_max_power')
-    profile = _k.Attr(2317, 'profile')
-    pwm = _k.Attr(2318, 'pwm')
-    smooth_time = _k.Attr(2319, 'smooth_time')
-    temps = _k.Attr(2320, 'temps')
-    times = _k.Attr(2321, 'times')
+    def get_type(self):
+        return _k.call(self, 2310)
+    Kd = _k.Attr(2311, 'Kd')
+    Ki = _k.Attr(2312, 'Ki')
+    Kp = _k.Attr(2313, 'Kp')
+    d1 = _k.Attr(2314, 'd1')
+    d2 = _k.Attr(2315, 'd2')
+    heater = _k.Attr(2316, 'heater')
+    heater_max_power = _k.Attr(2317, 'heater_max_power')
+    profile = _k.Attr(2318, 'profile')
+    pwm = _k.Attr(2319, 'pwm')
+    smooth_time = _k.Attr(2320, 'smooth_time')
+    temps = _k.Attr(2321, 'temps')
+    times = _k.Attr(2322, 'times')
 
 class ControlInnerPID(ControlPID):
     __kaliru_mirror__ = True
     def __init__(self, profile, heater, load_clean=False):
-        _k.new(self, 2322, profile, heater, load_clean)
-    Kd = _k.Attr(2323, 'Kd')
-    Ki = _k.Attr(2324, 'Ki')
-    Kp = _k.Attr(2325, 'Kp')
-    temp_integ_max = _k.Attr(2326, 'temp_integ_max')
+        _k.new(self, 2323, profile, heater, load_clean)
+    Kd = _k.Attr(2324, 'Kd')
+    Ki = _k.Attr(2325, 'Ki')
+    Kp = _k.Attr(2326, 'Kp')
+    temp_integ_max = _k.Attr(2327, 'temp_integ_max')
 
 class ControlDualLoopPID(_k.Object):
     __kaliru_mirror__ = True
     def __init__(self, profile, heater, load_clean=False):
-        _k.new(self, 2327, profile, heater, load_clean)
+        _k.new(self, 2328, profile, heater, load_clean)
     def temperature_update(self, read_time, primary_temp, target_temp, secondary_temp):
-        return _k.call(self, 2328, read_time, primary_temp, target_temp, secondary_temp)
+        return _k.call(self, 2329, read_time, primary_temp, target_temp, secondary_temp)
     def check_busy(self, eventtime, smoothed_temp, target_temp):
-        return _k.call(self, 2329, eventtime, smoothed_temp, target_temp)
+        return _k.call(self, 2330, eventtime, smoothed_temp, target_temp)
     def update_smooth_time(self):
-        return _k.call(self, 2330)
-    def get_profile(self):
         return _k.call(self, 2331)
-    def get_type(self):
+    def get_profile(self):
         return _k.call(self, 2332)
-    heater = _k.Attr(2333, 'heater')
-    heater_max_power = _k.Attr(2334, 'heater_max_power')
-    inner_target_temp = _k.Attr(2335, 'inner_target_temp')
-    primary_pid = _k.Attr(2336, 'primary_pid')
-    profile = _k.Attr(2337, 'profile')
-    secondary_pid = _k.Attr(2338, 'secondary_pid')
-    smooth_time = _k.Attr(2339, 'smooth_time')
+    def get_type(self):
+        return _k.call(self, 2333)
+    heater = _k.Attr(2334, 'heater')
+    heater_max_power = _k.Attr(2335, 'heater_max_power')
+    inner_target_temp = _k.Attr(2336, 'inner_target_temp')
+    primary_pid = _k.Attr(2337, 'primary_pid')
+    profile = _k.Attr(2338, 'profile')
+    secondary_pid = _k.Attr(2339, 'secondary_pid')
+    smooth_time = _k.Attr(2340, 'smooth_time')
 
 class PrinterHeaters(_k.Object):
     __kaliru_mirror__ = True
     def __init__(self, config):
-        _k.new(self, 2340, config)
+        _k.new(self, 2341, config)
     def load_config(self, config):
-        return _k.call(self, 2341, config)
+        return _k.call(self, 2342, config)
     def add_sensor_factory(self, sensor_type, sensor_factory):
-        return _k.call(self, 2342, sensor_type, sensor_factory)
+        return _k.call(self, 2343, sensor_type, sensor_factory)
     def setup_heater(self, config, gcode_id=None):
-        return _k.call(self, 2343, config, gcode_id)
+        return _k.call(self, 2344, config, gcode_id)
     def get_all_heaters(self):
-        return _k.call(self, 2344)
+        return _k.call(self, 2345)
     def lookup_heater(self, heater_name):
-        return _k.call(self, 2345, heater_name)
+        return _k.call(self, 2346, heater_name)
     def setup_sensor(self, config):
-        return _k.call(self, 2346, config)
+        return _k.call(self, 2347, config)
     def register_sensor(self, config, psensor, gcode_id=None):
-        return _k.call(self, 2347, config, psensor, gcode_id)
+        return _k.call(self, 2348, config, psensor, gcode_id)
     def register_monitor(self, config):
-        return _k.call(self, 2348, config)
+        return _k.call(self, 2349, config)
     def get_status(self, eventtime):
-        return _k.call(self, 2349, eventtime)
+        return _k.call(self, 2350, eventtime)
     def turn_off_all_heaters(self, print_time=0.0):
-        return _k.call(self, 2350, print_time)
+        return _k.call(self, 2351, print_time)
     cmd_TURN_OFF_HEATERS_help = 'Turn off all heaters'
     def cmd_TURN_OFF_HEATERS(self, gcmd):
-        return _k.call(self, 2351, gcmd)
+        return _k.call(self, 2352, gcmd)
     def _handle_ready(self):
-        return _k.call(self, 2352)
+        return _k.call(self, 2353)
     def _get_temp(self, eventtime):
-        return _k.call(self, 2353, eventtime)
+        return _k.call(self, 2354, eventtime)
     def cmd_M105(self, gcmd):
-        return _k.call(self, 2354, gcmd)
+        return _k.call(self, 2355, gcmd)
     def _wait_for_temperature(self, heater):
-        return _k.call(self, 2355, heater)
+        return _k.call(self, 2356, heater)
     def set_temperature(self, heater, temp, wait=False):
-        return _k.call(self, 2356, heater, temp, wait)
+        return _k.call(self, 2357, heater, temp, wait)
     cmd_TEMPERATURE_WAIT_help = 'Wait for a temperature on a sensor'
     def cmd_TEMPERATURE_WAIT(self, gcmd):
-        return _k.call(self, 2357, gcmd)
-    available_heaters = _k.Attr(2358, 'available_heaters')
-    available_monitors = _k.Attr(2359, 'available_monitors')
-    available_sensors = _k.Attr(2360, 'available_sensors')
-    gcode = _k.Attr(2361, 'gcode')
-    gcode_id_to_sensor = _k.Attr(2362, 'gcode_id_to_sensor')
-    has_started = _k.Attr(2363, 'has_started')
-    have_load_sensors = _k.Attr(2364, 'have_load_sensors')
-    heaters = _k.Attr(2365, 'heaters')
-    printer = _k.Attr(2366, 'printer')
-    sensor_factories = _k.Attr(2367, 'sensor_factories')
+        return _k.call(self, 2358, gcmd)
+    available_heaters = _k.Attr(2359, 'available_heaters')
+    available_monitors = _k.Attr(2360, 'available_monitors')
+    available_sensors = _k.Attr(2361, 'available_sensors')
+    gcode = _k.Attr(2362, 'gcode')
+    gcode_id_to_sensor = _k.Attr(2363, 'gcode_id_to_sensor')
+    has_started = _k.Attr(2364, 'has_started')
+    have_load_sensors = _k.Attr(2365, 'have_load_sensors')
+    heaters = _k.Attr(2366, 'heaters')
+    printer = _k.Attr(2367, 'printer')
+    sensor_factories = _k.Attr(2368, 'sensor_factories')
 
 def load_config(config):
-    return _k.fcall(2368, config)
+    return _k.fcall(2369, config)
 
 
 __getattr__ = _k.module_getattr(__name__)

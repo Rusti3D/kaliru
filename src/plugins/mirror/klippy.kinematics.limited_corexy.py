@@ -8,20 +8,20 @@ EPSILON = 2 * float_info.epsilon
 class LimitedCoreXYKinematics(corexy.CoreXYKinematics):
     __kaliru_mirror__ = True
     def __init__(self, toolhead, config):
-        _k.new(self, 6448, toolhead, config)
+        _k.new(self, 6464, toolhead, config)
     cmd_SET_KINEMATICS_LIMIT_help = 'Set/get CoreXY per axis velocity limits'
     def cmd_SET_KINEMATICS_LIMIT(self, gcmd):
-        return _k.call(self, 6449, gcmd)
+        return _k.call(self, 6465, gcmd)
     def check_move(self, move):
-        return _k.call(self, 6450, move)
-    max_x_accel = _k.Attr(6451, 'max_x_accel')
-    max_y_accel = _k.Attr(6452, 'max_y_accel')
-    max_z_accel = _k.Attr(6453, 'max_z_accel')
-    scale_per_axis = _k.Attr(6454, 'scale_per_axis')
-    supports_dual_carriage = _k.Attr(6455, 'supports_dual_carriage')
+        return _k.call(self, 6466, move)
+    max_x_accel = _k.Attr(6467, 'max_x_accel')
+    max_y_accel = _k.Attr(6468, 'max_y_accel')
+    max_z_accel = _k.Attr(6469, 'max_z_accel')
+    scale_per_axis = _k.Attr(6470, 'scale_per_axis')
+    supports_dual_carriage = _k.Attr(6471, 'supports_dual_carriage')
 
 def load_kinematics(toolhead, config):
-    return _k.fcall(6456, toolhead, config)
+    return _k.fcall(6472, toolhead, config)
 
 
 __getattr__ = _k.module_getattr(__name__)

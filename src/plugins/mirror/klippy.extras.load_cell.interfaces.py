@@ -7,7 +7,9 @@ from typing import TypedDict
 
 
 class BulkAdcData(TypedDict):
-    """Dictionary returned by sensors containing raw sensor data"""
+    """Dictionary returned by sensors containing raw sensor data.
+    Errors and overflows are the number encountered while producing this batch.
+    """
 
     data: list[tuple[float, ...]]
     errors: int

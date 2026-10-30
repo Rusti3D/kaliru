@@ -642,6 +642,22 @@ impl MessageParser {
         Ok(params)
     }
 
+    /// a response as the mcu would send it, every field 0 (or empty) but
+    /// those given (debugging mode's dummy query responses)
+    pub fn create_dummy_response(&self, msgname: &str, params: &Params) -> Result<Params> {
+        let mp = self.messages_by_name.get(msgname).ok_or_else(|| self.error(format!("Unknown response: {}", msgname)))?;
+        let mut argparts = params.clone();
+        for (name, t) in &mp.param_names {
+            if !argparts.contains_key(name) {
+                argparts.insert(name.clone(), if t.is_dynamic_string() { Val::Bytes(vec![]) } else { Val::Int(0) });
+            }
+        }
+        let msg = mp.encode_by_name(&argparts)?;
+        let (mut res, _) = mp.parse(&msg, 0)?;
+        res.insert("#name".into(), Val::Str(msgname.to_string()));
+        Ok(res)
+    }
+
     // encode_msgblock() is not ported: nothing in Kalico calls it (blocks are
     // built by serialqueue) and the python version appends the crc as a nested
     // list, so its result is not a valid message block.

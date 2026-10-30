@@ -13,19 +13,19 @@ E_AXIS = 3
 class ArcSupport(_k.Object):
     __kaliru_mirror__ = True
     def __init__(self, config):
-        _k.new(self, 1944, config)
+        _k.new(self, 1945, config)
     def cmd_G2(self, gcmd):
-        return _k.call(self, 1945, gcmd)
-    def cmd_G3(self, gcmd):
         return _k.call(self, 1946, gcmd)
-    def cmd_G17(self, gcmd):
+    def cmd_G3(self, gcmd):
         return _k.call(self, 1947, gcmd)
-    def cmd_G18(self, gcmd):
+    def cmd_G17(self, gcmd):
         return _k.call(self, 1948, gcmd)
-    def cmd_G19(self, gcmd):
+    def cmd_G18(self, gcmd):
         return _k.call(self, 1949, gcmd)
+    def cmd_G19(self, gcmd):
+        return _k.call(self, 1950, gcmd)
     def _cmd_inner(self, gcmd, clockwise):
-        return _k.call(self, 1950, gcmd, clockwise)
+        return _k.call(self, 1951, gcmd, clockwise)
     def planArc(
         self,
         currentPos,
@@ -114,14 +114,14 @@ class ArcSupport(_k.Object):
                 g1_params["F"] = asF
             g1_gcmd = self.gcode.create_gcode_command("G1", "G1", g1_params)
             self.gcode_move.cmd_G1(g1_gcmd)
-    gcode = _k.Attr(1952, 'gcode')
-    gcode_move = _k.Attr(1953, 'gcode_move')
-    mm_per_arc_segment = _k.Attr(1954, 'mm_per_arc_segment')
-    plane = _k.Attr(1955, 'plane')
-    printer = _k.Attr(1956, 'printer')
+    gcode = _k.Attr(1953, 'gcode')
+    gcode_move = _k.Attr(1954, 'gcode_move')
+    mm_per_arc_segment = _k.Attr(1955, 'mm_per_arc_segment')
+    plane = _k.Attr(1956, 'plane')
+    printer = _k.Attr(1957, 'printer')
 
 def load_config(config):
-    return _k.fcall(1957, config)
+    return _k.fcall(1958, config)
 
 
 __getattr__ = _k.module_getattr(__name__)
