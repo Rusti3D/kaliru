@@ -135,15 +135,37 @@ pub fn register(r: &mut Registry) {
         objects::unwrap_as::<crate::clocksync::ClockSync>(o)?.time_variance.set(FromPy::from_py(v)?);
         Ok(())
     }));
-    r.attr("klippy.clocksync.SecondarySync.clock_adj", |o| objects::unwrap_as::<crate::clocksync::Secondary>(o)?.clock_adj.get().to_py(), Some(|o, v| {
-        objects::unwrap_as::<crate::clocksync::Secondary>(o)?.clock_adj.set(FromPy::from_py(v)?);
-        Ok(())
-    }));
-    r.attr("klippy.clocksync.SecondarySync.last_sync_time", |o| objects::unwrap_as::<crate::clocksync::Secondary>(o)?.last_sync_time.get().to_py(), Some(|o, v| {
-        objects::unwrap_as::<crate::clocksync::Secondary>(o)?.last_sync_time.set(FromPy::from_py(v)?);
-        Ok(())
-    }));
-    r.attr("klippy.clocksync.SecondarySync.main_sync", |o| objects::unwrap_as::<crate::clocksync::Secondary>(o)?.main_sync.clone().to_py(), None);
+    r.method("klippy.clocksync.SecondarySync.connect", |a| {
+        let s = a.this::<crate::clocksync::ClockSync>()?;
+        let p0 = objects::unwrap_as::<crate::serialhdl::SerialReader>(a.arg(0))?;
+        s.connect(&p0).to_py()
+    });
+    r.method("klippy.clocksync.SecondarySync.connect_file", |a| {
+        let s = a.this::<crate::clocksync::ClockSync>()?;
+        let p0 = objects::unwrap_as::<crate::serialhdl::SerialReader>(a.arg(0))?;
+        let p1: bool = FromPy::from_py(a.arg(1))?;
+        s.connect_file(&p0, p1).to_py()
+    });
+    r.method("klippy.clocksync.SecondarySync.print_time_to_clock", |a| {
+        let s = a.this::<crate::clocksync::ClockSync>()?;
+        let p0: f64 = FromPy::from_py(a.arg(0))?;
+        s.print_time_to_clock(p0).to_py()
+    });
+    r.method("klippy.clocksync.SecondarySync.clock_to_print_time", |a| {
+        let s = a.this::<crate::clocksync::ClockSync>()?;
+        let p0: f64 = FromPy::from_py(a.arg(0))?;
+        s.clock_to_print_time(p0).to_py()
+    });
+    r.method("klippy.clocksync.SecondarySync.dump_debug", |a| {
+        let s = a.this::<crate::clocksync::ClockSync>()?;
+        s.dump_debug().to_py()
+    });
+    r.method("klippy.clocksync.SecondarySync.calibrate_clock", |a| {
+        let s = a.this::<crate::clocksync::ClockSync>()?;
+        let p0: f64 = FromPy::from_py(a.arg(0))?;
+        let p1: f64 = FromPy::from_py(a.arg(1))?;
+        s.calibrate_clock(p0, p1).to_py()
+    });
 
     // ---- klippy.extras.ad5206
     r.method("klippy.extras.ad5206.load_config_prefix", |a| {
@@ -6697,6 +6719,7 @@ pub fn register(r: &mut Registry) {
         Ok(())
     }));
     r.attr("klippy.extras.output_pin.PrinterOutputPin.scale", |o| objects::unwrap_as::<crate::extras::output_pin::PrinterOutputPin>(o)?.scale.clone().to_py(), None);
+    r.attr("klippy.extras.output_pin.PrinterOutputPin.shutdown_value", |o| objects::unwrap_as::<crate::extras::output_pin::PrinterOutputPin>(o)?.shutdown_value.clone().to_py(), None);
     r.attr("klippy.extras.output_pin.PrinterOutputPin.template_eval", |o| objects::unwrap_as::<crate::extras::output_pin::PrinterOutputPin>(o)?.template_eval.borrow().clone().to_py(), Some(|o, v| {
         *objects::unwrap_as::<crate::extras::output_pin::PrinterOutputPin>(o)?.template_eval.borrow_mut() = FromPy::from_py(v)?;
         Ok(())
@@ -10644,6 +10667,7 @@ pub fn register(r: &mut Registry) {
         objects::unwrap_as::<crate::extras::z_thermal_adjust::ZThermalAdjuster>(o)?.last_temp_time.set(FromPy::from_py(v)?);
         Ok(())
     }));
+    r.attr("klippy.extras.z_thermal_adjust.ZThermalAdjuster.max_temp", |o| objects::unwrap_as::<crate::extras::z_thermal_adjust::ZThermalAdjuster>(o)?.max_temp.clone().to_py(), None);
     r.attr("klippy.extras.z_thermal_adjust.ZThermalAdjuster.max_z_adjust_mm", |o| objects::unwrap_as::<crate::extras::z_thermal_adjust::ZThermalAdjuster>(o)?.max_z_adjust_mm.clone().to_py(), None);
     r.attr("klippy.extras.z_thermal_adjust.ZThermalAdjuster.measured_max", |o| objects::unwrap_as::<crate::extras::z_thermal_adjust::ZThermalAdjuster>(o)?.measured_max.get().to_py(), Some(|o, v| {
         objects::unwrap_as::<crate::extras::z_thermal_adjust::ZThermalAdjuster>(o)?.measured_max.set(FromPy::from_py(v)?);
@@ -10653,6 +10677,7 @@ pub fn register(r: &mut Registry) {
         objects::unwrap_as::<crate::extras::z_thermal_adjust::ZThermalAdjuster>(o)?.measured_min.set(FromPy::from_py(v)?);
         Ok(())
     }));
+    r.attr("klippy.extras.z_thermal_adjust.ZThermalAdjuster.min_temp", |o| objects::unwrap_as::<crate::extras::z_thermal_adjust::ZThermalAdjuster>(o)?.min_temp.clone().to_py(), None);
     r.attr("klippy.extras.z_thermal_adjust.ZThermalAdjuster.next_transform", |o| (match objects::unwrap_as::<crate::extras::z_thermal_adjust::ZThermalAdjuster>(o)?.next_transform.borrow().clone() { Some(v) => super::extras_state::transform_to_py(v), None => Ok(py_none()) }), None);
     r.attr("klippy.extras.z_thermal_adjust.ZThermalAdjuster.off_above_z", |o| objects::unwrap_as::<crate::extras::z_thermal_adjust::ZThermalAdjuster>(o)?.off_above_z.clone().to_py(), None);
     r.attr("klippy.extras.z_thermal_adjust.ZThermalAdjuster.printer", |o| objects::unwrap_as::<crate::extras::z_thermal_adjust::ZThermalAdjuster>(o)?.printer.clone().to_py(), None);
@@ -10665,6 +10690,7 @@ pub fn register(r: &mut Registry) {
         Ok(())
     }));
     r.attr("klippy.extras.z_thermal_adjust.ZThermalAdjuster.sensor", |o| super::heaters::sensor_to_py(objects::unwrap_as::<crate::extras::z_thermal_adjust::ZThermalAdjuster>(o)?.sensor.clone()), None);
+    r.attr("klippy.extras.z_thermal_adjust.ZThermalAdjuster.smooth_time", |o| objects::unwrap_as::<crate::extras::z_thermal_adjust::ZThermalAdjuster>(o)?.smooth_time.clone().to_py(), None);
     r.attr("klippy.extras.z_thermal_adjust.ZThermalAdjuster.smoothed_temp", |o| objects::unwrap_as::<crate::extras::z_thermal_adjust::ZThermalAdjuster>(o)?.smoothed_temp.get().to_py(), Some(|o, v| {
         objects::unwrap_as::<crate::extras::z_thermal_adjust::ZThermalAdjuster>(o)?.smoothed_temp.set(FromPy::from_py(v)?);
         Ok(())
@@ -11139,7 +11165,6 @@ pub fn register(r: &mut Registry) {
     r.attr("klippy.kinematics.delta.DeltaKinematics.max_z", |o| objects::unwrap_as::<crate::kinematics::delta::DeltaKinematics>(o)?.max_z.clone().to_py(), None);
     r.attr("klippy.kinematics.delta.DeltaKinematics.min_arm2", |o| objects::unwrap_as::<crate::kinematics::delta::DeltaKinematics>(o)?.min_arm2.clone().to_py(), None);
     r.attr("klippy.kinematics.delta.DeltaKinematics.min_arm_length", |o| objects::unwrap_as::<crate::kinematics::delta::DeltaKinematics>(o)?.min_arm_length.clone().to_py(), None);
-    r.attr("klippy.kinematics.delta.DeltaKinematics.min_z", |o| objects::unwrap_as::<crate::kinematics::delta::DeltaKinematics>(o)?.min_z.clone().to_py(), None);
     r.attr("klippy.kinematics.delta.DeltaKinematics.need_home", |o| objects::unwrap_as::<crate::kinematics::delta::DeltaKinematics>(o)?.need_home.get().to_py(), Some(|o, v| {
         objects::unwrap_as::<crate::kinematics::delta::DeltaKinematics>(o)?.need_home.set(FromPy::from_py(v)?);
         Ok(())
@@ -11343,7 +11368,6 @@ pub fn register(r: &mut Registry) {
     r.attr("klippy.kinematics.rotary_delta.RotaryDeltaKinematics.limit_z", |o| objects::unwrap_as::<crate::kinematics::rotary_delta::RotaryDeltaKinematics>(o)?.limit_z.clone().to_py(), None);
     r.attr("klippy.kinematics.rotary_delta.RotaryDeltaKinematics.max_xy2", |o| objects::unwrap_as::<crate::kinematics::rotary_delta::RotaryDeltaKinematics>(o)?.max_xy2.clone().to_py(), None);
     r.attr("klippy.kinematics.rotary_delta.RotaryDeltaKinematics.max_z", |o| objects::unwrap_as::<crate::kinematics::rotary_delta::RotaryDeltaKinematics>(o)?.max_z.clone().to_py(), None);
-    r.attr("klippy.kinematics.rotary_delta.RotaryDeltaKinematics.min_z", |o| objects::unwrap_as::<crate::kinematics::rotary_delta::RotaryDeltaKinematics>(o)?.min_z.clone().to_py(), None);
     r.attr("klippy.kinematics.rotary_delta.RotaryDeltaKinematics.need_home", |o| objects::unwrap_as::<crate::kinematics::rotary_delta::RotaryDeltaKinematics>(o)?.need_home.get().to_py(), Some(|o, v| {
         objects::unwrap_as::<crate::kinematics::rotary_delta::RotaryDeltaKinematics>(o)?.need_home.set(FromPy::from_py(v)?);
         Ok(())

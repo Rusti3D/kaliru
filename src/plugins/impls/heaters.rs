@@ -242,21 +242,28 @@ fn ctl_args(a: &Args) -> KResult<(Profile, Rc<Heater>, bool)> {
     Ok((profile_from_py(a.arg(0))?, ht(a.arg(1))?, a.bool(2)?))
 }
 
+/// registered only where the Kalico class has the name
+fn known_method(r: &mut Registry, name: &'static str, f: crate::plugins::native::Method) {
+    if crate::plugins::native::known(name) {
+        r.method(name, f);
+    }
+}
+
 /// A control's common methods: temperature_update, check_busy,
 /// update_smooth_time, get_profile, get_type
 macro_rules! control_methods {
     ($r:expr, $class:literal) => {
-        $r.method(concat!($class, ".temperature_update"), |a| {
+        known_method($r, concat!($class, ".temperature_update"), |a| {
             let secondary = a.args.get(3).map(|s| s.as_f64()).transpose()?;
             ctl(a.slf.as_ref().expect("method"))?.temperature_update(a.f64(0)?, a.f64(1)?, a.f64(2)?, secondary)?;
             Ok(py_none())
         });
-        $r.method(concat!($class, ".check_busy"), |a| {
+        known_method($r, concat!($class, ".check_busy"), |a| {
             ctl(a.slf.as_ref().expect("method"))?.check_busy(a.f64(0)?, a.f64(1)?, a.f64(2)?).to_py()
         });
-        $r.method(concat!($class, ".update_smooth_time"), |a| ctl(a.slf.as_ref().expect("method"))?.update_smooth_time().to_py());
-        $r.method(concat!($class, ".get_profile"), |a| profile_to_py(&ctl(a.slf.as_ref().expect("method"))?.get_profile()));
-        $r.method(concat!($class, ".get_type"), |a| Ok(py_str(ctl(a.slf.as_ref().expect("method"))?.get_type())));
+        known_method($r, concat!($class, ".update_smooth_time"), |a| ctl(a.slf.as_ref().expect("method"))?.update_smooth_time().to_py());
+        known_method($r, concat!($class, ".get_profile"), |a| profile_to_py(&ctl(a.slf.as_ref().expect("method"))?.get_profile()));
+        known_method($r, concat!($class, ".get_type"), |a| Ok(py_str(ctl(a.slf.as_ref().expect("method"))?.get_type())));
     };
 }
 
@@ -589,6 +596,22 @@ pub fn register(r: &mut Registry) {
     control_methods!(r, "klippy.extras.heaters.ControlPID");
     control_methods!(r, "klippy.extras.heaters.ControlVelocityPID");
     control_methods!(r, "klippy.extras.heaters.ControlDualLoopPID");
+    // the MPC, its tuning control and PID_CALIBRATE's control
+    {
+        use crate::extras::control_mpc::{ControlMPC, TuningControl};
+        use crate::extras::pid_calibrate::ControlAutoTune;
+        objects::register_view::<ControlMPC>(|a| -> Box<dyn Any> { Box::new(a.downcast::<ControlMPC>().expect("type") as ControlRef) });
+        objects::register_view::<TuningControl>(|a| -> Box<dyn Any> { Box::new(a.downcast::<TuningControl>().expect("type") as ControlRef) });
+        objects::register_view::<ControlAutoTune>(|a| -> Box<dyn Any> { Box::new(a.downcast::<ControlAutoTune>().expect("type") as ControlRef) });
+        control_methods!(r, "klippy.extras.control_mpc.ControlMPC");
+        control_methods!(r, "klippy.extras.control_mpc.TuningControl");
+        control_methods!(r, "klippy.extras.pid_calibrate.ControlAutoTune");
+        r.method("klippy.extras.control_mpc.ControlMPC.check_valid", |a| {
+            ctl(a.slf.as_ref().expect("method"))?.check_valid()?;
+            Ok(py_none())
+        });
+        r.attr("klippy.extras.control_mpc.ControlMPC.profile", |o| profile_to_py(&objects::unwrap_as::<ControlMPC>(o)?.profile), None);
+    }
     control_attrs!(r, "klippy.extras.heaters.ControlBangBang", ControlBangBang);
     control_attrs!(r, "klippy.extras.heaters.ControlPID", ControlPID);
     control_attrs!(r, "klippy.extras.heaters.ControlVelocityPID", ControlVelocityPID);

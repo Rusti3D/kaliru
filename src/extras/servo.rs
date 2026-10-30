@@ -20,12 +20,12 @@ pub const SERVO_SIGNAL_PERIOD: f64 = 0.020;
 const CMD_SET_SERVO_HELP: &str = "Set servo angle";
 
 /// the pulse width conversions of a servo
-struct PwmCalc {
-    min_width: f64,
-    max_width: f64,
-    max_angle: f64,
-    angle_to_width: f64,
-    width_to_value: f64,
+pub struct PwmCalc {
+    pub min_width: f64,
+    pub max_width: f64,
+    pub max_angle: f64,
+    pub angle_to_width: f64,
+    pub width_to_value: f64,
 }
 
 impl PwmCalc {
@@ -44,7 +44,7 @@ impl PwmCalc {
 }
 
 pub struct PrinterServo {
-    calc: PwmCalc,
+    pub calc: PwmCalc,
     pub last_value: Cell<f64>,
     pub mcu_servo: Rc<dyn PwmPin>,
     pub gcrq: RefCell<Option<Rc<GCodeRequestQueue>>>,
@@ -115,7 +115,8 @@ impl PrinterServo {
         Ok(servo)
     }
 
-    fn set_pwm(&self, print_time: f64, value: f64) -> KResult<Option<(Action, f64)>> {
+    /// _set_pwm(print_time, value)
+    pub fn set_pwm(&self, print_time: f64, value: f64) -> KResult<Option<(Action, f64)>> {
         if value == self.last_value.get() {
             return Ok(Some((Action::Discard, 0.0)));
         }

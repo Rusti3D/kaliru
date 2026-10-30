@@ -42,6 +42,14 @@ pub struct ReactorTimer {
 
 pub type Timer = Rc<ReactorTimer>;
 
+impl ReactorTimer {
+    /// timer.callback(eventtime) called directly (None while the reactor is
+    /// running it: kaliru's callbacks are not reentrant)
+    pub fn call(&self, eventtime: f64) -> Option<f64> {
+        self.callback.try_borrow_mut().ok().map(|mut cb| cb(eventtime))
+    }
+}
+
 pub struct ReactorCompletion<T: Clone> {
     pub reactor: Rc<Reactor>,
     pub result: RefCell<Option<T>>,

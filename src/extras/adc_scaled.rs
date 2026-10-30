@@ -88,6 +88,8 @@ pub struct PrinterADCScaled {
     pub last_vssa: Cell<(f64, f64)>,
     pub inv_smooth_time: f64,
     pub mcu: Rc<Mcu>,
+    pub mcu_vref: Rc<dyn AdcPin>,
+    pub mcu_vssa: Rc<dyn AdcPin>,
     scaled: RefCell<Vec<Rc<McuScaledAdc>>>,
 }
 
@@ -113,6 +115,8 @@ impl PrinterADCScaled {
             last_vssa: Cell::new((0.0, 0.0)),
             inv_smooth_time: 1.0 / smooth_time,
             mcu,
+            mcu_vref,
+            mcu_vssa,
             scaled: RefCell::new(vec![]),
         });
         *slot.borrow_mut() = Rc::downgrade(&a);

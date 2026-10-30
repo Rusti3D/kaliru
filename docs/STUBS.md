@@ -18,7 +18,7 @@ Nearly complete. All Kalico extras are `ported: true` (`src/extras/mod.rs`) and 
 Every Kalico name has a Python stub in `src/plugins/mirror/`, but only names with a handler in
 `src/plugins/impls/` work. The rest raise `NotImplementedError: kaliru: X is not mirrored yet`.
 
-**Coverage: 5,878 of 7,489 IDs bound, 1,611 stubs (992 of them public names).**
+**Coverage: 5,941 of 7,489 IDs bound, 1,548 stubs (930 of them public names).**
 Done: extras.heaters, stepper (all but `_get_position_cmd`, `_stepqueue`), chelper `get_ffi` (an emulated cffi:
 prelude.py FFI / FFILib / CData, impls/chelper.rs), extras.motion_queuing (all but `setup_mcu_movequeue`,
 `steppersyncmgr`, `steppersyncmgr_gen_steps`), toolhead, kinematics.extruder, extras.homing, extras.force_move,
@@ -37,11 +37,15 @@ load_cell_probe, probe_eddy_current, smart_effector, tools_calibrate), msgproto.
 (`setup_buttons` / `setup_button`), exclude_object state, temperature_fan fields (not `control`),
 `SerialReader.register_response`, statistics `stats_cb`, virtual_sdcard `current_file`, save_variables
 `allVariables`, query_endstops `endstops`, fan `off_below` / `tachometer`, display groups / glyphs, dockable_probe
-positions and states, bltouch `multi`, homing_override `prev_G28`, the limited kinematics' limits.
+positions and states, bltouch `multi`, homing_override `prev_G28`, the limited kinematics' limits, servo
+widths, error_mcu clarify callbacks, hall_filament_width_sensor fields, `ReactorTimer.callback`, GCodeIO `fd` /
+`input_log`, the MPC / tuning / PID-autotune controls, output_pin `mcu_pin` / `shutdown_value`, LED state and pins,
+z_thermal_adjust limits, msgproto MessageFormat `encode` / `encode_by_name` / `parse` / `format_params`, adc_scaled,
+SecondarySync (kaliru's secondary ClockSync).
 
 **API probe** (`tests/plugins/kaliru_test_api.py`, `tests/cases/plugins/api.test`): reads every attribute and calls
-every argument-free `get_*` / `is_*` method of every printer object (names from the mirror, through the MRO) on 20
-stock Kalico configs, one level into the objects found, and logs the values; `plugin_cmp.sh` diffs Kalico against
+every argument-free `get_*` / `is_*` method of every printer object (names from the mirror, through the MRO) on 45
+stock and example Kalico configs, one level into the objects found, and logs the values; `plugin_cmp.sh` diffs Kalico against
 kaliru. What still differs is stubs, module internals and the deviations below.
 
 **Generic handlers** (impls/traits.rs, used where a class has no binding of its own): `self.printer`,
@@ -55,7 +59,7 @@ class of its kind (AHT1x/2x/3x, MAX6675/31855/31856/31865, ST7920/EmulatedST7920
 HX711/HX717, ADS131M02/04, the MPC wrappers, the menu item classes, the MCU helpers, z_tilt_ng's helpers);
 `objects::register_redirect` makes the "menu" object python's MenuManager.
 
-Left (992 public names over 152 modules) is mostly module internals: trad_rack's TradRackToolHead, palette2's
+Left (930 public names over 152 modules) is mostly module internals: trad_rack's TradRackToolHead, palette2's
 protocol handlers, angle chip helpers, load_cell / tap_analysis internals, indx, display chip internals, the MCU
 helper classes (kaliru keeps their state in `Mcu`), serial / webhooks socket internals.
 
@@ -142,3 +146,6 @@ Not applicable (kaliru's own loader does these): `printer.PrinterModule.*`, `Pri
 | `impls/extras_misc.rs` | `PrinterLCD.show_data_group` is read-only |
 | `impls/*` | kaliru reuses types where Kalico has its own: `z_calibration.z_endstop` is the MCU_endstop, trad_rack's `tr_toolhead` a ToolHead |
 | `src/extras/output_pin.rs` | one `klippy:connect` handler for all g-code request queues (Kalico registers one per queue) |
+| `impls/extras_misc.rs` | a python clarify callback (`error_mcu.add_clarify`) that raises is logged and adds nothing |
+| `impls/extras_misc.rs` | `timer.callback(eventtime)` raises `RuntimeError` while the reactor is running that timer (kaliru's callbacks are not reentrant) |
+| `src/extras/quad_gantry_level.rs` and others | an int config default (`max_adjust`, `frequency`, `max_travel`, `temp_coeff`) is int in `configfile.settings` as in Kalico, but the object's attribute is a float |

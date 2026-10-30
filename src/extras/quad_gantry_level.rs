@@ -4,7 +4,7 @@
 // Copyright (C) 2018  Maks Zolin <mzolin@vorondesign.com>
 //
 // This file may be distributed under the terms of the GNU GPLv3 license.
-use crate::configfile::{ConfigWrapper, Lim};
+use crate::configfile::{ConfigWrapper, Dflt, Lim};
 use crate::error::{KError, KResult};
 use crate::extras::probe::{FinalizeResult, ProbePointsHelper};
 use crate::extras::z_tilt::{get_pairs, RetryHelper, ZAdjustHelper, ZAdjustStatus};
@@ -48,7 +48,7 @@ impl QuadGantryLevel {
     pub fn new(config: &ConfigWrapper) -> KResult<Rc<Self>> {
         let printer = config.get_printer();
         let retry_helper = RetryHelper::new(config, "Possibly Z motor numbering is wrong")?;
-        let max_adjust = config.getfloat("max_adjust", 4.0, Lim::new().above(0))?;
+        let max_adjust = config.getfloat("max_adjust", Dflt::from(PyVal::Int(4)), Lim::new().above(0))?;
         let horizontal_move_z = config.getfloat("horizontal_move_z", 5.0, Lim::new())?;
         let slot: Rc<RefCell<Weak<QuadGantryLevel>>> = Rc::new(RefCell::new(Weak::new()));
         let sl = slot.clone();

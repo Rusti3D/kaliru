@@ -54,7 +54,7 @@ pub fn data_from_py(o: &PyRef) -> KResult<Vec<Val>> {
         .collect()
 }
 
-fn val_to_py(v: &Val) -> KResult<PyRef> {
+pub fn val_to_py(v: &Val) -> KResult<PyRef> {
     Ok(match v {
         Val::Int(i) => py_int(*i),
         Val::Float(f) => py_float(*f),

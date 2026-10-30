@@ -8,7 +8,7 @@ use crate::extras::stepper_enable::{EnableTracking, PrinterStepperEnable};
 use crate::jinja::value::Value;
 use crate::IndexMap;
 use crate::{method, ro_attr};
-use crate::plugins::convert::ToPy;
+use crate::plugins::convert::{FromPy, ToPy};
 use crate::plugins::native::DictField;
 
 pub fn register(r: &mut Registry) {
@@ -21,6 +21,205 @@ pub fn register(r: &mut Registry) {
         }
         Ok(l)
     }, None);
+    // error_mcu: clarify callbacks cb(msg, details) -> message or None
+    {
+        use crate::extras::error_mcu::{ClarifyCallback, PrinterMcuError};
+        r.method("klippy.extras.error_mcu.PrinterMCUError.add_clarify", |a| {
+            let cb = a.arg(1).clone();
+            // kaliru's clarify callbacks can't fail: a raising one is logged
+            // and adds nothing
+            let f: ClarifyCallback = Rc::new(move |msg: &str, details: &PyVal| {
+                let r = cb.call(&[&py_str(msg), &from_pyval(details)]).and_then(|m| {
+                    if m.is_none() { Ok(None) } else { m.as_string().map(Some) }
+                });
+                r.unwrap_or_else(|e| {
+                    crate::logging::exception_err("clarify callback error", &e);
+                    None
+                })
+            });
+            a.this::<PrinterMcuError>()?.add_clarify(&a.string(0)?, f);
+            Ok(py_none())
+        });
+        // {msg: [callback]} (a snapshot)
+        r.attr("klippy.extras.error_mcu.PrinterMCUError.clarify_callbacks", |o| {
+            let cbs = objects::unwrap_as::<PrinterMcuError>(o)?.clarify_callbacks.borrow().clone();
+            let d = lookup("builtins", "dict")?.call(&[])?;
+            for (msg, list) in cbs {
+                let items: KResult<Vec<PyRef>> = list
+                    .into_iter()
+                    .map(|cb| {
+                        crate::plugins::callable::py_function(Rc::new(move |args: &[PyRef]| {
+                            let details = to_pyval(&args[1])?;
+                            Ok(match cb(&args[0].as_string()?, &details) {
+                                Some(m) => py_str(&m),
+                                None => py_none(),
+                            })
+                        }))
+                    })
+                    .collect();
+                d.call_method("__setitem__", &[&py_str(&msg), &py_list(items?)])?;
+            }
+            Ok(d)
+        }, None);
+    }
+    // hall_filament_width_sensor: Kalico's names for kaliru's fields
+    {
+        use crate::extras::hall_filament_width_sensor::HallFilamentWidthSensor as H;
+        fn hs(o: &PyRef) -> KResult<Rc<H>> {
+            objects::unwrap_as::<H>(o)
+        }
+        r.attr("klippy.extras.hall_filament_width_sensor.HallFilamentWidthSensor.pin1", |o| Ok(py_str(&hs(o)?.pin1)), None);
+        r.attr("klippy.extras.hall_filament_width_sensor.HallFilamentWidthSensor.pin2", |o| Ok(py_str(&hs(o)?.pin2)), None);
+        r.attr("klippy.extras.hall_filament_width_sensor.HallFilamentWidthSensor.MEASUREMENT_INTERVAL_MM", |o| {
+            Ok(py_int(hs(o)?.measurement_interval_mm))
+        }, None);
+        r.attr("klippy.extras.hall_filament_width_sensor.HallFilamentWidthSensor.measurement_max_difference", |o| {
+            Ok(py_float(hs(o)?.measurement_max_difference))
+        }, None);
+        r.attr("klippy.extras.hall_filament_width_sensor.HallFilamentWidthSensor.lastFilamentWidthReading", |o| {
+            Ok(py_int(hs(o)?.last_reading.get()))
+        }, None);
+        r.attr("klippy.extras.hall_filament_width_sensor.HallFilamentWidthSensor.lastFilamentWidthReading2", |o| {
+            Ok(py_int(hs(o)?.last_reading2.get()))
+        }, None);
+        r.attr("klippy.extras.hall_filament_width_sensor.HallFilamentWidthSensor.firstExtruderUpdatePosition", |o| {
+            Ok(py_float(hs(o)?.first_extruder_update_position.get()))
+        }, None);
+        r.attr("klippy.extras.hall_filament_width_sensor.HallFilamentWidthSensor.mcu_adc", |o| {
+            super::pins::adc_pin_to_py(hs(o)?.mcu_adc.clone())
+        }, None);
+        r.attr("klippy.extras.hall_filament_width_sensor.HallFilamentWidthSensor.mcu_adc2", |o| {
+            super::pins::adc_pin_to_py(hs(o)?.mcu_adc2.clone())
+        }, None);
+        r.attr("klippy.extras.hall_filament_width_sensor.HallFilamentWidthSensor.ppins", |o| {
+            hs(o)?.printer.lookup_object("pins")?.to_py()
+        }, None);
+    }
+    // reactor timer: its callback, callable from python
+    r.attr("klippy.reactor.ReactorTimer.callback", |o| {
+        let t = objects::unwrap_as::<crate::reactor::ReactorTimer>(o)?;
+        crate::plugins::callable::py_function(Rc::new(move |args: &[PyRef]| match t.call(args[0].as_f64()?) {
+            Some(w) => Ok(py_float(w)),
+            None => Err(KError::Py("RuntimeError".into(), "kaliru: the timer callback is running".into())),
+        }))
+    }, None);
+    // gcode io: the input fd and the last 50 inputs, deque([(eventtime, data)], maxlen=50)
+    r.attr("klippy.gcode.GCodeIO.fd", |o| Ok(py_int(objects::unwrap_as::<crate::gcode::GCodeIO>(o)?.fd as i64)), None);
+    r.attr("klippy.gcode.GCodeIO.input_log", |o| {
+        let io = objects::unwrap_as::<crate::gcode::GCodeIO>(o)?;
+        let items: Vec<PyRef> = io.input_log.borrow().iter().map(|(t, d)| py_tuple(vec![py_float(*t), py_str(d)])).collect();
+        lookup("collections", "deque")?.call(&[&py_list(items), &py_int(50)])
+    }, None);
+    // output_pin: its mcu pin (pwm or digital_out)
+    r.attr("klippy.extras.output_pin.PrinterOutputPin.mcu_pin", |o| {
+        use crate::extras::output_pin::{OutPin, PrinterOutputPin};
+        match &objects::unwrap_as::<PrinterOutputPin>(o)?.mcu_pin {
+            OutPin::Pwm(p) => super::pins::pwm_pin_to_py(p.clone()),
+            OutPin::Digital(p) => super::pins::digital_out_to_py(p.clone()),
+        }
+    }, None);
+    // led: colors are (red, green, blue, white) tuples
+    {
+        use crate::extras::led::{Color, LEDHelper, PrinterPWMLED};
+        fn color(c: &Color) -> PyRef {
+            py_tuple(c.iter().map(|v| py_float(*v)).collect())
+        }
+        r.attr("klippy.extras.led.LEDHelper.led_state", |o| {
+            Ok(py_list(objects::unwrap_as::<LEDHelper>(o)?.led_state.borrow().iter().map(color).collect()))
+        }, None);
+        // update_func(led_state, print_time)
+        r.attr("klippy.extras.led.LEDHelper.update_func", |o| {
+            let f = objects::unwrap_as::<LEDHelper>(o)?.update_func.clone();
+            crate::plugins::callable::py_function(Rc::new(move |args: &[PyRef]| {
+                let state: Vec<Color> = FromPy::from_py(&lookup("builtins", "list")?.call(&[&args[0]])?)?;
+                let print_time = if args[1].is_none() { None } else { Some(args[1].as_f64()?) };
+                f(&state, print_time)?;
+                Ok(py_none())
+            }))
+        }, None);
+        r.attr("klippy.extras.led.PrinterPWMLED.prev_color", |o| Ok(color(&objects::unwrap_as::<PrinterPWMLED>(o)?.prev_color.borrow())), None);
+        // [(color index, pwm pin)]
+        r.attr("klippy.extras.led.PrinterPWMLED.pins", |o| {
+            let items: KResult<Vec<PyRef>> = objects::unwrap_as::<PrinterPWMLED>(o)?
+                .pins
+                .iter()
+                .map(|(i, p)| Ok(py_tuple(vec![py_int(*i as i64), super::pins::pwm_pin_to_py(p.clone())?])))
+                .collect();
+            Ok(py_list(items?))
+        }, None);
+    }
+    // adc_scaled: the vref / vssa pins, its pin chip and the smoothing callbacks
+    {
+        use crate::extras::adc_scaled::PrinterADCScaled as S;
+        r.attr("klippy.extras.adc_scaled.PrinterADCScaled.mcu_vref", |o| super::pins::adc_pin_to_py(objects::unwrap_as::<S>(o)?.mcu_vref.clone()), None);
+        r.attr("klippy.extras.adc_scaled.PrinterADCScaled.mcu_vssa", |o| super::pins::adc_pin_to_py(objects::unwrap_as::<S>(o)?.mcu_vssa.clone()), None);
+        r.method("klippy.extras.adc_scaled.PrinterADCScaled.setup_pin", |a| {
+            use crate::pins::PinChip;
+            let pin_params = super::pins::pin_params_from_py(a.arg(1))?;
+            let pin = a.this::<S>()?.setup_pin(&a.string(0)?, &pin_params).map_err(KError::Pins)?;
+            let adc = pin.downcast::<Rc<dyn crate::mcu::AdcPin>>().map_err(|_| KError::Other("kaliru: adc_scaled pin of an unexpected type".into()))?;
+            super::pins::adc_pin_to_py((*adc).clone())
+        });
+        r.method("klippy.extras.adc_scaled.PrinterADCScaled.vref_callback", |a| {
+            let s = a.this::<S>()?;
+            s.last_vref.set(s.calc_smooth(a.f64(0)?, a.f64(1)?, s.last_vref.get()));
+            Ok(py_none())
+        });
+        r.method("klippy.extras.adc_scaled.PrinterADCScaled.vssa_callback", |a| {
+            let s = a.this::<S>()?;
+            s.last_vssa.set(s.calc_smooth(a.f64(0)?, a.f64(1)?, s.last_vssa.get()));
+            Ok(py_none())
+        });
+    }
+    // SecondarySync's own fields (kaliru: ClockSync.secondary)
+    {
+        use crate::clocksync::{ClockSync, Secondary};
+        fn sec<R>(o: &PyRef, f: impl FnOnce(&Secondary) -> KResult<R>) -> KResult<R> {
+            match &objects::unwrap_as::<ClockSync>(o)?.secondary {
+                Some(s) => f(s),
+                None => Err(KError::Py("AttributeError".into(), "kaliru: not a SecondarySync".into())),
+            }
+        }
+        r.attr("klippy.clocksync.SecondarySync.main_sync", |o| sec(o, |s| objects::wrap(s.main_sync.clone())), None);
+        r.attr("klippy.clocksync.SecondarySync.clock_adj", |o| sec(o, |s| s.clock_adj.get().to_py()), Some(|o, v| {
+            sec(o, |s| {
+                s.clock_adj.set(FromPy::from_py(v)?);
+                Ok(())
+            })
+        }));
+        r.attr("klippy.clocksync.SecondarySync.last_sync_time", |o| sec(o, |s| Ok(py_float(s.last_sync_time.get()))), Some(|o, v| {
+            sec(o, |s| {
+                s.last_sync_time.set(v.as_f64()?);
+                Ok(())
+            })
+        }));
+    }
+    // servo: the pulse width conversions and _set_pwm
+    {
+        use crate::extras::servo::PrinterServo;
+        macro_rules! servo_value {
+            ($r:ident, $($name:ident),*) => {$(
+                $r.attr(concat!("klippy.extras.servo.PrinterServo.", stringify!($name)), |o| {
+                    Ok(py_float(objects::unwrap_as::<PrinterServo>(o)?.calc.$name))
+                }, None);
+            )*};
+        }
+        servo_value!(r, min_width, max_width, max_angle, angle_to_width, width_to_value);
+        // _set_pwm(print_time, value): None, or ("discard", 0.0)
+        r.method("klippy.extras.servo.PrinterServo._set_pwm", |a| {
+            use crate::extras::output_pin::Action;
+            match a.this::<PrinterServo>()?.set_pwm(a.f64(0)?, a.f64(1)?)? {
+                None => Ok(py_none()),
+                Some((action, wait)) => {
+                    let s = match action {
+                        Action::Discard => "discard",
+                        Action::Delay => "delay",
+                    };
+                    Ok(py_tuple(vec![py_str(s), py_float(wait)]))
+                }
+            }
+        });
+    }
     // trad_rack.fil_homing_lengths: {name: length} (kaliru keeps them in key order)
     r.attr("klippy.extras.trad_rack.TradRack.fil_homing_lengths", |o| {
         let tr = objects::unwrap_as::<crate::extras::trad_rack::TradRack>(o)?;

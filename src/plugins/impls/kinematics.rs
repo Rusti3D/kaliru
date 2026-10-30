@@ -230,6 +230,20 @@ pub fn register(r: &mut Registry) {
     kin_class!(r, "klippy.kinematics.delta.DeltaKinematics");
     kin_class!(r, "klippy.kinematics.deltesian.DeltesianKinematics");
     kin_class!(r, "klippy.kinematics.none.NoneKinematics");
+    // min_z: minimum_z_position as python read it (an int default stays int);
+    // axes_min's z keeps that value
+    fn coord_z(c: &crate::pyval::PyVal) -> KResult<PyRef> {
+        match c {
+            crate::pyval::PyVal::NamedTuple(_, _, v) => Ok(from_pyval(&v[2])),
+            _ => Err(KError::Other("kaliru: axes_min is not a Coord".into())),
+        }
+    }
+    r.attr("klippy.kinematics.delta.DeltaKinematics.min_z", |o| {
+        coord_z(&objects::unwrap_as::<crate::kinematics::delta::DeltaKinematics>(o)?.axes_min)
+    }, None);
+    r.attr("klippy.kinematics.rotary_delta.RotaryDeltaKinematics.min_z", |o| {
+        coord_z(&objects::unwrap_as::<crate::kinematics::rotary_delta::RotaryDeltaKinematics>(o)?.axes_min)
+    }, None);
     // Coord(0.0, 0.0, 0.0, 0.0) in Kalico, never changed
     r.attr("klippy.kinematics.none.NoneKinematics.axes_minmax", |o| {
         objects::unwrap_as::<crate::kinematics::none::NoneKinematics>(o)?;

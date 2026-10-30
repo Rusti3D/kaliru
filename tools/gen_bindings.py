@@ -616,7 +616,7 @@ ALIASES = {
     "klippy.extras.display.menu.MenuVSDList": ("klippy.extras.display.menu", "MenuItem"),
     "klippy.extras.display.menu.MenuDialog": ("klippy.extras.display.menu", "MenuItem"),
     "klippy.extras.display.menu.MenuFileBrowser": ("klippy.extras.display.menu", "MenuItem"),
-    "klippy.clocksync.SecondarySync": ("klippy.clocksync", "Secondary"),
+    "klippy.clocksync.SecondarySync": ("klippy.clocksync", "ClockSync"),
     "klippy.extras.z_tilt_ng.ZAdjustHelper": ("klippy.extras.z_tilt", "ZAdjustHelper"),
     "klippy.extras.z_tilt_ng.ZAdjustStatus": ("klippy.extras.z_tilt", "ZAdjustStatus"),
     "klippy.extras.z_tilt_ng.RetryHelper": ("klippy.extras.z_tilt", "RetryHelper"),

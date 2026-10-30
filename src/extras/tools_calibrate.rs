@@ -318,7 +318,7 @@ impl PrinterProbeMultiAxis {
         let printer = config.get_printer();
         let speed = config.getfloat("speed", 5.0, Lim::new().above(0.0))?;
         let lift_speed = config.getfloat("lift_speed", speed, Lim::new().above(0.0))?;
-        config.getfloat("max_travel", 4.0, Lim::new().above(0.0))?;
+        config.getfloat("max_travel", Dflt::from(PyVal::Int(4)), Lim::new().above(0.0))?;
         let gcode = printer.lookup::<GCodeDispatch>("gcode")?;
         printer.load_object(config, "gcode_move", true)?;
 

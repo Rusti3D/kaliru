@@ -1,8 +1,8 @@
 // klippy/msgproto.py: MessageParser. Its getters run as Kalico's own code
 // (tools/mirror_verbatim.txt) on these attributes.
-use super::mcu::{params_from_py, params_to_py};
+use super::mcu::{data_from_py, params_from_py, params_to_py};
 use super::*;
-use crate::msgproto::{MessageFormat, MessageParser, MsgFormat, OutputFormat};
+use crate::msgproto::{MessageFormat, MessageParser, MsgFormat, OutputFormat, Params};
 use crate::plugins::convert::{FromPy, ToPy};
 use crate::plugins::native::Args;
 
@@ -82,6 +82,28 @@ pub fn register(r: &mut Registry) {
     r.method("klippy.msgproto.MessageParser.format_params", |a| Ok(py_str(&this(a)?.format_params(&params_from_py(a.arg(0))?)?)));
     r.method("klippy.msgproto.MessageParser.parse", |a| params_to_py(&this(a)?.parse(&bytes_of(a.arg(0))?)?));
     r.method("klippy.msgproto.MessageParser.lookup_command", |a| objects::wrap(this(a)?.lookup_command(&a.string(0)?)?));
+    // the formats: encode(params) / encode_by_name(**params) -> [byte],
+    // parse(s, pos) -> (params, pos), format_params(params) -> str
+    fn parsed(r: crate::msgproto::Result<(Params, usize)>) -> KResult<PyRef> {
+        let (params, pos) = r?;
+        Ok(py_tuple(vec![params_to_py(&params)?, py_int(pos as i64)]))
+    }
+    r.method("klippy.msgproto.MessageFormat.encode", |a| {
+        let f = a.this::<MessageFormat>()?;
+        f.encode(&data_from_py(a.arg(0))?)?.to_py()
+    });
+    r.method("klippy.msgproto.MessageFormat.encode_by_name", |a| {
+        let f = a.this::<MessageFormat>()?;
+        f.encode_by_name(&params_from_py(a.arg(0))?)?.to_py()
+    });
+    r.method("klippy.msgproto.MessageFormat.parse", |a| parsed(a.this::<MessageFormat>()?.parse(&bytes_of(a.arg(0))?, a.arg(1).as_i64()? as usize)));
+    r.method("klippy.msgproto.MessageFormat.format_params", |a| {
+        Ok(py_str(&a.this::<MessageFormat>()?.format_params(&params_from_py(a.arg(0))?)?))
+    });
+    r.method("klippy.msgproto.OutputFormat.parse", |a| parsed(a.this::<OutputFormat>()?.parse(&bytes_of(a.arg(0))?, a.arg(1).as_i64()? as usize)));
+    r.method("klippy.msgproto.UnknownFormat.parse", |a| {
+        parsed(crate::msgproto::UnknownFormat.parse(&bytes_of(a.arg(0))?, a.arg(1).as_i64()? as usize))
+    });
     // create_command(msg): "" for an empty message, as python returns
     r.method("klippy.msgproto.MessageParser.create_command", |a| {
         let msg = a.string(0)?;

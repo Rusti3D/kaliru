@@ -31,7 +31,11 @@ pub fn register(_r: &mut Registry) {
     objects::register_class::<x::display_templates::DisplayTemplate>("klippy.extras.display.display", "DisplayTemplate");
     objects::register_class::<x::display_templates::DisplayGroup>("klippy.extras.display.display", "DisplayGroup");
     objects::register_class::<x::error_mcu::PrinterMcuError>("klippy.extras.error_mcu", "PrinterMCUError");
-    objects::register_class::<x::heated_fan::HeatedFanObject>("klippy.extras.heated_fan", "HeatedFan");
+    // the "fan" object of a [heated_fan]: python's is the HeatedFan itself
+    objects::register_redirect::<x::heated_fan::HeatedFanObject>(|a| {
+        let h: Rc<dyn Any> = a.downcast_ref::<x::heated_fan::HeatedFanObject>()?.get()?;
+        Some((h, std::any::type_name::<x::heated_fan::HeatedFan>()))
+    });
     objects::register_class::<x::mcp4018::Mcp4018>("klippy.extras.mcp4018", "mcp4018");
     objects::register_class::<x::mcp4451::Mcp4451>("klippy.extras.mcp4451", "mcp4451");
     objects::register_class::<x::mcp4728::Mcp4728>("klippy.extras.mcp4728", "mcp4728");
@@ -81,5 +85,9 @@ pub fn register(_r: &mut Registry) {
         }
     });
     objects::register_class::<x::mixing_extruder::MixingExtruder>("klippy.extras.mixing_extruder", "GradientMixingExtruder");
-    objects::register_class::<crate::clocksync::Secondary>("klippy.clocksync", "SecondarySync");
+    // a secondary mcu's ClockSync is Kalico's SecondarySync
+    objects::register_class_fn::<crate::clocksync::ClockSync>(|a| match a.downcast_ref::<crate::clocksync::ClockSync>() {
+        Some(c) if c.secondary.is_some() => ("klippy.clocksync", "SecondarySync"),
+        _ => ("klippy.clocksync", "ClockSync"),
+    });
 }

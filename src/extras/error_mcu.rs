@@ -91,7 +91,7 @@ pub type ClarifyCallback = Rc<dyn Fn(&str, &PyVal) -> Option<String>>;
 
 pub struct PrinterMcuError {
     pub printer: Rc<Printer>,
-    clarify_callbacks: RefCell<IndexMap<String, Vec<ClarifyCallback>>>,
+    pub clarify_callbacks: RefCell<IndexMap<String, Vec<ClarifyCallback>>>,
 }
 
 fn dict_str(details: &PyVal, key: &str) -> String {

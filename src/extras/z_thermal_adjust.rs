@@ -28,7 +28,10 @@ pub struct ZThermalAdjuster {
     pub temp_coeff: Cell<f64>,
     pub off_above_z: f64,
     pub max_z_adjust_mm: f64,
+    pub smooth_time: f64,
     pub inv_smooth_time: f64,
+    pub min_temp: f64,
+    pub max_temp: f64,
     pub sensor: Rc<dyn TempSensor>,
     pub last_temp: Cell<f64>,
     pub measured_min: Cell<f64>,
@@ -52,7 +55,7 @@ impl ZThermalAdjuster {
         let gcode = printer.lookup::<GCodeDispatch>("gcode")?;
 
         // Get config parameters, convert to SI units where necessary
-        let temp_coeff = config.getfloat("temp_coeff", 0.0, Lim::new().min(-1.0).max(1.0))?;
+        let temp_coeff = config.getfloat("temp_coeff", Dflt::from(PyVal::Int(0)), Lim::new().min(-1.0).max(1.0))?;
         let off_above_z = config.getfloat("z_adjust_off_above", 99999999.0, Lim::new())?;
         let max_z_adjust_mm = config.getfloat("max_z_adjustment", 99999999.0, Lim::new())?;
 
@@ -102,7 +105,10 @@ impl ZThermalAdjuster {
             temp_coeff: Cell::new(temp_coeff),
             off_above_z,
             max_z_adjust_mm,
+            smooth_time,
             inv_smooth_time: 1.0 / smooth_time,
+            min_temp,
+            max_temp,
             sensor,
             last_temp: Cell::new(0.0),
             measured_min: Cell::new(0.0),

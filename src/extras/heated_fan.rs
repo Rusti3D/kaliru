@@ -179,7 +179,7 @@ impl HeatedFan {
 pub(crate) struct HeatedFanObject(Rc<RefCell<Weak<HeatedFan>>>, RefCell<Option<Rc<HeatedFan>>>);
 
 impl HeatedFanObject {
-    fn get(&self) -> Option<Rc<HeatedFan>> {
+    pub(crate) fn get(&self) -> Option<Rc<HeatedFan>> {
         self.0.borrow().upgrade()
     }
 }

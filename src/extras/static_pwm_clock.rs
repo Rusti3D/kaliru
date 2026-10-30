@@ -4,6 +4,7 @@
 //
 // This file may be distributed under the terms of the GNU GPLv3 license.
 use crate::configfile::{ConfigWrapper, Dflt, Lim};
+use crate::pyval::PyVal;
 use crate::error::{KError, KResult};
 use crate::extras::bus::pin_mcu;
 use crate::logging;
@@ -56,7 +57,7 @@ pub fn load_config_prefix(config: &ConfigWrapper) -> KResult<PObj> {
     let mcu_pin = ppins.0.borrow_mut().lookup_pin(&desc, true, false, None).map_err(|e| KError::Pins(e.0))?;
     let mcu = pin_mcu(config, &mcu_pin)?;
     let (pin, invert) = (mcu_pin.borrow().pin.clone(), mcu_pin.borrow().invert != 0);
-    let frequency = config.getfloat("frequency", 100.0, Lim::new().above(1.0 / 0.3).max(520000000.0))?;
+    let frequency = config.getfloat("frequency", Dflt::from(PyVal::Int(100)), Lim::new().above(1.0 / 0.3).max(520000000.0))?;
     let p = Rc::new(PrinterClockOutputPin { name: config.get_name().to_string(), mcu: mcu.clone(), pin, invert, frequency });
     let pp = p.clone();
     mcu.register_config_callback(Rc::new(move || pp.build_config()));

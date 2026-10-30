@@ -825,16 +825,16 @@ pub struct GCodeIO {
     pub printer: Rc<Printer>,
     pub gcode: Rc<GCodeDispatch>,
     pub gcode_mutex: Rc<ReactorMutex>,
-    fd: RawFd,
+    pub fd: RawFd,
     pub is_printer_ready: Cell<bool>,
     pub is_processing_data: Cell<bool>,
     pub is_fileinput: bool,
     pub pipe_is_active: Cell<bool>,
-    fd_handle: RefCell<Option<FileHandler>>,
+    pub fd_handle: RefCell<Option<FileHandler>>,
     pub partial_input: RefCell<String>,
     pub pending_commands: RefCell<Vec<String>>,
     pub bytes_read: Cell<usize>,
-    input_log: RefCell<VecDeque<(f64, String)>>,
+    pub input_log: RefCell<VecDeque<(f64, String)>>,
 }
 
 impl PrinterObject for GCodeIO {

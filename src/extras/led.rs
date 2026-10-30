@@ -32,10 +32,10 @@ pub struct LEDHelper {
     me: Weak<LEDHelper>,
     pub printer: Rc<Printer>,
     pub mutex: Rc<ReactorMutex>,
-    update_func: UpdateFunc,
+    pub update_func: UpdateFunc,
     pub led_count: i64,
     pub need_transmit: Cell<bool>,
-    led_state: RefCell<Vec<Color>>,
+    pub led_state: RefCell<Vec<Color>>,
     pub template_eval: Rc<PrinterTemplateEvaluator>,
     tcallbacks: RefCell<Vec<TemplateCallback>>,
     check_transmit_cb: RefCell<Option<TemplateFlush>>,
@@ -272,10 +272,10 @@ pub fn led_helper_of(obj: &crate::printer::PObj) -> Option<Rc<LEDHelper>> {
 
 pub struct PrinterPWMLED {
     pub printer: Rc<Printer>,
-    pins: Vec<(usize, Rc<dyn PwmPin>)>,
+    pub pins: Vec<(usize, Rc<dyn PwmPin>)>,
     pub last_print_time: Cell<f64>,
     pub(crate) led_helper: RefCell<Option<Rc<LEDHelper>>>,
-    prev_color: RefCell<Color>,
+    pub prev_color: RefCell<Color>,
 }
 
 impl PrinterPWMLED {

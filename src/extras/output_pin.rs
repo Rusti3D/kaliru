@@ -418,15 +418,16 @@ pub const MAX_SCHEDULE_TIME: f64 = 5.0;
 
 const CMD_SET_PIN_HELP: &str = "Set the value of an output pin";
 
-enum OutPin {
+pub enum OutPin {
     Pwm(Rc<dyn PwmPin>),
     Digital(Rc<dyn DigitalOutPin>),
 }
 
 pub struct PrinterOutputPin {
     pub is_pwm: bool,
-    mcu_pin: OutPin,
+    pub mcu_pin: OutPin,
     pub scale: f64,
+    pub shutdown_value: f64,
     pub last_value: Cell<f64>,
     pub gcrq: RefCell<Option<Rc<GCodeRequestQueue>>>,
     pub template_eval: RefCell<Option<Rc<PrinterTemplateEvaluator>>>,
@@ -464,6 +465,7 @@ impl PrinterOutputPin {
             is_pwm,
             mcu_pin,
             scale,
+            shutdown_value,
             last_value: Cell::new(last_value),
             gcrq: RefCell::new(None),
             template_eval: RefCell::new(None),
