@@ -8,6 +8,7 @@ pub mod ads1220;
 pub mod ads131m0x;
 pub mod cs1237;
 pub mod hx71x;
+pub mod hx711s;
 #[allow(clippy::module_inception)]
 pub mod load_cell;
 pub mod load_cell_probe;
@@ -46,7 +47,7 @@ pub trait BulkAdcSensor {
 pub type SensorFactory = fn(&ConfigWrapper) -> KResult<Rc<dyn BulkAdcSensor>>;
 
 /// the sensors that implement BulkAdcSensor, in python's dict union order
-pub fn sensor_types() -> [(&'static str, SensorFactory); 6] {
+pub fn sensor_types() -> [(&'static str, SensorFactory); 8] {
     [
         ("hx711", hx71x::new_hx711),
         ("hx717", hx71x::new_hx717),
@@ -54,6 +55,8 @@ pub fn sensor_types() -> [(&'static str, SensorFactory); 6] {
         ("ads131m02", ads131m0x::new_ads131m02),
         ("ads131m04", ads131m0x::new_ads131m04),
         ("cs1237", cs1237::new_cs1237),
+        ("hx711s", hx711s::new_hx711s),
+        ("hx717s", hx711s::new_hx717s),
     ]
 }
 
